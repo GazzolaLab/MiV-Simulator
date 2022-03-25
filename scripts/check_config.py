@@ -8,8 +8,8 @@ from mpi4py import MPI
 import h5py
 import numpy as np
 from neuroh5.io import append_cell_attributes, read_population_ranges
-from biophys_microcircuit.env import Env
-from biophys_microcircuit.utils import get_script_logger, config_logging, list_find, viewitems
+from MiV.env import Env
+from MiV.utils import get_script_logger, config_logging, list_find, viewitems
 
 script_name = os.path.basename(__file__)
 logger = get_script_logger(script_name)

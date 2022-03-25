@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 import click
-from biophys_microcircuit import plot, utils
+from MiV import plot, utils
 from mpi4py import MPI
 
 

@@ -1,6 +1,6 @@
 import sys, os
 import click
-from biophys_microcircuit import plot
+from MiV import plot
 from neuroh5.io import read_population_ranges, read_tree_selection
 
 script_name = os.path.basename(__file__)

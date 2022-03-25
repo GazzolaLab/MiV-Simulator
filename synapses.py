@@ -5,12 +5,12 @@ import numpy as np
 import scipy
 import scipy.optimize as opt
 from neuroh5.io import write_cell_attributes
-from biophys_microcircuit.neuron_utils import default_ordered_sec_types, interplocs
-from biophys_microcircuit.cells import make_section_graph
-from biophys_microcircuit.utils import ExprClosure, Promise, NamedTupleWithDocstring, get_module_logger, generator_ifempty, map, range, str, \
+from MiV.neuron_utils import default_ordered_sec_types, interplocs
+from MiV.cells import make_section_graph
+from MiV.utils import ExprClosure, Promise, NamedTupleWithDocstring, get_module_logger, generator_ifempty, map, range, str, \
      viewitems, viewkeys, zip, zip_longest, partitionn, rejection_sampling
 
-# This logger will inherit its settings from the root logger, created in dentate.env
+# This logger will inherit its settings from the root logger, created in env
 logger = get_module_logger(__name__)
 
 def get_node_attribute(name, content, sec, secnodes, x=None):

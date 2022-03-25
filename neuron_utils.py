@@ -5,11 +5,11 @@ try:
     from mpi4py import MPI  # Must come before importing NEURON
 except Exception:
     pass
-from dentate.utils import get_module_logger
+from MiV.utils import get_module_logger
 from neuron import h
 from scipy import interpolate
 
-# This logger will inherit its settings from the root logger, created in biophys_microcircuit.env
+# This logger will inherit its settings from the root logger, created in MiV.env
 logger = get_module_logger(__name__)
 
 
@@ -83,7 +83,7 @@ def load_cell_template(env, pop_name, bcast_template=False):
         return env.template_dict[pop_name]
     rank = env.comm.Get_rank()
     if not (pop_name in env.celltypes):
-        raise KeyError('load_cell_templates: unrecognized cell population: %s' % pop_name)
+        raise KeyError(f'load_cell_templates: unrecognized cell population: {pop_name}')
     
     template_name = env.celltypes[pop_name]['template']
     if 'template file' in env.celltypes[pop_name]:

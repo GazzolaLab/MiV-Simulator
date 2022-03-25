@@ -11,10 +11,10 @@ Connection Generator: !include Microcircuit_Connections.yaml
 Analysis: !include Analysis_Configuration.yaml
 ## Cell types for dentate gyrus model
 Cell Types:
-  PC:
+  PYR:
     template: PoolosPyramidalCell
     synapses:
-      density: !include PC_synapse_density.yaml
+      density: !include PYR_synapse_density.yaml
   FBIN:
     template: OLMCell
     synapses:
@@ -23,5 +23,3 @@ Cell Types:
     template: PVBasketCell
     synapses:
       density: !include PVBC_synapse_density.yaml
-  EC:
-    template: VecStim

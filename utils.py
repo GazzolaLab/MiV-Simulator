@@ -271,7 +271,7 @@ def config_logging(verbose):
 
 
 def get_root_logger():
-    logger = logging.getLogger('biophys_microcircuit')
+    logger = logging.getLogger('MiV')
     return logger
 
 
@@ -281,11 +281,11 @@ def get_module_logger(name):
 
 
 def get_script_logger(name):
-    logger = logging.getLogger('biophys_microcircuit.%s' % name)
+    logger = logging.getLogger('MiV.%s' % name)
     return logger
 
 
-# This logger will inherit its settings from the root logger, created in biophys_microcircuit.env
+# This logger will inherit its settings from the root logger, created in MiV.env
 logger = get_module_logger(__name__)
 
 

@@ -1,10 +1,10 @@
 
 import os, sys, click
-from biophys_microcircuit import env, plot, utils, cells, neuron_utils
-from biophys_microcircuit.neuron_utils import h, configure_hoc_env
-from biophys_microcircuit.env import Env
-from biophys_microcircuit.cells import make_biophys_cell
-from biophys_microcircuit.synapses import init_syn_mech_attrs, config_biophys_cell_syns
+from MiV import env, plot, utils, cells, neuron_utils
+from MiV.neuron_utils import h, configure_hoc_env
+from MiV.env import Env
+from MiV.cells import make_biophys_cell
+from MiV.synapses import init_syn_mech_attrs, config_biophys_cell_syns
 from mpi4py import MPI
 
 script_name = os.path.basename(__file__)

@@ -1,8 +1,8 @@
 
 import os, sys, gc
 import click
-import biophys_microcircuit
-from biophys_microcircuit import plot, utils
+import MiV
+from MiV import plot, utils
 
 script_name = os.path.basename(__file__)
 

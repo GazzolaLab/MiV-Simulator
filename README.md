@@ -38,15 +38,15 @@ CMAKE_BUILD_PARALLEL_LEVEL=8 pip install .
 5. Fetching source code
 
 ```
-# Main dentate repository
-git clone https://github.com/soltesz-lab/dentate.git
+# Main MiV repository
+git clone https://github.com/GazzolaLab/MiV.git
 
 ```
 
 # Running the main network simulation script
 
 ```
-export PYTHONPATH=$PWD;$PYTHONPATH # Must include directory containing dentate repository
+export PYTHONPATH=$PWD;$PYTHONPATH # Must include directory containing MiV repository
 
 
 results_path=./results
@@ -54,7 +54,7 @@ export results_path
 
 mkdir -p $results_path
 
-cd dentate
+cd MiV
 mpirun python ./scripts/main.py \ # Main network simulation script
     --config-file=Test_Slice_10um.yaml  \ # Configuration file
     --arena-id=A --trajectory-id=Diag \ # Arena and trajectory identifier for simulated spatial input
@@ -72,74 +72,35 @@ mpirun python ./scripts/main.py \ # Main network simulation script
 
 # Example Configuration
 
-## File Test_Slice_10um.yaml
+## File Test_Microcircuit.yaml
 
 ```YAML
-## Sample Model configuration of dentate gyrus network
-Model Name: dentatenet
-Dataset Name: Slice
+## Sample Model configuration of MiV network
+Model Name: MiV
+Dataset Name: Microcircuit
 Definitions: !include Definitions.yaml
 Global Parameters: !include Global.yaml
 Geometry: !include Geometry.yaml
 Random Seeds: !include Random.yaml
-Cell Data: DG_Test_Slice_10um_20200628.h5
-Connection Data: DG_Test_Slice_10um_20200628.h5
-#Gap Junction Data: DG_gapjunctions_20181228.h5
-Connection Generator: !include Full_Scale_Connections_GC_Exc_Sat_DD.yaml
+Cell Data: Test_Microcircuit.h5
+Connection Data: Test_Microcircuit.h5
+Connection Generator: !include Microcircuit_Connections.yaml
 Stimulus: !include Input_Configuration.yaml
-## Cell types for dentate gyrus model
+## Cell types for MiV model
 Cell Types:
-  GC:
+  PYR:
     template: DGC
     template file: DGC_Template_minimal.hoc
     mechanism file: 20200219_DG_GC_excitability_synint_combined_gid_0_mech.yaml
     synapses:
       correct_for_spines: True
       density: !include GC_synapse_density.yaml
-  MC:
-    template: MossyCell
-    synapses:
-      density: !include MC_synapse_density.yaml
-  HC:
-    template: HIPPCell
-    synapses:
-      density: !include HC_synapse_density.yaml
-  BC:
+  PVBC:
     template: BasketCell
     synapses:
       density: !include BC_synapse_density.yaml
-  AAC:
-    template: AxoAxonicCell
-    synapses:
-      density: !include AAC_synapse_density.yaml
-  HCC:
-    template: HICAPCell
-    synapses: 
-      density: !include HCC_synapse_density.yaml
-  NGFC:
-    template: NGFCell
-    synapses:
-      density: !include NGFC_synapse_density.yaml
-  MOPP:
-    template: MOPPCell
-    synapses:
-      density: !include NGFC_synapse_density.yaml
-  IS:
-    template: ISCell
-    synapses:
-      density: !include IS_synapse_density.yaml
-  MPP:
+  EC:
     template: MPPCell
-    spike train:
-      namespace: Input Spikes
-      attribute: Spike Train
-  LPP:
-    template: LPPCell
-    spike train:
-      namespace: Input Spikes
-      attribute: Spike Train
-  CA3c:
-    template: CA3Cell
     spike train:
       namespace: Input Spikes
       attribute: Spike Train

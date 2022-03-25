@@ -1,4 +1,4 @@
-# Common definitions used in model configuration of CA1 and dentate gyrus network
+# Common definitions used in model configuration of neuron and network models
 SWC Types:
   soma:   1
   axon:   2
@@ -18,21 +18,15 @@ Synapse Mechanisms:
   GABA_B:  2
   NMDA:    30
 Layers:
-  Hilus: 0
-  GCL:   1  ## Granule cell
-  IML:   2  ## Inner molecular
-  MML:   3  ## Middle molecular
-  OML:   4  ## Outer molecular
-  SO:    5  ## Oriens
-  SP:    6  ## Pyramidale
-  SL:    7  ## Lucidum
-  SR:    8  ## Radiatum
-  SLM:   9  ## Lacunosum-moleculare
+  SO:    0  ## Oriens
+  SP:    1  ## Pyramidale
+  SL:    2  ## Lucidum
+  SR:    3  ## Radiatum
+  SLM:   4  ## Lacunosum-moleculare
 Populations:
   PYR:  100
   PVBC:  101
-  OLM:   102
-  EC:    103
+  OLM:  102
 Input Selectivity Types:
   random: 0
   ripple: 1

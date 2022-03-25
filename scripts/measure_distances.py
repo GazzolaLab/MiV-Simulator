@@ -3,12 +3,12 @@ import os, sys, gc, logging, pickle, base64
 from mpi4py import MPI
 import numpy as np
 import click
-import biophys_microcircuit
-import biophys_microcircuit.utils as utils
-from biophys_microcircuit.env import Env
 from neural_geometry.geometry import measure_distances, make_distance_interpolant
-from biophys_microcircuit.utils import viewitems
-from biophys_microcircuit.BIOPHYS_MICROCIRCUIT_volume import make_BIOPHYS_MICROCIRCUIT_volume, BIOPHYS_MICROCIRCUIT_volume, BIOPHYS_MICROCIRCUIT_volume_transform
+import MiV
+import MiV.utils as utils
+from MiV.env import Env
+from MiV.utils import viewitems
+from MiV.MIV_volume import make_MIV_volume, MIV_volume, MIV_volume_transform
 from neuroh5.io import append_cell_attributes, bcast_cell_attributes, read_population_names, read_population_ranges
 import h5py
 

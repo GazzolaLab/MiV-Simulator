@@ -4,10 +4,10 @@ import gc, math, time, pprint
 from collections import defaultdict
 import numpy as np
 from scipy.stats import norm
-from biophys_microcircuit.utils import get_module_logger, list_find_all, random_choice_w_replacement, random_clustered_shuffle, range, str, zip, viewitems
+from MiV.utils import get_module_logger, list_find_all, random_choice_w_replacement, random_clustered_shuffle, range, str, zip, viewitems
 from neuroh5.io import NeuroH5CellAttrGen, append_graph
 
-## This logger will inherit its setting from its root logger, dentate,
+## This logger will inherit its setting from its root logger, 
 ## which is created in module env
 logger = get_module_logger(__name__)
 

@@ -1,7 +1,7 @@
 import os, sys
 import click
-from biophys_microcircuit import env, utils, io_utils
-from biophys_microcircuit.env import Env
+from MiV import env, utils, io_utils
+from MiV.env import Env
 import numpy as np
 
 @click.command()

@@ -2,8 +2,8 @@ import sys, math, copy
 from collections import defaultdict
 import numpy as np
 from neuroh5.io import scatter_read_cell_attributes, read_cell_attributes, read_population_names, read_population_ranges, write_cell_attributes
-import biophys_microcircuit
-from biophys_microcircuit.utils import get_module_logger, viewitems, zip, Struct, get_trial_time_ranges, baks
+import MiV
+from MiV.utils import get_module_logger, viewitems, zip, Struct, get_trial_time_ranges, baks
 
 ## This logger will inherit its setting from its root logger
 ## which is created in module env

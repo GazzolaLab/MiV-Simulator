@@ -7,12 +7,12 @@ import click
 from mpi4py import MPI
 import h5py
 import numpy as np
-import biophys_microcircuit
-import biophys_microcircuit.utils as utils
-from biophys_microcircuit.connection_generator import ConnectionProb, generate_uv_distance_connections
-from biophys_microcircuit.env import Env
+import MiV
+import MiV.utils as utils
+from MiV.connection_generator import ConnectionProb, generate_uv_distance_connections
+from MiV.env import Env
+from MiV.neuron_utils import configure_hoc_env
 from neural_geometry.geometry import make_distance_interpolant, measure_distances
-from biophys_microcircuit.neuron_utils import configure_hoc_env
 from neuroh5.io import read_cell_attributes, read_population_names, read_population_ranges
 
 sys_excepthook = sys.excepthook

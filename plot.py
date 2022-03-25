@@ -16,14 +16,14 @@ from matplotlib.colors import BoundaryNorm
 from matplotlib.offsetbox import AnchoredText
 from matplotlib.ticker import FormatStrFormatter, MaxNLocator
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-import biophys_microcircuit
-from biophys_microcircuit.env import Env
-from biophys_microcircuit.utils import get_module_logger, Struct, viewitems, make_geometric_graph, zip_longest, apply_filter, butter_bandpass_filter, signal_psd, signal_power_spectrogram
-from biophys_microcircuit.io_utils import get_h5py_attr, set_h5py_attr
-from biophys_microcircuit.neuron_utils import interplocs, h
-from biophys_microcircuit import spikedata, cells, synapses
+import MiV
+from MiV.env import Env
+from MiV.utils import get_module_logger, Struct, viewitems, make_geometric_graph, zip_longest, apply_filter, butter_bandpass_filter, signal_psd, signal_power_spectrogram
+from MiV.io_utils import get_h5py_attr, set_h5py_attr
+from MiV.neuron_utils import interplocs, h
+from MiV import spikedata, cells, synapses
 
-# This logger will inherit its settings from the root logger, created in biophys_microcircuit.env
+# This logger will inherit its settings from the root logger, created in MiV.env
 logger = get_module_logger(__name__)
 
 # Default figure configuration
@@ -36,7 +36,7 @@ dflt_colors = ["#009BFF", "#E85EBE", "#00FF00", "#0000FF", "#FF0000", "#01FFFE",
               "#90FB92", "#0076FF", "#D5FF00", "#FF937E", "#6A826C", "#FF029D", "#FE8900", "#7A4782",
               "#7E2DD2", "#85A900", "#FF0056", "#A42400", "#00AE7E", "#683D3B", "#BDC6FF", "#263400",
               "#BDD393", "#00B917", "#9E008E", "#001544", "#C28C9F", "#FF74A3", "#01D0FF", "#004754",
-              "#E56FFE", "#788231", "#0E4BIOPHYS_MICROCIRCUIT", "#91D0CB", "#BE9970", "#968AE8", "#BB8800", "#43002C",
+              "#E56FFE", "#788231", "#0E4MIV", "#91D0CB", "#BE9970", "#968AE8", "#BB8800", "#43002C",
               "#DEFF74", "#00FFC6", "#FFE502", "#620E00", "#008F9C", "#98FF52", "#7544B1", "#B500FF",
               "#00FF78", "#FF6E41", "#005F39", "#6B6882", "#5FAD4E", "#A75740", "#A5FFD2", "#FFB167"]
 
@@ -336,16 +336,16 @@ def plot_coords_in_volume(populations, coords_path, coords_namespace, config, sc
         ax.scatter(*pts.T, c=colors, s=int(scale))
         
     logger.info('Constructing volume...')
-    from biophys_microcircuit.BIOPHYS_MICROCIRCUIT_volume import make_BIOPHYS_MICROCIRCUIT_volume
+    from MiV.MIV_volume import make_MIV_volume
 
     if subvol:
-        subvol = make_BIOPHYS_MICROCIRCUIT_volume ((pop_min_extent[0], pop_max_extent[0]), \
+        subvol = make_MIV_volume ((pop_min_extent[0], pop_max_extent[0]), \
                                 (pop_min_extent[1], pop_max_extent[1]), \
                                 (pop_min_extent[2], pop_max_extent[2]), \
                                 resolution=[3, 3, 3], \
                                 rotate=rotate)
     else:
-        vol = make_BIOPHYS_MICROCIRCUIT_volume ((extent_u[0], extent_u[1]),
+        vol = make_MIV_volume ((extent_u[0], extent_u[1]),
                             (extent_v[0], extent_v[1]),
                             (extent_l[0], extent_l[1]),
                             resolution=[3, 3, 3],
@@ -586,7 +586,7 @@ def plot_spike_raster (input_path, namespace_id, include = ['eachPop'], time_ran
     elif spike_hist == 'subplot':
         fig, axes = plt.subplots(nrows=len(spkpoplst)+1, sharex=True, figsize=fig_options.figSize,
                                  gridspec_kw={'height_ratios': [1]*len(spkpoplst) + [2]})
-    fig.suptitle ('BIOPHYS_MICROCIRCUIT Spike Raster', fontsize=fig_options.fontSize)
+    fig.suptitle ('MIV Spike Raster', fontsize=fig_options.fontSize)
 
     sctplots = []
     
@@ -994,7 +994,7 @@ def plot_lfp(input_path, config_path=None, time_range = None, compute_psd=False,
             if isinstance(fig_options.saveFig, str):
                 filename = fig_options.saveFig
             else:
-                filename = f'BIOPHYS_MICROCIRCUIT LFP.{fig_options.figFormat}'
+                filename = f'MIV LFP.{fig_options.figFormat}'
                 plt.savefig(filename)
                 
         # show fig

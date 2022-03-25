@@ -4,12 +4,12 @@ from neuroh5.io import NeuroH5TreeGen, append_cell_attributes, read_population_r
 import click
 from collections import defaultdict
 import numpy as np
-import biophys_microcircuit
-from biophys_microcircuit import cells, neuron_utils, synapses, utils
-from biophys_microcircuit.env import Env
-from biophys_microcircuit.neuron_utils import configure_hoc_env
-from biophys_microcircuit.cells import load_cell_template, make_section_graph
-from biophys_microcircuit.utils import *
+import MiV
+from MiV import cells, neuron_utils, synapses, utils
+from MiV.env import Env
+from MiV.neuron_utils import configure_hoc_env
+from MiV.cells import load_cell_template, make_section_graph
+from MiV.utils import viewitems
 import h5py
 
 sys_excepthook = sys.excepthook
