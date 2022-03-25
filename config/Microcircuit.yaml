@@ -1,0 +1,27 @@
+## Model configuration of microcircuit network
+Model Name: Microcircuit_Basis
+Dataset Name: Microcircuit_Basis
+Definitions: !include Definitions.yaml
+Global Parameters: !include Global.yaml
+Geometry: !include Geometry.yaml
+Random Seeds: !include Random.yaml
+Connection Generator: !include Microcircuit_Connections.yaml
+#Recording: !include Recording.yaml
+#Stimulus: !include Input_Configuration.yaml
+Analysis: !include Analysis_Configuration.yaml
+## Cell types for dentate gyrus model
+Cell Types:
+  PC:
+    template: PoolosPyramidalCell
+    synapses:
+      density: !include PC_synapse_density.yaml
+  FBIN:
+    template: OLMCell
+    synapses:
+      density: !include OLM_synapse_density.yaml
+  FFIN:
+    template: PVBasketCell
+    synapses:
+      density: !include PVBC_synapse_density.yaml
+  EC:
+    template: VecStim

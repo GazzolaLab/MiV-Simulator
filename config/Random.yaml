@@ -1,0 +1,17 @@
+## Random seeds used in model configuration of dentate gyrus network
+Synapse Locations:                        0 ## Distributing synapse locations
+Connectivity Clustering:             1.5e+6 ## Clustering of connections from same source
+Distance-Dependent Connectivity:     2.0e+6 ## Generating distance-dependent connectivity
+Input Selectivity:                   4.0e+6 ## Generating stimulus and proxy input cell selectivity features
+Input Remap:                         5.0e+6 ## Remapping of stimulus input cells
+Random Connectivity:                 6.0e+6 ## Computing random connectivity (not distance-dependent)
+Normal Weights:                     15.0e+6 ## Normal weights
+Synaptic Integration Optimization:  14.0e+6 ## Choosing synapses and branches for optimization of synaptic integration in GCs.
+EPSC Attenuation Optimization:      16.0e+6 ## Choosing branches for optimization of EPSC attenuation in GCs.
+Synapse Projection Partitions:      18.0e+6 ## Partitioning synapse locations by projection
+Intracellular Recording Sample:     24.0e+6 ## Selecting cells to sample intracellular quantities from
+Local Field Potential:              30.0e+6 ## Selecting cells to sample extracellular voltage from
+Input Spiketrains:                  50.0e+6 ## Spike trains of stimulus and proxy input cells
+Soma Locations:                     60.0e+6 ## Soma locations
+Gap Junctions:                      70.0e+6 ## Soma locations
+

@@ -1,0 +1,98 @@
+SatExp2Syn:
+    mech_file: sat_exp2syn.mod
+    mech_params:
+      - sat
+      - dur_onset
+      - tau_offset
+      - e
+    netcon_params:
+      weight: 0
+      g_unit: 1
+    netcon_state:
+      onset: 2
+      count: 3
+      g0: 4
+      t0: 5
+FacilExp2Syn:
+    mech_file: facil_exp2syn.mod
+    mech_params:
+      - sat
+      - dur_onset
+      - tau_offset
+      - e
+      - f_inc
+      - f_max
+      - f_tau
+    netcon_params:
+      weight: 0
+      g_unit: 1
+    netcon_state:
+      onset: 2
+      count: 3
+      g0: 4
+      f0: 5
+      f1: 6
+      t0: 7
+FacilNMDA:
+    mech_file: facil_NMDA.mod
+    mech_params:
+      - sat
+      - dur_onset
+      - tau_offset
+      - e
+      - f_inc
+      - f_max
+      - f_tau
+      - mg
+      - Kd
+      - gamma
+      - vshift
+    netcon_params:
+      weight: 0
+      g_unit: 1
+    netcon_state:
+      onset: 2
+      count: 3
+      g0: 4
+      f0: 5
+      f1: 6
+      t0: 7
+Exp2Syn:
+    mech_file: exp2syn.mod
+    mech_params:
+      - tau1
+      - tau2
+      - e
+    netcon_params:
+      weight: 0
+    netcon_state: {}
+LinExp2Syn:
+    mech_file: lin_exp2syn.mod
+    mech_params:
+      - tau_rise
+      - tau_offset
+      - e
+    netcon_params:
+      weight: 0
+      g_unit: 1
+    netcon_state: {}
+EPSC:
+    mech_file: exp2EPSC.mod
+    mech_params:
+      - tau_rise
+      - tau_decay
+      - i_unit
+    netcon_params:
+      weight: 0
+AMPA_KIN:
+    mech_file: ampa_kin.mod
+    mech_params:
+      - gmax
+    netcon_params:
+      weight: 0
+NMDA_KIN5:
+    mech_file: nmda_kin5.mod
+    mech_params:
+      - gmax
+    netcon_params:
+      weight: 0

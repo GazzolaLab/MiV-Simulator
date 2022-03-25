@@ -1,0 +1,39 @@
+# Placing no constraints: OLM, NGFC (Wadiche-Overstreet, McBain. Nat Rev Neuro 2017), BS (Maccaferri J Physio 2000), IVY, IS
+Parametric Surface:
+  Origin:
+    U: median
+    V: median
+    L: max
+  Layer Extents:
+    SO:  [[0.0,0.0,0.0], [6000.0,2500.0,100.0]] 
+    SP:  [[0.0,0.0,100.0],[6000.0,2500.0,150.0]]
+    SR:  [[0.0,0.0,150.0], [6000.0,2500.0,350.0]]
+    SLM: [[0.0, 0.0,350.0], [6000.0, 2500.0, 450.0]]
+  Rotation: [0.0, 0.0, 0.0]
+Cell Constraints:
+  PC:
+    SP: [100., 120.] # Lee, ..., Soltesz. Neuron 2014
+  PVBC:
+    SR: [150., 200.0] # Booker, Vida. Cell & Tissue Research 2018
+    
+Cell Distribution:
+  PYR:
+    SO:  0
+    SP:  1000
+    SR:  0
+    SLM: 0
+  PVBC: #5530
+    SO:  132
+    SP:  388
+    SR:  33
+    SLM: 0
+  OLM: #1640
+    SO:  1640
+    SP:  0
+    SR:  0
+    SLM: 0
+  EC:
+    SO:  0
+    SP:  0
+    SR:  0
+    SLM: 2500
