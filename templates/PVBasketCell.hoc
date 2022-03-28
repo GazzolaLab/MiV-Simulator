@@ -1,0 +1,356 @@
+begintemplate PVBasketCell
+public init
+public mechinit, insert_mechs, set_biophys, get_root
+public pre_list, connect_pre, is_art, is_connected, gid
+public sections, all, basal_list, apical_list, soma_list, axon_list, dendrite_list, ais_list, hillock_list
+public x, y, z, position
+public dendidx, apicalidx, basalidx, somaidx, axonidx, aisidx, hilidx
+
+
+// strings
+strdef myroot
+
+// objects
+objref syn, pre_list, templist, rootlist, this
+objref dendidx, apicalidx, basalidx, somaidx, axonidx, aisidx, hilidx
+objref pyenv
+
+create sections[1]
+
+proc assert() { local test strdef errmsg
+    
+    test = $1
+    errmsg = $s2
+    
+    if (!test) {
+        execerror ("Assertion failed: ", errmsg)
+    }
+}
+
+
+iterator pyitr() {local i, k, x, n, sz localobj itr1, itrn
+    sz = $1
+    n = (numarg()-1) / 2
+    i = 1+n+1
+    itr1 = $oi
+    
+    for k = 0, sz-1 {
+        for x = 1, n {
+            i = 1+n+x
+            itrn = $oi
+            i = 1+x
+            $&i = itrn.__next__()
+        }
+        iterator_statement
+    }
+}
+
+proc init() {
+	gid = $1
+        
+        apicalidx = new Vector()
+        basalidx = new Vector()
+        somaidx = new Vector()
+        dendidx = new Vector()
+        axonidx = new Vector()
+        aisidx = new Vector()
+        hilidx = new Vector()
+        
+        pyenv = new PythonObject()
+    	nrnpython("import numpy as np")
+        
+        shape_from_python($o2,$o7,$o8,$o9,$o10)
+        topol_from_python($o2,$o3,$o4,$o5,$o6,$o11)
+
+	define_shape()		// builtin fcn: fill in 3d info for sections defined by only L and diam, translate 3d points for consistency with their connections 
+            
+  	append_sections()	// local fcn: append all sections to the section list
+	set_nseg()			// local fcn: set the number of segments in each section
+	get_root()			// local fcn: perform morphology checks
+
+	// electrophysiology
+	mechinit()			// local fcn: set values for max conductances and reversal potentials of ion channels and other ephys parameters that are subject to fitting
+	insert_mechs()		// local fcn: insert ion channels and actually set values determined in the mechinit fcn
+	set_chanparams()	// local fcn: after all channels have been inserted, then their other parameters can be set	
+}
+
+objref all, basal_list, apical_list, dendrite_list, soma_list, axon_list, ais_list, hillock_list
+proc append_sections() { local i
+	objref all, basal_list, apical_list, dendrite_list, soma_list, axon_list
+
+	all = new SectionList()
+	basal_list = new SectionList()
+	apical_list = new SectionList()
+	soma_list = new SectionList()
+	axon_list = new SectionList()
+	ais_list = new SectionList()
+	hillock_list = new SectionList()
+	dendrite_list = new SectionList()
+
+	sections[somaidx.x[0]] all.append()
+	sections[somaidx.x[0]] soma_list.append()
+        for i=0, dendidx.size()-1 {
+		sections[dendidx.x[i]] all.append()
+		sections[dendidx.x[i]] dendrite_list.append()
+	}
+
+	for i=0, apicalidx.size()-1 {
+		sections[apicalidx.x[i]] apical_list.append()
+	}
+
+	for i=0, basalidx.size()-1 {
+		sections[basalidx.x[i]] basal_list.append()
+	}
+
+	for i=0, axonidx.size()-1 {
+		sections[axonidx.x[i]] all.append()
+		sections[axonidx.x[i]] axon_list.append()
+	}
+}
+
+
+external lambda_f
+proc set_nseg() {
+  	forsec all { nseg = int((L/(0.1*lambda_f(100))+.9)/2)*2 + 1  }
+}
+
+
+
+proc mechinit() {
+
+	// resting membrane potential. Must lie between Na+ and K+ reversal potentials
+	Vrest=-65
+	
+	// Temperature of simulation
+	celsius = 34.0  
+
+	// Membrane resistance in ohm*cm2
+	RmDend = 5555 //1/0.00018 
+	RmSoma = 5555 //1/0.00018 
+
+	// Membrane capacitance in uF/cm2
+	CmSoma= 1.4
+	CmDend = 1.4
+
+	// Axial resistance in ohm*cm
+	RaDend= 100
+	RaSoma= 100	
+	
+	// Calcium concentrations in mM
+	ca_outside = 2
+	ca_inside = 5.e-6 // 50.e-6
+	catau = 10
+
+	// reversal potentials in mV
+	ekval = -90	
+	enaval = 55
+	eHCNval = -30
+	ecaval = 8.314*(273.15+celsius)/(2*9.649e4)*log(ca_outside/ca_inside)*1000 // about 170, otherwise set to 130
+	
+	if (Vrest<ekval) Vrest=ekval // Cell cannot rest lower than K+ reversal potential
+	if (Vrest>enaval) Vrest=enaval // Cell cannot rest higher than Na+ reversal potential
+	eleakval = Vrest
+
+	// max ion channel conductances in mho/cm2
+	gNav     = 0.15 // soma: // 0.12 //original 0.030 to .055 ; lm: //0.5  	//original 0.015
+	gKdr     = 0.013    // Delayed rectifier potassium
+	gKvA 	 = 0.00015 // Proximal A-type potassium
+	gHCN     = 0.00002 // HCN (hyperpolarization-activated cyclic nucleotide-gated channel)
+	gCavN    = 0.0008 //   T-type calcium
+	gCavL    = 0.005 //  L-type calcium
+	gKvCaB	 = 0.0000002 // Big potassium channel: voltage and calcium gated 
+	gKCaS	 = 0.000002 //  Small potassium channel: calcium gated		
+}
+
+proc insert_mechs() {
+
+	forsec all {
+		insert ch_KvA
+		gmax_ch_KvA = gKvA		// A-type K+ conductance
+		
+		insert ch_CavN  			// N-type Ca2+ conductance
+		gmax_ch_CavN = gCavN
+		
+		insert ch_CavL 
+		gmax_ch_CavL = gCavL
+		
+		insert ch_KCaS
+		gmax_ch_KCaS = gKCaS
+		
+		insert ch_KvCaB
+		gmax_ch_KvCaB = gKvCaB
+
+		Ra = RaSoma
+	} 
+
+	forsec soma_list {
+		insert ch_Navaxonp	
+		gmax_ch_Navaxonp = gNav
+		insert ch_Kdrfast
+		gmax_ch_Kdrfast = gKdr
+		
+		insert ch_leak
+		gmax_ch_leak = 1/RmSoma
+		cm=CmSoma
+	} 
+
+	forsec dendrite_list {
+		insert ch_Navaxonp	
+		gmax_ch_Navaxonp = gNav		
+		insert ch_Kdrfast
+		gmax_ch_Kdrfast = gKdr
+		insert ch_leak
+		gmax_ch_leak = 1/RmDend
+		cm=CmDend
+	}
+}
+
+proc set_chanparams() {
+	forsec all {
+		ena = enaval
+		ek = ekval
+		eca = ecaval
+		e_ch_leak = eleakval
+		cao_iconc_Ca = ca_outside
+	}
+}
+
+
+	proc connect_pre() {  // $o1 target point process, $o2 returned NetCon
+	soma $o2 = new NetCon (&v(1), $o1)
+			$o2.threshold = -10
+
+	}
+
+	func is_art()  { return 0 }
+
+proc position(){ local i
+	forall {
+		for i = 0, n3d()-1 {
+			pt3dchange(i, $1-x+x3d(i), $2-y+y3d(i), $3-z+z3d(i), diam3d(i))
+		}
+	}
+	x = $1  y = $2  z = $3	
+}
+
+proc get_root() {local i localobj sref
+	rootlist = new SectionList()
+	rootlist.allroots()
+	i=0
+	forsec all {
+		sref = new SectionRef()
+		if (sref.has_parent==0) {
+			myroot = secname()
+			i=i+1
+		}
+		for(x,0) {
+			if (diam(x) <=0.01) print "WARNING: tiny diameter of ",  diam(x), " um at ", secname(), ", point ", x, "!"
+			if (diam3d(x) <=0.01) print "WARNING: tiny 3d diameter of ", diam3d(x), " um at ", secname(), ", point ", x, "!"
+		}
+		if (L <=0.001) print "WARNING: tiny length of ", L, " um at ", secname(), "!"
+	}
+	if (i>1) {
+		print "WARNING: cell ", gid, " has ", i, " root sections!"
+	    }
+        }
+        
+
+proc topol_from_python() { local i,j,l,p,s,p_layer,loc,vlen localobj vsrc, vdst, vloc, secnodes, layers, swc_types
+    
+    secnodes = $o1
+    layers   = $o2
+    
+    vlen     = $o3.size
+    vsrc     = pyenv.iter($o3)
+    vdst     = pyenv.iter($o4)
+    vloc     = pyenv.iter($o5)
+    swc_types = $o6
+    
+    nDends = 0
+    nSoma  = 0
+    nAxon  = 0
+    nAIS   = 0
+    nHill  = 0
+    
+    for s=0, secnodes.__len__()-1 {
+        
+        p = secnodes.__getitem__(s)._[-1]
+        p_layer = layers._[p]
+        swc_type = swc_types._[p]
+
+        if (swc_type == 4) {
+            nDends = nDends + 1
+            dendidx.append(s)
+            apicalidx.append(s)
+        }
+        if (swc_type == 3) {
+            nDends = nDends + 1
+            dendidx.append(s)
+            basalidx.append(s)
+        }
+        if (swc_type == 8) {
+            hilidx.append(s)
+            nHill = nHill + 1
+            nAxon = nAxon + 1
+        }
+        if (swc_type == 7) {
+            aisidx.append(s)
+            nAIS = nAIS + 1
+            nAxon = nAxon + 1
+        }
+        if (swc_type == 2) {
+            axonidx.append(s)
+            nAxon = nAxon + 1
+        }
+        if (swc_type == 1) {
+            somaidx.append(s)
+            nSoma = nSoma + 1
+        }
+        
+    }
+    
+    for pyitr (vlen, &i, &j, &l, vsrc, vdst, vloc) {
+        assert (i >= 0,  "compartment index in topology matrix is less than zero")
+        assert (j >= 0,  "compartment index in topology matrix is less than zero")
+        assert (i < nDends+nSoma+nAxon+1,  "compartment index in topology matrix is greater than the number of compartments")
+        assert (j < nDends+nSoma+nAxon+1,  "compartment index in topology matrix is greater than the number of compartments")
+        sections[i] loc = arc3d(l) / L 
+        connect sections[j](0),sections[i](loc)
+        
+    }
+    
+}
+
+
+proc shape_from_python() { local x,y,z,r,s,p localobj secnodes, pidxs, vx, vy, vz, vradius
+    
+    secnodes = $o1
+    vx = $o2
+    vy = $o3
+    vz = $o4
+    vradius = $o5
+    
+    create sections[secnodes.__len__()]
+    for s=0, secnodes.__len__()-1 {
+        pidxs = secnodes.__getitem__(s)
+        sections[s] {
+            pt3dconst(0)
+            for pyitr (pidxs.size, &p, pyenv.iter(pidxs)) {
+                
+                x = vx._[p]
+                y = vy._[p]
+                z = vz._[p]
+                r = vradius._[p]
+
+                pt3dadd(x, y, z, 2*r)
+            }
+        }
+    }
+    
+}
+   
+        
+        
+
+
+endtemplate PVBasketCell
