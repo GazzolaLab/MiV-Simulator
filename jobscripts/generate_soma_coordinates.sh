@@ -11,19 +11,11 @@
 #SBATCH --mail-type=BEGIN
 #
 
-module load python3
-module load phdf5
 
-set -x
-
-export NEURONROOT=$SCRATCH/bin/nrnpython3_intel19
-export PYTHONPATH=$HOME/model:$NEURONROOT/lib/python:$SCRATCH/site-packages/intel19:$PYTHONPATH
-
-
-ibrun -n 4 python3 ./scripts/generate_soma_coordinates.py -v \
-    --config=Full_Scale.yaml \
-    --types-path=./datasets/biophys_microcircuit_h5types.h5 \
-    --output-path=$SCRATCH/Microcircuit_coords.h5 \
+mpirun.mpich -n 4 python3 ./scripts/generate_soma_coordinates.py -v \
+    --config=Microcircuit.yaml \
+    --types-path=./datasets/MiV_h5types.h5 \
+    --output-path=./datasets/Microcircuit_coords.h5 \
     --output-namespace='Generated Coordinates' 
 
 

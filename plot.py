@@ -336,16 +336,16 @@ def plot_coords_in_volume(populations, coords_path, coords_namespace, config, sc
         ax.scatter(*pts.T, c=colors, s=int(scale))
         
     logger.info('Constructing volume...')
-    from MiV.MIV_volume import make_MIV_volume
+    from MiV.MiV_volume import make_MiV_volume
 
     if subvol:
-        subvol = make_MIV_volume ((pop_min_extent[0], pop_max_extent[0]), \
+        subvol = make_MiV_volume ((pop_min_extent[0], pop_max_extent[0]), \
                                 (pop_min_extent[1], pop_max_extent[1]), \
                                 (pop_min_extent[2], pop_max_extent[2]), \
                                 resolution=[3, 3, 3], \
                                 rotate=rotate)
     else:
-        vol = make_MIV_volume ((extent_u[0], extent_u[1]),
+        vol = make_MiV_volume ((extent_u[0], extent_u[1]),
                             (extent_v[0], extent_v[1]),
                             (extent_l[0], extent_l[1]),
                             resolution=[3, 3, 3],
