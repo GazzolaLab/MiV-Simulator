@@ -28,6 +28,23 @@ proc assert() { local test strdef errmsg
 }
 
 
+iterator pyitr() {local i, k, x, n, sz localobj itr1, itrn
+    sz = $1
+    n = (numarg()-1) / 2
+    i = 1+n+1
+    itr1 = $oi
+    
+    for k = 0, sz-1 {
+        for x = 1, n {
+            i = 1+n+x
+            itrn = $oi
+            i = 1+x
+            $&i = itrn.__next__()
+        }
+        iterator_statement
+    }
+}
+
 proc init() {
 	gid = $1
         
@@ -42,8 +59,8 @@ proc init() {
         pyenv = new PythonObject()
     	nrnpython("import numpy as np")
         
-        shape_from_python($o3,$o8,$o9,$o10,$o11)
-        topol_from_python($o3,$o4,$o5,$o6,$o7,$o12)
+        shape_from_python($o2,$o7,$o8,$o9,$o10)
+        topol_from_python($o2,$o3,$o4,$o5,$o6,$o11)
         
 	define_shape()		// builtin fcn: fill in 3d info for sections defined by only L and diam, translate 3d points for consistency with their connections 
             

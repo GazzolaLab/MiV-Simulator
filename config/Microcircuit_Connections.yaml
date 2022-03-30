@@ -80,7 +80,7 @@ Synapses:
   OLM:
     PYR:
       type: excitatory
-      sections: [apical, basal]
+      sections: [apical, basal, basal]
       layers: [SLM, SR, SO]
       proportions: [1.0, 1.0, 1.0]
       mechanisms:
@@ -94,17 +94,6 @@ Synapses:
       sections: [basal, soma, apical]
       layers: [SO, SP, SR]
       proportions: [1.0, 1.0, 1.0]
-      mechanisms:
-        GABA_A:
-          tau_rise: 0.08
-          tau_decay: 4.8
-          e: -60
-          g_unit: 0.001
-    OLM:   
-      type: inhibitory
-      sections: [apical]
-      layers: [SLM]
-      proportions: [1.0]
       mechanisms:
         GABA_A:
           tau_rise: 0.08
