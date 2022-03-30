@@ -207,11 +207,13 @@ def main(config, config_prefix, types_path, geometry_path, output_path, output_n
                 if population in env.geometry['Cell Constraints']:
                     pop_constraint = env.geometry['Cell Constraints'][population]
             if rank == 0:
-                logger.info("Population %s: layer distribution is %s" % (population, str(pop_layers)))
+                logger.info(f"Population {population}: layer distribution is {pop_layers}")
             
             pop_layer_count = 0
             for layer, count in viewitems(pop_layers):
                 pop_layer_count += count
+            if (population_count != pop_layer_count):
+                logger.error(f'Population {population}: mismatch between total count {population_count} and sum of per-layer counts {pop_layer_count}')
             assert(population_count == pop_layer_count)
 
             xyz_coords_lst = []

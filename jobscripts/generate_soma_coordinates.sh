@@ -12,7 +12,7 @@
 #
 
 
-mpirun.mpich -n 4 python3 ./scripts/generate_soma_coordinates.py -v \
+mpirun.mpich -n 8 python3 ./scripts/generate_soma_coordinates.py -v \
     --config=Microcircuit.yaml \
     --types-path=./datasets/MiV_h5types.h5 \
     --output-path=./datasets/Microcircuit_coords.h5 \

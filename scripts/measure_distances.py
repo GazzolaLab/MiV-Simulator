@@ -8,7 +8,7 @@ import MiV
 import MiV.utils as utils
 from MiV.env import Env
 from MiV.utils import viewitems
-from MiV.MIV_volume import make_MIV_volume, MIV_volume, MIV_volume_transform
+from MiV.MiV_volume import make_MiV_volume, MiV_volume, MiV_volume_transform
 from neuroh5.io import append_cell_attributes, bcast_cell_attributes, read_population_names, read_population_ranges
 import h5py
 
@@ -23,7 +23,7 @@ sys.excepthook = mpi_excepthook
 @click.command()
 @click.option("--config", required=True, type=click.Path(exists=True, file_okay=True, dir_okay=False))
 @click.option("--coords-path", required=True, type=click.Path(exists=True, file_okay=True, dir_okay=False))
-@click.option("--coords-namespace", type=str, default='Sorted Coordinates')
+@click.option("--coords-namespace", type=str, default='Generated Coordinates')
 @click.option("--geometry-path", required=False, type=click.Path(exists=False, file_okay=True, dir_okay=False))
 @click.option("--populations", '-i', required=True, multiple=True, type=str)
 @click.option("--interp-chunk-size", type=int, default=1000)
@@ -81,7 +81,7 @@ def main(config, coords_path, coords_namespace, geometry_path, populations, inte
         if rank == 0:
             logger.info('Creating distance interpolant...')
         (origin_ranges, ip_dist_u, ip_dist_v) = make_distance_interpolant(env.comm, geometry_config=env.geometry,
-                                                                          make_volume=make_microcircuit_volume,
+                                                                          make_volume=make_MiV_volume,
                                                                           resolution=resolution, nsample=nsample)
         if rank == 0:
             if geometry_path is not None:
