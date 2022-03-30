@@ -15,11 +15,11 @@ Cell Types:
     template: PoolosPyramidalCell
     synapses:
       density: !include PYR_synapse_density.yaml
-  FBIN:
+  OLM:
     template: OLMCell
     synapses:
       density: !include OLM_synapse_density.yaml
-  FFIN:
+  PVBC:
     template: PVBasketCell
     synapses:
       density: !include PVBC_synapse_density.yaml
