@@ -10,9 +10,9 @@ Synapses:
   PYR:
     PYR:
       type: excitatory
-      sections: [basal, apical, apical]
-      layers: [SO, SR, SLM]
-      proportions: [1.0, 1.0, 1.0]
+      sections: [soma, basal, apical, apical]
+      layers: [SP, SO, SR, SLM]
+      proportions: [1.0, 1.0, 1.0, 1.0]
       mechanisms:
         AMPA:
           tau_rise: 0.5
@@ -23,9 +23,9 @@ Synapses:
           g_unit: 0.0001
     PVBC:   
       type: inhibitory
-      sections: [soma, basal, apical]
-      layers: [SP, SO, SR]
-      proportions: [1.0, 0.5, 1.0]
+      sections: [soma, basal, apical, ais, ais]
+      layers: [SP, SO, SR, SP, SR]
+      proportions: [1.0, 0.5, 1.0, 1.0, 1.0]
       mechanisms:
         GABA_A:
           tau_rise: 0.30

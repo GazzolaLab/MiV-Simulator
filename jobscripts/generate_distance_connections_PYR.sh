@@ -2,8 +2,8 @@
 
 mpirun -n 1 python3 ./scripts/generate_distance_connections.py \
     --config-prefix=./config \
-    --config=Full_Scale.yaml \
-    --forest-path=datasets/PC_forest_syns.h5 \
+    --config=Microcircuit.yaml \
+    --forest-path=datasets/PYR_forest.h5 \
     --connectivity-path=datasets/Microcircuit_connections.h5 \
     --connectivity-namespace=Connections \
     --coords-path=datasets/Microcircuit_coords.h5 \

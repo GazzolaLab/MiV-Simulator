@@ -105,7 +105,7 @@ class ConnectionProb(object):
         elif 'default' in self.width[source_population]:
             layer_key = 'default'
         else:
-            raise RuntimeError(f'connection_generator.get_prob: gid {destination_gid}: missing configuration for {source_population} layer {source_layer}')
+            raise RuntimeError(f'connections.get_prob: gid {destination_gid}: missing configuration for {source_population} layer {source_layer}')
 
         source_width = self.width[source_population][layer_key]
         source_offset = self.offset[source_population][layer_key]
@@ -152,7 +152,7 @@ class ConnectionProb(object):
             elif 'default' in self.p_dist[source]:
                 layer_key = 'default'
             else:
-                raise RuntimeError(f'connection_generator.get_prob: gid {destination_gid}: missing configuration for {source} layer {layer}')
+                raise RuntimeError(f'connections.get_prob: gid {destination_gid}: missing configuration for {source} layer {layer}')
             p = self.p_dist[source][layer_key](distance_u, distance_v)
             psum = np.sum(p)
             assert ((p >= 0.).all() and (p <= 1.).all())

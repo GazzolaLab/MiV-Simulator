@@ -9,7 +9,7 @@ import h5py
 import numpy as np
 import MiV
 import MiV.utils as utils
-from MiV.connection_generator import ConnectionProb, generate_uv_distance_connections
+from MiV.connections import ConnectionProb, generate_uv_distance_connections
 from MiV.env import Env
 from MiV.neuron_utils import configure_hoc_env
 from neural_geometry.geometry import make_distance_interpolant, measure_distances
