@@ -88,21 +88,18 @@ Connection Generator: !include Microcircuit_Connections.yaml
 Stimulus: !include Input_Configuration.yaml
 ## Cell types for MiV model
 Cell Types:
+Cell Types:
   PYR:
-    template: DGC
-    template file: DGC_Template_minimal.hoc
-    mechanism file: 20200219_DG_GC_excitability_synint_combined_gid_0_mech.yaml
+    template: PoolosPyramidalCell
     synapses:
-      correct_for_spines: True
-      density: !include GC_synapse_density.yaml
+      density: !include PYR_synapse_density.yaml
+  OLM:
+    template: OLMCell
+    synapses:
+      density: !include OLM_synapse_density.yaml
   PVBC:
-    template: BasketCell
+    template: PVBasketCell
     synapses:
-      density: !include BC_synapse_density.yaml
-  EC:
-    template: MPPCell
-    spike train:
-      namespace: Input Spikes
-      attribute: Spike Train
+      density: !include PVBC_synapse_density.yaml
 
 ```
