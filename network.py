@@ -473,11 +473,6 @@ def connect_cell_selection(env):
                 append_weights=True
                 del syn_weights_iter
 
-<<<<<<< Updated upstream
-
-=======
-                
->>>>>>> Stashed changes
         (graph, a) = read_graph_selection(connectivity_file_path, selection=gid_range, \
                                           projections=[ (presyn_name, postsyn_name) for presyn_name in sorted(presyn_names) ],
                                           comm=env.comm, namespaces=['Synapses', 'Connections'])
@@ -489,11 +484,6 @@ def connect_cell_selection(env):
                 logger.info(f'*** Connecting {presyn_name} -> {postsyn_name}')
 
                 edge_iter = graph[postsyn_name][presyn_name]
-<<<<<<< Updated upstream
-
-=======
-                
->>>>>>> Stashed changes
                 presyn_input_sources = env.microcircuit_input_sources.get(presyn_name, set([]))
                 syn_edge_iter = compose_iter(lambda edgeset: presyn_input_sources.update(edgeset[1][0]),
                                              edge_iter)
@@ -576,11 +566,7 @@ def connect_gjs(env):
     Loads NeuroH5 connectivity file, instantiates the corresponding
     half-gap mechanisms on the pre- and post-junction cells.
 
-<<<<<<< Updated upstream
-    :param env: an instance of the `dentate.Env` class
-=======
     :param env: an instance of the `MiV.Env` class
->>>>>>> Stashed changes
 
     """
     rank = int(env.pc.id())
@@ -662,11 +648,7 @@ def make_cells(env):
     """
     Instantiates cell templates according to population ranges and NeuroH5 morphology if present.
 
-<<<<<<< Updated upstream
-    :param env: an instance of the `dentate.Env` class
-=======
     :param env: an instance of the `MiV.Env` class
->>>>>>> Stashed changes
     """
     rank = int(env.pc.id())
     nhosts = int(env.pc.nhost())
@@ -684,18 +666,6 @@ def make_cells(env):
     for pop_name in pop_names:
         if rank == 0:
             logger.info(f'*** Creating population {pop_name}')
-<<<<<<< Updated upstream
-
-
-        template_name = env.celltypes[pop_name].get('template', None)
-        if template_name is None:
-            continue
-
-        template_name_lower = template_name.lower()
-        if template_name_lower != 'izhikevich' and template_name_lower != 'vecstim':
-            load_cell_template(env, pop_name, bcast_template=True)
-
-=======
             
         
         template_name = env.celltypes[pop_name].get('template', None)
@@ -706,7 +676,6 @@ def make_cells(env):
         if template_name_lower != 'izhikevich' and template_name_lower != 'vecstim':    
             load_cell_template(env, pop_name, bcast_template=True)
                 
->>>>>>> Stashed changes
         if 'mech_file_path' in env.celltypes[pop_name]:
             mech_dict = env.celltypes[pop_name]['mech_dict']
             mech_file_path = env.celltypes[pop_name]['mech_file_path']
@@ -717,11 +686,6 @@ def make_cells(env):
 
         is_izhikevich = (template_name.lower() == 'izhikevich')
         is_PR = (template_name.lower() == 'pr_nrn')
-<<<<<<< Updated upstream
-
-=======
-        
->>>>>>> Stashed changes
         num_cells = 0
         if (pop_name in env.cell_attribute_info) and ('Trees' in env.cell_attribute_info[pop_name]):
             if rank == 0:
@@ -774,11 +738,6 @@ def make_cells(env):
                 num_cells += 1
             del trees
 
-<<<<<<< Updated upstream
-
-=======
-            
->>>>>>> Stashed changes
         elif (pop_name in env.cell_attribute_info) and ('Coordinates' in env.cell_attribute_info[pop_name]):
             if rank == 0:
                 logger.info(f"*** Reading coordinates for population {pop_name}")
@@ -852,11 +811,7 @@ def make_cell_selection(env):
     Instantiates cell templates for the selected cells according to
     population ranges and NeuroH5 morphology if present.
 
-<<<<<<< Updated upstream
-    :param env: an instance of the `dentate.Env` class
-=======
     :param env: an instance of the `MiV.Env` class
->>>>>>> Stashed changes
     """
 
     rank = int(env.pc.id())
@@ -873,11 +828,7 @@ def make_cell_selection(env):
 
         template_name = env.celltypes[pop_name]['template']
         template_name_lower = template_name.lower()
-<<<<<<< Updated upstream
-        if template_name_lower != 'izhikevich' and template_name_lower != 'vecstim':
-=======
         if template_name_lower != 'izhikevich' and template_name_lower != 'vecstim':    
->>>>>>> Stashed changes
             load_cell_template(env, pop_name, bcast_template=True)
 
         templateClass = getattr(h, env.celltypes[pop_name]['template'])
@@ -892,13 +843,6 @@ def make_cell_selection(env):
         is_izhikevich = (template_name.lower() == 'izhikevich')
         is_PR = (template_name.lower() == 'pr_nrn')
         num_cells = 0
-<<<<<<< Updated upstream
-
-
-=======
-        
-            
->>>>>>> Stashed changes
         if (pop_name in env.cell_attribute_info) and ('Trees' in env.cell_attribute_info[pop_name]):
             if rank == 0:
                 logger.info(f"*** Reading trees for population {pop_name}")
@@ -936,11 +880,6 @@ def make_cell_selection(env):
                         cells.register_cell(env, pop_name, gid, biophys_cell)
                         if rank == 0 and gid == first_gid:
                             logger.info(f'*** make_cell_selection: population: {pop_name}; gid: {gid}; loaded biophysics from path: {mech_file_path}')
-<<<<<<< Updated upstream
-
-=======
-                            
->>>>>>> Stashed changes
 
                 if rank == 0 and first_gid == gid:
                     if hasattr(hoc_cell, 'all'):
@@ -948,23 +887,13 @@ def make_cell_selection(env):
                             h.psection(sec=sec)
 
                 num_cells += 1
-<<<<<<< Updated upstream
-
-=======
-                
->>>>>>> Stashed changes
 
         elif (pop_name in env.cell_attribute_info) and ('Coordinates' in env.cell_attribute_info[pop_name]):
             if rank == 0:
                 logger.info(f"*** Reading coordinates for population {pop_name}")
 
-<<<<<<< Updated upstream
-            coords_iter, coords_attr_info = read_cell_attribute_selection(data_file_path, pop_name, selection=gid_range,
-                                                                          namespace='Coordinates', comm=env.comm,
-=======
             coords_iter, coords_attr_info = read_cell_attribute_selection(data_file_path, pop_name, selection=gid_range, 
                                                                           namespace='Coordinates', comm=env.comm, 
->>>>>>> Stashed changes
                                                                           return_type='tuple')
             x_index = coords_attr_info.get('X Coordinate', None)
             y_index = coords_attr_info.get('Y Coordinate', None)
@@ -1010,11 +939,7 @@ def make_input_cell_selection(env):
     """
     Creates cells with predefined spike patterns when only a subset of the network is instantiated.
 
-<<<<<<< Updated upstream
-    :param env: an instance of the `dentate.Env` class
-=======
     :param env: an instance of the `MiV.Env` class
->>>>>>> Stashed changes
     """
     rank = int(env.pc.id())
     nhosts = int(env.pc.nhost())
@@ -1088,11 +1013,7 @@ def init_input_cells(env):
     """
     Initializes cells with predefined spike patterns.
 
-<<<<<<< Updated upstream
-    :param env: an instance of the `dentate.Env` class
-=======
     :param env: an instance of the `MiV.Env` class
->>>>>>> Stashed changes
     """
 
     rank = int(env.pc.id())
@@ -1110,13 +1031,8 @@ def init_input_cells(env):
     for pop_name in pop_names:
 
         if 'spike train' in env.celltypes[pop_name]:
-<<<<<<< Updated upstream
-            if env.arena_id and env.trajectory_id:
-                vecstim_namespace = f"{env.celltypes[pop_name]['spike train']['namespace']} {env.arena_id} {env.trajectory_id}"
-=======
             if env.arena_id and env.stimulus_id:
                 vecstim_namespace = f"{env.celltypes[pop_name]['spike train']['namespace']} {env.arena_id} {env.stimulus_id}"
->>>>>>> Stashed changes
             else:
                 vecstim_namespace = env.celltypes[pop_name]['spike train']['namespace']
             vecstim_attr = env.celltypes[pop_name]['spike train']['attribute']
@@ -1149,11 +1065,6 @@ def init_input_cells(env):
                 else:
                     if pop_name in env.cell_selection:
                         gid_range = [gid for gid in env.cell_selection[pop_name] if env.pc.gid_exists(gid)]
-<<<<<<< Updated upstream
-
-=======
-                        
->>>>>>> Stashed changes
                         vecstim_iter, vecstim_attr_info = scatter_read_cell_attribute_selection(input_file_path, \
                                                                                                 pop_name, gid_range, \
                                                                                                 namespace=vecstim_namespace, \
@@ -1215,11 +1126,6 @@ def init_input_cells(env):
 
             if rank == 0:
                 logger.info(f"*** Initializing input source {pop_name} from locations {spike_input_source_loc}")
-<<<<<<< Updated upstream
-
-=======
-                    
->>>>>>> Stashed changes
             if has_spike_train:
 
                 vecstim_attr_set = set(['t', trial_index_attr, trial_dur_attr])
@@ -1228,11 +1134,6 @@ def init_input_cells(env):
                 if pop_name in env.celltypes:
                     if 'spike train' in env.celltypes[pop_name]:
                         vecstim_attr_set.add(env.celltypes[pop_name]['spike train']['attribute'])
-<<<<<<< Updated upstream
-
-=======
-                    
->>>>>>> Stashed changes
                 cell_spikes_items = []
                 for (input_path, input_ns) in spike_input_source_loc:
                     item = scatter_read_cell_attribute_selection(
@@ -1240,11 +1141,6 @@ def init_input_cells(env):
                         namespace=input_ns, mask=vecstim_attr_set,
                         comm=env.comm, io_size=env.io_size, return_type='tuple')
                     cell_spikes_items.append(item)
-<<<<<<< Updated upstream
-
-=======
-                    
->>>>>>> Stashed changes
                 for cell_spikes_iter, cell_spikes_attr_info in cell_spikes_items:
                     if len(cell_spikes_attr_info) == 0:
                         continue
@@ -1259,11 +1155,6 @@ def init_input_cells(env):
                     elif len(this_gid_range) > 0:
                         raise RuntimeError(f"init_input_cells: unable to determine spike train attribute for population {pop_name} in spike input file {env.spike_input_path};"
                                            f" namespace {env.spike_input_ns}; attr keys {list(viewkeys(cell_spikes_attr_info))}")
-<<<<<<< Updated upstream
-
-=======
-                        
->>>>>>> Stashed changes
                     for gid, cell_spikes_tuple in cell_spikes_iter:
                         if not (env.pc.gid_exists(gid)):
                             continue
@@ -1284,44 +1175,25 @@ def init_input_cells(env):
                                 input_cell.play(h.Vector(spiketrain.astype(np.float64)))
                                 if rank == 0:
                                     logger.info(f"*** Spike train for {pop_name} gid {gid} is of length {len(spiketrain)} ({spiketrain[0]} : {spiketrain[-1]} ms)")
-<<<<<<< Updated upstream
-
-=======
-                                
->>>>>>> Stashed changes
 
             else:
                 if rank == 0:
                     logger.warning(f'No spike train data found for population {pop_name} in spike input file {env.spike_input_path}; '
                                    f'namespace: {env.spike_input_ns}')
-<<<<<<< Updated upstream
-
-    gc.collect()
-
-=======
             
     gc.collect()
                     
->>>>>>> Stashed changes
 
 def init(env):
     """
     Initializes the network by calling make_cells, init_input_cells, connect_cells, connect_gjs.
     If env.optldbal or env.optlptbal are specified, performs load balancing.
 
-<<<<<<< Updated upstream
-    :param env: an instance of the `dentate.Env` class
-    """
-    from neuron import h
-    configure_hoc_env(env)
-
-=======
     :param env: an instance of the `MiV.Env` class
     """
     from neuron import h
     configure_hoc_env(env)
     
->>>>>>> Stashed changes
     assert(env.data_file_path)
     assert(env.connectivity_file_path)
     rank = int(env.pc.id())
@@ -1389,11 +1261,6 @@ def init(env):
         logger.info(f"*** Connections created in {env.connectcellstime:.02f} s")
     edge_count = int(sum([env.edge_count[dest] for dest in env.edge_count]))
     logger.info(f"*** Rank {rank} created {edge_count} connections")
-<<<<<<< Updated upstream
-
-=======
-    
->>>>>>> Stashed changes
     if env.profile_memory and rank == 0:
         profile_memory(logger)
 
@@ -1425,11 +1292,7 @@ def run(env, output=True, shutdown=True, output_syn_spike_count=False):
     called with the network configuration provided by the `env`
     argument.
 
-<<<<<<< Updated upstream
-    :param env: an instance of the `dentate.Env` class
-=======
     :param env: an instance of the `MiV.Env` class
->>>>>>> Stashed changes
     :param output: if True, output spike and cell voltage trace data
     :param output_syn_spike_count: if True, output spike counts per pre-synaptic source for each gid
     """
@@ -1512,21 +1375,11 @@ def run(env, output=True, shutdown=True, output_syn_spike_count=False):
            synapses.write_syn_spike_count(env, pop_name, env.results_file_path,
                                           filters={'sources': presyn_names},
                                           write_kwds={'io_size': env.io_size})
-<<<<<<< Updated upstream
-
-=======
-            
->>>>>>> Stashed changes
     if rank == 0:
         logger.info("*** Simulation completed")
 
     if rank == 0 and output:
         io_utils.lfpout(env, env.results_file_path)
-<<<<<<< Updated upstream
-
-=======
-        
->>>>>>> Stashed changes
     if shutdown:
         del env.cells
 
