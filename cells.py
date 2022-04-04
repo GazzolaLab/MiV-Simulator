@@ -1100,3 +1100,109 @@ def make_biophys_cell(env, population_name, gid,
 
     return cell
 
+
+def register_cell(env, pop_name, gid, cell):
+    """
+    Registers a cell in a network environment.
+
+    :param env: an instance of the `dentate.Env` class
+    :param pop_name: population name
+    :param gid: gid
+    :param cell: cell instance
+    """
+    rank = env.comm.rank
+    env.gidset.add(gid)
+    env.pc.set_gid2node(gid, rank)
+    hoc_cell = getattr(cell, 'hoc_cell', cell)
+    env.cells[pop_name][gid] = hoc_cell
+    if hoc_cell.is_art() > 0:
+        env.artificial_cells[pop_name][gid] = hoc_cell
+    # Tell the ParallelContext that this cell is a spike source
+    # for all other hosts. NetCon is temporary.
+    nc = getattr(cell, 'spike_detector', None)
+    if nc is None:
+        if hasattr(cell, 'connect2target'):
+            nc = hoc_cell.connect2target(h.nil)
+        elif cell.is_art() > 0:
+            nc = h.NetCon(cell, None)
+        else:
+            raise RuntimeError('register_cell: unknown cell type')
+    nc.delay = max(2*env.dt, nc.delay)
+    env.pc.cell(gid, nc, 1)
+    env.pc.outputcell(gid)
+    # Record spikes of this cell
+    env.pc.spike_record(gid, env.t_vec, env.id_vec)
+    # if the spike detector is located in a compartment other than soma,
+    # record the spike time delay relative to soma
+    if hasattr(cell, 'spike_onset_delay'):
+        env.spike_onset_delay[gid] = cell.spike_onset_delay
+
+def is_cell_registered(env, gid):
+    """
+    Returns True if cell gid has already been registered, False otherwise.
+    """
+    return env.pc.gid_exists(gid)    
+
+def record_cell(env, pop_name, gid, recording_profile=None):
+    """
+    Creates a recording object for the given cell, according to configuration in env.recording_profile.
+    """
+    recs = []
+    if recording_profile is None:
+        recording_profile = env.recording_profile
+    if recording_profile is not None:
+        syn_attrs = env.synapse_attributes
+        cell = env.biophys_cells[pop_name].get(gid, None)
+        if cell is not None:
+            label = recording_profile['label']
+            dt = recording_profile.get('dt', None)
+            for reclab, recdict  in viewitems(recording_profile.get('section quantity', {})):
+                recvar = recdict.get('variable', reclab)
+                loc = recdict.get('loc', None)
+                swc_types = recdict.get('swc_types', None)
+                locdict = collections.defaultdict(lambda: 0.5)
+                if (loc is not None) and (swc_types is not None):
+                    for s,l in zip(swc_types,loc):
+                        locdict[s] = l
+                    
+                nodes = filter_nodes(cell, layers=recdict.get('layers', None),
+                                     swc_types=recdict.get('swc types', None))
+                node_type_count = collections.defaultdict(int)
+                for node in nodes:
+                    node_type_count[node.type] += 1
+                visited = set([])
+                for node in nodes:
+                    sec = node.get_sec()
+                    if str(sec) not in visited:
+                        if node_type_count[node.type] == 1:
+                            rec_id = '%s' % (node.type)
+                        else:
+                            rec_id = '%s.%i' % (node.type, node.index)
+                        rec = make_rec(rec_id, pop_name, gid, cell.hoc_cell, sec=sec, dt=dt,
+                                       loc=locdict[node.type], param=recvar, label=reclab,
+                                       description=node.name)
+                        recs.append(rec)
+                        env.recs_dict[pop_name][rec_id].append(rec)
+                        env.recs_count += 1
+                        visited.add(str(sec))
+            for recvar, recdict  in viewitems(recording_profile.get('synaptic quantity', {})):
+                syn_filters = recdict.get('syn_filters', {})
+                syn_sections = recdict.get('sections', None)
+                synapses = syn_attrs.filter_synapses(gid, syn_sections=syn_sections, **syn_filters)
+                syn_names = recdict.get('syn names', syn_attrs.syn_name_index_dict.keys())
+                for syn_id, syn in viewitems(synapses):
+                    syn_swc_type_name = env.SWC_Type_index[syn.swc_type]
+                    syn_section = syn.syn_section
+                    for syn_name in syn_names:
+                        pps = syn_attrs.get_pps(gid, syn_id, syn_name, throw_error=False)
+                        if pps is not None:
+                            rec_id = '%d.%s.%s' % (syn_id, syn_name, str(recvar))
+                            label = '%s' % (str(recvar))
+                            rec = make_rec(rec_id, pop_name, gid, cell.hoc_cell, ps=pps, dt=dt, param=recvar,
+                                            label=label, description='%s' % label)
+                            ns = '%s%d.%s' % (syn_swc_type_name, syn_section, syn_name)
+                            env.recs_dict[pop_name][ns].append(rec)
+                            env.recs_count += 1
+                            recs.append(rec)
+                
+    return recs
