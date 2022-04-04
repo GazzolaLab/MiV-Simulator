@@ -1,8 +1,8 @@
 import collections, os, sys, traceback, copy, datetime, math, pprint
 import networkx as nx
 import numpy as np
-from MiV.neuron_utils import load_cell_template, h, d_lambda, init_nseg, reinit_diam, default_hoc_sec_lists, default_ordered_sec_types, make_rec
-from MiV.utils import get_module_logger, map, range, zip, zip_longest, viewitems, read_from_yaml, write_to_yaml, Promise
+from neuron_utils import load_cell_template, h, d_lambda, init_nseg, reinit_diam, default_hoc_sec_lists, default_ordered_sec_types, make_rec
+from utils import get_module_logger, map, range, zip, zip_longest, viewitems, read_from_yaml, write_to_yaml, Promise
 from neuroh5.io import read_cell_attribute_selection, read_graph_selection, read_tree_selection
 
 
@@ -10,7 +10,7 @@ from neuroh5.io import read_cell_attribute_selection, read_graph_selection, read
 logger = get_module_logger(__name__)
 
 class SectionNode(object):
-    
+
     def __init__(self, section_type, index, section, content=None):
         self.name = f'{section_type}{index}'
         self.section = section
@@ -46,13 +46,13 @@ class SectionNode(object):
     @property
     def sec(self):
         return self.section
-    
+
     def __str__(self):
         return self.name
-    
+
     def __repr__(self):
         return self.name
-    
+
 def make_neurotree_hoc_cell(template_class, gid=0, neurotree_dict={}, section_content=None):
     """
     :param template_class:
@@ -139,10 +139,10 @@ def make_input_cell(env, gid, pop_id, input_source_dict, spike_train_attr_name='
         cell = template(gid, *params)
     else:
         raise RuntimeError('cells.make_input_cell: unrecognized input cell configuration')
-        
+
     return cell
 
-    
+
 def make_section_graph(neurotree_dict):
     """
     Creates a graph of sections that follows the topological organization of the given neuron.
@@ -169,7 +169,7 @@ def make_section_graph(neurotree_dict):
             dst_parent = pt_parents[dst_pts[0]]
             loc = np.argwhere(src_pts == dst_parent)[0]
             sec_loc.append(loc)
-                
+
     sec_graph = nx.DiGraph()
     for i, j, loc in zip(sec_src, sec_dst, sec_loc):
         sec_graph.add_edge(i, j, loc=loc)
@@ -190,12 +190,12 @@ class BiophysCell(object):
         :param mech_file_path: str (path)
         :param env: :class:'Env'
         """
-        
+
         self._gid = gid
         self._population_name = population_name
         self.tree = nx.DiGraph()
         self.template_class = None
-        
+
         if env is not None:
             self.template_class = env.template_dict[population_name]
             for sec_type in env.SWC_Types:
@@ -325,8 +325,8 @@ def get_node_children(cell, node, return_edge_data=False):
         return children, edge_data
     else:
         return children
-    
-    
+
+
 
 def insert_section_node(cell, section_type, index, sec, content=None):
     node = SectionNode(section_type, index, sec, content=content)
@@ -335,7 +335,7 @@ def insert_section_node(cell, section_type, index, sec, content=None):
     cell.tree.add_node(node)
     cell.nodes[section_type].append(node)
     return node
-    
+
 def insert_section_tree(cell, sec_list, sec_dict, parent=None, connect_hoc_sections=False):
     sec_stack = []
     for sec in sec_list:
@@ -351,9 +351,9 @@ def insert_section_tree(cell, sec_list, sec_dict, parent=None, connect_hoc_secti
         if sec_parent is not None:
             cell.tree = connect_nodes(cell.tree, sec_parent, sec_node,
                                       connect_hoc_sections=connect_hoc_sections)
-    
 
-                          
+
+
 def connect_nodes(tree, parent, child, parent_loc=1., child_loc=0., connect_hoc_sections=False):
     """
     Connects the given section node to a parent node, and if specified, establishes a connection between their associated
@@ -375,7 +375,7 @@ def import_morphology_from_hoc(cell, hoc_cell, section_content=None):
     Append sections from an existing instance of a NEURON cell template to a Python cell wrapper.
     :param cell: :class:'BiophysCell'
     :param hoc_cell: :class:'h.hocObject': instance of a NEURON cell template
-    
+
     """
     sec_info_dict = {}
     root_sec = None
@@ -424,15 +424,15 @@ def import_mech_dict_from_file(cell, mech_file_path=None):
         cell.mech_file_path = mech_file_path
     cell.init_mech_dict = read_from_yaml(cell.mech_file_path)
     cell.mech_dict = copy.deepcopy(cell.init_mech_dict)
-    
-    
+
+
 
 def init_cable(cell, verbose=False):
     for sec_type in cell.nodes:
         for node in cell.nodes[sec_type]:
             reset_cable_by_node(cell, node, verbose=verbose)
 
-            
+
 def reset_cable_by_node(cell, node, verbose=True):
     """
     Consults a dictionary specifying parameters of NEURON cable properties such as axial resistance ('Ra'),
@@ -451,7 +451,7 @@ def reset_cable_by_node(cell, node, verbose=True):
         init_nseg(node.section, verbose=verbose)
         reinit_diam(node.section, node.diam_bounds)
 
-        
+
 def connect2target(cell, sec, loc=1., param='_ref_v', delay=None, weight=None, threshold=None, target=None):
     """
     Converts analog voltage in the specified section to digital spike output. Initializes and returns an h.NetCon
@@ -486,7 +486,7 @@ def connect2target(cell, sec, loc=1., param='_ref_v', delay=None, weight=None, t
     this_netcon.weight[0] = weight
     this_netcon.threshold = threshold
     return this_netcon
-            
+
 
 def init_spike_detector(cell, node=None, distance=100., threshold=-30, delay=0.05, onset_delay=0., loc=0.5):
     """
@@ -535,7 +535,7 @@ def init_spike_detector(cell, node=None, distance=100., threshold=-30, delay=0.0
     cell.spike_detector = connect2target(cell, node.section, loc=loc, delay=delay, threshold=threshold)
 
     cell.onset_delay = onset_delay
-            
+
     return cell.spike_detector
 
 
@@ -557,11 +557,11 @@ def update_mechanism_by_node(cell, node, mech_name, mech_content=None, verbose=T
     else:
         node.section.insert(mech_name)
 
-        
+
 def apply_mech_rules(cell, node, mech_name, param_name, rules, verbose=True):
     """
-    Provided a membrane density mechanism, a parameter, a node, and a dict of rules, interprets the provided rules, 
-    and applies resulting parameter values to mechanisms in the corresponding section. 
+    Provided a membrane density mechanism, a parameter, a node, and a dict of rules, interprets the provided rules,
+    and applies resulting parameter values to mechanisms in the corresponding section.
 
     :param cell: :class:'BiophysCell'
     :param node: :class:'SectionNode'
@@ -604,7 +604,7 @@ def filter_nodes(cell, sections=None, layers=None, swc_types=None):
     """
     Returns a subset of the nodes of the given cell according to the given criteria.
 
-    :param cell: 
+    :param cell:
     :param sections: sequence of int
     :param layers: list of enumerated type: layer
     :param swc_types: list of enumerated type: swc_type
@@ -618,7 +618,7 @@ def filter_nodes(cell, sections=None, layers=None, swc_types=None):
         sections = sorted(cell.nodes.keys())
     for swc_type in swc_types:
         nodes.extend(cell.nodes[swc_type])
-            
+
     result = [v for v in nodes
                   if matches([(layers, v.get_layer()),
                               (sections, v.sec)])]
@@ -663,7 +663,7 @@ def make_morph_graph(biophys_cell, node_filters={}):
 
     nodes = filter_nodes(biophys_cell, **node_filters)
     tree = biophys_cell.tree
-    
+
     sec_layers = {}
     src_sec = []
     dst_sec = []
@@ -696,7 +696,7 @@ def make_morph_graph(biophys_cell, node_filters={}):
             src_sec.append(node.index)
             dst_sec.append(child.index)
             connection_locs.append(h.parent_connection(sec=child.sec))
-            
+
     sec_pt_idxs = {}
     edges = []
     for sec, pts in viewitems(sec_pts):
@@ -713,7 +713,7 @@ def make_morph_graph(biophys_cell, node_filters={}):
                 break
         dst_pt = sec_pts[d][0]
         edges.append((src_pt, dst_pt))
-        
+
     morph_graph = nx.Graph()
     morph_graph.add_nodes_from([(i, {'x': x, 'y': y, 'z': z, 'sec': sec_pt_idxs[i], 'loc': loc, 'layer': layer})
                                     for (i,x,y,z,loc,layer) in zip(range(len(pt_idxs)), pt_xs, pt_ys, pt_zs, pt_locs, pt_layers)])
@@ -760,7 +760,7 @@ def load_biophys_cell_dicts(env, pop_name, gid_set, data_file_path=None, load_co
 
     gid_list = list(gid_set)
     tree_attr_iter, _ = read_tree_selection(env.data_file_path, pop_name,
-                                            gid_list, comm=env.comm, 
+                                            gid_list, comm=env.comm,
                                             topology=True, validate=validate_tree)
     for gid, tree_dict in tree_attr_iter:
         tree_dicts[gid] = tree_dict
@@ -793,15 +793,15 @@ def load_biophys_cell_dicts(env, pop_name, gid_set, data_file_path=None, load_co
                 edge_iter = graph[pop_name][presyn_name]
                 for (postsyn_gid, edges) in edge_iter:
                     connection_graphs[postsyn_gid][pop_name][presyn_name] = [(postsyn_gid, edges)]
-        
-        
+
+
     cell_dicts = {}
     for gid in gid_set:
         this_cell_dict = {}
-        
+
         tree_dict = tree_dicts[gid]
         this_cell_dict['morph'] = tree_dict
-        
+
         if load_connections:
             synapses_dict = synapses_dicts[gid]
             weight_dict = weight_dicts.get(gid, None)
@@ -810,8 +810,8 @@ def load_biophys_cell_dicts(env, pop_name, gid_set, data_file_path=None, load_co
             this_cell_dict['connectivity'] = connection_graph, graph_attr_info
             this_cell_dict['weight'] = weight_dict
         cell_dicts[gid] = this_cell_dict
-        
-    
+
+
     return cell_dicts
 
 
@@ -820,7 +820,7 @@ def init_circuit_context(env, pop_name, gid,
                          load_weights=False, weight_dict=None,
                          load_synapses=False, synapses_dict=None,
                          set_edge_delays=True, **kwargs):
-    
+
     syn_attrs = env.synapse_attributes
     synapse_config = env.celltypes[pop_name]['synapses']
 
@@ -855,7 +855,7 @@ def init_circuit_context(env, pop_name, gid,
                 raise RuntimeError('init_circuit_context: synapse attributes not found for %s: gid: %i' % (pop_name, gid))
         else:
             raise RuntimeError("init_circuit_context: invalid synapses parameters")
-            
+
 
     if init_weights and has_weights:
 
@@ -873,11 +873,11 @@ def init_circuit_context(env, pop_name, gid,
             elif load_weights:
                 if (env.data_file_path is None):
                     raise RuntimeError('init_circuit_context: load_weights=True but data file path is not specified ')
-                
+
                 for weights_namespace in weights_namespaces:
-                    cell_weights_iter = read_cell_attribute_selection(env.data_file_path, pop_name, 
-                                                                      selection=[gid], 
-                                                                      namespace=weights_namespace, 
+                    cell_weights_iter = read_cell_attribute_selection(env.data_file_path, pop_name,
+                                                                      selection=[gid],
+                                                                      namespace=weights_namespace,
                                                                       comm=env.comm)
                     for cell_weights_gid, cell_weights_dict in cell_weights_iter:
                         assert(cell_weights_gid == gid)
@@ -932,7 +932,7 @@ def init_circuit_context(env, pop_name, gid,
         else:
             logger.error('init_circuit_context: connection attributes not found for %s: gid: %i' % (pop_name, gid))
             raise Exception
-    
+
 
 def init_biophysics(cell, env=None, reset_cable=True, correct_cm=False, correct_g_pas=False, reset_mech_dict=False,
                     verbose=True):
@@ -1017,7 +1017,7 @@ def correct_node_for_spines_cm(node, env, gid, verbose=True):
         if verbose:
             logger.info('cm_correction_factor for gid: %i; %s seg %i: %.3f' % (gid, node.name, i, cm_correction_factor))
 
-            
+
 def correct_cell_for_spines_g_pas(cell, env, verbose=False):
     """
     If not explicitly modeling spine compartments for excitatory synapses, this method scales g_pas in all
@@ -1028,7 +1028,7 @@ def correct_cell_for_spines_g_pas(cell, env, verbose=False):
     """
     if 'soma' in cell.mech_dict:
         soma_g_pas = cell.mech_dict['soma']['pas']['g']['value']
-    elif hasattr(cell, 'hoc_cell'): 
+    elif hasattr(cell, 'hoc_cell'):
         soma_g_pas = getattr(list(cell.hoc_cell.soma)[0], 'g_pas')
     else:
         raise RuntimeError("unable to determine soma g_pas")
@@ -1055,13 +1055,13 @@ def correct_cell_for_spines_cm(cell, env, verbose=False):
         loop += 1
     init_biophysics(cell, env, reset_cable=False, verbose=verbose)
 
-    
-def make_biophys_cell(env, population_name, gid, 
+
+def make_biophys_cell(env, population_name, gid,
                       mech_file_path=None, mech_dict=None,
                       tree_dict=None,
-                      load_synapses=False, synapses_dict=None, 
+                      load_synapses=False, synapses_dict=None,
                       load_edges=False, connection_graph=None,
-                      load_weights=False, weight_dict=None, 
+                      load_weights=False, weight_dict=None,
                       set_edge_delays=True, bcast_template=True,
                       validate_tree=True,
                       **kwargs):
@@ -1082,7 +1082,7 @@ def make_biophys_cell(env, population_name, gid,
     load_cell_template(env, population_name, bcast_template=bcast_template)
 
     if tree_dict is None:
-        tree_attr_iter, _ = read_tree_selection(env.data_file_path, population_name, [gid], comm=env.comm, 
+        tree_attr_iter, _ = read_tree_selection(env.data_file_path, population_name, [gid], comm=env.comm,
                                                 topology=True, validate=validate_tree)
         _, tree_dict = next(tree_attr_iter)
 
@@ -1090,12 +1090,12 @@ def make_biophys_cell(env, population_name, gid,
                        mech_file_path=mech_file_path, mech_dict=mech_dict)
     circuit_flag = load_edges or load_weights or load_synapses or synapses_dict or weight_dict or connection_graph
     if circuit_flag:
-        init_circuit_context(env, population_name, gid, 
+        init_circuit_context(env, population_name, gid,
                              load_synapses=load_synapses, synapses_dict=synapses_dict,
                              load_edges=load_edges, connection_graph=connection_graph,
-                             load_weights=load_weights, weight_dict=weight_dict, 
+                             load_weights=load_weights, weight_dict=weight_dict,
                              set_edge_delays=set_edge_delays, **kwargs)
-    
+
     env.biophys_cells[population_name][gid] = cell
 
     return cell

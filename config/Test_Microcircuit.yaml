@@ -1,0 +1,26 @@
+## Sample Model configuration of MiV network
+Model Name: MiV
+Dataset Name: Microcircuit
+Definitions: !include Definitions.yaml
+Global Parameters: !include Global.yaml
+Geometry: !include Geometry.yaml
+Random Seeds: !include Random.yaml
+Cell Data: Test_Microcircuit.h5
+Connection Data: Test_Microcircuit.h5
+Connection Generator: !include Microcircuit_Connections.yaml
+Stimulus: !include Input_Configuration.yaml
+## Cell types for MiV model
+Cell Types:
+Cell Types:
+  PYR:
+    template: PoolosPyramidalCell
+    synapses:
+      density: !include PYR_synapse_density.yaml
+  OLM:
+    template: OLMCell
+    synapses:
+      density: !include OLM_synapse_density.yaml
+  PVBC:
+    template: PVBasketCell
+    synapses:
+      density: !include PVBC_synapse_density.yaml

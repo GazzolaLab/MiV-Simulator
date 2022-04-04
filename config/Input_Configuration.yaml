@@ -1,0 +1,235 @@
+Number Modules: 10
+Spatial Resolution: 3.0  # cm
+Temporal Resolution: 1.0  # ms
+Equilibration Duration: 250. # ms
+
+# Variances expressed as floor widths of a normal distribution
+Grid Orientation Variance: 15.  # degrees
+Grid Spacing Variance: 0.  # proportion of module width
+Modular Place Field Width Variance: 0.  # proportion of module width
+Non-modular Place Field Width Variance: 0.1  # proportion of expected width
+
+## About 27% of mEC cells were reported to be grid or border cells; 68% non-grid spatial; 4% non-spatial;
+## Reference:
+## https://www.ncbi.nlm.nih.gov/pubmed/28343867
+## Diehl GW, Hon OJ, Leutgeb S, Leutgeb JK.
+## Grid and Nongrid Cells in Medial Entorhinal Cortex Represent
+## Spatial Location and Environmental Features with Complementary
+## Coding Schemes.
+## Neuron Volume 94, Issue 1, 5 April 2017, pp 83-92.
+Selectivity Type Probabilities:
+  MPP:
+    grid: 0.3
+    place: 0.7
+  LPP:
+    place: 1.0
+  GC:
+    place: 1.0
+  MC:
+    place: 1.0
+  ConMC:
+    place: 1.0
+  CA3c:
+    place: 1.0
+  AAC:
+    constant: 1.0
+  BC:
+    constant: 1.0
+  HC:
+    constant: 1.0
+  HCC:
+    constant: 1.0
+  HCC:
+    constant: 1.0
+  NGFC:
+    constant: 1.0
+  IS:
+    constant: 1.0
+  MOPP:
+    constant: 1.0
+  
+    
+Non-modular Place Selectivity Populations:
+  - GC
+  - MC
+  - ConMC
+  - CA3c
+
+Peak Rate:
+  MPP:
+    grid: 20.0
+    place: 20.0
+  LPP:
+    place: 20.0
+  GC:
+    place: 20.0
+  MC:
+    place: 20.0
+  ConMC:
+    place: 20.0
+  CA3c:
+    place: 20.0
+  BC:
+    constant: 21.0
+  AAC:
+    constant: 21.0
+  HCC:
+    constant: 10.0
+  HC:
+    constant: 16.0
+  IS:
+    constant: 2.0
+  NGFC:
+    constant: 4.0
+  MOPP:
+    constant: 4.0
+
+  
+    
+Place Fraction Active:
+  MPP: 0.0862
+  LPP: 0.0862
+  GC: 0.0176
+  MC: 0.0862
+  ConMC: 0.0862
+  CA3c: 0.0598
+
+Num Place Field Probabilities:
+  MPP:
+    0: 5.910876E-01
+    1: 1.087226E-01
+    2: 1.472084E-01
+    3: 9.236610E-02
+    4: 4.137231E-02
+    5: 1.635649E-02
+    6: 2.886441E-03
+  LPP:
+    0: 5.910876E-01
+    1: 1.087226E-01
+    2: 1.472084E-01
+    3: 9.236610E-02
+    4: 4.137231E-02
+    5: 1.635649E-02
+    6: 2.886441E-03
+  GC:
+    0: 8.813980E-01
+    1: 7.503389E-02
+    2: 2.904539E-02
+    3: 1.210224E-02
+    4: 2.420448E-03
+  MC:
+    0: 5.910876E-01
+    1: 1.087226E-01
+    2: 1.472084E-01
+    3: 9.236610E-02
+    4: 4.137231E-02
+    5: 1.635649E-02
+    6: 2.886441E-03
+  ConMC:
+    0: 5.910876E-01
+    1: 1.087226E-01
+    2: 1.472084E-01
+    3: 9.236610E-02
+    4: 4.137231E-02
+    5: 1.635649E-02
+    6: 2.886441E-03
+  CA3c:
+    0: 6.918793E-01
+    1: 1.236675E-01
+    2: 8.489041E-02
+    3: 6.078570E-02
+    4: 3.144088E-02
+    5: 7.336204E-03
+
+Grid Spacing Parameters:
+  slope: 35.0
+  tau: 0.32
+  offset: 40.0
+
+Selectivity Module Parameters:
+  width: 0.75
+  displacement: 0.
+
+Field Width Concentration Factor:
+  grid: 0.7
+  place: 0.871
+
+Global Oscillation:
+  frequency: 5.0 # oscillation frequency
+  Phase Distribution:  # parameters of phase distribution along septotemporal axis
+    slope: 16.5
+    offset: 0.0
+  Phase Modulation: # cell type-specific modulation
+    MPP:
+      phase range: [135, 360] # range of preferred phases
+      depth: 0.8 # depth of modulation
+    LPP:
+      phase range: [135, 360]
+      depth: 0.5
+    CA3c:
+      phase range: [0, 360]
+      depth: 0.9
+    GC: 
+      phase range: [0, 150]
+      depth: 0.5
+    MC: 
+      phase range: [0, 90]
+      depth: 0.8
+    ConMC: 
+      phase range: [0, 90]
+      depth: 0.8
+    AAC: 
+      phase range: [180, 540]
+      depth: 0.8
+    BC: 
+      phase range: [180, 540]
+      depth: 0.8
+    HC: 
+      phase range: [200, 560]
+      depth: 0.8
+    HCC: 
+      phase range: [60, 240]
+      depth: 0.8
+    IS: 
+      phase range: [180, 540]
+      depth: 0.8
+    MOPP: 
+      phase range: [180, 450]
+      depth: 0.8
+    NGFC: 
+      phase range: [180, 450]
+      depth: 0.8
+
+Arena:
+  A:
+    Domain:
+      vertices: [[-100, -100], [-100, 100], [100, 100], [100, -100]]
+      simplices: [[0,1], [1,2], [2,3], [3,0]]
+
+    Trajectory:
+      Diag:
+        path: [[-100, -100], [100, 100]]
+        run velocity: 30.  # cm/s
+
+      ## passing through the main diagonals of the arena
+#      MainDiags:
+#        path: [[-100, -100], [0, 0], [-100, 100],  [0, 0], [100, 100], [0, 0], [100, -100]]
+#        run velocity: 30.  # cm/s
+        
+        
+    default run velocity: 30.  # cm/s
+
+  Remap A:
+    Domain:
+      vertices: [[-100, -100], [-100, 100], [100, 100], [100, -100]]
+      simplices: [[0,1], [1,2], [2,3], [3,0]]
+
+    Trajectory:
+      Diag:
+        path: [[-100, -100], [100, 100]]
+        run velocity: 30.  # cm/s
+
+  Calibration:
+    Domain:
+      vertices: [[-32.5, -32.5], [-32.5, 32.5], [32.5, 32.5], [32.5, -32.5]]
+      simplices: [[0,1], [1,2], [2,3], [3,0]]

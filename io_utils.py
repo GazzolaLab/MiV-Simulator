@@ -3,7 +3,7 @@ from collections import defaultdict
 from mpi4py import MPI
 import h5py
 import numpy as np
-from MiV.utils import Struct, range, str, viewitems, Iterable, compose_iter, get_module_logger, get_trial_time_ranges
+from utils import Struct, range, str, viewitems, Iterable, compose_iter, get_module_logger, get_trial_time_ranges
 from neuroh5.io import read_cell_attributes, write_cell_attributes, append_cell_attributes, read_cell_attribute_info
 
 
@@ -67,8 +67,8 @@ def show_celltypes(input_path, output=print):
 
         dt_population_labels = h5[path_population_labels]
         enum_dtype_dict = h5py.h5t.check_enum_dtype(dt_population_labels.dtype)
-        population_idx_dict = { enum_dtype_dict[k]: k for k in enum_dtype_dict } 
-        
+        population_idx_dict = { enum_dtype_dict[k]: k for k in enum_dtype_dict }
+
         g = h5_get_group(h5, grp_h5types)
 
         populations = h5_get_dataset(g, grp_populations)
@@ -87,9 +87,9 @@ def import_celltypes(celltype_path, output_path):
     import csv
 
     population_dict = {}
-    
+
     with open(celltype_path, mode='r') as infile:
-        
+
         reader = csv.DictReader(infile, delimiter="\t")
         for row in reader:
             celltype = row['celltype']
@@ -98,7 +98,7 @@ def import_celltypes(celltype_path, output_path):
             range_end = int(row['rangeEnd'])
             count = range_end - range_start + 1
             population_dict[celltype] = (type_index, count)
-            
+
     populations = []
     for pop_name, pop_info in viewitems(population_dict):
         pop_idx = pop_info[0]
@@ -106,7 +106,7 @@ def import_celltypes(celltype_path, output_path):
         populations.append((pop_name, pop_idx, pop_count))
     populations.sort(key=lambda x: x[1])
     min_pop_idx = populations[0][1]
-            
+
     # create an HDF5 enumerated type for the population label
     mapping = {name: idx for name, idx, count in populations}
     dt_population_labels = h5py.special_dtype(enum=(np.uint16, mapping))
@@ -146,10 +146,10 @@ def import_spikeraster(celltype_path, spikeraster_path, output_path, output_npy=
 
     if comm is None:
         comm = MPI.COMM_WORLD
-        
+
     populations = import_celltypes(celltype_path, output_path)
     n_pop = len(populations)
-    
+
     start = 0
     pop_range_bins = []
     for name, idx, count in populations[:-1]:
@@ -168,7 +168,7 @@ def import_spikeraster(celltype_path, spikeraster_path, output_path, output_npy=
 
     if output_npy:
         np.save(f'{spikeraster_path}.npy', spike_array)
-        
+
     logger.info(f"Done reading spike data from file {spikeraster_path}")
 
     gid_array = spike_array['gid']
@@ -179,13 +179,13 @@ def import_spikeraster(celltype_path, spikeraster_path, output_path, output_npy=
         it = tqdm.tqdm(enumerate(zip(gid_array, gid_bins)), unit_scale=True)
     else:
         it = enumerate(zip(gid_array, gid_bins))
-        
+
     for i, (gid, pop_idx) in it:
 
         pop_name = populations[pop_idx][0]
         pop_start = populations[pop_idx][0]
         spk_t = spike_array["time"][i]
-        
+
         pop_spk_dict[pop_name][gid].append(spk_t)
 
     for pop_name, _, _ in populations:
@@ -196,9 +196,9 @@ def import_spikeraster(celltype_path, spikeraster_path, output_path, output_npy=
 
         write_cell_attributes(output_path, pop_name, output_dict, namespace=namespace, comm=comm)
         logger.info(f"Saved spike data for population {pop_name} to file {output_path}")
-    
+
     comm.barrier()
-    
+
 
 def make_h5types(env, output_path, gap_junctions=False):
     populations = []
@@ -296,7 +296,7 @@ def spikeout(env, output_path, t_start=None, clear_data=False):
 
     :param env:
     :param output_path:
-    :param clear_data: 
+    :param clear_data:
     :return:
     """
     equilibration_duration = float(env.stimulus_config['Equilibration Duration'])
@@ -306,7 +306,7 @@ def spikeout(env, output_path, t_start=None, clear_data=False):
     id_vec = np.array(env.id_vec, dtype=np.uint32)
 
     trial_time_ranges = get_trial_time_ranges(env.t_rec.to_python(), env.n_trials)
-    trial_time_bins = [ t_trial_start for t_trial_start, t_trial_end in trial_time_ranges ] 
+    trial_time_bins = [ t_trial_start for t_trial_start, t_trial_end in trial_time_ranges ]
     trial_dur = np.asarray([env.tstop + equilibration_duration] * n_trials, dtype=np.float32)
 
     binlst = []
@@ -379,7 +379,7 @@ def recsout(env, output_path, t_start=None, clear_data=False, write_cell_locatio
     n_trials = env.n_trials
 
     trial_time_ranges = get_trial_time_ranges(env.t_rec.to_python(), env.n_trials)
-    trial_time_bins = [ t_trial_start for t_trial_start, t_trial_end in trial_time_ranges ] 
+    trial_time_bins = [ t_trial_start for t_trial_start, t_trial_end in trial_time_ranges ]
     trial_dur = np.asarray([env.tstop + equilibration_duration] * n_trials, dtype=np.float32)
 
     for pop_name in sorted(env.celltypes.keys()):
@@ -552,7 +552,7 @@ def write_cell_selection(env, write_selection_file_path, populations=None, write
     else:
         pop_names = populations
 
-    
+
     for pop_name in pop_names:
 
         gid_range = [gid for i, gid in enumerate(env.cell_selection[pop_name]) if i % nhosts == rank]
@@ -572,7 +572,7 @@ def write_cell_selection(env, write_selection_file_path, populations=None, write
             for i, (gid, tree) in enumerate(cell_tree_iter):
                 trees_output_dict[gid] = tree
                 num_cells += 1
-            
+
             assert(len(trees_output_dict) == len(gid_range))
 
         elif (pop_name in env.cell_attribute_info) and ('Coordinates' in env.cell_attribute_info[pop_name]):
@@ -589,11 +589,11 @@ def write_cell_selection(env, write_selection_file_path, populations=None, write
                 coords_output_dict[gid] = coords
                 num_cells += 1
 
-            
+
         if rank == 0:
             logger.info("*** Writing cell selection for population %s to file %s" % (pop_name, write_selection_file_path))
         append_cell_trees(write_selection_file_path, pop_name, trees_output_dict, **write_kwds)
-        write_cell_attributes(write_selection_file_path, pop_name, coords_output_dict, 
+        write_cell_attributes(write_selection_file_path, pop_name, coords_output_dict,
                               namespace='Coordinates', **write_kwds)
         env.comm.barrier()
 
@@ -605,13 +605,13 @@ def write_connection_selection(env, write_selection_file_path, populations=None,
 
     :param env: an instance of the `Env` class
     """
-    
+
     if 'comm' not in write_kwds:
         write_kwds['comm'] = env.comm
     if 'io_size' not in write_kwds:
         write_kwds['io_size'] = env.io_size
 
-    
+
     connectivity_file_path = env.connectivity_file_path
     forest_file_path = env.forest_file_path
     rank = int(env.comm.Get_rank())
@@ -649,17 +649,17 @@ def write_connection_selection(env, write_selection_file_path, populations=None,
             logger.info('*** Reading synaptic attributes for population %s' % (postsyn_name))
 
         syn_attributes_iter = scatter_read_cell_attribute_selection(forest_file_path, postsyn_name, selection=gid_range,
-                                                                    namespace='Synapse Attributes', comm=env.comm, 
+                                                                    namespace='Synapse Attributes', comm=env.comm,
                                                                     io_size=env.io_size)
-        
-        
+
+
         syn_attributes_output_dict = dict(list(syn_attributes_iter))
         write_cell_attributes(write_selection_file_path, postsyn_name, syn_attributes_output_dict, namespace='Synapse Attributes', **write_kwds)
         del syn_attributes_output_dict
         del syn_attributes_iter
 
         if has_weights:
-            
+
             for weight_dict in weight_dicts:
 
                 weights_namespaces = weight_dict['namespace']
@@ -669,23 +669,23 @@ def write_connection_selection(env, write_selection_file_path, populations=None,
 
                 for weights_namespace in weights_namespaces:
                     syn_weights_iter = scatter_read_cell_attribute_selection(forest_file_path, postsyn_name,
-                                                                             namespace=weights_namespace, 
+                                                                             namespace=weights_namespace,
                                                                              selection=gid_range,
                                                                              comm=env.comm, io_size=env.io_size)
 
                     weight_attributes_output_dict = dict(list(syn_weights_iter))
-                    write_cell_attributes(write_selection_file_path, postsyn_name, weight_attributes_output_dict, 
+                    write_cell_attributes(write_selection_file_path, postsyn_name, weight_attributes_output_dict,
                                           namespace=weights_namespace, **write_kwds)
                     del weight_attributes_output_dict
                     del syn_weights_iter
 
-                
+
         logger.info('*** Rank %i: reading connectivity selection from file %s for postsynaptic population: %s: selection: %s' % (rank, connectivity_file_path, postsyn_name, str(gid_range)))
 
         (graph, attr_info) = scatter_read_graph_selection(connectivity_file_path, selection=gid_range, \
                                                           projections=[ (presyn_name, postsyn_name) for presyn_name in sorted(presyn_names) ], \
                                                           comm=env.comm, io_size=env.io_size, namespaces=['Synapses', 'Connections'])
-        
+
 
         for presyn_name in sorted(presyn_names):
             gid_dict = {}
@@ -698,7 +698,7 @@ def write_connection_selection(env, write_selection_file_path, populations=None,
                 else:
                     raise RuntimeError('write_connection_selection: missing edge attributes for projection %s -> %s' % \
                                        (presyn_name, postsyn_name))
-                
+
                 if 'Synapses' in edge_attr_info and \
                         'syn_id' in edge_attr_info['Synapses'] and \
                         'Connections' in edge_attr_info and \
@@ -708,7 +708,7 @@ def write_connection_selection(env, write_selection_file_path, populations=None,
                 else:
                     raise RuntimeError('write_connection_selection: missing edge attributes for projection %s -> %s' % \
                                            (presyn_name, postsyn_name))
-            
+
                 edge_iter = compose_iter(lambda edgeset: input_sources[presyn_name].update(edgeset[1][0]), \
                                          graph[postsyn_name][presyn_name])
                 for (postsyn_gid, edges) in edge_iter:
@@ -716,7 +716,7 @@ def write_connection_selection(env, write_selection_file_path, populations=None,
                     presyn_gids, edge_attrs = edges
                     edge_syn_ids = edge_attrs['Synapses'][syn_id_attr_index]
                     edge_dists = edge_attrs['Connections'][distance_attr_index]
-                    
+
                     gid_dict[postsyn_gid] = (presyn_gids,
                                              {'Synapses': {'syn_id': edge_syn_ids},
                                               'Connections': {'distance': edge_dists} })
@@ -732,7 +732,7 @@ def write_connection_selection(env, write_selection_file_path, populations=None,
 
     return input_sources
 
-                    
+
 def write_input_cell_selection(env, input_sources, write_selection_file_path, populations=None, write_kwds={}):
     """
     Writes out predefined spike trains when only a subset of the network is instantiated.
@@ -801,26 +801,26 @@ def write_input_cell_selection(env, input_sources, write_selection_file_path, po
                 vecstim_attr_set.add(env.spike_input_attr)
             if 'spike train' in env.celltypes[pop_name]:
                 vecstim_attr_set.add(env.celltypes[pop_name]['spike train']['attribute'])
-                    
+
             cell_spikes_iters = [ scatter_read_cell_attribute_selection(input_path, pop_name, \
                                                                         list(this_gid_range), \
                                                                         namespace=input_ns, \
                                                                         mask=vecstim_attr_set, \
-                                                                        comm=env.comm, io_size=env.io_size) 
+                                                                        comm=env.comm, io_size=env.io_size)
                                   for (input_path, input_ns) in spike_input_source_loc ]
 
-                
+
             for cell_spikes_iter in cell_spikes_iters:
                 spikes_output_dict.update(dict(list(cell_spikes_iter)))
 
         if rank == 0:
             logger.info('*** Writing spike trains for population %s: %s' % (pop_name, str(spikes_output_dict)))
 
-                
+
         write_cell_attributes(write_selection_file_path, pop_name, spikes_output_dict,  \
                               namespace=env.spike_input_ns, **write_kwds)
 
-        
+
 def query_cell_attributes(input_file, population_names, namespace_ids=None):
 
     pop_state_dict = {}

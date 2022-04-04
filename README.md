@@ -14,7 +14,7 @@ Simulation and Analysis Code for Mind in Vitro
 2. Python package prerequisites
 
 ```
-pip install numpy scipy mpi4py h5py matplotlib Cython pyyaml sympy
+pip install numpy scipy mpi4py h5py matplotlib Cython pyyaml sympy networkx
 ```
 
 3. Building and installing NEURON
