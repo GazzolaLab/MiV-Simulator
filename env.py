@@ -33,16 +33,16 @@ NetclampConfig = namedtuple('NetclampConfig',
 ArenaConfig = namedtuple('Arena',
                          ['name',
                           'domain',
-                          'trajectories',
+                          'stimuli',
                           'properties'])
 
 DomainConfig = namedtuple('Domain',
                           ['vertices',
                            'simplices'])
 
-TrajectoryConfig = namedtuple('Trajectory',
-                              ['velocity',
-                               'path'])
+StimulusConfig = namedtuple('Stimulus',
+                            ['velocity',
+                             'path'])
 
 
 
@@ -327,7 +327,7 @@ class Env(object):
 
         self.stimulus_config = None
         self.arena_id = None
-        self.trajectory_id = None
+        self.stimulus_id = None
         if 'Stimulus' in self.model_config:
             self.parse_stimulus_config()
             self.init_stimulus_config(**kwargs)
@@ -416,7 +416,8 @@ class Env(object):
 
         return DomainConfig(vertices, simplices)
 
-    def parse_arena_trajectory(self, config):
+
+    def parse_arena_spatial_stimulus(self, config):
         velocity = float(config['run velocity'])
         path_config = config['path']
 
@@ -429,21 +430,21 @@ class Env(object):
         path = np.column_stack((np.asarray(path_x, dtype=np.float32),
                                 np.asarray(path_y, dtype=np.float32)))
 
-        return TrajectoryConfig(velocity, path)
+        return StimulusConfig(velocity, path)
 
-    def init_stimulus_config(self, arena_id=None, trajectory_id=None, **kwargs):
+    def init_stimulus_config(self, arena_id=None, stimulus_id=None, **kwargs):
         if arena_id is not None:
             if arena_id in self.stimulus_config['Arena']:
                 self.arena_id = arena_id
             else:
                 raise RuntimeError('init_stimulus_config: arena id parameter not found in stimulus configuration')
-            if trajectory_id is None:
-                self.trajectory_id = None
+            if stimulus_id is None:
+                self.stimulus_id = None
             else:
-                if trajectory_id in self.stimulus_config['Arena'][arena_id].trajectories:
-                    self.trajectory_id = trajectory_id
+                if stimulus_id in self.stimulus_config['Arena'][arena_id].stimuli:
+                    self.stimulus_id = stimulus_id
                 else:
-                    raise RuntimeError('init_stimulus_config: trajectory id parameter not found in stimulus configuration')
+                    raise RuntimeError('init_stimulus_config: stimulus id parameter not found in stimulus configuration')
 
     def parse_stimulus_config(self):
         stimulus_dict = self.model_config['Stimulus']
@@ -472,18 +473,18 @@ class Env(object):
                 for arena_id, arena_val in viewitems(v):
                     arena_properties = {}
                     arena_domain = None
-                    arena_trajectories = {}
+                    arena_stimuli = {}
                     for kk, vv in viewitems(arena_val):
                         if kk == 'Domain':
                             arena_domain = self.parse_arena_domain(vv)
-                        elif kk == 'Trajectory':
-                            for name, trajectory_config in viewitems(vv):
-                                trajectory = self.parse_arena_trajectory(trajectory_config)
-                                arena_trajectories[name] = trajectory
+                        elif kk == 'Stimulus':
+                            for name, stimulus_config in viewitems(vv):
+                                stimulus = self.parse_arena_spatial_stimulus(stimulus_config)
+                                arena_stimuli[name] = stimulus
                         else:
                             arena_properties[kk] = vv
                     stimulus_config['Arena'][arena_id] = ArenaConfig(arena_id, arena_domain,
-                                                                  arena_trajectories, arena_properties)
+                                                                     arena_stimuli, arena_properties)
             else:
                 stimulus_config[k] = v
 

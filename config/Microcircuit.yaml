@@ -1,15 +1,14 @@
 ## Model configuration of microcircuit network
 Model Name: Microcircuit_Basis
-Dataset Name: Microcircuit_Basis
+Dataset Name: Microcircuit
 Definitions: !include Definitions.yaml
 Global Parameters: !include Global.yaml
 Geometry: !include Geometry.yaml
 Random Seeds: !include Random.yaml
 Connection Generator: !include Microcircuit_Connections.yaml
-#Recording: !include Recording.yaml
+Recording: !include Recording.yaml
 #Stimulus: !include Input_Configuration.yaml
 Analysis: !include Analysis_Configuration.yaml
-## Cell types for dentate gyrus model
 Cell Types:
   PYR:
     template: PoolosPyramidalCell

@@ -1,18 +1,20 @@
 """
-Dentate Gyrus network initialization routines.
+Network initialization routines.
 """
+
 __author__ = 'See AUTHORS.md'
 
 import os, sys, gc, time, resource, random, pprint
 import numpy as np
 
-import cells, io_utils, lfp, lpt, simtime, synapses
-from neuron_utils import h, configure_hoc_env, cx, make_rec, mkgap, load_cell_template
-from utils import compose_iter, imapreduce, get_module_logger, profile_memory, Promise, viewitems, viewkeys, zip, zip_longest
+from MiV import cells, io_utils, lfp, lpt, simtime, synapses
+from MiV.neuron_utils import h, configure_hoc_env, cx, make_rec, mkgap, load_cell_template
+from MiV.utils import compose_iter, imapreduce, get_module_logger, profile_memory, Promise
+from MiV.utils import range, str, viewitems, viewkeys, zip, zip_longest
 from neuroh5.io import bcast_graph, read_cell_attribute_selection, scatter_read_cell_attribute_selection, read_graph_selection, read_tree_selection, scatter_read_cell_attributes, scatter_read_graph, scatter_read_trees, write_cell_attributes, write_graph, NeuroH5CellAttrGen
 from mpi4py import MPI
 
-# This logger will inherit its settings from the root logger, created in dentate.env
+# This logger will inherit its settings from the root logger, created in MiV.env
 logger = get_module_logger(__name__)
 
 
@@ -26,7 +28,7 @@ def ld_bal(env):
     """
     For given cxvec on each rank, calculates the fractional load balance.
 
-    :param env: an instance of the `dentate.Env` class.
+    :param env: an instance of the `MiV.Env` class.
    """
     rank = int(env.pc.id())
     nhosts = int(env.pc.nhost())
@@ -44,7 +46,7 @@ def lpt_bal(env):
     Each rank has gidvec, cxvec: gather everything to rank 0, do lpt
     algorithm and write to a balance file.
 
-    :param env: an instance of the `dentate.Env` class.
+    :param env: an instance of the `MiV.Env` class.
     """
     rank = int(env.pc.id())
     nhosts = int(env.pc.nhost())
@@ -75,7 +77,7 @@ def connect_cells(env):
     Loads NeuroH5 connectivity file, instantiates the corresponding
     synapse and network connection mechanisms for each postsynaptic cell.
 
-    :param env: an instance of the `dentate.Env` class
+    :param env: an instance of the `MiV.Env` class
     """
     connectivity_file_path = env.connectivity_file_path
     forest_file_path = env.forest_file_path
@@ -103,7 +105,6 @@ def connect_cells(env):
             unique = synapse_config['unique']
         else:
             unique = False
-
         weight_dicts = []
         has_weights = False
         if 'weights' in synapse_config:
@@ -118,22 +119,22 @@ def connect_cells(env):
         if env.use_cell_attr_gen:
             synapses_attr_gen = None
             if env.node_allocation is None:
-                synapses_attr_gen = NeuroH5CellAttrGen(forest_file_path, postsyn_name,
+                synapses_attr_gen = NeuroH5CellAttrGen(forest_file_path, postsyn_name, 
                                                        namespace='Synapse Attributes',
                                                        comm=env.comm, return_type='tuple',
-                                                       io_size=env.io_size,
+                                                       io_size=env.io_size, 
                                                        cache_size=env.cell_attr_gen_cache_size)
             else:
-                synapses_attr_gen = NeuroH5CellAttrGen(forest_file_path, postsyn_name,
+                synapses_attr_gen = NeuroH5CellAttrGen(forest_file_path, postsyn_name, 
                                                        namespace='Synapse Attributes',
                                                        comm=env.comm, return_type='tuple',
-                                                       io_size=env.io_size,
+                                                       io_size=env.io_size, 
                                                        cache_size=env.cell_attr_gen_cache_size,
                                                        node_allocation=env.node_allocation)
-
+                
 
             for iter_count, (gid, gid_attr_data) in enumerate(synapses_attr_gen):
-
+                
                 if gid is not None:
                     (attr_tuple, attr_tuple_index) = gid_attr_data
                     syn_ids_ind = attr_tuple_index.get('syn_ids', None)
@@ -157,29 +158,29 @@ def connect_cells(env):
                 cell_attributes_dict = scatter_read_cell_attributes(forest_file_path, postsyn_name,
                                                                     namespaces=sorted(cell_attr_namespaces),
                                                                     mask=set(['syn_ids', 'syn_locs', 'syn_secs', 'syn_layers',
-                                                                              'syn_types', 'swc_types']),
+                                                                              'syn_types', 'swc_types']), 
                                                                     comm=env.comm, io_size=env.io_size,
                                                                     return_type='tuple')
             else:
                 cell_attributes_dict = scatter_read_cell_attributes(forest_file_path, postsyn_name,
                                                                     namespaces=sorted(cell_attr_namespaces),
                                                                     mask=set(['syn_ids', 'syn_locs', 'syn_secs', 'syn_layers',
-                                                                              'syn_types', 'swc_types']),
+                                                                              'syn_types', 'swc_types']), 
                                                                     comm=env.comm, node_allocation=env.node_allocation,
                                                                     io_size=env.io_size,
                                                                     return_type='tuple')
 
                 syn_attrs_iter, syn_attrs_info = cell_attributes_dict['Synapse Attributes']
-                syn_attrs.init_syn_id_attrs_from_iter(syn_attrs_iter, attr_type='tuple',
+                syn_attrs.init_syn_id_attrs_from_iter(syn_attrs_iter, attr_type='tuple', 
                                                       attr_tuple_index=syn_attrs_info, debug=(rank == 0))
                 del cell_attributes_dict
                 gc.collect()
 
         weight_attr_mask = list(syn_attrs.syn_mech_names)
         weight_attr_mask.append('syn_id')
-
+        
         if has_weights:
-
+            
             for weight_dict in weight_dicts:
 
                 expr_closure = weight_dict.get('closure', None)
@@ -190,17 +191,17 @@ def connect_cells(env):
 
                 if env.node_allocation is None:
                     weight_attr_dict = scatter_read_cell_attributes(forest_file_path, postsyn_name,
-                                                                    namespaces=weights_namespaces,
+                                                                    namespaces=weights_namespaces, 
                                                                     mask=set(weight_attr_mask),
                                                                     comm=env.comm, io_size=env.io_size,
                                                                     return_type='tuple')
                 else:
                     weight_attr_dict = scatter_read_cell_attributes(forest_file_path, postsyn_name,
-                                                                    namespaces=weights_namespaces,
+                                                                    namespaces=weights_namespaces, 
                                                                     mask=set(weight_attr_mask),
                                                                     comm=env.comm, node_allocation=env.node_allocation,
                                                                     io_size=env.io_size, return_type='tuple')
-
+                
                 append_weights = False
                 multiple_weights = 'error'
                 for weights_namespace in weights_namespaces:
@@ -208,7 +209,7 @@ def connect_cells(env):
                     syn_weights_iter, weight_attr_info = weight_attr_dict[weights_namespace]
                     first_gid = None
                     syn_id_index = weight_attr_info.get('syn_id', None)
-                    syn_name_inds = [(syn_name, attr_index)
+                    syn_name_inds = [(syn_name, attr_index) 
                                      for syn_name, attr_index in sorted(viewitems(weight_attr_info)) if syn_name != 'syn_id']
                     for gid, cell_weights_tuple in syn_weights_iter:
                         if first_gid is None:
@@ -254,7 +255,6 @@ def connect_cells(env):
             edge_iter = graph[postsyn_name][presyn_name]
 
             last_time = time.time()
-
             if env.microcircuit_inputs:
                 presyn_input_sources = env.microcircuit_input_sources.get(presyn_name, set([]))
                 syn_edge_iter = compose_iter(lambda edgeset: presyn_input_sources.update(edgeset[1][0]), \
@@ -268,7 +268,6 @@ def connect_cells(env):
                 logger.info(f'Rank {rank}: took {(time.time() - last_time):.02f} s to initialize edge attributes for projection {presyn_name} -> {postsyn_name}')
                 del graph[postsyn_name][presyn_name]
 
-
         first_gid = None
         if postsyn_name in env.biophys_cells:
             biophys_cell_count += len(env.biophys_cells[postsyn_name])
@@ -279,10 +278,10 @@ def connect_cells(env):
                     first_gid = gid
                 try:
                     biophys_cell = env.biophys_cells[postsyn_name][gid]
-                    cells.init_biophysics(biophys_cell, env=env,
-                                          reset_cable=True,
+                    cells.init_biophysics(biophys_cell, env=env, 
+                                          reset_cable=True, 
                                           correct_cm=correct_for_spines,
-                                          correct_g_pas=correct_for_spines,
+                                          correct_g_pas=correct_for_spines, 
                                           verbose=((rank == 0) and (first_gid == gid)))
                     synapses.init_syn_mech_attrs(biophys_cell, env)
                 except KeyError:
@@ -323,9 +322,9 @@ def connect_cells(env):
             logger.info(f'Rank {rank}: configuring synapses for gid {gid}')
 
         last_time = time.time()
-
+        
         syn_count, mech_count, nc_count = synapses.config_hoc_cell_syns(
-            env, gid, postsyn_name, cell=postsyn_cell.hoc_cell if hasattr(postsyn_cell, 'hoc_cell') else postsyn_cell,
+            env, gid, postsyn_name, cell=postsyn_cell.hoc_cell if hasattr(postsyn_cell, 'hoc_cell') else postsyn_cell, 
             unique=unique, insert=True, insert_netcons=True)
 
         if rank == 0 and gid == first_gid:
@@ -367,7 +366,7 @@ def connect_cell_selection(env):
     Loads NeuroH5 connectivity file, instantiates the corresponding
     synapse and network connection mechanisms for the selected postsynaptic cells.
 
-    :param env: an instance of the `dentate.Env` class
+    :param env: an instance of the `MiV.Env` class
     """
     connectivity_file_path = env.connectivity_file_path
     forest_file_path = env.forest_file_path
@@ -417,7 +416,7 @@ def connect_cell_selection(env):
         syn_attrs_iter, syn_attrs_info = read_cell_attribute_selection(forest_file_path, postsyn_name, selection=gid_range,
                                                                        namespace='Synapse Attributes', comm=env.comm,
                                                                        mask=set(['syn_ids', 'syn_locs', 'syn_secs', 'syn_layers',
-                                                                                 'syn_types', 'swc_types']),
+                                                                                 'syn_types', 'swc_types']), 
                                                                        return_type='tuple')
 
         syn_attrs.init_syn_id_attrs_from_iter(syn_attrs_iter, attr_type='tuple', attr_tuple_index=syn_attrs_info)
@@ -435,16 +434,15 @@ def connect_cell_selection(env):
 
                 if rank == 0:
                     logger.info(f'*** Reading synaptic weights of population {postsyn_name} from namespaces {weights_namespaces}')
-
                 append_weights = False
                 multiple_weights='error'
 
                 for weights_namespace in weights_namespaces:
-
+                
                     syn_weights_iter, weight_attr_info = read_cell_attribute_selection(forest_file_path, postsyn_name,
-                                                                                   selection=gid_range,
+                                                                                   selection=gid_range, 
                                                                                    mask=set(weight_attr_mask),
-                                                                                   namespace=weights_namespace,
+                                                                                   namespace=weights_namespace, 
                                                                                    comm=env.comm, return_type='tuple')
 
                     first_gid = None
@@ -475,7 +473,11 @@ def connect_cell_selection(env):
                 append_weights=True
                 del syn_weights_iter
 
+<<<<<<< Updated upstream
 
+=======
+                
+>>>>>>> Stashed changes
         (graph, a) = read_graph_selection(connectivity_file_path, selection=gid_range, \
                                           projections=[ (presyn_name, postsyn_name) for presyn_name in sorted(presyn_names) ],
                                           comm=env.comm, namespaces=['Synapses', 'Connections'])
@@ -487,7 +489,11 @@ def connect_cell_selection(env):
                 logger.info(f'*** Connecting {presyn_name} -> {postsyn_name}')
 
                 edge_iter = graph[postsyn_name][presyn_name]
+<<<<<<< Updated upstream
 
+=======
+                
+>>>>>>> Stashed changes
                 presyn_input_sources = env.microcircuit_input_sources.get(presyn_name, set([]))
                 syn_edge_iter = compose_iter(lambda edgeset: presyn_input_sources.update(edgeset[1][0]),
                                              edge_iter)
@@ -570,7 +576,11 @@ def connect_gjs(env):
     Loads NeuroH5 connectivity file, instantiates the corresponding
     half-gap mechanisms on the pre- and post-junction cells.
 
+<<<<<<< Updated upstream
     :param env: an instance of the `dentate.Env` class
+=======
+    :param env: an instance of the `MiV.Env` class
+>>>>>>> Stashed changes
 
     """
     rank = int(env.pc.id())
@@ -652,7 +662,11 @@ def make_cells(env):
     """
     Instantiates cell templates according to population ranges and NeuroH5 morphology if present.
 
+<<<<<<< Updated upstream
     :param env: an instance of the `dentate.Env` class
+=======
+    :param env: an instance of the `MiV.Env` class
+>>>>>>> Stashed changes
     """
     rank = int(env.pc.id())
     nhosts = int(env.pc.nhost())
@@ -670,6 +684,7 @@ def make_cells(env):
     for pop_name in pop_names:
         if rank == 0:
             logger.info(f'*** Creating population {pop_name}')
+<<<<<<< Updated upstream
 
 
         template_name = env.celltypes[pop_name].get('template', None)
@@ -680,6 +695,18 @@ def make_cells(env):
         if template_name_lower != 'izhikevich' and template_name_lower != 'vecstim':
             load_cell_template(env, pop_name, bcast_template=True)
 
+=======
+            
+        
+        template_name = env.celltypes[pop_name].get('template', None)
+        if template_name is None:
+            continue
+        
+        template_name_lower = template_name.lower()
+        if template_name_lower != 'izhikevich' and template_name_lower != 'vecstim':    
+            load_cell_template(env, pop_name, bcast_template=True)
+                
+>>>>>>> Stashed changes
         if 'mech_file_path' in env.celltypes[pop_name]:
             mech_dict = env.celltypes[pop_name]['mech_dict']
             mech_file_path = env.celltypes[pop_name]['mech_file_path']
@@ -690,7 +717,11 @@ def make_cells(env):
 
         is_izhikevich = (template_name.lower() == 'izhikevich')
         is_PR = (template_name.lower() == 'pr_nrn')
+<<<<<<< Updated upstream
 
+=======
+        
+>>>>>>> Stashed changes
         num_cells = 0
         if (pop_name in env.cell_attribute_info) and ('Trees' in env.cell_attribute_info[pop_name]):
             if rank == 0:
@@ -743,7 +774,11 @@ def make_cells(env):
                 num_cells += 1
             del trees
 
+<<<<<<< Updated upstream
 
+=======
+            
+>>>>>>> Stashed changes
         elif (pop_name in env.cell_attribute_info) and ('Coordinates' in env.cell_attribute_info[pop_name]):
             if rank == 0:
                 logger.info(f"*** Reading coordinates for population {pop_name}")
@@ -817,7 +852,11 @@ def make_cell_selection(env):
     Instantiates cell templates for the selected cells according to
     population ranges and NeuroH5 morphology if present.
 
+<<<<<<< Updated upstream
     :param env: an instance of the `dentate.Env` class
+=======
+    :param env: an instance of the `MiV.Env` class
+>>>>>>> Stashed changes
     """
 
     rank = int(env.pc.id())
@@ -834,7 +873,11 @@ def make_cell_selection(env):
 
         template_name = env.celltypes[pop_name]['template']
         template_name_lower = template_name.lower()
+<<<<<<< Updated upstream
         if template_name_lower != 'izhikevich' and template_name_lower != 'vecstim':
+=======
+        if template_name_lower != 'izhikevich' and template_name_lower != 'vecstim':    
+>>>>>>> Stashed changes
             load_cell_template(env, pop_name, bcast_template=True)
 
         templateClass = getattr(h, env.celltypes[pop_name]['template'])
@@ -849,8 +892,13 @@ def make_cell_selection(env):
         is_izhikevich = (template_name.lower() == 'izhikevich')
         is_PR = (template_name.lower() == 'pr_nrn')
         num_cells = 0
+<<<<<<< Updated upstream
 
 
+=======
+        
+            
+>>>>>>> Stashed changes
         if (pop_name in env.cell_attribute_info) and ('Trees' in env.cell_attribute_info[pop_name]):
             if rank == 0:
                 logger.info(f"*** Reading trees for population {pop_name}")
@@ -888,7 +936,11 @@ def make_cell_selection(env):
                         cells.register_cell(env, pop_name, gid, biophys_cell)
                         if rank == 0 and gid == first_gid:
                             logger.info(f'*** make_cell_selection: population: {pop_name}; gid: {gid}; loaded biophysics from path: {mech_file_path}')
+<<<<<<< Updated upstream
 
+=======
+                            
+>>>>>>> Stashed changes
 
                 if rank == 0 and first_gid == gid:
                     if hasattr(hoc_cell, 'all'):
@@ -896,14 +948,23 @@ def make_cell_selection(env):
                             h.psection(sec=sec)
 
                 num_cells += 1
+<<<<<<< Updated upstream
 
+=======
+                
+>>>>>>> Stashed changes
 
         elif (pop_name in env.cell_attribute_info) and ('Coordinates' in env.cell_attribute_info[pop_name]):
             if rank == 0:
                 logger.info(f"*** Reading coordinates for population {pop_name}")
 
+<<<<<<< Updated upstream
             coords_iter, coords_attr_info = read_cell_attribute_selection(data_file_path, pop_name, selection=gid_range,
                                                                           namespace='Coordinates', comm=env.comm,
+=======
+            coords_iter, coords_attr_info = read_cell_attribute_selection(data_file_path, pop_name, selection=gid_range, 
+                                                                          namespace='Coordinates', comm=env.comm, 
+>>>>>>> Stashed changes
                                                                           return_type='tuple')
             x_index = coords_attr_info.get('X Coordinate', None)
             y_index = coords_attr_info.get('Y Coordinate', None)
@@ -949,7 +1010,11 @@ def make_input_cell_selection(env):
     """
     Creates cells with predefined spike patterns when only a subset of the network is instantiated.
 
+<<<<<<< Updated upstream
     :param env: an instance of the `dentate.Env` class
+=======
+    :param env: an instance of the `MiV.Env` class
+>>>>>>> Stashed changes
     """
     rank = int(env.pc.id())
     nhosts = int(env.pc.nhost())
@@ -1023,7 +1088,11 @@ def init_input_cells(env):
     """
     Initializes cells with predefined spike patterns.
 
+<<<<<<< Updated upstream
     :param env: an instance of the `dentate.Env` class
+=======
+    :param env: an instance of the `MiV.Env` class
+>>>>>>> Stashed changes
     """
 
     rank = int(env.pc.id())
@@ -1041,8 +1110,13 @@ def init_input_cells(env):
     for pop_name in pop_names:
 
         if 'spike train' in env.celltypes[pop_name]:
+<<<<<<< Updated upstream
             if env.arena_id and env.trajectory_id:
                 vecstim_namespace = f"{env.celltypes[pop_name]['spike train']['namespace']} {env.arena_id} {env.trajectory_id}"
+=======
+            if env.arena_id and env.stimulus_id:
+                vecstim_namespace = f"{env.celltypes[pop_name]['spike train']['namespace']} {env.arena_id} {env.stimulus_id}"
+>>>>>>> Stashed changes
             else:
                 vecstim_namespace = env.celltypes[pop_name]['spike train']['namespace']
             vecstim_attr = env.celltypes[pop_name]['spike train']['attribute']
@@ -1075,7 +1149,11 @@ def init_input_cells(env):
                 else:
                     if pop_name in env.cell_selection:
                         gid_range = [gid for gid in env.cell_selection[pop_name] if env.pc.gid_exists(gid)]
+<<<<<<< Updated upstream
 
+=======
+                        
+>>>>>>> Stashed changes
                         vecstim_iter, vecstim_attr_info = scatter_read_cell_attribute_selection(input_file_path, \
                                                                                                 pop_name, gid_range, \
                                                                                                 namespace=vecstim_namespace, \
@@ -1137,7 +1215,11 @@ def init_input_cells(env):
 
             if rank == 0:
                 logger.info(f"*** Initializing input source {pop_name} from locations {spike_input_source_loc}")
+<<<<<<< Updated upstream
 
+=======
+                    
+>>>>>>> Stashed changes
             if has_spike_train:
 
                 vecstim_attr_set = set(['t', trial_index_attr, trial_dur_attr])
@@ -1146,7 +1228,11 @@ def init_input_cells(env):
                 if pop_name in env.celltypes:
                     if 'spike train' in env.celltypes[pop_name]:
                         vecstim_attr_set.add(env.celltypes[pop_name]['spike train']['attribute'])
+<<<<<<< Updated upstream
 
+=======
+                    
+>>>>>>> Stashed changes
                 cell_spikes_items = []
                 for (input_path, input_ns) in spike_input_source_loc:
                     item = scatter_read_cell_attribute_selection(
@@ -1154,7 +1240,11 @@ def init_input_cells(env):
                         namespace=input_ns, mask=vecstim_attr_set,
                         comm=env.comm, io_size=env.io_size, return_type='tuple')
                     cell_spikes_items.append(item)
+<<<<<<< Updated upstream
 
+=======
+                    
+>>>>>>> Stashed changes
                 for cell_spikes_iter, cell_spikes_attr_info in cell_spikes_items:
                     if len(cell_spikes_attr_info) == 0:
                         continue
@@ -1169,7 +1259,11 @@ def init_input_cells(env):
                     elif len(this_gid_range) > 0:
                         raise RuntimeError(f"init_input_cells: unable to determine spike train attribute for population {pop_name} in spike input file {env.spike_input_path};"
                                            f" namespace {env.spike_input_ns}; attr keys {list(viewkeys(cell_spikes_attr_info))}")
+<<<<<<< Updated upstream
 
+=======
+                        
+>>>>>>> Stashed changes
                     for gid, cell_spikes_tuple in cell_spikes_iter:
                         if not (env.pc.gid_exists(gid)):
                             continue
@@ -1190,26 +1284,44 @@ def init_input_cells(env):
                                 input_cell.play(h.Vector(spiketrain.astype(np.float64)))
                                 if rank == 0:
                                     logger.info(f"*** Spike train for {pop_name} gid {gid} is of length {len(spiketrain)} ({spiketrain[0]} : {spiketrain[-1]} ms)")
+<<<<<<< Updated upstream
 
+=======
+                                
+>>>>>>> Stashed changes
 
             else:
                 if rank == 0:
                     logger.warning(f'No spike train data found for population {pop_name} in spike input file {env.spike_input_path}; '
                                    f'namespace: {env.spike_input_ns}')
+<<<<<<< Updated upstream
 
     gc.collect()
 
+=======
+            
+    gc.collect()
+                    
+>>>>>>> Stashed changes
 
 def init(env):
     """
     Initializes the network by calling make_cells, init_input_cells, connect_cells, connect_gjs.
     If env.optldbal or env.optlptbal are specified, performs load balancing.
 
+<<<<<<< Updated upstream
     :param env: an instance of the `dentate.Env` class
     """
     from neuron import h
     configure_hoc_env(env)
 
+=======
+    :param env: an instance of the `MiV.Env` class
+    """
+    from neuron import h
+    configure_hoc_env(env)
+    
+>>>>>>> Stashed changes
     assert(env.data_file_path)
     assert(env.connectivity_file_path)
     rank = int(env.pc.id())
@@ -1277,7 +1389,11 @@ def init(env):
         logger.info(f"*** Connections created in {env.connectcellstime:.02f} s")
     edge_count = int(sum([env.edge_count[dest] for dest in env.edge_count]))
     logger.info(f"*** Rank {rank} created {edge_count} connections")
+<<<<<<< Updated upstream
 
+=======
+    
+>>>>>>> Stashed changes
     if env.profile_memory and rank == 0:
         profile_memory(logger)
 
@@ -1309,7 +1425,11 @@ def run(env, output=True, shutdown=True, output_syn_spike_count=False):
     called with the network configuration provided by the `env`
     argument.
 
+<<<<<<< Updated upstream
     :param env: an instance of the `dentate.Env` class
+=======
+    :param env: an instance of the `MiV.Env` class
+>>>>>>> Stashed changes
     :param output: if True, output spike and cell voltage trace data
     :param output_syn_spike_count: if True, output spike counts per pre-synaptic source for each gid
     """
@@ -1392,13 +1512,21 @@ def run(env, output=True, shutdown=True, output_syn_spike_count=False):
            synapses.write_syn_spike_count(env, pop_name, env.results_file_path,
                                           filters={'sources': presyn_names},
                                           write_kwds={'io_size': env.io_size})
+<<<<<<< Updated upstream
 
+=======
+            
+>>>>>>> Stashed changes
     if rank == 0:
         logger.info("*** Simulation completed")
 
     if rank == 0 and output:
         io_utils.lfpout(env, env.results_file_path)
+<<<<<<< Updated upstream
 
+=======
+        
+>>>>>>> Stashed changes
     if shutdown:
         del env.cells
 

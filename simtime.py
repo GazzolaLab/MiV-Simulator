@@ -1,10 +1,11 @@
 """Routines to keep track of simulation computation time and terminate the simulation if not enough time has been allocated."""
+
 import time
 
-from utils import get_module_logger
+from MiV.utils import get_module_logger
 from neuron import h
 
-# This logger will inherit its settings from the root logger, created in dentate.env
+# This logger will inherit its settings from the root logger, created in MiV.env
 logger = get_module_logger(__name__)
 
 
