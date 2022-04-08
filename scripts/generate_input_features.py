@@ -1,9 +1,12 @@
 
-import click, gc, math
+import sys, os, copy, gc, math, time, click
+from collections import defaultdict
 from neuroh5.io import NeuroH5CellAttrGen, append_cell_attributes, read_population_ranges
 from MiV.env import Env
 from MiV.stimulus import get_2D_arena_spatial_mesh, \
-    get_2D_arena_bounds, get_2D_arena_extents, generate_input_selectivity_features
+    get_2D_arena_bounds, get_2D_arena_extents, generate_input_features
+from MiV.utils import Struct, list_find, config_logging, get_script_logger, viewitems
+import numpy as np
 from mpi4py import MPI
 import h5py
 
@@ -99,7 +102,6 @@ mpi_op_concatenate_ndarray_dict = MPI.Op.Create(concatenate_ndarray_dict, commut
 @click.option("--output-path", type=click.Path(file_okay=True, dir_okay=False), default=None)
 @click.option("--arena-id", type=str, default='A')
 @click.option("--populations", '-p', type=str, multiple=True)
-@click.option("--use-noise-gen", is_flag=True, default=False)
 @click.option("--io-size", type=int, default=-1)
 @click.option("--chunk-size", type=int, default=1000)
 @click.option("--value-chunk-size", type=int, default=1000)
@@ -117,7 +119,7 @@ mpi_op_concatenate_ndarray_dict = MPI.Op.Create(concatenate_ndarray_dict, commut
 @click.option("--font-size", type=float, default=14)
 @click.option("--fig-format", required=False, type=str, default='svg')
 @click.option("--dry-run", is_flag=True)
-def main(config, config_prefix, coords_path, distances_namespace, output_path, arena_id, populations, use_noise_gen, io_size,
+def main(config, config_prefix, coords_path, distances_namespace, output_path, arena_id, populations, io_size,
          chunk_size, value_chunk_size, cache_size, write_size, verbose, gather, interactive, debug, debug_count, plot, show_fig,
          save_fig, save_fig_dir, font_size, fig_format, dry_run):
     """
@@ -176,7 +178,7 @@ def main(config, config_prefix, coords_path, distances_namespace, output_path, a
 
     if not dry_run and rank == 0:
         if output_path is None:
-            raise RuntimeError('generate_input_selectivity_features: missing output_path')
+            raise RuntimeError('generate_input_features: missing output_path')
         if not os.path.isfile(output_path):
             input_file = h5py.File(coords_path, 'r')
             output_file = h5py.File(output_path, 'w')
@@ -193,17 +195,17 @@ def main(config, config_prefix, coords_path, distances_namespace, output_path, a
     if rank == 0:
         for population in sorted(populations):
             if population not in population_ranges:
-                raise RuntimeError('generate_input_selectivity_features: specified population: %s not found in '
+                raise RuntimeError('generate_input_features: specified population: %s not found in '
                                    'provided coords_path: %s' % (population, coords_path))
             if population not in env.stimulus_config['Selectivity Type Probabilities']:
-                raise RuntimeError('generate_input_selectivity_features: selectivity type not specified for '
-                                   'population: %s' % population)
+                raise RuntimeError(f'generate_input_features: selectivity type not specified for '
+                                   f'population: {population}')
             with h5py.File(coords_path, 'r') as coords_f:
                 pop_size = population_ranges[population][1]
                 unique_gid_count = len(set(
                     coords_f['Populations'][population][distances_namespace]['U Distance']['Cell Index'][:]))
                 if pop_size != unique_gid_count:
-                    raise RuntimeError('generate_input_selectivity_features: only %i/%i unique cell indexes found '
+                    raise RuntimeError('generate_input_features: only %i/%i unique cell indexes found '
                                        'for specified population: %s in provided coords_path: %s' %
                                        (unique_gid_count, pop_size, population, coords_path))
                 try:
@@ -211,7 +213,7 @@ def main(config, config_prefix, coords_path, distances_namespace, output_path, a
                       coords_f['Populations'][population][distances_namespace].attrs['Reference U Min'], \
                       coords_f['Populations'][population][distances_namespace].attrs['Reference U Max']
                 except Exception:
-                    raise RuntimeError('generate_input_selectivity_features: problem locating attributes '
+                    raise RuntimeError('generate_input_features: problem locating attributes '
                                        'containing reference bounds in namespace: %s for population: %s from '
                                        'coords_path: %s' % (distances_namespace, population, coords_path))
     comm.barrier()
@@ -239,9 +241,6 @@ def main(config, config_prefix, coords_path, distances_namespace, output_path, a
     selectivity_seed_offset = int(env.model_config['Random Seeds']['Input Selectivity'])
     local_random.seed(selectivity_seed_offset - 1)
 
-    selectivity_config = InputSelectivityConfig(env.stimulus_config, local_random)
-    if plot and rank == 0:
-        selectivity_config.plot_module_probabilities(**fig_options())
 
     if (debug or interactive) and rank == 0:
         context.update(dict(locals()))
@@ -256,30 +255,6 @@ def main(config, config_prefix, coords_path, distances_namespace, output_path, a
             logger.info(f'Generating input selectivity features for population {population}...')
 
         reference_u_arc_distance_bounds = reference_u_arc_distance_bounds_dict[population]
-
-        modular = True
-        if population in env.stimulus_config['Non-modular Place Selectivity Populations']:
-            modular = False
-
-        noise_gen_dict = None
-        if use_noise_gen:
-            noise_gen_dict = {}
-            if modular:
-                for module_id in range(env.stimulus_config['Number Modules']):
-                    extent_x, extent_y = get_2D_arena_extents(arena)
-                    margin = round(selectivity_config.place_module_field_widths[module_id] / 2.)
-                    arena_x_bounds, arena_y_bounds = get_2D_arena_bounds(arena, margin=margin)
-                    noise_gen = MPINoiseGenerator(comm=comm, bounds=(arena_x_bounds, arena_y_bounds),
-                                                  tile_rank=comm.rank, bin_size=0.5, mask_fraction=0.99,
-                                                  seed=int(selectivity_seed_offset+module_id*1e6))
-                    noise_gen_dict[module_id] = noise_gen
-            else:
-                margin = round(np.mean(selectivity_config.place_module_field_widths) / 2.)
-                arena_x_bounds, arena_y_bounds = get_2D_arena_bounds(arena, margin=margin)
-                noise_gen_dict[-1] = MPINoiseGenerator(comm=comm, bounds=(arena_x_bounds, arena_y_bounds),
-                                                       tile_rank=comm.rank, bin_size=0.5, mask_fraction=0.99,
-                                                       seed=selectivity_seed_offset)
-
         
         this_pop_norm_distances = {}
         this_rate_map_sum = defaultdict(lambda: np.zeros_like(arena_x_mesh))
@@ -293,43 +268,27 @@ def main(config, config_prefix, coords_path, distances_namespace, output_path, a
         selectivity_attr_dict = dict((key, dict()) for key in env.selectivity_types)
         for iter_count, (gid, distances_attr_dict) in enumerate(distances_attr_gen):
             req = comm.Ibarrier()
-            if gid is None:
-                if noise_gen_dict is not None:
-                    all_module_ids = [-1]
-                    if modular:
-                        all_module_ids = comm.allreduce(set([]), op=mpi_op_set_union)
-                    for module_id in all_module_ids:
-                        this_noise_gen = noise_gen_dict[module_id]
-                        global_num_fields = this_noise_gen.sync(0)
-                        for i in range(global_num_fields):
-                            this_noise_gen.add(np.empty( shape=(0, 0), dtype=np.float32 ), None)
-            else:
-                if rank == 0:
-                    logger.info(f'Rank {rank} generating selectivity features for gid {gid}...')
-                u_arc_distance = distances_attr_dict['U Distance'][0]
-                v_arc_distance = distances_attr_dict['V Distance'][0]
-                norm_u_arc_distance = ((u_arc_distance - reference_u_arc_distance_bounds[0]) /
-                                       (reference_u_arc_distance_bounds[1] - reference_u_arc_distance_bounds[0]))
+            if rank == 0:
+                logger.info(f'Rank {rank} generating selectivity features for gid {gid}...')
+            u_arc_distance = distances_attr_dict['U Distance'][0]
+            v_arc_distance = distances_attr_dict['V Distance'][0]
+            norm_u_arc_distance = ((u_arc_distance - reference_u_arc_distance_bounds[0]) /
+                                   (reference_u_arc_distance_bounds[1] - reference_u_arc_distance_bounds[0]))
 
-                this_pop_norm_distances[gid] = norm_u_arc_distance
+            this_pop_norm_distances[gid] = norm_u_arc_distance
 
-                this_selectivity_type_name, this_selectivity_attr_dict = \
-                 generate_input_selectivity_features(env, population, arena,
-                                                     arena_x_mesh, arena_y_mesh,
-                                                     gid, (norm_u_arc_distance, v_arc_distance),
-                                                     selectivity_config, selectivity_type_names,
-                                                     selectivity_type_namespaces,
-                                                     noise_gen_dict=noise_gen_dict,
-                                                     rate_map_sum=this_rate_map_sum,
-                                                     debug= (debug_callback, context) if debug else False)
-                if 'X Offset' in this_selectivity_attr_dict:
-                    this_x0_list.append(this_selectivity_attr_dict['X Offset'])
-                    this_y0_list.append(this_selectivity_attr_dict['Y Offset'])
-                selectivity_attr_dict[this_selectivity_type_name][gid] = this_selectivity_attr_dict
-                gid_count[this_selectivity_type_name] += 1
-            if noise_gen_dict is not None:
-                for m in noise_gen_dict:
-                    noise_gen_dict[m].tile_rank = (noise_gen_dict[m].tile_rank + 1) % comm.size
+            this_selectivity_type_name, this_selectivity_attr_dict = \
+                generate_input_features(env, population, arena,
+                                        arena_x_mesh, arena_y_mesh,
+                                        gid, (norm_u_arc_distance, v_arc_distance),
+                                        selectivity_type_names, selectivity_type_namespaces,
+                                        rate_map_sum=this_rate_map_sum,
+                                        debug= (debug_callback, context) if debug else False)
+            if 'X Offset' in this_selectivity_attr_dict:
+                this_x0_list.append(this_selectivity_attr_dict['X Offset'])
+                this_y0_list.append(this_selectivity_attr_dict['Y Offset'])
+            selectivity_attr_dict[this_selectivity_type_name][gid] = this_selectivity_attr_dict
+            gid_count[this_selectivity_type_name] += 1
             req.wait()
 
             if (iter_count > 0 and iter_count % write_every == 0) or (debug and iter_count == debug_count):

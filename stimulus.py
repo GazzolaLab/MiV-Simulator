@@ -215,6 +215,43 @@ def get_2D_arena_grid(arena, spatial_resolution=5., margin=0., indexing='ij'):
     return arena_x, arena_y
 
 
+def generate_linear_trajectory(trajectory, temporal_resolution=1., equilibration_duration=None):
+    """
+    Construct coordinate arrays for a spatial trajectory, considering run velocity to interpolate at the specified
+    temporal resolution. Optionally, the trajectory can be prepended with extra distance traveled for a specified
+    network equilibration time, with the intention that the user discards spikes generated during this period before
+    analysis.
+    :param trajectory: namedtuple
+    :param temporal_resolution: float (ms)
+    :param equilibration_duration: float (ms)
+    :return: tuple of array
+    """
+    velocity = trajectory.velocity  # (cm / s)
+    spatial_resolution = velocity / 1000. * temporal_resolution
+    x = trajectory.path[:, 0]
+    y = trajectory.path[:, 1]
+
+    if equilibration_duration is not None:
+        equilibration_distance = velocity / 1000. * equilibration_duration
+        x = np.insert(x, 0, x[0] - equilibration_distance)
+        y = np.insert(y, 0, y[0])
+    else:
+        equilibration_duration = 0.
+        equilibration_distance = 0.
+
+    segment_lengths = np.sqrt((np.diff(x) ** 2. + np.diff(y) ** 2.))
+    distance = np.insert(np.cumsum(segment_lengths), 0, 0.)
+
+    interp_distance = np.arange(distance.min(), distance.max() + spatial_resolution / 2., spatial_resolution)
+    interp_x = np.interp(interp_distance, distance, x)
+    interp_y = np.interp(interp_distance, distance, y)
+    t = interp_distance / (velocity / 1000.)  # ms
+
+    t = np.subtract(t, equilibration_duration)
+    interp_distance -= equilibration_distance
+
+    return t, interp_x, interp_y, interp_distance
+
 
 def generate_input_spike_trains(env, population, selectivity_type_names, trajectory, gid, selectivity_attr_dict, spike_train_attr_name='Spike Train',
                                 selectivity_type_name=None, spike_hist_resolution=1000, equilibrate=None, phase_mod_config=None, initial_phases=None,

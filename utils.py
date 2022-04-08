@@ -1,4 +1,4 @@
-from __future__ import absolute_import, division
+from mpi4py import MPI
 import copy, datetime, gc, itertools, logging, math, numbers, os.path, importlib
 import pprint, string, sys, time, click
 from builtins import input, map, next, object, range, str, zip
@@ -10,6 +10,11 @@ import yaml
 
         
 is_interactive = bool(getattr(sys, 'ps1', sys.flags.interactive))
+
+def set_union(a, b, datatype):
+    return a | b
+
+mpi_op_set_union = MPI.Op.Create(set_union, commute=True)
 
     
 class Struct(object):

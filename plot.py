@@ -1,6 +1,6 @@
 import numbers, os, copy, pprint, sys
 from collections import defaultdict
-from scipy import interpolate, signal
+from scipy import interpolate, signal, ndimage
 import numpy as np
 from mpi4py import MPI
 from neuroh5.io import NeuroH5ProjectionGen, bcast_cell_attributes, read_cell_attributes, read_population_names, \
@@ -125,6 +125,29 @@ def plot_graph(x, y, z, start_idx, end_idx, edge_scalars=None, edge_color=None, 
     return vec
 
 
+def clean_axes(axes, left=True, right=False):
+    """
+    Remove top and right axes from pyplot axes object.
+    :param axes: list of pyplot.Axes
+    :param top: bool
+    :param left: bool
+    :param right: bool
+    """
+    if not type(axes) in [np.ndarray, list]:
+        axes = [axes]
+    elif type(axes) == np.ndarray:
+        axes = axes.flatten()
+    for axis in axes:
+        axis.tick_params(direction='out')
+        axis.spines['top'].set_visible(False)
+        if not right:
+            axis.spines['right'].set_visible(False)
+        if not left:
+            axis.spines['left'].set_visible(False)
+        axis.get_xaxis().tick_bottom()
+        axis.get_yaxis().tick_left()
+
+        
 def plot_spatial_bin_graph(graph_dict, **kwargs):
     
     import hiveplot as hv
@@ -1335,4 +1358,209 @@ def plot_biophys_cell_tree (env, biophys_cell, node_filters={'swc_types': ['apic
         
             
     return fig
+
+
+#=============================================================================
+# Get radially averaged PSD of 2D PSD (total power spectrum by angular bin)
+#=============================================================================
+def get_RPSD(psd2D, dTheta=30, rMin=10, rMax=100):
+
+    h  = psd2D.shape[0]
+    w  = psd2D.shape[1]
+    wc = w//2
+    hc = h//2
+    
+    # note that displaying PSD as image inverts Y axis
+    # create an array of integer angular slices of dTheta
+    Y, X  = np.ogrid[0:h, 0:w]
+    theta = np.rad2deg(np.arctan2(-(Y-hc), (X-wc)))
+    theta = np.mod(theta + dTheta/2 + 360, 360)
+    theta = dTheta * (theta//dTheta)
+    theta = theta.astype(np.int)
+    
+    # mask below rMin and above rMax by setting to -100
+    R     = np.hypot(-(Y-hc), (X-wc))
+    mask  = np.logical_and(R > rMin, R < rMax)
+    theta = theta + 100
+    theta = np.multiply(mask, theta)
+    theta = theta - 100
+    
+    # SUM all psd2D pixels with label 'theta' for 0<=theta❤60 between rMin and rMax
+    angF  = np.arange(0, 360, int(dTheta))
+    psd1D = ndimage.sum(psd2D, theta, index=angF)
+    
+    # normalize each sector to the total sector power
+    pwrTotal = np.sum(psd1D)
+    psd1D    = psd1D/pwrTotal
+    
+    return angF, psd1D        
+
+
+def plot_2D_rate_map(x, y, rate_map, x0=None, y0=None, peak_rate=None, title=None, fft_vmax=10., density_bin_size=10., **kwargs):
+    """
+
+    :param x: array
+    :param y: array
+    :param rate_map: array
+    :param peak_rate: float
+    :param title: str
+    """
+    fig_options = copy.copy(default_fig_options)
+    fig_options.update(kwargs)
+    
+    if peak_rate is None:
+        peak_rate = np.max(rate_map)
+
+    fig = plt.figure(constrained_layout=True, figsize=fig_options.figSize)
+    gs = gridspec.GridSpec(2, 3, figure=fig, width_ratios=[2,1,1])
+
+    x_min = np.min(x)
+    x_max = np.max(x)
+    y_min = np.min(y)
+    y_max = np.max(y)
+    
+    ax = fig.add_subplot(gs[0,0])
+    pc = ax.pcolor(x, y, rate_map, vmin=0., vmax=peak_rate, cmap=fig_options.colormap)
+    cbar = fig.colorbar(pc, ax=ax, fraction=0.046, pad=0.04)
+    cbar.set_label('Firing Rate (Hz)', rotation=270., labelpad=20., fontsize=fig_options.fontSize)
+    ax.set_title('Rate Map')
+    ax.set_aspect('equal')
+    ax.set_xlabel('X Position (cm)', fontsize=fig_options.fontSize)
+    ax.set_ylabel('Y Position (cm)', fontsize=fig_options.fontSize)
+    ax.tick_params(labelsize=fig_options.fontSize)
+    clean_axes(ax)
+
+    if x0 is not None and y0 is not None:
+        ax = fig.add_subplot(gs[0,1])
+        ax.set_title('Point Density')
+        plot_2D_point_density(np.column_stack((x0, y0)), ax=ax)
+    
+    ax = fig.add_subplot(gs[1,0])
+    ax.set_xlim(x_min, x_max)
+    ax.set_ylim(y_min, y_max)
+    psd2D = np.abs(np.fft.fftshift(np.fft.fft2(rate_map - np.mean(rate_map))/ rate_map.shape[0]))
+    im = ax.imshow(psd2D, vmax=fft_vmax, cmap=fig_options.colormap, extent=[x_min, x_max, y_min, y_max])
+    cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    cbar.set_label('Power', rotation=270., labelpad=20., fontsize=fig_options.fontSize)
+    ax.set_title('Rate Periodogram')
+    ax.set_aspect('equal')
+
+    angF, rpsd = get_RPSD(psd2D)
+    if x0 is not None and y0 is not None:
+        ax = fig.add_subplot(gs[1,1])
+    else:
+        ax = fig.add_subplot(gs[:,1])
+    sct = ax.scatter(angF, rpsd, cmap=fig_options.colormap)
+    ax.set_title('Radially Averaged Spectrogram')
+
+    if title is not None:
+        fig.suptitle(title, fontsize=fig_options.fontSize)
+
+    if fig_options.saveFig is not None:
+        save_figure(fig_options.saveFig, fig=fig, **fig_options())
+
+    if fig_options.showFig:
+        plt.show()
         
+    return fig
+
+
+def plot_2D_histogram(hist, x_edges, y_edges, norm=None, ylabel=None, xlabel=None, title=None,
+                      cbar_label=None, cbar=True, vmin=0., vmax=None, **kwargs):
+    """
+
+    :param hist: ndarray
+    :param x_edges: ndarray
+    :param y_edges: ndarray
+    :param norm: ndarray; optionally normalize hist by nonzero elements of norm array
+    :param ylabel: str
+    :param xlabel: str
+    :param title: str
+    :param cbar_label: str
+    :param cbar: bool
+    :param vmin: float
+    :param vmax: float
+    """
+    fig_options = copy.copy(default_fig_options)
+    fig_options.update(kwargs)
+
+    H = np.copy(hist)
+    if norm is not None:
+        non_zero = np.where(norm > 0.0)
+        H[non_zero] = np.divide(H[non_zero], norm[non_zero])
+
+    if vmax is None:
+        vmax = np.max(H)
+    fig, axes = plt.subplots(figsize=fig_options.figSize)
+
+    pcm_cmap = None
+    pcm_boundaries = np.arange(vmin, vmax, .1)
+    if len(pcm_boundaries) > 0:
+        cmap_pls = plt.cm.get_cmap(fig_options.colormap, len(pcm_boundaries))
+        pcm_colors = list(cmap_pls(np.arange(len(pcm_boundaries))))
+        pcm_cmap = mpl.colors.ListedColormap(pcm_colors[:-1], "")
+        pcm_cmap.set_under(pcm_colors[0], alpha=0.0)
+    
+    pcm = axes.pcolormesh(x_edges, y_edges, H.T, vmin=vmin, vmax=vmax, cmap=pcm_cmap)
+    
+    axes.set_aspect('equal')
+    axes.tick_params(labelsize=fig_options.fontSize)
+    divider = make_axes_locatable(axes)
+    cax = divider.append_axes("right", size="2.5%", pad=0.1)
+    if cbar:
+        cb = fig.colorbar(pcm, cax=cax)
+        cb.ax.tick_params(labelsize=fig_options.fontSize)
+        if cbar_label is not None:
+            cb.set_label(cbar_label, rotation=270., labelpad=20., fontsize=fig_options.fontSize)
+    if xlabel is not None:
+        axes.set_xlabel(xlabel, fontsize=fig_options.fontSize)
+    if ylabel is not None:
+        axes.set_ylabel(ylabel, fontsize=fig_options.fontSize)
+    if title is not None:
+        axes.set_title(title, fontsize=fig_options.fontSize)
+    clean_axes(axes)
+
+    if fig_options.saveFig is not None:
+        save_figure(fig_options.saveFig, fig=fig, **fig_options())
+
+    if fig_options.showFig:
+        plt.show()
+
+    return fig
+
+
+def plot_2D_point_density(data, width=100, height=100, ax=None, inc=0.3):
+
+    def points_image(data, height, width, inc=0.3):
+
+        xlims = (data[:,0].min(), data[:,0].max())
+        ylims = (data[:,1].min(), data[:,1].max())
+        dxl = xlims[1] - xlims[0]
+        dyl = ylims[1] - ylims[0]
+
+        img = np.zeros((height+1, width+1))
+        for i, p in enumerate(data):
+            x0 = int(round(((p[0] - xlims[0]) / dxl) * width))
+            y0 = int(round((1 - (p[1] - ylims[0]) / dyl) * height))
+            img[y0, x0] += inc
+            if img[y0, x0] > 1.0: img[y0, x0] = 1.0
+        
+        return xlims, ylims, img
+
+    if width is None:
+        width = int(round(data[:,0].max() - data[:,0].min()))
+    if height is None:
+        height = int(round(data[:,1].max() - data[:,1].min()))
+
+    xlims, ylims, img = points_image(data, height=height, width=width, inc=inc)
+    ax_extent = list(xlims)+list(ylims)
+
+    if ax is None:
+        fig, ax = plt.subplots()
+        
+    ax.imshow(img, 
+              vmin=0, vmax=1, 
+              cmap=plt.get_cmap('hot'),
+              interpolation='hermite',
+              aspect='auto',
+              extent=ax_extent)        

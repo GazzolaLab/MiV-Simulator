@@ -33,7 +33,7 @@ NetclampConfig = namedtuple('NetclampConfig',
 ArenaConfig = namedtuple('Arena',
                          ['name',
                           'domain',
-                          'stimuli',
+                          'trajectories',
                           'properties'])
 
 DomainConfig = namedtuple('Domain',

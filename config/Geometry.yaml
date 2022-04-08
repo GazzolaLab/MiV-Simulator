@@ -18,6 +18,11 @@ Cell Constraints:
   PVBC:
     SR: [150., 200.0] # Booker, Vida. Cell & Tissue Research 2018
 Cell Distribution:
+  STIM:
+    SO:  0
+    SP:  1000
+    SR:  0
+    SLM: 0
   PYR:
     SO:  0
     SP:  80000
