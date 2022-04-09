@@ -3,7 +3,7 @@ from collections import defaultdict
 from mpi4py import MPI
 import h5py
 import numpy as np
-from utils import Struct, range, str, viewitems, Iterable, compose_iter, get_module_logger, get_trial_time_ranges
+from MiV.utils import Struct, range, str, viewitems, Iterable, compose_iter, get_module_logger, get_trial_time_ranges
 from neuroh5.io import read_cell_attributes, write_cell_attributes, append_cell_attributes, read_cell_attribute_info
 
 
@@ -241,10 +241,10 @@ def make_h5types(env, output_path, gap_junctions=False):
         dset.resize((len(populations),))
         a = np.zeros(len(populations), dtype=dt)
         start = 0
-        for name, idx, count in populations:
-            a[idx-min_pop_idx]["Start"] = start
-            a[idx-min_pop_idx]["Count"] = count
-            a[idx-min_pop_idx]["Population"] = idx
+        for enum_id, (name, idx, count) in enumerate(populations):
+            a[enum_id]["Start"] = start
+            a[enum_id]["Count"] = count
+            a[enum_id]["Population"] = idx
             start += count
         dset[:] = a
 

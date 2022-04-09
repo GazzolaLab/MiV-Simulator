@@ -267,28 +267,30 @@ def main(config, config_prefix, coords_path, distances_namespace, output_path, a
 
         selectivity_attr_dict = dict((key, dict()) for key in env.selectivity_types)
         for iter_count, (gid, distances_attr_dict) in enumerate(distances_attr_gen):
+            
             req = comm.Ibarrier()
-            if rank == 0:
-                logger.info(f'Rank {rank} generating selectivity features for gid {gid}...')
-            u_arc_distance = distances_attr_dict['U Distance'][0]
-            v_arc_distance = distances_attr_dict['V Distance'][0]
-            norm_u_arc_distance = ((u_arc_distance - reference_u_arc_distance_bounds[0]) /
-                                   (reference_u_arc_distance_bounds[1] - reference_u_arc_distance_bounds[0]))
+            if gid is not None:
+                if rank == 0:
+                    logger.info(f'Rank {rank} generating selectivity features for gid {gid}...')
+                u_arc_distance = distances_attr_dict['U Distance'][0]
+                v_arc_distance = distances_attr_dict['V Distance'][0]
+                norm_u_arc_distance = ((u_arc_distance - reference_u_arc_distance_bounds[0]) /
+                                       (reference_u_arc_distance_bounds[1] - reference_u_arc_distance_bounds[0]))
 
-            this_pop_norm_distances[gid] = norm_u_arc_distance
+                this_pop_norm_distances[gid] = norm_u_arc_distance
 
-            this_selectivity_type_name, this_selectivity_attr_dict = \
-                generate_input_features(env, population, arena,
-                                        arena_x_mesh, arena_y_mesh,
-                                        gid, (norm_u_arc_distance, v_arc_distance),
-                                        selectivity_type_names, selectivity_type_namespaces,
-                                        rate_map_sum=this_rate_map_sum,
-                                        debug= (debug_callback, context) if debug else False)
-            if 'X Offset' in this_selectivity_attr_dict:
-                this_x0_list.append(this_selectivity_attr_dict['X Offset'])
-                this_y0_list.append(this_selectivity_attr_dict['Y Offset'])
-            selectivity_attr_dict[this_selectivity_type_name][gid] = this_selectivity_attr_dict
-            gid_count[this_selectivity_type_name] += 1
+                this_selectivity_type_name, this_selectivity_attr_dict = \
+                    generate_input_features(env, population, arena,
+                                            arena_x_mesh, arena_y_mesh,
+                                            gid, (norm_u_arc_distance, v_arc_distance),
+                                            selectivity_type_names, selectivity_type_namespaces,
+                                            rate_map_sum=this_rate_map_sum,
+                                            debug= (debug_callback, context) if debug else False)
+                if 'X Offset' in this_selectivity_attr_dict:
+                    this_x0_list.append(this_selectivity_attr_dict['X Offset'])
+                    this_y0_list.append(this_selectivity_attr_dict['Y Offset'])
+                selectivity_attr_dict[this_selectivity_type_name][gid] = this_selectivity_attr_dict
+                gid_count[this_selectivity_type_name] += 1
             req.wait()
 
             if (iter_count > 0 and iter_count % write_every == 0) or (debug and iter_count == debug_count):

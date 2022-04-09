@@ -1,6 +1,8 @@
 
-import sys, os, copy, random, gc
+import sys, os, copy, random, math, time, gc
+from collections import defaultdict
 import click
+import numpy as np
 from mpi4py import MPI
 import h5py
 from MiV.env import Env
@@ -204,6 +206,7 @@ def main(config, config_prefix, selectivity_path, selectivity_namespace, coords_
 
     equilibrate = get_equilibration(env)
 
+    logger.info(f'trajectories: {arena.trajectories}')
     for trajectory_id in sorted(arena.trajectories.keys()):
         trajectory = arena.trajectories[trajectory_id]
         t, x, y, d = None, None, None, None

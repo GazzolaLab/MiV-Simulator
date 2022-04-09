@@ -5,8 +5,8 @@ import numpy as np
 from mpi4py import MPI
 import yaml
 from neuroh5.io import read_cell_attribute_info, read_population_names, read_population_ranges, read_projection_names
-from utils import IncludeLoader, ExprClosure, get_root_logger, str, viewitems, zip, read_from_yaml
-from synapses import SynapseAttributes, get_syn_filter_dict
+from MiV.utils import IncludeLoader, ExprClosure, get_root_logger, str, viewitems, zip, read_from_yaml
+from MiV.synapses import SynapseAttributes, get_syn_filter_dict
 
 SynapseConfig = namedtuple('SynapseConfig',
                            ['type',
@@ -417,7 +417,7 @@ class Env(object):
         return DomainConfig(vertices, simplices)
 
 
-    def parse_arena_spatial_stimulus(self, config):
+    def parse_arena_trajectory(self, config):
         velocity = float(config['run velocity'])
         path_config = config['path']
 
@@ -473,18 +473,19 @@ class Env(object):
                 for arena_id, arena_val in viewitems(v):
                     arena_properties = {}
                     arena_domain = None
-                    arena_stimuli = {}
+                    arena_trajectories = {}
                     for kk, vv in viewitems(arena_val):
                         if kk == 'Domain':
                             arena_domain = self.parse_arena_domain(vv)
-                        elif kk == 'Stimulus':
-                            for name, stimulus_config in viewitems(vv):
-                                stimulus = self.parse_arena_spatial_stimulus(stimulus_config)
-                                arena_stimuli[name] = stimulus
+                        elif kk == 'Trajectory':
+                            for name, trajectory_config in viewitems(vv):
+                                trajectory = self.parse_arena_trajectory(trajectory_config)
+                                arena_trajectories[name] = trajectory
                         else:
                             arena_properties[kk] = vv
                     stimulus_config['Arena'][arena_id] = ArenaConfig(arena_id, arena_domain,
-                                                                     arena_stimuli, arena_properties)
+                                                                     arena_trajectories,
+                                                                     arena_properties)
             else:
                 stimulus_config[k] = v
 

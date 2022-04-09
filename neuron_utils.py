@@ -5,7 +5,7 @@ try:
     from mpi4py import MPI  # Must come before importing NEURON
 except Exception:
     pass
-from utils import get_module_logger
+from MiV.utils import get_module_logger
 from neuron import h
 from scipy import interpolate
 
