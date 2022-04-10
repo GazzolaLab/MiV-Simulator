@@ -44,12 +44,13 @@ coordinate_files = {
 }
 
 distances_ns = 'Arc Distances'
-coordinate_ns = 'Generated Coordinates'
+input_coordinate_ns = 'Generated Coordinates'
+coordinate_ns = 'Coordinates'
 coordinate_namespaces = {
-     'PYR': coordinate_ns,
-     'OLM':  coordinate_ns,
-     'PVBC':  coordinate_ns,
-     'STIM':  coordinate_ns,
+     'PYR': input_coordinate_ns,
+     'OLM':  input_coordinate_ns,
+     'PVBC':  input_coordinate_ns,
+     'STIM':  input_coordinate_ns,
 }
     
 

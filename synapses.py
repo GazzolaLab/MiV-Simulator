@@ -9,6 +9,7 @@ from MiV.neuron_utils import default_ordered_sec_types, interplocs
 from MiV.cells import make_section_graph
 from MiV.utils import ExprClosure, Promise, NamedTupleWithDocstring, get_module_logger, generator_ifempty, map, range, str, \
      viewitems, viewkeys, zip, zip_longest, partitionn, rejection_sampling
+from neuron import h
 
 # This logger will inherit its settings from the root logger, created in env
 logger = get_module_logger(__name__)

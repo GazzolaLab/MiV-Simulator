@@ -169,7 +169,7 @@ class LFP(object):
                     continue
 
                 try:
-                    somasec = list(cell.soma)
+                    somasec = list(cell.soma_list)
                 except:
                     logger.info("cell %d = %s (dir: %s)" % (gid, str(cell), str(dir(cell))))
                     raise

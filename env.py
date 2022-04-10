@@ -54,7 +54,9 @@ class Env(object):
     def __init__(self, comm=None, config_file=None, template_paths="templates", hoc_lib_path=None,
                  dataset_prefix=None, config_prefix=None,
                  results_path=None, results_file_id=None, results_namespace_id=None,
-                 node_rank_file=None, node_allocation=None, io_size=0, recording_profile=None, recording_fraction=1.0,
+                 node_rank_file=None, node_allocation=None, 
+                 io_size=0, use_cell_attr_gen=False, cell_attr_gen_cache_size=10,
+                 recording_profile=None, recording_fraction=1.0,
                  tstop=0., v_init=-65, stimulus_onset=0.0, n_trials=1,
                  max_walltime_hours=0.5, checkpoint_interval=500.0, checkpoint_clear_data=True,
                  results_write_time=0, dt=None, ldbal=False, lptbal=False,
@@ -168,6 +170,11 @@ class Env(object):
 
         # Number of MPI ranks to be used for I/O operations
         self.io_size = int(io_size)
+
+        # Whether to use cell attribute generation for I/O operations
+        # and number of cache (readahead) items
+        self.use_cell_attr_gen = use_cell_attr_gen
+        self.cell_attr_gen_cache_size = cell_attr_gen_cache_size
 
         # Initialization voltage
         self.v_init = float(v_init)
