@@ -1,4 +1,4 @@
-
+#!/usr/bin/env python3
 import os, sys, click
 from MiV import env, plot, utils, cells, neuron_utils
 from MiV.neuron_utils import h, configure_hoc_env

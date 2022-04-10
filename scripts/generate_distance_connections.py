@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 ##
 ## Generates distance-weighted random connectivity between the specified populations.
 ##

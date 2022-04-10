@@ -1,4 +1,4 @@
-
+#!/usr/bin/env python3
 import sys, os, copy, random, math, time, gc
 from collections import defaultdict
 import click
