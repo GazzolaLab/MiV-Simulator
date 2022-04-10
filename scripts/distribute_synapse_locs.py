@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os, sys, gc, logging, string, time, itertools
 from mpi4py import MPI
 from neuroh5.io import NeuroH5TreeGen, append_cell_attributes, read_population_ranges

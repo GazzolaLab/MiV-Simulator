@@ -1,4 +1,4 @@
-
+#!/usr/bin/env python3
 import sys, os, copy, gc, math, time, click
 from collections import defaultdict
 from neuroh5.io import NeuroH5CellAttrGen, append_cell_attributes, read_population_ranges
