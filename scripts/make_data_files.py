@@ -1,6 +1,5 @@
 import os, sys
 import h5py, pathlib
-from dentate.utils import viewitems
 
 def h5_copy_dataset(f_src, f_dst, dset_path):
     print(f"Copying {dset_path} from {f_src} to {f_dst} ...")
@@ -9,25 +8,31 @@ def h5_copy_dataset(f_src, f_dst, dset_path):
 
 h5types_file = 'MiV_h5types.h5'
 
-MiV_populations = ["PYR", "OLM", "PVBC"]
+MiV_populations = ["PYR", "OLM", "PVBC", "STIM"]
 MiV_IN_populations = ["OLM", "PVBC"]
-#MiV_EXT_populations = ["EXT"]
+MiV_EXT_populations = ["STIM"]
 
-MiV_cells_file = "MiV_Cells_Microcircuit_20220404.h5"
-MiV_connections_file = "MiV_Connections_Microcircuit_20220404.h5"
+MiV_cells_file = "MiV_Cells_Microcircuit_20220410.h5"
+MiV_connections_file = "MiV_Connections_Microcircuit_20220410.h5"
 
 MiV_coordinate_file  = "Microcircuit_coords.h5"
 
-MiV_PYR_forest_file = "PYR_forest.h5"
+MiV_PYR_forest_file = "PYR_forest_compressed.h5"
 MiV_PVBC_forest_file = "PVBC_forest.h5"
 MiV_OLM_forest_file = "OLM_forest.h5"
 
-MiV_connectivity_file = "Microcircuit_connections.h5"
+MiV_PYR_forest_syns_file = "PYR_forest_syns_compressed.h5"
+MiV_PVBC_forest_syns_file = "PVBC_forest_syns.h5"
+MiV_OLM_forest_syns_file = "OLM_forest_syns.h5"
+
+MiV_PYR_connectivity_file = "PYR_connections_compressed.h5"
+MiV_PVBC_connectivity_file = "PVBC_connections.h5"
+MiV_OLM_connectivity_file = "OLM_connections.h5"
 
 connectivity_files = {
-    'PYR': MiV_connectivity_file,
-    'PVBC': MiV_connectivity_file,
-    'OLM': MiV_connectivity_file,
+    'PYR': MiV_PYR_connectivity_file,
+    'PVBC': MiV_PVBC_connectivity_file,
+    'OLM': MiV_OLM_connectivity_file,
 }
 
 
@@ -35,6 +40,7 @@ coordinate_files = {
      'PYR':   MiV_coordinate_file,
      'PVBC':  MiV_coordinate_file,
      'OLM':   MiV_coordinate_file,
+     'STIM':   MiV_coordinate_file,
 }
 
 distances_ns = 'Arc Distances'
@@ -43,6 +49,7 @@ coordinate_namespaces = {
      'PYR': coordinate_ns,
      'OLM':  coordinate_ns,
      'PVBC':  coordinate_ns,
+     'STIM':  coordinate_ns,
 }
     
 
@@ -54,10 +61,19 @@ forest_files = {
 }
 
 forest_syns_files = {
-     'PYR': MiV_PYR_forest_file,
-     'PVBC': MiV_PVBC_forest_file,
-     'OLM': MiV_OLM_forest_file,
+     'PYR': MiV_PYR_forest_syns_file,
+     'PVBC': MiV_PVBC_forest_syns_file,
+     'OLM': MiV_OLM_forest_syns_file,
 }
+
+
+vecstim_file_dict = { 
+    'A Diag': "MiV_input_spikes.h5"
+
+}
+
+vecstim_dict = {f'Input Spikes {stim_id}' : stim_file 
+                for stim_id, stim_file in vecstim_file_dict.items()}
 
 
 ## Creates H5Types entries
@@ -103,13 +119,13 @@ for p in MiV_populations:
                 
 
 ## Creates vector stimulus entries
-#for (vecstim_ns, vecstim_file) in viewitems(vecstim_dict):
-#    for p in MiV_EXT_populations+['PYR']:
-#        vecstim_dset_path = f"/Populations/{p}/{vecstim_ns}"
-#        cmd = f"h5copy -p -s '{vecstim_dset_path}' -d '{vecstim_dset_path}' " \
-#              f"-i {vecstim_file} -o {MiV_cells_file}"
-#        print(cmd)
-#        os.system(cmd)
+for (vecstim_ns, vecstim_file) in vecstim_dict.items():
+    for p in MiV_EXT_populations:
+        vecstim_dset_path = f"/Populations/{p}/{vecstim_ns}"
+        cmd = f"h5copy -p -s '{vecstim_dset_path}' -d '{vecstim_dset_path}' " \
+              f"-i {vecstim_file} -o {MiV_cells_file}"
+        print(cmd)
+        os.system(cmd)
 
 
 with h5py.File(MiV_connections_file, 'w') as f:

@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH -J distribute_synapses_MiV_PYR
-#SBATCH -o ./results/distribute_synapses_MiV_PYR.%j.o
-#SBATCH --nodes=4
+#SBATCH -J generate_input_spike_trains_MiV
+#SBATCH -o ./results/generate_input_spike_trains_MiV.%j.o
+#SBATCH --nodes=1
 #SBATCH --ntasks-per-node=56
 #SBATCH -t 1:00:00
-#SBATCH -p normal      # Queue (partition) name
+#SBATCH -p development      # Queue (partition) name
 #SBATCH --mail-user=ivan.g.raikov@gmail.com
 #SBATCH --mail-type=END
 #SBATCH --mail-type=BEGIN
@@ -23,13 +23,12 @@ export I_MPI_ADJUST_ALLREDUCE=6
 
 export DATA_PREFIX=$SCRATCH/striped2/MiV
 
-ibrun python3 ./scripts/distribute_synapse_locs.py  -v \
-    --template-path templates \
+ibrun -n 2 python3 ./scripts/generate_input_spike_trains.py \
+    -p STIM \
     --config=Microcircuit.yaml \
     --config-prefix=./config \
-    --populations=PYR \
-    --forest-path=$DATA_PREFIX/Microcircuit/PYR_forest_compressed.h5 \
-    --output-path=$DATA_PREFIX/Microcircuit/PYR_forest_syns.h5 \
-    --distribution=poisson \
-    --io-size=4 --write-size=0 \
-    --chunk-size=10000 --value-chunk-size=10000
+    --selectivity-path=${DATA_PREFIX}/Microcircuit/MiV_input_features.h5 \
+    --output-path=${DATA_PREFIX}/Microcircuit/MiV_input_spikes.h5 \
+    --n-trials=3 -v
+
+
