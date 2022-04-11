@@ -8,7 +8,6 @@ import os, sys
 import numpy as np
 import click
 from mpi4py import MPI
-import dentate
 from MiV import network
 from MiV.env import Env
 from MiV.utils import list_find, config_logging
@@ -35,7 +34,7 @@ sys.excepthook = mpi_excepthook
 
 @click.command()
 @click.option("--arena-id", required=True, type=str,
-              help='name of arena used for spatial stimulus')
+              help='name of arena used for stimulus')
 @click.option("--cell-selection-path", required=False, type=click.Path(exists=True, file_okay=True, dir_okay=False),
               help='name of file specifying subset of cells gids to be instantiated')
 @click.option("--config-file", required=True, type=str, help='model configuration file name')
@@ -110,9 +109,9 @@ def main(arena_id, cell_selection_path, config_file, template_paths, hoc_lib_pat
     if profile_time:
         from MiV.network import init, run
         import cProfile
-        cProfile.runctx('init(env)', None, locals(), filename='dentate_profile_init')
+        cProfile.runctx('init(env)', None, locals(), filename='MiV_profile_init')
         if not dry_run:
-            cProfile.runctx('run(env)', None, locals(), filename='dentate_profile_run')
+            cProfile.runctx('run(env)', None, locals(), filename='MiV_profile_run')
     else:
         network.init(env)
         if not dry_run:
