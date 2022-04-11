@@ -718,6 +718,17 @@ def generator_ifempty(iterable):
     return itertools.chain([first], iterable)
 
 
+def ifempty(iterable):
+    """
+    If the iterable is empty, return None, otherwise return the
+    a tuple with first element and iterable.
+    """
+    try:
+        first = next(iterable)
+    except StopIteration:
+        return None
+    return (first, iterable)
+
 def compose_iter(f, it):
     """
     Given a function and an iterator, apply the function to

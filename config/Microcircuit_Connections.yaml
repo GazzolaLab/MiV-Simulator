@@ -1,6 +1,6 @@
 Synapse Mechanisms:
   AMPA: LinExp2Syn 
-  NMDA: FacilNMDA
+  NMDA: LinExp2SynNMDA
   GABA_A: LinExp2Syn
   GABA_B: LinExp2Syn
 Synapse Parameter Rules: !include Synapse_Parameter_Rules.yaml

@@ -1,0 +1,31 @@
+## Model configuration of microcircuit network
+Model Name: Microcircuit_Small
+Dataset Name: Microcircuit_Small
+Definitions: !include Definitions.yaml
+Global Parameters: !include Global.yaml
+Geometry: !include Geometry_Small.yaml
+Random Seeds: !include Random.yaml
+Connection Generator: !include Microcircuit_Connections.yaml
+Cell Data: MiV_Cells_Microcircuit_Small_20220410.h5
+Connection Data: MiV_Connections_Microcircuit_Small_20220410.h5
+Recording: !include Recording.yaml
+Stimulus: !include Input_Configuration.yaml
+Analysis: !include Analysis_Configuration.yaml
+Cell Types:
+  PYR:
+    template: PoolosPyramidalCell
+    synapses:
+      density: !include PYR_synapse_density.yaml
+  OLM:
+    template: OLMCell
+    synapses:
+      density: !include OLM_synapse_density.yaml
+  PVBC:
+    template: PVBasketCell
+    synapses:
+      density: !include PVBC_synapse_density.yaml
+  STIM:
+    template: VecStim
+    spike train:
+      namespace: Input Spikes
+      attribute: Spike Train

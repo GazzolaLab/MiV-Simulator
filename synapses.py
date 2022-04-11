@@ -5,9 +5,9 @@ import numpy as np
 import scipy
 import scipy.optimize as opt
 from neuroh5.io import write_cell_attributes
-from MiV.neuron_utils import default_ordered_sec_types, interplocs
+from MiV.neuron_utils import default_ordered_sec_types, interplocs, mknetcon
 from MiV.cells import make_section_graph
-from MiV.utils import ExprClosure, Promise, NamedTupleWithDocstring, get_module_logger, generator_ifempty, map, range, str, \
+from MiV.utils import ExprClosure, Promise, NamedTupleWithDocstring, get_module_logger, generator_ifempty, ifempty, map, range, str, \
      viewitems, viewkeys, zip, zip_longest, partitionn, rejection_sampling
 from neuron import h
 
@@ -1117,21 +1117,22 @@ class SynapseAttributes(object):
         :param syn_ids: array of int
 
         """
-        source_names = {id: name for name, id in viewitems(self.env.Populations)}
-        source_names[-1] = None
+        source_names = {id: name for name, id in self.env.Populations.items()}
+
+        source_order = { id: i for i, (name, id) in enumerate(sorted(self.env.Populations.items())) }
+        source_inverse_order = { i: id for i, (name, id) in enumerate(sorted(self.env.Populations.items())) }
 
         if syn_ids is None:
             syn_id_attr_dict = self.syn_id_attr_dict[gid]
         else:
             syn_id_attr_dict = {syn_id: self.syn_id_attr_dict[gid][syn_id] for syn_id in syn_ids}
 
-        source_iter = partitionn(viewitems(syn_id_attr_dict),
-                                 lambda syn_id_syn: syn_id_syn[1].source.population+1
-                                     if syn_id_syn[1].source.population is not None else 0,
-                                 n=len(source_names))
-
-        return dict([(source_names[source_id_x[0]-1], generator_ifempty(source_id_x[1])) for source_id_x in
-                     enumerate(source_iter)])
+        source_parts = partitionn(viewitems(syn_id_attr_dict),
+                                  lambda syn_id_syn: source_order[syn_id_syn[1].source.population],
+                                  n=len(source_names))
+        
+        return dict([(source_names[source_inverse_order[source_id_x[0]]], generator_ifempty(source_id_x[1]))
+                     for source_id_x in enumerate(source_parts)])
 
     def get_filtered_syn_ids(self, gid, syn_sections=None, syn_indexes=None, syn_types=None, layers=None,
                              sources=None, swc_types=None, cache=False):
@@ -1160,20 +1161,23 @@ class SynapseAttributes(object):
 
         """
         start_time = time.time()
-        source_names = {id: name for name, id in viewitems(self.env.Populations)}
-        source_names[-1] = None
+        source_names = {id: name for name, id in self.env.Populations.items()}
+
+        source_order = { id: i for i, (name, id) in enumerate(sorted(self.env.Populations.items())) }
+        source_inverse_order = { i: id for i, (name, id) in enumerate(sorted(self.env.Populations.items())) }
+
         syn_id_attr_dict = self.syn_id_attr_dict[gid]
         if syn_ids is None:
             syn_ids = list(syn_id_attr_dict.keys())
-
+            
         def partition_pred(syn_id):
             syn = syn_id_attr_dict[syn_id]
-            return syn.source.population+1 if syn.source.population is not None else 0
+            return source_order[syn.source.population]
 
         source_iter = partitionn(syn_ids, partition_pred, n=len(source_names))
 
-        return dict([(source_names[source_id_x[0]-1], generator_ifempty(source_id_x[1])) for source_id_x in
-                     enumerate(source_iter)])
+        return dict([(source_names[source_inverse_order[source_id_x[0]]], generator_ifempty(source_id_x[1]))
+                     for source_id_x in enumerate(source_iter)])
 
     def del_syn_id_attr_dict(self, gid):
         """
@@ -1472,6 +1476,7 @@ def config_hoc_cell_syns(env, gid, postsyn_name, cell=None, syn_ids=None, unique
 
     if insert:
         source_syn_dict = syn_attrs.partition_synapses_by_source(gid, syn_ids)
+
         last_time = time.time()
         if (cell is None) and (not (env.pc.gid_exists(gid))):
             raise RuntimeError(f'config_hoc_cell_syns: insert: cell with gid {gid} does not exist on rank {rank}')

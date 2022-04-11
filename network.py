@@ -270,7 +270,6 @@ def connect_cells(env):
 
         first_gid = None
         if postsyn_name in env.biophys_cells:
-            biophys_cell_count += len(env.biophys_cells[postsyn_name])
             for gid in env.biophys_cells[postsyn_name]:
                 if env.node_allocation is not None:
                     assert(gid in env.node_allocation)
@@ -307,7 +306,6 @@ def connect_cells(env):
     gids = list(syn_attrs.gids())
     comm0 = env.comm.Split(2 if len(gids) > 0 else 0, 0)
 
-    assert(len(gids) == biophys_cell_count)
     for gid in gids:
         if first_gid is None:
             first_gid = gid

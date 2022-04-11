@@ -92,6 +92,37 @@ def init_nseg(sec, spatial_res=0, verbose=True):
         logger.info(f'init_nseg: changed {sec.hname()}.nseg {sec.nseg} --> {sugg_nseg}')
     sec.nseg = int(sugg_nseg)
 
+
+def mknetcon(pc, source, syn, weight=0, delay=0.1):
+    """
+    Creates a network connection from the provided source to the provided synaptic point process.
+    :param pc: :class:'h.ParallelContext'
+    :param source: int; source gid
+    :param syn: synapse point process
+    :param delay: float
+    :param weight: float
+    :return: :class:'h.NetCon'
+    """
+    nc = pc.gid_connect(source, syn)
+    nc.weight[0] = weight
+    nc.delay = delay
+    return nc
+
+
+def mknetcon_vecstim(syn, delay=0.1, weight=0, source=None):
+    """
+    Creates a VecStim object to drive the provided synaptic point process, 
+    and a network connection from the VecStim source to the synapse target.
+    :param syn: synapse point process
+    :param delay: float
+    :param weight: float
+    :return: :class:'h.NetCon', :class:'h.VecStim'
+    """
+    vs = h.VecStim()
+    nc = h.NetCon(vs, syn)
+    nc.weight[0] = weight
+    nc.delay = delay
+    return nc, vs
     
 def mkgap(env, cell, gid, secpos, secidx, sgid, dgid, w):
     """

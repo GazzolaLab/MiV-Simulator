@@ -57,8 +57,9 @@ class Env(object):
                  node_rank_file=None, node_allocation=None, 
                  io_size=0, use_cell_attr_gen=False, cell_attr_gen_cache_size=10,
                  recording_profile=None, recording_fraction=1.0,
-                 tstop=0., v_init=-65, stimulus_onset=0.0, n_trials=1,
+                 tstart=0., tstop=0., v_init=-65, stimulus_onset=0.0, n_trials=1,
                  max_walltime_hours=0.5, checkpoint_interval=500.0, checkpoint_clear_data=True,
+                 nrn_timeout=600.,
                  results_write_time=0, dt=None, ldbal=False, lptbal=False,
                  cell_selection_path=None, microcircuit_inputs=False,
                  spike_input_path=None, spike_input_namespace=None, spike_input_attr=None,
@@ -78,6 +79,7 @@ class Env(object):
         :param node_allocation: iterable; gids assigned to the current MPI ranks; cannot be specified together with node_rank_file
         :param io_size: int; the number of MPI ranks to be used for I/O operations
         :param recording_profile: str; intracellular recording configuration to use
+        :param tstart: float; start of physical time to simulate (ms)
         :param tstop: int; physical time to simulate (ms)
         :param v_init: float; initialization membrane potential (mV)
         :param stimulus_onset: float; starting time of stimulus (ms)
@@ -157,6 +159,9 @@ class Env(object):
         else:
             self.checkpoint_interval = None
 
+        # NEURON timeout value (0 if None)
+        self.nrn_timeout = int(nrn_timeout) if nrn_timeout is not None else 0
+
         # The location of all datasets
         self.dataset_prefix = dataset_prefix
 
@@ -180,6 +185,7 @@ class Env(object):
         self.v_init = float(v_init)
 
         # simulation time [ms]
+        self.tstart = float(tstart)
         self.tstop = float(tstop)
 
         # stimulus onset time [ms]
