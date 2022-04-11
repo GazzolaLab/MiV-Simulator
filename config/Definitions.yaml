@@ -29,9 +29,10 @@ Layers:
   SR:    8  ## Radiatum
   SLM:   9  ## Lacunosum-moleculare
 Populations:
+  STIM: 0
   PYR:  100
   PVBC:  101
   OLM:  102
 Input Selectivity Types:
   random: 0
-  ripple: 1
+  constant: 1

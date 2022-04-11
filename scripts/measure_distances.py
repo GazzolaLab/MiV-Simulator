@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 
 import os, sys, gc, logging, pickle, base64
 from mpi4py import MPI

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os, sys
 import click
 from MiV import env, utils, io_utils

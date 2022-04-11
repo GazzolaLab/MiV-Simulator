@@ -1,6 +1,6 @@
 Synapse Mechanisms:
   AMPA: LinExp2Syn 
-  NMDA: FacilNMDA
+  NMDA: LinExp2SynNMDA
   GABA_A: LinExp2Syn
   GABA_B: LinExp2Syn
 Synapse Parameter Rules: !include Synapse_Parameter_Rules.yaml
@@ -8,11 +8,24 @@ Axon Extent: !include Axon_Extent.yaml
 Connection Velocity: !include Connection_Velocity.yaml
 Synapses:
   PYR:
+    STIM:
+      type: excitatory
+      sections: [soma, basal, apical, apical]
+      layers: [SP, SO, SR, SLM]
+      proportions: [0.5, 0.5, 0.5, 0.5]
+      mechanisms:
+        AMPA:
+          tau_rise: 0.5
+          tau_decay: 3.0
+          e: 0
+          g_unit: 0.0001
+        NMDA:
+          g_unit: 0.0001
     PYR:
       type: excitatory
       sections: [soma, basal, apical, apical]
       layers: [SP, SO, SR, SLM]
-      proportions: [1.0, 1.0, 1.0, 1.0]
+      proportions: [0.5, 0.5, 0.5, 0.5]
       mechanisms:
         AMPA:
           tau_rise: 0.5
@@ -48,7 +61,18 @@ Synapses:
       type: excitatory
       sections: [soma, apical, apical, basal]
       layers: [SP, SLM, SR, SO]
-      proportions: [1.0, 1.0, 1.0, 1.0]
+      proportions: [0.5, 0.5, 0.5, 0.5]
+      mechanisms:
+        AMPA:
+          tau_rise: 0.5
+          tau_decay: 3.0
+          e: 0
+          g_unit: 0.001
+    STIM:
+      type: excitatory
+      sections: [soma, apical, apical, basal]
+      layers: [SP, SLM, SR, SO]
+      proportions: [0.5, 0.5, 0.5, 0.5]
       mechanisms:
         AMPA:
           tau_rise: 0.5

@@ -19,6 +19,24 @@ default_ordered_sec_types = ['soma', 'hillock', 'ais', 'axon', 'basal', 'trunk',
 default_hoc_sec_lists = {'soma': 'somaidx', 'hillock': 'hilidx', 'ais': 'aisidx', 'axon': 'axonidx',
                          'basal': 'basalidx', 'apical': 'apicalidx', 'trunk': 'trunkidx', 'tuft': 'tuftidx'}
 
+# Code by Michael Hines from this discussion thread:
+# https://www.neuron.yale.edu/phpBB/viewtopic.php?f=31&t=3628
+def cx(env):
+    """
+    Estimates cell complexity. Uses the LoadBalance class.
+
+    :param env: an instance of the `dentate.Env` class.
+    """
+    rank = int(env.pc.id())
+    lb = h.LoadBalance()
+    if os.path.isfile("mcomplex.dat"):
+        lb.read_mcomplex()
+    cxvec = np.zeros((len(env.gidset),))
+    for i, gid in enumerate(env.gidset):
+        cxvec[i] = lb.cell_complexity(env.pc.gid2cell(gid))
+    env.cxvec = cxvec
+    return cxvec
+
 def lambda_f(sec, f=freq):
     """
     Calculates the AC length constant for the given section at the frequency f
@@ -57,7 +75,7 @@ def reinit_diam(sec, diam_bounds):
     if diam_bounds is not None:
         diam1, diam2 = diam_bounds
         h(f'diam(0:1)={diam1}:{diam2}', sec=sec)
-        
+
 
 def init_nseg(sec, spatial_res=0, verbose=True):
     """
@@ -75,6 +93,62 @@ def init_nseg(sec, spatial_res=0, verbose=True):
     sec.nseg = int(sugg_nseg)
 
 
+def mknetcon(pc, source, syn, weight=0, delay=0.1):
+    """
+    Creates a network connection from the provided source to the provided synaptic point process.
+    :param pc: :class:'h.ParallelContext'
+    :param source: int; source gid
+    :param syn: synapse point process
+    :param delay: float
+    :param weight: float
+    :return: :class:'h.NetCon'
+    """
+    nc = pc.gid_connect(source, syn)
+    nc.weight[0] = weight
+    nc.delay = delay
+    return nc
+
+
+def mknetcon_vecstim(syn, delay=0.1, weight=0, source=None):
+    """
+    Creates a VecStim object to drive the provided synaptic point process, 
+    and a network connection from the VecStim source to the synapse target.
+    :param syn: synapse point process
+    :param delay: float
+    :param weight: float
+    :return: :class:'h.NetCon', :class:'h.VecStim'
+    """
+    vs = h.VecStim()
+    nc = h.NetCon(vs, syn)
+    nc.weight[0] = weight
+    nc.delay = delay
+    return nc, vs
+    
+def mkgap(env, cell, gid, secpos, secidx, sgid, dgid, w):
+    """
+    Create gap junctions
+    :param pc:
+    :param gjlist:
+    :param gid:
+    :param secidx:
+    :param sgid:
+    :param dgid:
+    :param w:
+    :return:
+    """
+
+    sec = list(cell.sections)[secidx]
+    seg = sec(secpos)
+    gj = h.ggap(seg)
+    gj.g = w
+
+    env.pc.source_var(seg._ref_v, sgid, sec=sec)
+    env.pc.target_var(gj, gj._ref_vgap, dgid)
+
+    env.gjlist.append(gj)
+    return gj
+
+
 def load_cell_template(env, pop_name, bcast_template=False):
     """
     :param pop_name: str
@@ -84,7 +158,7 @@ def load_cell_template(env, pop_name, bcast_template=False):
     rank = env.comm.Get_rank()
     if not (pop_name in env.celltypes):
         raise KeyError(f'load_cell_templates: unrecognized cell population: {pop_name}')
-    
+
     template_name = env.celltypes[pop_name]['template']
     if 'template file' in env.celltypes[pop_name]:
         template_file = env.celltypes[pop_name]['template file']
@@ -178,7 +252,48 @@ def configure_hoc_env(env, bcast_template=False):
         h.nrn_sparse_partrans = 1
 
 
-        
+# Code by Michael Hines from this discussion thread:
+# https://www.neuron.yale.edu/phpBB/viewtopic.php?f=31&t=3628
+def cx(env):
+    """
+    Estimates cell complexity. Uses the LoadBalance class.
+
+    :param env: an instance of the `dentate.Env` class.
+    """
+    rank = int(env.pc.id())
+    lb = h.LoadBalance()
+    if os.path.isfile("mcomplex.dat"):
+        lb.read_mcomplex()
+    cxvec = np.zeros((len(env.gidset),))
+    for i, gid in enumerate(env.gidset):
+        cxvec[i] = lb.cell_complexity(env.pc.gid2cell(gid))
+    env.cxvec = cxvec
+    return cxvec
+
+
+def mkgap(env, cell, gid, secpos, secidx, sgid, dgid, w):
+    """
+    Create gap junctions
+    :param pc:
+    :param gjlist:
+    :param gid:
+    :param secidx:
+    :param sgid:
+    :param dgid:
+    :param w:
+    :return:
+    """
+
+    sec = list(cell.sections)[secidx]
+    seg = sec(secpos)
+    gj = h.ggap(seg)
+    gj.g = w
+
+    env.pc.source_var(seg._ref_v, sgid, sec=sec)
+    env.pc.target_var(gj, gj._ref_vgap, dgid)
+
+    env.gjlist.append(gj)
+    return gj
 
 def interplocs(sec):
     """Computes interpolants for xyz coords of locations in a section whose topology & geometry are defined by pt3d data.
@@ -192,14 +307,14 @@ def interplocs(sec):
     zz = h.Vector(nn)
     dd = h.Vector(nn)
     ll = h.Vector(nn)
-    
+
     for ii in range(0, nn):
         xx.x[ii] = sec.x3d(ii)
         yy.x[ii] = sec.y3d(ii)
         zz.x[ii] = sec.z3d(ii)
         dd.x[ii] = sec.diam3d(ii)
         ll.x[ii] = sec.arc3d(ii)
-        
+
     ## normalize length
     ll.div(ll.x[nn - 1])
 
@@ -209,15 +324,15 @@ def interplocs(sec):
     dd = np.array(dd)
     ll = np.array(ll)
 
-    u, indices = np.unique(ll, return_index=True)                                                           
-    indices = np.asarray(indices)                                                                           
-    if len(u) < len(ll):                                                                                    
-        ll = ll[indices]                                                                                    
-        xx = xx[indices]                                                                                    
-        yy = yy[indices]                                                                                    
-        zz = zz[indices]                                                                                    
-        dd = dd[indices]                                                                                    
- 
+    u, indices = np.unique(ll, return_index=True)
+    indices = np.asarray(indices)
+    if len(u) < len(ll):
+        ll = ll[indices]
+        xx = xx[indices]
+        yy = yy[indices]
+        zz = zz[indices]
+        dd = dd[indices]
+
     pch_x = interpolate.pchip(ll, xx)
     pch_y = interpolate.pchip(ll, yy)
     pch_z = interpolate.pchip(ll, zz)

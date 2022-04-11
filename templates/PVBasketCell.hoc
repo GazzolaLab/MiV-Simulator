@@ -350,6 +350,17 @@ proc shape_from_python() { local x,y,z,r,s,p localobj secnodes, pidxs, vx, vy, v
 }
    
         
+
+func is_art()  { return 0 }
+
+obfunc connect2target() { localobj nc // $o1 target point process, optional $o2 returned NetCon
+    forsec soma_list {
+        nc = new NetCon(&v(1), $o1)
+    }
+    nc.threshold = -20
+    if (numarg() == 2) { $o2 = nc } // for backward compatibility
+    return nc
+}
         
 
 

@@ -40,9 +40,9 @@ DomainConfig = namedtuple('Domain',
                           ['vertices',
                            'simplices'])
 
-TrajectoryConfig = namedtuple('Trajectory',
-                              ['velocity',
-                               'path'])
+StimulusConfig = namedtuple('Stimulus',
+                            ['velocity',
+                             'path'])
 
 
 
@@ -53,11 +53,14 @@ class Env(object):
 
     def __init__(self, comm=None, config_file=None, template_paths="templates", hoc_lib_path=None,
                  dataset_prefix=None, config_prefix=None,
-                 results_path=None, results_file_id=None, results_namespace_id=None, 
-                 node_rank_file=None, node_allocation=None, io_size=0, recording_profile=None, recording_fraction=1.0,
-                 tstop=0., v_init=-65, stimulus_onset=0.0, n_trials=1,
-                 max_walltime_hours=0.5, checkpoint_interval=500.0, checkpoint_clear_data=True, 
-                 results_write_time=0, dt=None, ldbal=False, lptbal=False, 
+                 results_path=None, results_file_id=None, results_namespace_id=None,
+                 node_rank_file=None, node_allocation=None, 
+                 io_size=0, use_cell_attr_gen=False, cell_attr_gen_cache_size=10,
+                 recording_profile=None, recording_fraction=1.0,
+                 tstart=0., tstop=0., v_init=-65, stimulus_onset=0.0, n_trials=1,
+                 max_walltime_hours=0.5, checkpoint_interval=500.0, checkpoint_clear_data=True,
+                 nrn_timeout=600.,
+                 results_write_time=0, dt=None, ldbal=False, lptbal=False,
                  cell_selection_path=None, microcircuit_inputs=False,
                  spike_input_path=None, spike_input_namespace=None, spike_input_attr=None,
                  cleanup=True, cache_queries=False, profile_memory=False, use_coreneuron=False,
@@ -76,6 +79,7 @@ class Env(object):
         :param node_allocation: iterable; gids assigned to the current MPI ranks; cannot be specified together with node_rank_file
         :param io_size: int; the number of MPI ranks to be used for I/O operations
         :param recording_profile: str; intracellular recording configuration to use
+        :param tstart: float; start of physical time to simulate (ms)
         :param tstop: int; physical time to simulate (ms)
         :param v_init: float; initialization membrane potential (mV)
         :param stimulus_onset: float; starting time of stimulus (ms)
@@ -90,7 +94,7 @@ class Env(object):
         :param verbose: bool; print verbose diagnostic messages while constructing the network
         """
         self.kwargs = kwargs
-        
+
         self.SWC_Types = {}
         self.SWC_Type_index = {}
         self.Synapse_Types = {}
@@ -143,7 +147,7 @@ class Env(object):
         else:
             self.template_paths = []
         self.template_dict = {}
-            
+
         # The location of required hoc libraries
         self.hoc_lib_path = hoc_lib_path
 
@@ -154,7 +158,10 @@ class Env(object):
             self.checkpoint_interval = max(float(checkpoint_interval), 1.0)
         else:
             self.checkpoint_interval = None
-        
+
+        # NEURON timeout value (0 if None)
+        self.nrn_timeout = int(nrn_timeout) if nrn_timeout is not None else 0
+
         # The location of all datasets
         self.dataset_prefix = dataset_prefix
 
@@ -169,10 +176,16 @@ class Env(object):
         # Number of MPI ranks to be used for I/O operations
         self.io_size = int(io_size)
 
+        # Whether to use cell attribute generation for I/O operations
+        # and number of cache (readahead) items
+        self.use_cell_attr_gen = use_cell_attr_gen
+        self.cell_attr_gen_cache_size = cell_attr_gen_cache_size
+
         # Initialization voltage
         self.v_init = float(v_init)
 
         # simulation time [ms]
+        self.tstart = float(tstart)
         self.tstop = float(tstop)
 
         # stimulus onset time [ms]
@@ -198,7 +211,7 @@ class Env(object):
         self.optlptbal = lptbal
 
         self.transfer_debug = transfer_debug
-            
+
         # cache queries to filter_synapses
         self.cache_queries = cache_queries
 
@@ -224,7 +237,7 @@ class Env(object):
             self.Synapse_Type_index = dict([(item[1], item[0]) for item in viewitems(self.Synapse_Types)])
             self.layer_type_index = dict([(item[1], item[0]) for item in viewitems(self.layers)])
 
-            
+
         if 'Global Parameters' in self.model_config:
             self.parse_globals()
 
@@ -257,7 +270,7 @@ class Env(object):
                 with open(cell_selection_path) as fp:
                     self.cell_selection = yaml.load(fp, IncludeLoader)
         self.cell_selection = self.comm.bcast(self.cell_selection, root=0)
-        
+
 
         # Spike input path
         self.spike_input_path = spike_input_path
@@ -282,7 +295,7 @@ class Env(object):
                 self.results_file_path = "%s_results.h5" % (self.modelName)
             else:
                 self.results_file_path = "%s_results_%s.h5" % (self.modelName, self.results_file_id)
-            
+
         if 'Connection Generator' in self.model_config:
             self.parse_connection_config()
             self.parse_gapjunction_config()
@@ -298,7 +311,7 @@ class Env(object):
                 self.forest_file_path = None
             if rank == 0:
                 self.logger.info('env.data_file_path = %s' % self.data_file_path)
-            if 'Connection Data' in self.model_config:		
+            if 'Connection Data' in self.model_config:
                 self.connectivity_file_path = os.path.join(self.dataset_path, self.model_config['Connection Data'])
             else:
                 self.connectivity_file_path = None
@@ -327,11 +340,11 @@ class Env(object):
 
         self.stimulus_config = None
         self.arena_id = None
-        self.trajectory_id = None
+        self.stimulus_id = None
         if 'Stimulus' in self.model_config:
             self.parse_stimulus_config()
             self.init_stimulus_config(**kwargs)
-            
+
         self.analysis_config = None
         if 'Analysis' in self.model_config:
             self.analysis_config = self.model_config['Analysis']
@@ -352,7 +365,7 @@ class Env(object):
         # have data in the input data file
         self.microcircuit_inputs = microcircuit_inputs or (self.cell_selection is not None)
         self.microcircuit_input_sources = { pop_name: set([]) for pop_name in self.celltypes.keys() }
-            
+
         # Configuration profile for recording intracellular quantities
         assert((recording_fraction >= 0.0) and (recording_fraction <= 1.0))
         self.recording_fraction = recording_fraction
@@ -372,7 +385,7 @@ class Env(object):
                     filters['sources'] = recdict['sources']
                 syn_filters = get_syn_filter_dict(self, filters, convert=True)
                 recdict['syn_filters'] = syn_filters
-        
+
             if self.use_coreneuron:
                 self.recording_profile['dt'] = None
 
@@ -394,7 +407,7 @@ class Env(object):
         self.recs_count = 0
         for pop_name, _ in viewitems(self.Populations):
             self.recs_dict[pop_name] = defaultdict(list)
-            
+
         # used to calculate model construction times and run time
         self.mkcellstime = 0
         self.mkstimtime = 0
@@ -406,7 +419,7 @@ class Env(object):
 
         self.edge_count = defaultdict(dict)
         self.syns_set = defaultdict(set)
-        
+
         comm0.Free()
 
 
@@ -415,6 +428,7 @@ class Env(object):
         simplices = config['simplices']
 
         return DomainConfig(vertices, simplices)
+
 
     def parse_arena_trajectory(self, config):
         velocity = float(config['run velocity'])
@@ -429,21 +443,21 @@ class Env(object):
         path = np.column_stack((np.asarray(path_x, dtype=np.float32),
                                 np.asarray(path_y, dtype=np.float32)))
 
-        return TrajectoryConfig(velocity, path)
+        return StimulusConfig(velocity, path)
 
-    def init_stimulus_config(self, arena_id=None, trajectory_id=None, **kwargs):
+    def init_stimulus_config(self, arena_id=None, stimulus_id=None, **kwargs):
         if arena_id is not None:
             if arena_id in self.stimulus_config['Arena']:
                 self.arena_id = arena_id
             else:
                 raise RuntimeError('init_stimulus_config: arena id parameter not found in stimulus configuration')
-            if trajectory_id is None:
-                self.trajectory_id = None
+            if stimulus_id is None:
+                self.stimulus_id = None
             else:
-                if trajectory_id in self.stimulus_config['Arena'][arena_id].trajectories:
-                    self.trajectory_id = trajectory_id
+                if stimulus_id in self.stimulus_config['Arena'][arena_id].stimuli:
+                    self.stimulus_id = stimulus_id
                 else:
-                    raise RuntimeError('init_stimulus_config: trajectory id parameter not found in stimulus configuration')
+                    raise RuntimeError('init_stimulus_config: stimulus id parameter not found in stimulus configuration')
 
     def parse_stimulus_config(self):
         stimulus_dict = self.model_config['Stimulus']
@@ -483,13 +497,14 @@ class Env(object):
                         else:
                             arena_properties[kk] = vv
                     stimulus_config['Arena'][arena_id] = ArenaConfig(arena_id, arena_domain,
-                                                                  arena_trajectories, arena_properties)
+                                                                     arena_trajectories,
+                                                                     arena_properties)
             else:
                 stimulus_config[k] = v
 
         self.stimulus_config = stimulus_config
 
-        
+
     def parse_netclamp_config(self):
         """
 
@@ -720,7 +735,7 @@ class Env(object):
         else:
             self.gapjunctions = None
 
-            
+
     def load_node_rank_map(self, node_rank_file):
 
         rank = 0
@@ -757,7 +772,7 @@ class Env(object):
                 self.node_allocation = None
                 break
 
-            
+
     def load_celltypes(self):
         """
 
@@ -821,7 +836,7 @@ class Env(object):
                                 clos = ExprClosure(parameter, expr, const)
                                 weights_dict['closure'] = clos
                         synapses_dict['weights'] = weights_dicts
-                        
+
 
 
     def clear(self):

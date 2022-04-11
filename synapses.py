@@ -5,10 +5,11 @@ import numpy as np
 import scipy
 import scipy.optimize as opt
 from neuroh5.io import write_cell_attributes
-from MiV.neuron_utils import default_ordered_sec_types, interplocs
+from MiV.neuron_utils import default_ordered_sec_types, interplocs, mknetcon
 from MiV.cells import make_section_graph
-from MiV.utils import ExprClosure, Promise, NamedTupleWithDocstring, get_module_logger, generator_ifempty, map, range, str, \
+from MiV.utils import ExprClosure, Promise, NamedTupleWithDocstring, get_module_logger, generator_ifempty, ifempty, map, range, str, \
      viewitems, viewkeys, zip, zip_longest, partitionn, rejection_sampling
+from neuron import h
 
 # This logger will inherit its settings from the root logger, created in env
 logger = get_module_logger(__name__)
@@ -445,13 +446,13 @@ class SynapseSource(object):
         self.gid = None
         self.population = None
         self.delay = None
-    def __repr__(self): 
+    def __repr__(self):
        if self.delay is None:
            repr_delay = 'None'
        else:
            repr_delay = f'{self.delay:.02f}'
        return f'SynapseSource({self.gid}, {self.population}, {repr_delay})'
-    def __str__(self): 
+    def __str__(self):
        if self.delay is None:
            str_delay = 'None'
        else:
@@ -475,7 +476,7 @@ Synapse = NamedTupleWithDocstring(
     - syn_layer - enumerated synapse layer (int)
     - syn_loc - synapse location in segment (float)
     - syn_section - synapse section index (int)
-    - source: instance of SynapseSource with the slots: 
+    - source: instance of SynapseSource with the slots:
        - gid - source cell gid (int)
        - population - enumerated source population index (int)
        - delay - connection delay (float)
@@ -532,7 +533,7 @@ class SynapseAttributes(object):
         Initializes synaptic attributes given an iterator that returns (gid, attr_dict).
         See `init_syn_id_attrs` for details on the format of the input dictionary.
         """
-        
+
         first_gid = True
         if attr_type == 'dict':
             for (gid, attr_dict) in cell_iter:
@@ -764,7 +765,7 @@ class SynapseAttributes(object):
                 raise RuntimeError(f'get_netcon: gid {gid} synapse id {syn_id} has no netcon for mechanism {syn_name}')
             else:
                 return None
-            
+
     def del_netcon(self, gid, syn_id, syn_name, throw_error=True):
         """
         Removes a NetCon object for the specified cell/synapse id/mechanism name.
@@ -885,7 +886,7 @@ class SynapseAttributes(object):
 
     def stash_mech_attrs(self, pop_name, gid):
         """
-        Preserves mechanism attributes for the given cell id. 
+        Preserves mechanism attributes for the given cell id.
 
         :param pop_name: population name
         :param gid: cell id
@@ -901,7 +902,7 @@ class SynapseAttributes(object):
 
     def restore_mech_attrs(self, pop_name, gid, stash_id):
         """
-        Restored mechanism attributes for the given cell id. 
+        Restored mechanism attributes for the given cell id.
 
         :param pop_name: population name
         :param gid: cell id
@@ -915,10 +916,10 @@ class SynapseAttributes(object):
             del(self.syn_id_attr_backup_dict[gid][stash_id])
 
 
-        
+
     def modify_mech_attrs(self, pop_name, gid, syn_id, syn_name, params, expr_param_check='ignore'):
         """
-        Modifies mechanism attributes for the given cell id/synapse id/mechanism name. 
+        Modifies mechanism attributes for the given cell id/synapse id/mechanism name.
 
         :param pop_name: population name
         :param gid: cell id
@@ -1010,7 +1011,7 @@ class SynapseAttributes(object):
                                                f'{k} mechanism: {mech_name} presynaptic: {presyn_name} old value: {old_val}')
                 else:
                     attr_dict[k] = new_val
-                
+
             else:
                 raise RuntimeError(f'modify_mech_attrs: unknown type of parameter {k}')
         syn.attr_dict[syn_index] = attr_dict
@@ -1111,26 +1112,27 @@ class SynapseAttributes(object):
         """
         Partitions the synapse objects for the given cell based on the
         presynaptic (source) population index.
-        
+
         :param gid: int
         :param syn_ids: array of int
 
         """
-        source_names = {id: name for name, id in viewitems(self.env.Populations)}
-        source_names[-1] = None
+        source_names = {id: name for name, id in self.env.Populations.items()}
+
+        source_order = { id: i for i, (name, id) in enumerate(sorted(self.env.Populations.items())) }
+        source_inverse_order = { i: id for i, (name, id) in enumerate(sorted(self.env.Populations.items())) }
 
         if syn_ids is None:
             syn_id_attr_dict = self.syn_id_attr_dict[gid]
         else:
             syn_id_attr_dict = {syn_id: self.syn_id_attr_dict[gid][syn_id] for syn_id in syn_ids}
 
-        source_iter = partitionn(viewitems(syn_id_attr_dict),
-                                 lambda syn_id_syn: syn_id_syn[1].source.population+1
-                                     if syn_id_syn[1].source.population is not None else 0,
-                                 n=len(source_names))
-
-        return dict([(source_names[source_id_x[0]-1], generator_ifempty(source_id_x[1])) for source_id_x in
-                     enumerate(source_iter)])
+        source_parts = partitionn(viewitems(syn_id_attr_dict),
+                                  lambda syn_id_syn: source_order[syn_id_syn[1].source.population],
+                                  n=len(source_names))
+        
+        return dict([(source_names[source_inverse_order[source_id_x[0]]], generator_ifempty(source_id_x[1]))
+                     for source_id_x in enumerate(source_parts)])
 
     def get_filtered_syn_ids(self, gid, syn_sections=None, syn_indexes=None, syn_types=None, layers=None,
                              sources=None, swc_types=None, cache=False):
@@ -1153,26 +1155,29 @@ class SynapseAttributes(object):
         """
         Partitions the synapse ids for the given cell based on the
         presynaptic (source) population index.
-        
+
         :param gid: int
         :param syn_ids: array of int
 
         """
         start_time = time.time()
-        source_names = {id: name for name, id in viewitems(self.env.Populations)}
-        source_names[-1] = None
+        source_names = {id: name for name, id in self.env.Populations.items()}
+
+        source_order = { id: i for i, (name, id) in enumerate(sorted(self.env.Populations.items())) }
+        source_inverse_order = { i: id for i, (name, id) in enumerate(sorted(self.env.Populations.items())) }
+
         syn_id_attr_dict = self.syn_id_attr_dict[gid]
         if syn_ids is None:
             syn_ids = list(syn_id_attr_dict.keys())
-
+            
         def partition_pred(syn_id):
             syn = syn_id_attr_dict[syn_id]
-            return syn.source.population+1 if syn.source.population is not None else 0
+            return source_order[syn.source.population]
 
         source_iter = partitionn(syn_ids, partition_pred, n=len(source_names))
 
-        return dict([(source_names[source_id_x[0]-1], generator_ifempty(source_id_x[1])) for source_id_x in
-                     enumerate(source_iter)])
+        return dict([(source_names[source_inverse_order[source_id_x[0]]], generator_ifempty(source_id_x[1]))
+                     for source_id_x in enumerate(source_iter)])
 
     def del_syn_id_attr_dict(self, gid):
         """
@@ -1210,7 +1215,7 @@ def insert_hoc_cell_syns(env, gid, cell, syn_ids, syn_params, unique=False, inse
 
     Insert mechanisms into given cell according to the synapse objects created in env.synapse_attributes.
     Configures mechanisms according to parameter values specified in syn_params.
-    
+
     :param env: :class:'Env'
     :param gid: cell id (int)
     :param cell: hoc cell object
@@ -1342,7 +1347,7 @@ def insert_hoc_cell_syns(env, gid, cell, syn_ids, syn_params, unique=False, inse
 def insert_biophys_cell_syns(env, gid, postsyn_name, presyn_name, syn_ids, unique=None, insert_netcons=True,
                              insert_vecstims=True, verbose=False):
     """
-    
+
     1) make syns (if not unique, keep track of syn_in_seg for shared synapses)
     2) initialize syns with syn_mech_params from config_file
     3) make netcons
@@ -1364,7 +1369,7 @@ def insert_biophys_cell_syns(env, gid, postsyn_name, presyn_name, syn_ids, uniqu
     cell = env.biophys_cells[postsyn_name][gid]
 
     connection_syn_params = env.connection_config[postsyn_name][presyn_name].mechanisms
-    
+
     synapse_config = env.celltypes[postsyn_name]['synapses']
 
     if unique is None:
@@ -1459,7 +1464,7 @@ def config_hoc_cell_syns(env, gid, postsyn_name, cell=None, syn_ids=None, unique
     param_closure_dict = {}
     if 'closure' in weights_dict:
         param_closure_dict['weight'] = weights_dict['closure']
-     
+
     if unique is None:
         if 'unique' in synapse_config:
             unique = synapse_config['unique']
@@ -1471,6 +1476,7 @@ def config_hoc_cell_syns(env, gid, postsyn_name, cell=None, syn_ids=None, unique
 
     if insert:
         source_syn_dict = syn_attrs.partition_synapses_by_source(gid, syn_ids)
+
         last_time = time.time()
         if (cell is None) and (not (env.pc.gid_exists(gid))):
             raise RuntimeError(f'config_hoc_cell_syns: insert: cell with gid {gid} does not exist on rank {rank}')
@@ -1480,7 +1486,7 @@ def config_hoc_cell_syns(env, gid, postsyn_name, cell=None, syn_ids=None, unique
             if (presyn_name is not None) and (source_syns is not None):
                 source_syn_ids = [x[0] for x in source_syns]
                 connection_syn_params = env.connection_config[postsyn_name][presyn_name].mechanisms
-                syn_count, mech_count, nc_count = insert_hoc_cell_syns(env, gid, cell, source_syn_ids, connection_syn_params, 
+                syn_count, mech_count, nc_count = insert_hoc_cell_syns(env, gid, cell, source_syn_ids, connection_syn_params,
                                                                        unique=unique, insert_netcons=insert_netcons,
                                                                        insert_vecstims=insert_vecstims)
                 if verbose:
@@ -1489,7 +1495,7 @@ def config_hoc_cell_syns(env, gid, postsyn_name, cell=None, syn_ids=None, unique
             logger.info(f'config_hoc_cell_syns: population: {postsyn_name}; cell {gid}: inserted mechanisms in {time.time() - last_time:.2f} s')
 
     source_syn_dict = syn_attrs.partition_synapses_by_source(gid, syn_ids)
-    
+
     total_nc_count = 0
     total_mech_count = 0
     total_syn_id_count = 0
@@ -1503,7 +1509,7 @@ def config_hoc_cell_syns(env, gid, postsyn_name, cell=None, syn_ids=None, unique
         mech_count = 0
 
         syn_names = set(syn_attrs.syn_mech_names.keys())
-            
+
         for syn_id, syn in source_syns:
             total_syn_id_count += 1
             for syn_name in syn_names:
@@ -1569,7 +1575,7 @@ def config_syn(syn_name, rules, mech_names=None, syn=None, nc=None, **params):
 
     nc_param = False
     mech_param = False
-    
+
     for param, val in viewitems(params):
         failed = True
         if param in mech_rules['mech_params']:
@@ -1800,12 +1806,12 @@ def validate_syn_mech_param(env, syn_name, param_name):
     return False
 
 
-def modify_syn_param(cell, env, sec_type, syn_name, param_name=None, value=None, 
+def modify_syn_param(cell, env, sec_type, syn_name, param_name=None, value=None,
                      append=False, filters=None, origin_filters=None, update_targets=False, verbose=False):
     """Modifies a cell's mechanism dictionary to specify attributes of a
     synaptic mechanism by sec_type. This method is meant to be called
     manually during initial model specification, or during parameter
-    optimization. 
+    optimization.
 
     Calls update_syn_mech_by_sec_type to set placeholder values in the
     syn_mech_attrs_dict of a SynapseAttributes object. If
@@ -1836,7 +1842,7 @@ def modify_syn_param(cell, env, sec_type, syn_name, param_name=None, value=None,
     if value is None:
         raise ValueError(f'modify_syn_mech_param: mechanism: {syn_name}; parameter: {param_name}; missing value for '
                          'sec_type: {sec_type}')
-    
+
     rules = get_mech_rules_dict(cell, value=value)
     if filters is not None:
         syn_filters = get_syn_filter_dict(env, filters)
@@ -1875,7 +1881,7 @@ def modify_syn_param(cell, env, sec_type, syn_name, param_name=None, value=None,
                      f'problem updating mechanism: {syn_name}; parameter: {param_name}; in sec_type: {sec_type}')
         raise e
 
-    
+
 
 
 def update_syn_mech_by_sec_type(cell, env, sec_type, syn_name, mech_content, update_targets=False, verbose=False):
@@ -1932,17 +1938,17 @@ def update_syn_mech_param_by_sec_type(cell, env, sec_type, syn_name, param_name,
 
     if is_reduced:
         synapse_filters['swc_types'] = [env.SWC_Types[sec_type]]
-        apply_syn_mech_rules(cell, env, syn_name, param_name, new_rules, 
+        apply_syn_mech_rules(cell, env, syn_name, param_name, new_rules,
                              synapse_filters=synapse_filters, origin_filters=origin_filters,
                              update_targets=update_targets, verbose=verbose)
     elif sec_type in cell.nodes:
         for node in cell.nodes[sec_type]:
             apply_syn_mech_rules(cell, env, syn_name, param_name, new_rules, node=node,
-                                 synapse_filters=synapse_filters, 
+                                 synapse_filters=synapse_filters,
                                  update_targets=update_targets, verbose=verbose)
 
 
-def apply_syn_mech_rules(cell, env, syn_name, param_name, rules, node=None, syn_ids=None, 
+def apply_syn_mech_rules(cell, env, syn_name, param_name, rules, node=None, syn_ids=None,
                          synapse_filters=None, update_targets=False, verbose=False):
     """Provided a synaptic mechanism, a parameter, a node, a list of
     syn_ids, and a dict of rules. Interprets the provided rules and updates synaptic mechanisms.
@@ -1963,10 +1969,10 @@ def apply_syn_mech_rules(cell, env, syn_name, param_name, rules, node=None, syn_
         if synapse_filters is None:
             synapse_filters = {}
         if node is None:
-            filtered_syns = syn_attrs.filter_synapses(cell.gid, cache=env.cache_queries, 
+            filtered_syns = syn_attrs.filter_synapses(cell.gid, cache=env.cache_queries,
                                                       **synapse_filters)
         else:
-            filtered_syns = syn_attrs.filter_synapses(cell.gid, syn_sections=[node.index], 
+            filtered_syns = syn_attrs.filter_synapses(cell.gid, syn_sections=[node.index],
                                                       cache=env.cache_queries, **synapse_filters)
         if len(filtered_syns) == 0:
             return
@@ -1988,10 +1994,10 @@ def apply_syn_mech_rules(cell, env, syn_name, param_name, rules, node=None, syn_
                        update_targets, verbose)
 
 
-    
-def set_syn_mech_param(cell, env, node, syn_ids, syn_name, param_name, baseline, rules, 
+
+def set_syn_mech_param(cell, env, node, syn_ids, syn_name, param_name, baseline, rules,
                        update_targets=False, verbose=False):
-    
+
     """Provided a synaptic mechanism, a parameter, a node, a list of
     syn_ids, and a dict of rules. Sets placeholder values for each
     provided syn_id in the syn_mech_attr_dict of a SynapseAttributes
@@ -2013,7 +2019,7 @@ def set_syn_mech_param(cell, env, node, syn_ids, syn_name, param_name, baseline,
     """
     syn_attrs = env.synapse_attributes
     for syn_id in syn_ids:
-        syn_attrs.modify_mech_attrs(cell.pop_name, cell.gid, syn_id, syn_name, 
+        syn_attrs.modify_mech_attrs(cell.pop_name, cell.gid, syn_id, syn_name,
                                     {param_name: baseline})
 
     if update_targets:
@@ -2043,6 +2049,6 @@ def init_syn_mech_attrs(cell, env=None, reset_mech_dict=False, update_targets=Fa
                                                 cell.mech_dict[sec_type]['synapses'][syn_name],
                                                 update_targets=update_targets)
 
-                    
 
-        
+
+

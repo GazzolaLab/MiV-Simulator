@@ -1,4 +1,8 @@
 # Axonal extent in um [S-T, M-L]
+STIM:
+  default:
+    width: [1000.0, 1000.0]
+    offset: [0,0]
 PYR:
   default:
     width: [1000.0, 1000.0]
