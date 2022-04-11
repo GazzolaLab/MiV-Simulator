@@ -454,7 +454,7 @@ class Env(object):
             if stimulus_id is None:
                 self.stimulus_id = None
             else:
-                if stimulus_id in self.stimulus_config['Arena'][arena_id].stimuli:
+                if stimulus_id in self.stimulus_config['Arena'][arena_id].trajectories:
                     self.stimulus_id = stimulus_id
                 else:
                     raise RuntimeError('init_stimulus_config: stimulus id parameter not found in stimulus configuration')
