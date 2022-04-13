@@ -28,10 +28,10 @@ def debug_callback(context):
     fig_title = '%s %s cell %i' % (context.population, context.this_selectivity_type_name, context.gid)
     fig_options = copy.copy(context.fig_options)
     if context.save_fig is not None:
-        fig_options.saveFig = '%s %s' % (context.save_fig, fig_title)
+        fig_options.saveFig = f'{context.save_fig} {fig_title}'
     fig = plot_2D_rate_map(x=context.arena_x_mesh, y=context.arena_y_mesh, rate_map=context.rate_map,
                            peak_rate = context.env.stimulus_config['Peak Rate'][context.population][context.this_selectivity_type],
-                           title='%s\nNormalized cell position: %.3f' % (fig_title, context.norm_u_arc_distance),
+                           title=f'{fig_title}\nNormalized cell position: {context.norm_u_arc_distance:.3f}',
                            **fig_options())
     close_figure(fig)
     
@@ -173,7 +173,7 @@ def main(config, config_prefix, coords_path, distances_namespace, output_path, a
         fig_options.showFig = show_fig
 
     if save_fig is not None:
-        save_fig = '%s %s' % (save_fig, arena_id)
+        save_fig = f'{save_fig} {arena_id}'
         fig_options.saveFig = save_fig
 
     if not dry_run and rank == 0:
@@ -219,7 +219,7 @@ def main(config, config_prefix, coords_path, distances_namespace, output_path, a
     comm.barrier()
     reference_u_arc_distance_bounds_dict = comm.bcast(reference_u_arc_distance_bounds_dict, root=0)
 
-    selectivity_type_names = dict([ (val, key) for (key, val) in viewitems(env.selectivity_types) ])
+    selectivity_type_names = { val: key for (key, val) in viewitems(env.selectivity_types) }
     selectivity_type_namespaces = dict()
     for this_selectivity_type in selectivity_type_names:
         this_selectivity_type_name = selectivity_type_names[this_selectivity_type]
@@ -265,7 +265,7 @@ def main(config, config_prefix, coords_path, distances_namespace, output_path, a
         distances_attr_gen = NeuroH5CellAttrGen(coords_path, population, namespace=distances_namespace,
                                                 comm=comm, io_size=io_size, cache_size=cache_size)
 
-        selectivity_attr_dict = dict((key, dict()) for key in env.selectivity_types)
+        selectivity_attr_dict = {key: dict() for key in env.selectivity_types}
         for iter_count, (gid, distances_attr_dict) in enumerate(distances_attr_gen):
             
             req = comm.Ibarrier()
@@ -318,7 +318,7 @@ def main(config, config_prefix, coords_path, distances_namespace, output_path, a
                                                chunk_size=chunk_size, value_chunk_size=value_chunk_size)
                        req.wait()
                     del selectivity_attr_dict
-                    selectivity_attr_dict = dict((key, dict()) for key in env.selectivity_types)
+                    selectivity_attr_dict = {key: dict() for key in env.selectivity_types}
                     gc.collect()
 
 

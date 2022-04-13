@@ -1,4 +1,3 @@
-
 import os, pprint, logging
 from collections import defaultdict, namedtuple
 import numpy as np
@@ -46,7 +45,7 @@ StimulusConfig = namedtuple('Stimulus',
 
 
 
-class Env(object):
+class Env:
     """
     Network model configuration.
     """
@@ -103,7 +102,7 @@ class Env(object):
         self.layer_type_index = {}
         self.globals = {}
 
-        self.gidset = set([])
+        self.gidset = set()
         self.gjlist = []
         self.cells = defaultdict(lambda: dict())
         self.artificial_cells = defaultdict(lambda: dict())
@@ -233,9 +232,9 @@ class Env(object):
 
         if 'Definitions' in self.model_config:
             self.parse_definitions()
-            self.SWC_Type_index = dict([(item[1], item[0]) for item in viewitems(self.SWC_Types)])
-            self.Synapse_Type_index = dict([(item[1], item[0]) for item in viewitems(self.Synapse_Types)])
-            self.layer_type_index = dict([(item[1], item[0]) for item in viewitems(self.layers)])
+            self.SWC_Type_index = {item[1]: item[0] for item in viewitems(self.SWC_Types)}
+            self.Synapse_Type_index = {item[1]: item[0] for item in viewitems(self.Synapse_Types)}
+            self.layer_type_index = {item[1]: item[0] for item in viewitems(self.layers)}
 
 
         if 'Global Parameters' in self.model_config:
@@ -287,14 +286,14 @@ class Env(object):
 
         if results_path:
             if self.results_file_id is None:
-                self.results_file_path = "%s/%s_results.h5" % (self.results_path, self.modelName)
+                self.results_file_path = f"{self.results_path}/{self.modelName}_results.h5"
             else:
-                self.results_file_path = "%s/%s_results_%s.h5" % (self.results_path, self.modelName, self.results_file_id)
+                self.results_file_path = f"{self.results_path}/{self.modelName}_results_{self.results_file_id}.h5"
         else:
             if self.results_file_id is None:
                 self.results_file_path = "%s_results.h5" % (self.modelName)
             else:
-                self.results_file_path = "%s_results_%s.h5" % (self.modelName, self.results_file_id)
+                self.results_file_path = f"{self.modelName}_results_{self.results_file_id}.h5"
 
         if 'Connection Generator' in self.model_config:
             self.parse_connection_config()
@@ -364,7 +363,7 @@ class Env(object):
         # If True, instantiate as spike source those cells that do not
         # have data in the input data file
         self.microcircuit_inputs = microcircuit_inputs or (self.cell_selection is not None)
-        self.microcircuit_input_sources = { pop_name: set([]) for pop_name in self.celltypes.keys() }
+        self.microcircuit_input_sources = { pop_name: set() for pop_name in self.celltypes.keys() }
 
         # Configuration profile for recording intracellular quantities
         assert((recording_fraction >= 0.0) and (recording_fraction <= 1.0))
@@ -755,7 +754,7 @@ class Env(object):
 
         pop_names = sorted(self.celltypes.keys())
 
-        self.node_allocation = set([])
+        self.node_allocation = set()
         for pop_name in pop_names:
             present = False
             num = self.celltypes[pop_name]['num']
@@ -814,7 +813,7 @@ class Env(object):
                 celltypes[k]['start'] = population_ranges[k][0]
                 celltypes[k]['num'] = population_ranges[k][1]
                 if 'mechanism file' in celltypes[k]:
-                    celltypes[k]['mech_file_path'] = '%s/%s' % (self.config_prefix, celltypes[k]['mechanism file'])
+                    celltypes[k]['mech_file_path'] = '{}/{}'.format(self.config_prefix, celltypes[k]['mechanism file'])
                     mech_dict = None
                     if rank == 0:
                         mech_dict = read_from_yaml(celltypes[k]['mech_file_path'])
@@ -840,7 +839,7 @@ class Env(object):
 
 
     def clear(self):
-        self.gidset = set([])
+        self.gidset = set()
         self.gjlist = []
         self.cells = defaultdict(dict)
         self.artificial_cells = defaultdict(dict)

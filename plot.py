@@ -659,7 +659,7 @@ def plot_spike_raster (input_path, namespace_id, include = ['eachPop'], time_ran
         
     # Plot spike histogram
     pch = interpolate.pchip(sphist_x, sphist_y)
-    res_npts = int((sphist_x.max() - sphist_x.min()))
+    res_npts = int(sphist_x.max() - sphist_x.min())
     sphist_x_res = np.linspace(sphist_x.min(), sphist_x.max(), res_npts, endpoint=True)
     sphist_y_res = pch(sphist_x_res)
 
@@ -684,9 +684,9 @@ def plot_spike_raster (input_path, namespace_id, include = ['eachPop'], time_ran
             box = ax.get_position()
             ax.set_position([box.x0, box.y0, box.width * 0.85, box.height])
         if pop_rates:
-            lgd_labels = [ '%s (%.02f%% active; %.3g Hz)' % (pop_name, info[0], info[1]) for pop_name, info in zip_longest(spkpoplst, lgd_info) ]
+            lgd_labels = [ '{} ({:.02f}% active; {:.3g} Hz)'.format(pop_name, info[0], info[1]) for pop_name, info in zip_longest(spkpoplst, lgd_info) ]
         else:
-            lgd_labels = [ '%s (%.02f%% active)' % (pop_name, info[0]) for pop_name, info in zip_longest(spkpoplst, lgd_info) ]
+            lgd_labels = [ '{} ({:.02f}% active)'.format(pop_name, info[0]) for pop_name, info in zip_longest(spkpoplst, lgd_info) ]
         # Add legend
         lgd = fig.legend(sctplots, lgd_labels, loc = 'center right', 
                          fontsize='small', scatterpoints=1, markerscale=5.,
@@ -695,9 +695,9 @@ def plot_spike_raster (input_path, namespace_id, include = ['eachPop'], time_ran
        
     elif labels == 'overlay':
         if pop_rates:
-            lgd_labels = [ '%s (%.02f%% active; %.3g Hz)' % (pop_name, info[0], info[1]) for pop_name, info in zip_longest(spkpoplst, lgd_info) ]
+            lgd_labels = [ '{} ({:.02f}% active; {:.3g} Hz)'.format(pop_name, info[0], info[1]) for pop_name, info in zip_longest(spkpoplst, lgd_info) ]
         else:
-            lgd_labels = [ '%s (%.02f%% active)' % (pop_name, info[0]) for pop_name, info in zip_longest(spkpoplst, lgd_info) ]
+            lgd_labels = [ '{} ({:.02f}% active)'.format(pop_name, info[0]) for pop_name, info in zip_longest(spkpoplst, lgd_info) ]
         for i, lgd_label in enumerate(lgd_labels):
             at = AnchoredText(pop_name + ' ' + lgd_label,
                               loc='upper right', borderpad=0.01, prop=dict(size=fig_options.fontSize))
@@ -707,7 +707,7 @@ def plot_spike_raster (input_path, namespace_id, include = ['eachPop'], time_ran
     elif labels == 'yticks':
         for pop_name, info, a in zip_longest(spkpoplst, lgd_info, fig.axes[:-1]):
             if pop_rates:
-                label = '%.02f%%\n%.2g Hz' % (info[0], info[1])
+                label = '{:.02f}%\n{:.2g} Hz'.format(info[0], info[1])
             else:
                 label = '%.02f%%\n' % (info[0])
 
@@ -849,7 +849,7 @@ def plot_spike_histogram (input_path, namespace_id, config_path=None, include = 
                     d['rates']  += bin_rate
                     d['active'] += 1
             hist_dict[subset] = bin_dict
-            logger.info(('Calculated spike rates for %i cells in population %s' % (len(sdf_dict), subset)))
+            logger.info('Calculated spike rates for %i cells in population %s' % (len(sdf_dict), subset))
     else:
         for subset, spkinds, spkts in zip(spkpoplst, spkindlst, spktlst):
             spkdict = spikedata.make_spike_dict(spkinds, spkts)
@@ -861,7 +861,7 @@ def plot_spike_histogram (input_path, namespace_id, config_path=None, include = 
                     d['counts'] += counts[ibin]
                     d['active'] += 1
             hist_dict[subset] = bin_dict
-            logger.info(('Calculated spike counts for %i cells in population %s' % (len(count_bin_dict), subset)))
+            logger.info('Calculated spike counts for %i cells in population %s' % (len(count_bin_dict), subset))
         
             
     del spkindlst, spktlst
@@ -897,7 +897,7 @@ def plot_spike_histogram (input_path, namespace_id, config_path=None, include = 
             ax.xaxis.set_visible(False)
             
         if smooth:
-            hsignal = signal.savgol_filter(hist_y, window_length=2*((len(hist_y) / 16)) + 1, polyorder=smooth) 
+            hsignal = signal.savgol_filter(hist_y, window_length=2*(len(hist_y) / 16) + 1, polyorder=smooth) 
         else:
             hsignal = hist_y
         

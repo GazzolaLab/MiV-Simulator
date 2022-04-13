@@ -1,7 +1,6 @@
 from mpi4py import MPI
 import copy, datetime, gc, itertools, logging, math, numbers, os.path, importlib
 import pprint, string, sys, time, click
-from builtins import input, map, next, object, range, str, zip
 from collections import defaultdict, namedtuple
 from collections.abc import MutableMapping, Iterable
 import numpy as np
@@ -18,7 +17,7 @@ def set_union(a, b, datatype):
 mpi_op_set_union = MPI.Op.Create(set_union, commute=True)
 
     
-class Struct(object):
+class Struct:
     def __init__(self, **items):
         self.__dict__.update(items)
 
@@ -37,7 +36,7 @@ class Struct(object):
     def __str__(self):
         return f'<Struct>'
 
-class ExprClosure(object):
+class ExprClosure:
     """
     Representation of a sympy expression with a mutable local environment.
     """
@@ -96,7 +95,7 @@ class ExprClosure(object):
         return result
 
     
-class Promise(object):
+class Promise:
     """
     An object that represents a closure and unapplied arguments.
     """
@@ -111,7 +110,7 @@ class Promise(object):
     
 
 
-class Context(object):
+class Context:
     """
     A container replacement for global variables to be shared and modified by any function in a module.
     """
@@ -141,7 +140,7 @@ class Context(object):
         return f'<Context>'
     
     
-class RunningStats(object):
+class RunningStats:
 
     def __init__(self):
         self.n = 0
@@ -255,7 +254,7 @@ class IncludeLoader(yaml.Loader):
         :return:
         """
         filename = os.path.join(self._root, self.construct_scalar(node))
-        with open(filename, 'r') as f:
+        with open(filename) as f:
             return yaml.load(f, IncludeLoader)
 
 
@@ -316,7 +315,7 @@ def read_from_yaml(file_path, include_loader=None):
     :return:
     """
     if os.path.isfile(file_path):
-        with open(file_path, 'r') as stream:
+        with open(file_path) as stream:
             if include_loader is None:
                 Loader = yaml.FullLoader
             else:
@@ -324,7 +323,7 @@ def read_from_yaml(file_path, include_loader=None):
             data = yaml.load(stream, Loader=Loader)
         return data
     else:
-        raise IOError('read_from_yaml: invalid file_path: %s' % file_path)
+        raise OSError('read_from_yaml: invalid file_path: %s' % file_path)
 
 
 def print_param_dict_like_yaml(param_dict, digits=6):
@@ -335,7 +334,7 @@ def print_param_dict_like_yaml(param_dict, digits=6):
     """
     for param_name, param_val in viewitems(param_dict):
         if isinstance(param_val, int):
-            print('%s: %s' % (param_name, param_val))
+            print(f'{param_name}: {param_val}')
         else:
             print('%s: %.*E' % (param_name, digits, param_val))
 

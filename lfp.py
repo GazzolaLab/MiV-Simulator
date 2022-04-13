@@ -8,7 +8,6 @@ setting dt_lfp.
 """
 
 import itertools, math, logging
-from builtins import object, range
 
 from neuron import h
 logger = logging.getLogger(__name__)
@@ -42,7 +41,7 @@ def interpxyz(nn, nsegs, xx, yy, zz, ll, xint, yint, zint):
     zint.interpolate(rangev, ll, zz)
 
 
-class LFP(object):
+class LFP:
 
     def __init__(self, label, pc, pop_gid_dict, pos, rho=333.0, fdst=0.1, maxEDist=100., dt_lfp=0.5, seed=1):
         self.label = label
@@ -119,7 +118,7 @@ class LFP(object):
                             ld = math.sqrt((sx - sx0) * (sx - sx0) + (sy - sy0) * (sy - sy0) + (sz - sz0) * (sz - sz0))
                             sd = l - ld
                             k = 0.0001 * h.area(seg.x) * (self.rho / (4.0 * math.pi * l)) * abs(math.log(
-                                ((math.sqrt(ld * ld + rd * rd) - ld) / (math.sqrt(sd * sd + rd * rd) - sd))))
+                                (math.sqrt(ld * ld + rd * rd) - ld) / (math.sqrt(sd * sd + rd * rd) - sd)))
                             if math.isnan(k):
                                 k = 0.
                             ## Distal cell

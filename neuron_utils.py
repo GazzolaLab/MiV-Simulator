@@ -1,4 +1,3 @@
-
 import os, os.path, math
 import numpy as np
 try:
@@ -194,12 +193,12 @@ def find_template(env, template_name, path=['templates'], template_file=None, bc
     if (env.comm is None) or (not bcast_template) or (bcast_template and (rank == root)):
         for template_dir in path:
             if template_file is None:
-                template_path = '%s/%s.hoc' % (template_dir, template_name)
+                template_path = f'{template_dir}/{template_name}.hoc'
             else:
-                template_path = '%s/%s' % (template_dir, template_file)
+                template_path = f'{template_dir}/{template_file}'
             found = os.path.isfile(template_path)
             if found and (rank == 0):
-                logger.info('Loaded %s from %s' % (template_name, template_path))
+                logger.info(f'Loaded {template_name} from {template_path}')
                 break
     if bcast_template:
         found = env.comm.bcast(found, root=root)
