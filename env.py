@@ -4,7 +4,7 @@ import numpy as np
 from mpi4py import MPI
 import yaml
 from neuroh5.io import read_cell_attribute_info, read_population_names, read_population_ranges, read_projection_names
-from MiV.utils import IncludeLoader, ExprClosure, get_root_logger, str, viewitems, zip, read_from_yaml
+from MiV.utils import IncludeLoader, ExprClosure, get_root_logger, viewitems, read_from_yaml
 from MiV.synapses import SynapseAttributes, get_syn_filter_dict
 
 SynapseConfig = namedtuple('SynapseConfig',

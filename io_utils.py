@@ -3,7 +3,7 @@ from collections import defaultdict
 from mpi4py import MPI
 import h5py
 import numpy as np
-from MiV.utils import Struct, range, str, viewitems, Iterable, compose_iter, get_module_logger, get_trial_time_ranges
+from MiV.utils import Struct, viewitems, Iterable, compose_iter, get_module_logger, get_trial_time_ranges
 from neuroh5.io import read_cell_attributes, write_cell_attributes, append_cell_attributes, read_cell_attribute_info
 
 

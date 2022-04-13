@@ -10,7 +10,7 @@ import numpy as np
 from MiV import cells, io_utils, lfp, lpt, simtime, synapses
 from MiV.neuron_utils import h, configure_hoc_env, cx, make_rec, mkgap, load_cell_template
 from MiV.utils import compose_iter, imapreduce, get_module_logger, profile_memory, Promise
-from MiV.utils import range, str, viewitems, viewkeys, zip, zip_longest
+from MiV.utils import viewitems, viewkeys, zip_longest
 from neuroh5.io import bcast_graph, read_cell_attribute_selection, scatter_read_cell_attribute_selection, read_graph_selection, read_tree_selection, scatter_read_cell_attributes, scatter_read_graph, scatter_read_trees, write_cell_attributes, write_graph, NeuroH5CellAttrGen
 from mpi4py import MPI
 

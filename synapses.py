@@ -7,8 +7,8 @@ import scipy.optimize as opt
 from neuroh5.io import write_cell_attributes
 from MiV.neuron_utils import default_ordered_sec_types, interplocs, mknetcon
 from MiV.cells import make_section_graph
-from MiV.utils import ExprClosure, Promise, NamedTupleWithDocstring, get_module_logger, generator_ifempty, ifempty, map, range, str, \
-     viewitems, viewkeys, zip, zip_longest, partitionn, rejection_sampling
+from MiV.utils import ExprClosure, Promise, NamedTupleWithDocstring, get_module_logger, generator_ifempty, ifempty, \
+     viewitems, viewkeys, zip_longest, partitionn, rejection_sampling
 from neuron import h
 
 # This logger will inherit its settings from the root logger, created in env

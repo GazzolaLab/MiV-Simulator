@@ -2,7 +2,7 @@ import collections, os, sys, traceback, copy, datetime, math, pprint
 import networkx as nx
 import numpy as np
 from MiV.neuron_utils import load_cell_template, h, d_lambda, init_nseg, reinit_diam, default_hoc_sec_lists, default_ordered_sec_types, make_rec
-from MiV.utils import get_module_logger, map, range, zip, zip_longest, viewitems, read_from_yaml, write_to_yaml, Promise
+from MiV.utils import get_module_logger, zip_longest, viewitems, read_from_yaml, write_to_yaml, Promise
 from neuroh5.io import read_cell_attribute_selection, read_graph_selection, read_tree_selection
 
 
