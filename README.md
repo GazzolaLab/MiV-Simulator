@@ -14,7 +14,7 @@ Simulation and Analysis Code for Mind in Vitro
 2. Python package prerequisites
 
 ```
-pip install numpy scipy mpi4py h5py matplotlib Cython pyyaml sympy networkx rbf
+pip install -r requirements
 ```
 
 3. Building and installing NEURON
@@ -24,7 +24,7 @@ git clone https://github.com/neuronsimulator/nrn.git
 cd nrn
 mkdir build
 cd build
-cmake .. -DNRN_ENABLE_INTERVIEWS=OFF -DNRN_ENABLE_MPI=ON -DNRN_ENABLE_RX3D=ON -DNRN_ENABLE_CORENEURON=ON -DNRN_ENABLE_PYTHON=ON -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx
+cmake .. -DNRN_ENABLE_INTERVIEWS=OFF -DNRN_ENABLE_MPI=ON -DNRN_ENABLE_RX3D=ON -DNRN_ENABLE_CORENEURON=ON -DNRN_ENABLE_PYTHON=ON -DPYTHON_EXECUTABLE=$(which python3) -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx
 make install
 ```
 
@@ -65,7 +65,7 @@ python3 -m venv venv
 . venv/bin/activate
 pip install -U pip
 
-pip install -I numpy scipy mpi4py h5py matplotlib Cython pyyaml sympy click
+pip install -I -r requirements.txt
 ```
 
 ### Building HDF5
@@ -88,12 +88,11 @@ git clone https://github.com/neuronsimulator/nrn.git
 cd nrn
 mkdir build
 cd build
-cmake .. -DNRN_ENABLE_INTERVIEWS=OFF -DNRN_ENABLE_MPI=ON -DNRN_ENABLE_RX3D=ON -DNRN_ENABLE_CORENEURON=ON -DNRN_ENABLE_PYTHON=ON -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx -DCMAKE_INSTALL_PREFIX=../install
+cmake .. -DNRN_ENABLE_INTERVIEWS=OFF -DNRN_ENABLE_MPI=ON -DNRN_ENABLE_RX3D=ON -DNRN_ENABLE_CORENEURON=ON -DPYTHON_EXECUTABLE=$(which python3) -DNRN_ENABLE_PYTHON=ON -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx -DCMAKE_INSTALL_PREFIX=../install
 make install
 
-# in venv
-cd ..
-pip install .
+export PATH=/path/to/install/directory/bin:$PATH
+export PYTHONPATH=/path/to/install/directory/lib/python:$PYTHONPATH
 ```
 
 ### Install NeuroH5
