@@ -2,7 +2,8 @@ from mpi4py import MPI
 import copy, datetime, gc, itertools, logging, math, numbers, os.path, importlib
 import pprint, string, sys, time, click
 from builtins import input, map, next, object, range, str, zip
-from collections import MutableMapping, Iterable, defaultdict, namedtuple
+from collections import defaultdict, namedtuple
+from collections.abc import MutableMapping, Iterable
 import numpy as np
 import scipy
 from scipy import sparse, signal
