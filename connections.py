@@ -12,7 +12,7 @@ from neuroh5.io import NeuroH5CellAttrGen, append_graph
 logger = get_module_logger(__name__)
 
 
-class ConnectionProb(object):
+class ConnectionProb:
     """An object of this class will instantiate functions that describe
     the connection probabilities for each presynaptic population. These
     functions can then be used to get the distribution of connection

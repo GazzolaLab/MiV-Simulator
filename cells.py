@@ -2,14 +2,14 @@ import collections, os, sys, traceback, copy, datetime, math, pprint
 import networkx as nx
 import numpy as np
 from MiV.neuron_utils import load_cell_template, h, d_lambda, init_nseg, reinit_diam, default_hoc_sec_lists, default_ordered_sec_types, make_rec
-from MiV.utils import get_module_logger, map, range, zip, zip_longest, viewitems, read_from_yaml, write_to_yaml, Promise
+from MiV.utils import get_module_logger, zip_longest, viewitems, read_from_yaml, write_to_yaml, Promise
 from neuroh5.io import read_cell_attribute_selection, read_graph_selection, read_tree_selection
 
 
 # This logger will inherit its settings from the root logger, created in env
 logger = get_module_logger(__name__)
 
-class SectionNode(object):
+class SectionNode:
 
     def __init__(self, section_type, index, section, content=None):
         self.name = f'{section_type}{index}'
@@ -177,7 +177,7 @@ def make_section_graph(neurotree_dict):
     return sec_graph
 
 
-class BiophysCell(object):
+class BiophysCell:
     """
     A Python wrapper for neuronal cell objects specified in the NEURON language hoc.
     """
@@ -417,9 +417,9 @@ def import_mech_dict_from_file(cell, mech_file_path=None):
         if cell.mech_file_path is None:
             raise ValueError('import_mech_dict_from_file: missing mech_file_path')
         elif not os.path.isfile(cell.mech_file_path):
-            raise IOError('import_mech_dict_from_file: invalid mech_file_path: %s' % cell.mech_file_path)
+            raise OSError('import_mech_dict_from_file: invalid mech_file_path: %s' % cell.mech_file_path)
     elif not os.path.isfile(mech_file_path):
-        raise IOError('import_mech_dict_from_file: invalid mech_file_path: %s' % mech_file_path)
+        raise OSError('import_mech_dict_from_file: invalid mech_file_path: %s' % mech_file_path)
     else:
         cell.mech_file_path = mech_file_path
     cell.init_mech_dict = read_from_yaml(cell.mech_file_path)
@@ -768,8 +768,8 @@ def load_biophys_cell_dicts(env, pop_name, gid_set, data_file_path=None, load_co
     if load_connections:
         synapses_iter = read_cell_attribute_selection(env.data_file_path, pop_name,
                                                       gid_list, 'Synapse Attributes',
-                                                      mask=set(['syn_ids', 'syn_locs', 'syn_secs', 'syn_layers',
-                                                                'syn_types', 'swc_types']),
+                                                      mask={'syn_ids', 'syn_locs', 'syn_secs', 'syn_layers',
+                                                                'syn_types', 'swc_types'},
                                                       comm=env.comm)
         for gid, attr_dict in synapses_iter:
             synapses_dicts[gid] = attr_dict
@@ -848,8 +848,8 @@ def init_circuit_context(env, pop_name, gid,
         elif load_synapses or load_edges:
             if (pop_name in env.cell_attribute_info) and ('Synapse Attributes' in env.cell_attribute_info[pop_name]):
                 synapses_iter = read_cell_attribute_selection(env.data_file_path, pop_name, [gid], 'Synapse Attributes',
-                                                              mask=set(['syn_ids', 'syn_locs', 'syn_secs', 'syn_layers',
-                                                                        'syn_types', 'swc_types']), comm=env.comm)
+                                                              mask={'syn_ids', 'syn_locs', 'syn_secs', 'syn_layers',
+                                                                        'syn_types', 'swc_types'}, comm=env.comm)
                 syn_attrs.init_syn_id_attrs_from_iter(synapses_iter)
             else:
                 raise RuntimeError('init_circuit_context: synapse attributes not found for %s: gid: %i' % (pop_name, gid))
@@ -1170,7 +1170,7 @@ def record_cell(env, pop_name, gid, recording_profile=None):
                 node_type_count = collections.defaultdict(int)
                 for node in nodes:
                     node_type_count[node.type] += 1
-                visited = set([])
+                visited = set()
                 for node in nodes:
                     sec = node.get_sec()
                     if str(sec) not in visited:

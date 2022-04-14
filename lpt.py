@@ -1,5 +1,5 @@
 import heapq
-from MiV.utils import get_module_logger, range, str
+from MiV.utils import get_module_logger
 
 # This logger will inherit its settings from the root logger, created in dentate.env
 logger = get_module_logger(__name__)

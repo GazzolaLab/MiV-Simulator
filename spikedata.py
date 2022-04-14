@@ -100,15 +100,15 @@ def read_spike_events(input_file, population_names, namespace_id, spike_train_at
         if time_range is None or time_range[1] is None:
             logger.info('Reading spike data for population %s...' % pop_name)
         else:
-            logger.info('Reading spike data for population %s in time range %s...' % (pop_name, str(time_range)))
+            logger.info('Reading spike data for population {} in time range {}...'.format(pop_name, str(time_range)))
 
-        spike_train_attr_set = set([spike_train_attr_name, trial_index_attr, trial_dur_attr, artificial_attr])
+        spike_train_attr_set = {spike_train_attr_name, trial_index_attr, trial_dur_attr, artificial_attr}
         spkiter_dict = scatter_read_cell_attributes(input_file, pop_name, namespaces=[namespace_id], 
                                                     mask=spike_train_attr_set, comm=comm, io_size=io_size)
         spkiter = spkiter_dict[namespace_id]
         
         this_num_cell_spks = 0
-        active_set = set([])
+        active_set = set()
 
         pop_spkindlst = []
         pop_spktlst = []
@@ -262,7 +262,7 @@ def spike_density_estimate(population, spkdict, time_bins, arena_id=None, trajec
         if arena_id is None or trajectory_id is None:
             raise RuntimeError('spike_density_estimate: arena_id and trajectory_id required to write Spike Density'
                                'Function namespace')
-        namespace = 'Spike Density Function %s %s' % (arena_id, trajectory_id)
+        namespace = f'Spike Density Function {arena_id} {trajectory_id}'
         attr_dict = {ind: {inferred_rate_attr_name: np.asarray(spk_rate_dict[ind], dtype='float32')}
                      for ind in spk_rate_dict}
         write_cell_attributes(output_file_path, population, attr_dict, namespace=namespace)

@@ -7,8 +7,8 @@ import scipy.optimize as opt
 from neuroh5.io import write_cell_attributes
 from MiV.neuron_utils import default_ordered_sec_types, interplocs, mknetcon
 from MiV.cells import make_section_graph
-from MiV.utils import ExprClosure, Promise, NamedTupleWithDocstring, get_module_logger, generator_ifempty, ifempty, map, range, str, \
-     viewitems, viewkeys, zip, zip_longest, partitionn, rejection_sampling
+from MiV.utils import ExprClosure, Promise, NamedTupleWithDocstring, get_module_logger, generator_ifempty, ifempty, \
+     viewitems, viewkeys, zip_longest, partitionn, rejection_sampling
 from neuron import h
 
 # This logger will inherit its settings from the root logger, created in env
@@ -433,7 +433,7 @@ def distribute_poisson_synapses(density_seed, syn_type_dict, swc_type_dict, laye
     return (syn_dict, seg_density_per_sec)
 
 
-class SynapseSource(object):
+class SynapseSource:
     """This class provides information about the presynaptic (source) cell
     connected to a synapse.
       - gid - gid of source cell (int)
@@ -495,7 +495,7 @@ Synapse = NamedTupleWithDocstring(
      ])
 
 
-class SynapseAttributes(object):
+class SynapseAttributes:
     """This class provides an interface to store, retrieve, and modify
     attributes of synaptic mechanisms. Handles instantiation of
     complex subcellular gradients of synaptic mechanism attributes.
@@ -1131,8 +1131,8 @@ class SynapseAttributes(object):
                                   lambda syn_id_syn: source_order[syn_id_syn[1].source.population],
                                   n=len(source_names))
         
-        return dict([(source_names[source_inverse_order[source_id_x[0]]], generator_ifempty(source_id_x[1]))
-                     for source_id_x in enumerate(source_parts)])
+        return {source_names[source_inverse_order[source_id_x[0]]]: generator_ifempty(source_id_x[1])
+                     for source_id_x in enumerate(source_parts)}
 
     def get_filtered_syn_ids(self, gid, syn_sections=None, syn_indexes=None, syn_types=None, layers=None,
                              sources=None, swc_types=None, cache=False):
@@ -1176,8 +1176,8 @@ class SynapseAttributes(object):
 
         source_iter = partitionn(syn_ids, partition_pred, n=len(source_names))
 
-        return dict([(source_names[source_inverse_order[source_id_x[0]]], generator_ifempty(source_id_x[1]))
-                     for source_id_x in enumerate(source_iter)])
+        return {source_names[source_inverse_order[source_id_x[0]]]: generator_ifempty(source_id_x[1])
+                     for source_id_x in enumerate(source_iter)}
 
     def del_syn_id_attr_dict(self, gid):
         """

@@ -24,7 +24,7 @@ PhaseModConfig = namedtuple('PhaseModConfig',
 
 
     
-class ConstantInputCellConfig(object):
+class ConstantInputCellConfig:
     def __init__(self, selectivity_type=None, arena=None, 
                  peak_rate=None, local_random=None, selectivity_attr_dict=None, phase_mod_config=None):
         """
@@ -79,7 +79,7 @@ class ConstantInputCellConfig(object):
         rate_array = np.ones_like(x, dtype=np.float32) * self.peak_rate
         mean_rate = np.mean(rate_array)
         if (velocity is not None) and (self.phase_mod_function is not None):
-            d = np.insert(np.cumsum(np.sqrt((np.diff(x) ** 2. + np.diff(y) ** 2.))), 0, 0.)
+            d = np.insert(np.cumsum(np.sqrt(np.diff(x) ** 2. + np.diff(y) ** 2.)), 0, 0.)
             t = d/velocity
             rate_array *= self.phase_mod_function(t, initial_phase=initial_phase)
             mean_rate_mod = np.mean(rate_array)
@@ -239,7 +239,7 @@ def generate_linear_trajectory(trajectory, temporal_resolution=1., equilibration
         equilibration_duration = 0.
         equilibration_distance = 0.
 
-    segment_lengths = np.sqrt((np.diff(x) ** 2. + np.diff(y) ** 2.))
+    segment_lengths = np.sqrt(np.diff(x) ** 2. + np.diff(y) ** 2.)
     distance = np.insert(np.cumsum(segment_lengths), 0, 0.)
 
     interp_distance = np.arange(distance.min(), distance.max() + spatial_resolution / 2., spatial_resolution)
@@ -435,7 +435,7 @@ def generate_input_features(env, population, arena, arena_x, arena_y,
 
 def read_stimulus(stimulus_path, stimulus_namespace, population, module=None):
     ratemap_lst = []
-    module_gid_set = set([])
+    module_gid_set = set()
     if module is not None:
         if not isinstance(module, int):
             raise Exception('module variable must be an integer')
@@ -567,7 +567,7 @@ def rate_maps_from_features (env, population, cell_index_set, input_features_pat
     pop_index = int(env.Populations[population])
 
     if input_features_path is not None:
-        this_input_features_namespace = '%s %s' % (input_features_namespace, arena_id)
+        this_input_features_namespace = f'{input_features_namespace} {arena_id}'
         input_features_iter = scatter_read_cell_attribute_selection(input_features_path, population,
                                                                     selection=cell_index_set,
                                                                     namespace=this_input_features_namespace,
@@ -611,7 +611,7 @@ def arena_rate_maps_from_features (env, population, input_features_path, input_f
     spatial_resolution = float(env.stimulus_config['Spatial Resolution'])
     temporal_resolution = float(env.stimulus_config['Temporal Resolution'])
     
-    this_input_features_namespace = '%s %s' % (input_features_namespace, arena_id)
+    this_input_features_namespace = f'{input_features_namespace} {arena_id}'
     
     input_features_attr_names = ['Selectivity Type', 'Num Fields', 'Field Width', 'Peak Rate',
                                  'Module ID', 'Grid Spacing', 'Grid Orientation',

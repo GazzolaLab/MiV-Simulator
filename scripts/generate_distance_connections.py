@@ -86,10 +86,10 @@ def main(config, config_prefix, include, forest_path, connectivity_path, connect
         if rank == 0:
             logger.info(f'Reading {population} coordinates...')
             coords_iter = read_cell_attributes(coords_path, population, comm=comm0,
-                                               mask=set(['U Coordinate', 'V Coordinate', 'L Coordinate']),
+                                               mask={'U Coordinate', 'V Coordinate', 'L Coordinate'},
                                                namespace=coords_namespace)
             distances_iter = read_cell_attributes(coords_path, population, comm=comm0,
-                                                  mask=set(['U Distance', 'V Distance']),
+                                                  mask={'U Distance', 'V Distance'},
                                                   namespace=distances_namespace)
 
             soma_coords[population] = { k: (float(v['U Coordinate'][0]), 

@@ -31,7 +31,7 @@ def debug_callback(context):
     fig_title = '%s %s %s cell %i' % (context.trajectory_id, context.population, context.this_selectivity_type_name, context.gid)
     fig_options = copy.copy(context.fig_options)
     if context.save_fig is not None:
-        fig_options.saveFig = '%s %s' % (context.save_fig, fig_title)
+        fig_options.saveFig = f'{context.save_fig} {fig_title}'
     plot_1D_rate_map(t=context.t, rate_map=context.rate_map,
                      peak_rate=context.env.stimulus_config['Peak Rate'][context.population][context.this_selectivity_type],
                      spike_train=context.spike_train, title=fig_title, **fig_options())
@@ -44,19 +44,19 @@ def plot_summed_spike_psth(t, trajectory_id, selectivity_type_name, merged_spike
     spike_hist_edges = np.linspace(min(t), max(t), spike_hist_resolution + 1)
     for population, this_selectivity_type_name in viewitems(merged_spike_hist_sum):
         for this_selectivity_type_name in merged_spike_hist_sum[population]:
-            fig_title = '%s %s summed spike PSTH' % (population, this_selectivity_type_name)
+            fig_title = f'{population} {this_selectivity_type_name} summed spike PSTH'
             fig, axes = plt.subplots()
             axes.plot(spike_hist_edges[1:], merged_spike_hist_sum[population][selectivity_type_name])
             axes.set_xlabel('Time (ms)', fontsize=fig_options.fontSize)
             axes.set_ylabel('Population spike count', fontsize=fig_options.fontSize)
             axes.set_ylim(0., np.max(merged_spike_hist_sum[population][selectivity_type_name]) * 1.1)
-            axes.set_title('Summed spike PSTH\n%s %s cells' % (population, selectivity_type_name),
+            axes.set_title(f'Summed spike PSTH\n{population} {selectivity_type_name} cells',
                            fontsize=fig_options.fontSize)
             clean_axes(axes)
 
             if fig_options.saveFig is not None:
-                save_title = 'Summed spike PSTH %s %s %s' % (trajectory_id, population, selectivity_type_name)
-                save_fig = '%s %s' % (fig_options.saveFig, save_title)
+                save_title = f'Summed spike PSTH {trajectory_id} {population} {selectivity_type_name}'
+                save_fig = f'{fig_options.saveFig} {save_title}'
                 save_figure(save_fig, fig=fig, **fig_options())
                 
             if fig_options.showFig:
@@ -202,7 +202,7 @@ def main(config, config_prefix, selectivity_path, selectivity_namespace, coords_
 
                 
     valid_selectivity_namespaces = comm.bcast(valid_selectivity_namespaces, root=0)
-    selectivity_type_names = dict((val, key) for (key, val) in viewitems(env.selectivity_types))
+    selectivity_type_names = {val: key for (key, val) in viewitems(env.selectivity_types)}
 
     equilibrate = get_equilibration(env)
 
@@ -221,8 +221,8 @@ def main(config, config_prefix, selectivity_path, selectivity_namespace, coords_
         d = comm.bcast(d, root=0)
         trajectory = t, x, y, d
 
-        trajectory_namespace = 'Trajectory %s %s' % (arena_id, trajectory_id)
-        output_namespace = '%s %s %s' % (spikes_namespace, arena_id, trajectory_id)
+        trajectory_namespace = f'Trajectory {arena_id} {trajectory_id}'
+        output_namespace = f'{spikes_namespace} {arena_id} {trajectory_id}'
 
         if not dry_run and rank == 0:
             if output_path is None:
@@ -234,7 +234,7 @@ def main(config, config_prefix, selectivity_path, selectivity_namespace, coords_
                     input_file.close()
             with h5py.File(output_path, 'a') as f:
                 if trajectory_namespace not in f:
-                    logger.info('Appending %s datasets to file at path: %s' % (trajectory_namespace, output_path))
+                    logger.info(f'Appending {trajectory_namespace} datasets to file at path: {output_path}')
                 group = f.create_group(trajectory_namespace)
                 for key, value in zip(['t', 'x', 'y', 'd'], [t, x, y, d]):
                     dataset = group.create_dataset(key, data=value, dtype='float32')
@@ -272,7 +272,7 @@ def main(config, config_prefix, selectivity_path, selectivity_namespace, coords_
             for this_selectivity_namespace in sorted(valid_selectivity_namespaces[population]):
 
                 if rank == 0:
-                    logger.info('Generating input source spike trains for population %s [%s]...' % (population, this_selectivity_namespace))
+                    logger.info(f'Generating input source spike trains for population {population} [{this_selectivity_namespace}]...')
             
                 start_time = time.time()
                 req = comm.Ibarrier()
@@ -349,7 +349,7 @@ def main(config, config_prefix, selectivity_path, selectivity_namespace, coords_
 
 
         if gather:
-            this_spike_hist_sum = dict([(key, dict(val.items())) for key, val in viewitems(spike_hist_sum_dict)])
+            this_spike_hist_sum = {key: dict(val.items()) for key, val in viewitems(spike_hist_sum_dict)}
             spike_hist_sum = comm.gather(this_spike_hist_sum, root=0)
 
             if rank == 0:

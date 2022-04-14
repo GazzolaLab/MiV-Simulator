@@ -170,13 +170,13 @@ def main(config, config_prefix, types_path, geometry_path, output_path, output_n
             layer_extent_transformed_vals[layer] = CA1_volume_transform(extent_u, extent_v, extent_l)
             has_layer_alpha_shape = False
             if geometry_path:
-                this_layer_alpha_shape_path = '%s/%s' % (layer_alpha_shape_path, layer)
+                this_layer_alpha_shape_path = f'{layer_alpha_shape_path}/{layer}'
                 this_layer_alpha_shape = load_alpha_shape(geometry_path, this_layer_alpha_shape_path)
                 layer_alpha_shapes[layer] = this_layer_alpha_shape
                 if this_layer_alpha_shape is not None:
                     has_layer_alpha_shape = True
             if not has_layer_alpha_shape:
-                logger.info("Constructing alpha shape for layers %s: extents: %s..." % (layer, str(extents)))
+                logger.info("Constructing alpha shape for layers {}: extents: {}...".format(layer, str(extents)))
                 layer_vol = make_CA1_volume(extent_u, extent_v, extent_l,
                                             rotate=rotate, resolution=resolution)
                 this_layer_alpha_shape = make_alpha_shape(layer_vol, alpha_radius=alpha_radius)

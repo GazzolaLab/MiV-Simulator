@@ -1,4 +1,3 @@
-
 import numpy as np
 from numpy import array
 from numpy import log
@@ -71,7 +70,7 @@ def get_inhom_poisson_spike_times_by_thinning(rate, t, dt=0.02, refractory=3., g
     return spike_times
 
 
-class StGen(object):
+class StGen:
 
     def __init__(self, rng=None, seed=None):
         """ 
@@ -351,7 +350,7 @@ class StGen(object):
                 # keep spike
                 keep[i] = True
                 # remap t_s state
-                t_s = -tau * np.log(np.exp((-t_s / tau)) + 1)
+                t_s = -tau * np.log(np.exp(-t_s / tau) + 1)
             i += 1
 
         spike_train = ps[keep]
@@ -464,12 +463,12 @@ class StGen(object):
             t_s += isi[i]
             t_r += isi[i]
 
-            if rn[i] < (a[t_i] * np.exp(-bq[t_i] * (np.exp((-t_s / tau_s)) + qrqs * np.exp((-t_r / tau_r)))) / rmax):
+            if rn[i] < (a[t_i] * np.exp(-bq[t_i] * (np.exp(-t_s / tau_s) + qrqs * np.exp(-t_r / tau_r))) / rmax):
                 # keep spike
                 keep[i] = True
                 # remap t_s state
-                t_s = -tau_s * np.log(np.exp((-t_s / tau_s)) + 1)
-                t_r = -tau_r * np.log(np.exp((-t_r / tau_r)) + 1)
+                t_s = -tau_s * np.log(np.exp(-t_s / tau_s) + 1)
+                t_r = -tau_r * np.log(np.exp(-t_r / tau_r) + 1)
             i += 1
 
         spike_train = ps[keep]
@@ -681,7 +680,7 @@ def shotnoise_fromspikes(spike_train, q, tau, dt=0.1, t_start=None, t_stop=None,
         assert t_stop > t_start
 
     # time of vanishing significance
-    vs_t = -tau * np.log((eps / q))
+    vs_t = -tau * np.log(eps / q)
 
     if t_stop == None:
         t_stop = st.t_stop
@@ -700,7 +699,7 @@ def shotnoise_fromspikes(spike_train, q, tau, dt=0.1, t_start=None, t_stop=None,
 
     t = np.arange(t_start, t_stop, dt)
 
-    kern = q * np.exp((-np.arange(0.0, vs_t, dt) / tau))
+    kern = q * np.exp(-np.arange(0.0, vs_t, dt) / tau)
 
     idx = np.clip(np.searchsorted(t, st.spike_times, 'right') - 1, 0, len(t) - 1)
 
@@ -729,8 +728,8 @@ def _gen_g_add(spikes, q, tau, t, eps=1.0e-8):
     dt = t[1] - t[0]
 
     # time of vanishing significance
-    vs_t = -tau * np.log((eps / q))
-    kern = q * np.exp((-np.arange(0.0, vs_t, dt) / tau))
+    vs_t = -tau * np.log(eps / q)
+    kern = q * np.exp(-np.arange(0.0, vs_t, dt) / tau)
 
     vs_idx = len(kern)
 

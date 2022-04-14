@@ -3,7 +3,7 @@ from collections import defaultdict
 from mpi4py import MPI
 import h5py
 import numpy as np
-from MiV.utils import Struct, range, str, viewitems, Iterable, compose_iter, get_module_logger, get_trial_time_ranges
+from MiV.utils import Struct, viewitems, Iterable, compose_iter, get_module_logger, get_trial_time_ranges
 from neuroh5.io import read_cell_attributes, write_cell_attributes, append_cell_attributes, read_cell_attribute_info
 
 
@@ -428,7 +428,7 @@ def recsout(env, output_path, t_start=None, clear_data=False, write_cell_locatio
             if env.results_namespace_id is None:
                 namespace_id = "Intracellular %s" % (rec_type)
             else:
-                namespace_id = "Intracellular %s %s" % (rec_type, str(env.results_namespace_id))
+                namespace_id = "Intracellular {} {}".format(rec_type, str(env.results_namespace_id))
             append_cell_attributes(output_path, pop_name, attr_dict, namespace=namespace_id,
                                    comm=env.comm, io_size=env.io_size)
     if clear_data:
@@ -454,7 +454,7 @@ def lfpout(env, output_path):
         if env.results_namespace_id is None:
             namespace_id = "Local Field Potential %s" % str(lfp.label)
         else:
-            namespace_id = "Local Field Potential %s %s" % (str(lfp.label), str(env.results_namespace_id))
+            namespace_id = "Local Field Potential {} {}".format(str(lfp.label), str(env.results_namespace_id))
         import h5py
         output = h5py.File(output_path, 'a')
 
@@ -591,7 +591,7 @@ def write_cell_selection(env, write_selection_file_path, populations=None, write
 
 
         if rank == 0:
-            logger.info("*** Writing cell selection for population %s to file %s" % (pop_name, write_selection_file_path))
+            logger.info(f"*** Writing cell selection for population {pop_name} to file {write_selection_file_path}")
         append_cell_trees(write_selection_file_path, pop_name, trees_output_dict, **write_kwds)
         write_cell_attributes(write_selection_file_path, pop_name, coords_output_dict,
                               namespace='Coordinates', **write_kwds)
@@ -623,7 +623,7 @@ def write_connection_selection(env, write_selection_file_path, populations=None,
     else:
         pop_names = populations
 
-    input_sources = {pop_name: set([]) for pop_name in env.celltypes}
+    input_sources = {pop_name: set() for pop_name in env.celltypes}
 
     for (postsyn_name, presyn_names) in sorted(viewitems(env.projection_dict)):
 
@@ -665,7 +665,7 @@ def write_connection_selection(env, write_selection_file_path, populations=None,
                 weights_namespaces = weight_dict['namespace']
 
                 if rank == 0:
-                    logger.info('*** Reading synaptic weights of population %s from namespaces %s' % (postsyn_name, str(weights_namespaces)))
+                    logger.info('*** Reading synaptic weights of population {} from namespaces {}'.format(postsyn_name, str(weights_namespaces)))
 
                 for weights_namespace in weights_namespaces:
                     syn_weights_iter = scatter_read_cell_attribute_selection(forest_file_path, postsyn_name,
@@ -772,7 +772,7 @@ def write_input_cell_selection(env, input_sources, write_selection_file_path, po
             local_gid_range = gid_range
 
         gid_range = env.comm.allreduce(local_gid_range, op=mpi_op_set_union)
-        this_gid_range = set([])
+        this_gid_range = set()
         for i, gid in enumerate(gid_range):
             if i % nhosts == rank:
                 this_gid_range.add(gid)
@@ -796,7 +796,7 @@ def write_input_cell_selection(env, input_sources, write_selection_file_path, po
 
         if has_spike_train:
 
-            vecstim_attr_set = set(['t'])
+            vecstim_attr_set = {'t'}
             if env.spike_input_attr is not None:
                 vecstim_attr_set.add(env.spike_input_attr)
             if 'spike train' in env.celltypes[pop_name]:
@@ -814,7 +814,7 @@ def write_input_cell_selection(env, input_sources, write_selection_file_path, po
                 spikes_output_dict.update(dict(list(cell_spikes_iter)))
 
         if rank == 0:
-            logger.info('*** Writing spike trains for population %s: %s' % (pop_name, str(spikes_output_dict)))
+            logger.info('*** Writing spike trains for population {}: {}'.format(pop_name, str(spikes_output_dict)))
 
 
         write_cell_attributes(write_selection_file_path, pop_name, spikes_output_dict,  \

@@ -10,7 +10,7 @@ import numpy as np
 from MiV import cells, io_utils, lfp, lpt, simtime, synapses
 from MiV.neuron_utils import h, configure_hoc_env, cx, make_rec, mkgap, load_cell_template
 from MiV.utils import compose_iter, imapreduce, get_module_logger, profile_memory, Promise
-from MiV.utils import range, str, viewitems, viewkeys, zip, zip_longest
+from MiV.utils import viewitems, viewkeys, zip_longest
 from neuroh5.io import bcast_graph, read_cell_attribute_selection, scatter_read_cell_attribute_selection, read_graph_selection, read_tree_selection, scatter_read_cell_attributes, scatter_read_graph, scatter_read_trees, write_cell_attributes, write_graph, NeuroH5CellAttrGen
 from mpi4py import MPI
 
@@ -157,15 +157,15 @@ def connect_cells(env):
             if env.node_allocation is None:
                 cell_attributes_dict = scatter_read_cell_attributes(forest_file_path, postsyn_name,
                                                                     namespaces=sorted(cell_attr_namespaces),
-                                                                    mask=set(['syn_ids', 'syn_locs', 'syn_secs', 'syn_layers',
-                                                                              'syn_types', 'swc_types']), 
+                                                                    mask={'syn_ids', 'syn_locs', 'syn_secs', 'syn_layers',
+                                                                              'syn_types', 'swc_types'}, 
                                                                     comm=env.comm, io_size=env.io_size,
                                                                     return_type='tuple')
             else:
                 cell_attributes_dict = scatter_read_cell_attributes(forest_file_path, postsyn_name,
                                                                     namespaces=sorted(cell_attr_namespaces),
-                                                                    mask=set(['syn_ids', 'syn_locs', 'syn_secs', 'syn_layers',
-                                                                              'syn_types', 'swc_types']), 
+                                                                    mask={'syn_ids', 'syn_locs', 'syn_secs', 'syn_layers',
+                                                                              'syn_types', 'swc_types'}, 
                                                                     comm=env.comm, node_allocation=env.node_allocation,
                                                                     io_size=env.io_size,
                                                                     return_type='tuple')
@@ -256,7 +256,7 @@ def connect_cells(env):
 
             last_time = time.time()
             if env.microcircuit_inputs:
-                presyn_input_sources = env.microcircuit_input_sources.get(presyn_name, set([]))
+                presyn_input_sources = env.microcircuit_input_sources.get(presyn_name, set())
                 syn_edge_iter = compose_iter(lambda edgeset: presyn_input_sources.update(edgeset[1][0]), \
                                              edge_iter)
                 env.microcircuit_input_sources[presyn_name] = presyn_input_sources
@@ -413,8 +413,8 @@ def connect_cell_selection(env):
 
         syn_attrs_iter, syn_attrs_info = read_cell_attribute_selection(forest_file_path, postsyn_name, selection=gid_range,
                                                                        namespace='Synapse Attributes', comm=env.comm,
-                                                                       mask=set(['syn_ids', 'syn_locs', 'syn_secs', 'syn_layers',
-                                                                                 'syn_types', 'swc_types']), 
+                                                                       mask={'syn_ids', 'syn_locs', 'syn_secs', 'syn_layers',
+                                                                                 'syn_types', 'swc_types'}, 
                                                                        return_type='tuple')
 
         syn_attrs.init_syn_id_attrs_from_iter(syn_attrs_iter, attr_type='tuple', attr_tuple_index=syn_attrs_info)
@@ -482,7 +482,7 @@ def connect_cell_selection(env):
                 logger.info(f'*** Connecting {presyn_name} -> {postsyn_name}')
 
                 edge_iter = graph[postsyn_name][presyn_name]
-                presyn_input_sources = env.microcircuit_input_sources.get(presyn_name, set([]))
+                presyn_input_sources = env.microcircuit_input_sources.get(presyn_name, set())
                 syn_edge_iter = compose_iter(lambda edgeset: presyn_input_sources.update(edgeset[1][0]),
                                              edge_iter)
                 syn_attrs.init_edge_attrs_from_iter(postsyn_name, presyn_name, a, syn_edge_iter)
@@ -784,7 +784,7 @@ def make_cells(env):
 
         h.define_shape()
 
-        recording_set = set([])
+        recording_set = set()
         pop_biophys_gids = list(env.biophys_cells[pop_name].keys())
         pop_biophys_gids_per_rank = env.comm.gather(pop_biophys_gids, root=0)
         if rank == 0:
@@ -799,7 +799,7 @@ def make_cells(env):
 
     # if node rank map has not been created yet, create it now
     if env.node_allocation is None:
-        env.node_allocation = set([])
+        env.node_allocation = set()
         for gid in env.gidset:
             env.node_allocation.add(gid)
 
@@ -928,7 +928,7 @@ def make_cell_selection(env):
 
 
     if env.node_allocation is None:
-        env.node_allocation = set([])
+        env.node_allocation = set()
         for gid in env.gidset:
             env.node_allocation.add(gid)
 
@@ -942,7 +942,7 @@ def make_input_cell_selection(env):
     rank = int(env.pc.id())
     nhosts = int(env.pc.nhost())
 
-    created_input_sources = { pop_name: set([]) for pop_name in env.celltypes.keys() }
+    created_input_sources = { pop_name: set() for pop_name in env.celltypes.keys() }
     for pop_name, input_gid_range in sorted(viewitems(env.microcircuit_input_sources)):
 
         pop_index = int(env.Populations[pop_name])
@@ -991,7 +991,7 @@ def make_input_cell_selection(env):
     env.microcircuit_input_sources = created_input_sources
 
     if env.node_allocation is None:
-        env.node_allocation = set([])
+        env.node_allocation = set()
     for _, this_gidset in viewitems(env.microcircuit_input_sources):
         for gid in this_gidset:
             env.node_allocation.add(gid)
@@ -1049,14 +1049,14 @@ def init_input_cells(env):
                     if env.node_allocation is None:
                         cell_vecstim_dict = scatter_read_cell_attributes(input_file_path, pop_name,
                                                                          namespaces=[vecstim_namespace],
-                                                                         mask=set([vecstim_attr, trial_index_attr, trial_dur_attr]),
+                                                                         mask={vecstim_attr, trial_index_attr, trial_dur_attr},
                                                                          comm=env.comm, io_size=env.io_size,
                                                                          return_type='tuple')
                     else:
                         cell_vecstim_dict = scatter_read_cell_attributes(input_file_path, pop_name,
                                                                          namespaces=[vecstim_namespace],
                                                                          node_allocation=env.node_allocation,
-                                                                         mask=set([vecstim_attr, trial_index_attr, trial_dur_attr]),
+                                                                         mask={vecstim_attr, trial_index_attr, trial_dur_attr},
                                                                          comm=env.comm, io_size=env.io_size,
                                                                          return_type='tuple')
                     vecstim_iter, vecstim_attr_info = cell_vecstim_dict[vecstim_namespace]
@@ -1067,7 +1067,7 @@ def init_input_cells(env):
                                                                                                 pop_name, gid_range, \
                                                                                                 namespace=vecstim_namespace, \
                                                                                                 selection=list(gid_range), \
-                                                                                                mask=set([vecstim_attr, trial_index_attr, trial_dur_attr]), \
+                                                                                                mask={vecstim_attr, trial_index_attr, trial_dur_attr}, \
                                                                                                 comm=env.comm, io_size=env.io_size, return_type='tuple')
                     else:
                         vecstim_iter = []
@@ -1102,7 +1102,7 @@ def init_input_cells(env):
 
         for pop_name in sorted(viewkeys(env.microcircuit_input_sources)):
 
-            gid_range = env.microcircuit_input_sources.get(pop_name, set([]))
+            gid_range = env.microcircuit_input_sources.get(pop_name, set())
 
             if (env.cell_selection is not None) and (pop_name in env.cell_selection):
                 this_gid_range = gid_range.difference(set(env.cell_selection[pop_name]))
@@ -1126,7 +1126,7 @@ def init_input_cells(env):
                 logger.info(f"*** Initializing input source {pop_name} from locations {spike_input_source_loc}")
             if has_spike_train:
 
-                vecstim_attr_set = set(['t', trial_index_attr, trial_dur_attr])
+                vecstim_attr_set = {'t', trial_index_attr, trial_dur_attr}
                 if env.spike_input_attr is not None:
                     vecstim_attr_set.add(env.spike_input_attr)
                 if pop_name in env.celltypes:
