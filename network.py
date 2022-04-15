@@ -673,7 +673,8 @@ def make_cells(env):
         template_name_lower = template_name.lower()
         if template_name_lower != 'izhikevich' and template_name_lower != 'vecstim':    
             load_cell_template(env, pop_name, bcast_template=True)
-                
+
+        mech_file_path = None
         if 'mech_file_path' in env.celltypes[pop_name]:
             mech_dict = env.celltypes[pop_name]['mech_dict']
             mech_file_path = env.celltypes[pop_name]['mech_file_path']
@@ -716,17 +717,14 @@ def make_cells(env):
                     cells.register_cell(env, pop_name, gid, PR_cell)
                 else:
                     hoc_cell = cells.make_hoc_cell(env, pop_name, gid, neurotree_dict=tree)
-                    if mech_dict is None:
-                        cells.register_cell(env, pop_name, gid, hoc_cell)
-                    else:
-                        biophys_cell = cells.make_biophys_cell(gid=gid, pop_name=pop_name,
-                                                               hoc_cell=hoc_cell, env=env,
-                                                               tree_dict=tree,
-                                                               mech_dict=mech_dict)
-                        # cells.init_spike_detector(biophys_cell)
-                        cells.register_cell(env, pop_name, gid, biophys_cell)
-                        if rank == 0 and gid == first_gid:
-                            logger.info(f'*** make_cells: population: {pop_name}; gid: {gid}; loaded biophysics from path: {mech_file_path}')
+                    biophys_cell = cells.make_biophys_cell(gid=gid, population_name=pop_name,
+                                                           hoc_cell=hoc_cell, env=env,
+                                                           tree_dict=tree,
+                                                           mech_dict=mech_dict)
+                    # cells.init_spike_detector(biophys_cell)
+                    cells.register_cell(env, pop_name, gid, biophys_cell)
+                    if rank == 0 and gid == first_gid and mech_file_path is not None:
+                        logger.info(f'*** make_cells: population: {pop_name}; gid: {gid}; loaded biophysics from path: {mech_file_path}')
 
                     if rank == 0 and first_gid == gid:
                         if hasattr(hoc_cell, 'all'):
@@ -788,10 +786,16 @@ def make_cells(env):
         pop_biophys_gids = list(env.biophys_cells[pop_name].keys())
         pop_biophys_gids_per_rank = env.comm.gather(pop_biophys_gids, root=0)
         if rank == 0:
-            all_pop_biophys_gids = sorted([item for sublist in pop_biophys_gids_per_rank for item in sublist])
-            for gid in all_pop_biophys_gids:
-                if ranstream_recording.uniform() <= env.recording_fraction:
-                    recording_set.add(gid)
+            if env.recording_profile is not None:
+                recording_fraction = env.recording_profile.get('fraction', 1.0)
+                recording_limit = env.recording_profile.get('limit', -1)
+                all_pop_biophys_gids = sorted([item for sublist in pop_biophys_gids_per_rank for item in sublist])
+                for gid in all_pop_biophys_gids:
+                    if ranstream_recording.uniform() <= recording_fraction:
+                        recording_set.add(gid)
+                    if (recording_limit > 0) and (len(recording_set) > recording_limit):
+                        break
+                logger.info(f'recording_set = {recording_set}')
         recording_set = env.comm.bcast(recording_set, root=0)
         env.recording_sets[pop_name] = recording_set
         del pop_biophys_gids_per_rank

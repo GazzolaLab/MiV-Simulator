@@ -1,6 +1,7 @@
 ## Recording configuration for field potentials and intracellular quantities
 Intracellular:
   Network default:
+    fraction: 0.01
     dt: 0.1
     section quantity:
       v:
