@@ -21,7 +21,7 @@ from MiV.env import Env
 from MiV.utils import get_module_logger, Struct, viewitems, make_geometric_graph, zip_longest, apply_filter, butter_bandpass_filter, signal_psd, signal_power_spectrogram
 from MiV.io_utils import get_h5py_attr, set_h5py_attr
 from MiV.neuron_utils import interplocs, h
-from MiV import spikedata, cells, synapses
+from MiV import spikedata, cells, synapses, statedata
 
 # This logger will inherit its settings from the root logger, created in MiV.env
 logger = get_module_logger(__name__)
@@ -1564,3 +1564,193 @@ def plot_2D_point_density(data, width=100, height=100, ax=None, inc=0.3):
               interpolation='hermite',
               aspect='auto',
               extent=ax_extent)        
+
+
+## Plot intracellular state trace 
+def plot_intracellular_state (input_path, namespace_ids, include = ['eachPop'], time_range=None,
+                              time_variable='t', state_variable='v', max_units = 1, gid_set=None,
+                              n_trials = 1, labels='legend', lowpass_plot=None,
+                              reduce=False, distance=False, **kwargs): 
+    ''' 
+    Line plot of intracellular state variable (default: v). Returns the figure handle.
+
+    input_path: file with state data
+    namespace_ids: attribute namespaces  
+    time_range ([start:stop]): Time range of spikes shown; if None shows all (default: None)
+    time_variable: Name of variable containing spike times (default: 't')
+    state_variable: Name of state variable (default: 'v')
+    max_units (int): maximum number of units from each population that will be plotted  (default: 1)
+    labels = ('legend', 'overlay'): Show population labels in a legend or overlayed on one side of raster (default: 'legend')
+    '''
+
+    if reduce and distance:
+        raise RuntimeError("plot_intracellular_state: reduce and distance are mutually exclusive")
+    
+    fig_options = copy.copy(default_fig_options)
+    fig_options.update(kwargs)
+
+    (population_ranges, N) = read_population_ranges(input_path)
+    population_names  = read_population_names(input_path)
+
+    pop_num_cells = {}
+    for k in population_names:
+        pop_num_cells[k] = population_ranges[k][1]
+
+    _, state_info = statedata.query_state(input_path, population_names, namespace_ids=namespace_ids)
+
+    # Replace 'eachPop' with list of populations
+    if 'eachPop' in include: 
+        include.remove('eachPop')
+        for pop in population_names:
+            include.append(pop)
+
+    if gid_set is None:
+        for population in include:
+            for namespace in namespace_ids:
+                if (population in state_info) and (namespace in state_info[population]):
+                    ns_state_info_dict = dict(state_info[population][namespace])
+                    if state_variable in ns_state_info_dict:
+                        gid_set = list(ns_state_info_dict[state_variable])[:max_units]
+                        break
+                    else:
+                        raise RuntimeError('unable to find recording for state variable %s population %s namespace %s' % (state_variable, population, namespace))
+
+
+    pop_states_dict = defaultdict(lambda: defaultdict(lambda: dict()))
+    for namespace_id in namespace_ids:
+        logger.info(f"Reading state values from namespace {namespace_id}...")
+        data = statedata.read_state (input_path, include, namespace_id, time_variable=time_variable,
+                                    state_variables=[state_variable], time_range=time_range, max_units = max_units,
+                                    gid = gid_set, n_trials=n_trials)
+        states  = data['states']
+        
+        for (pop_name, pop_states) in viewitems(states):
+            for (gid, cell_states) in viewitems(pop_states):
+                pop_states_dict[pop_name][gid][namespace_id] = cell_states
+
+
+    pop_state_mat_dict = defaultdict(lambda: dict())
+    for (pop_name, pop_states) in viewitems(pop_states_dict):
+            for (gid, cell_state_dict) in viewitems(pop_states):
+                nss = sorted(cell_state_dict.keys())
+                cell_state_x = cell_state_dict[nss[0]][time_variable]
+                cell_state_mat = np.matrix([np.mean(np.row_stack(cell_state_dict[ns][state_variable]), axis=0)
+                                           for ns in nss], dtype=np.float32)
+                cell_state_distances = [cell_state_dict[ns]['distance'] for ns in nss]
+                cell_state_ri = [cell_state_dict[ns]['ri'] for ns in nss]
+                cell_state_labels = [f'{ns} {state_variable}' for ns in nss]
+                pop_state_mat_dict[pop_name][gid] = (cell_state_x, cell_state_mat, cell_state_labels, cell_state_distances, cell_state_ri)
+    
+    stplots = []
+
+    fig, ax, ax_lowpass = None, None, None
+    if lowpass_plot is None:
+        fig, ax = plt.subplots(figsize=fig_options.figSize,sharex='all',sharey='all')
+    elif lowpass_plot == 'subplot':
+        fig, (ax, ax_lowpass) = plt.subplots(nrows=2, figsize=fig_options.figSize,sharex='all',sharey='all')
+    else:
+        fig, ax = plt.subplots(figsize=fig_options.figSize,sharex='all',sharey='all')
+        ax_lowpass = ax
+    
+    legend_labels = []
+    for (pop_name, pop_states) in viewitems(pop_state_mat_dict):
+        
+        for (gid, cell_state_mat) in viewitems(pop_states):
+            
+            m, n = cell_state_mat[1].shape
+            st_x = cell_state_mat[0][0].reshape((n,))
+            
+            if distance:
+                cell_state_distances = cell_state_mat[3]
+                logger.info(f'cell_state_distances = {cell_state_distances}')
+                cell_state_ri = cell_state_mat[4]
+                distance_rank = np.argsort(cell_state_distances, kind='stable')
+                distance_rank_descending = distance_rank[::-1]
+                state_rows = []
+                for i in range(0,m):
+                    j = distance_rank_descending[i]
+                    state_rows.append(np.asarray(cell_state_mat[1][j,:]).reshape((n,)))
+                state_mat = np.row_stack(state_rows)
+                d = np.asarray(cell_state_distances)[distance_rank_descending]
+                ri = np.asarray(cell_state_ri)[distance_rank_descending]
+                pcm = ax.pcolormesh(st_x, d, state_mat, cmap=fig_options.colormap)
+                cb = fig.colorbar(pcm, ax=ax, shrink=0.9, aspect=20)
+                stplots.append(pcm)
+                legend_labels.append(f'{pop_name} {gid}')
+
+            else:
+                
+                cell_states = [np.asarray(cell_state_mat[1][i,:]).reshape((n,)) for i in range(m)]
+                
+                if reduce:
+                    cell_state = np.mean(np.vstack(cell_states), axis=0)
+                    line, = ax.plot(st_x, cell_state)
+                    stplots.append(line)
+                    logger.info(f'plot_state: min/max/mean value is '
+                                f'{np.min(cell_state):.02f} / {np.max(cell_state):.02f} / '
+                                f'{np.mean(cell_state):.02f}')
+                else:
+                    for i, cell_state in enumerate(cell_states):
+                        line, = ax.plot(st_x, cell_state)
+                        stplots.append(line)
+                        logger.info(f'plot_state: min/max/mean value of state {i} is '
+                                    f'{np.min(cell_state):.02f} / {np.max(cell_state):.02f} '
+                                    f'/ {np.mean(cell_state):.02f}')
+
+                        if cell_state_mat[3][i] is not None:
+                            legend_labels.append(f'{pop_name} {gid} '
+                                                 f'{cell_state_mat[2][i]} ({cell_state_mat[3][i]:.02f} um)')
+                        else:
+                            legend_labels.append(f'{pop_name} {gid} '
+                                                 f'{cell_state_mat[2][i]}')
+
+                if lowpass_plot is not None and not distance:
+                    filtered_cell_states = [get_low_pass_filtered_trace(cell_state, st_x) for cell_state in cell_states]
+                    mean_filtered_cell_state = np.mean(filtered_cell_states, axis=0)
+                    ax_lowpass.plot(st_x, mean_filtered_cell_state, label=f'{pop_name} {gid} (filtered)',
+                                    linewidth=fig_options.lw, alpha=0.75)
+
+                    
+            ax.set_xlabel('Time [ms]', fontsize=fig_options.fontSize)
+            if distance:
+                ax.set_ylabel("distance from soma [um]", fontsize=fig_options.fontSize)
+            else:
+                ax.set_ylabel(state_variable, fontsize=fig_options.fontSize)
+            #ax.legend()
+
+    # Add legend
+    if labels == 'legend':
+        lgd = plt.legend(stplots, legend_labels, fontsize=fig_options.fontSize, scatterpoints=1, markerscale=5.,
+                         loc='upper right', bbox_to_anchor=(0.5, 1.0))
+        ## From https://stackoverflow.com/questions/30413789/matplotlib-automatic-legend-outside-plot
+        ## draw the legend on the canvas to assign it real pixel coordinates:
+        plt.gcf().canvas.draw()
+        ## transformation from pixel coordinates to Figure coordinates:
+        transfig = plt.gcf().transFigure.inverted()
+        ## Get the legend extents in pixels and convert to Figure coordinates.
+        ## Pull out the farthest extent in the x direction since that is the canvas direction we need to adjust:
+        lgd_pos = lgd.get_window_extent()
+        lgd_coord = transfig.transform(lgd_pos)
+        lgd_xmax = lgd_coord[1, 0]
+        ## Do the same for the Axes:
+        ax_pos = plt.gca().get_window_extent()
+        ax_coord = transfig.transform(ax_pos)
+        ax_xmax = ax_coord[1, 0]
+        ## Adjust the Figure canvas using tight_layout for
+        ## Axes that must move over to allow room for the legend to fit within the canvas:
+        shift = 1 - (lgd_xmax - ax_xmax)
+        plt.gcf().tight_layout(rect=(0, 0, shift, 1))
+        
+    # save figure
+    if fig_options.saveFig:
+        if isinstance(fig_options.saveFig, str):
+            filename = fig_options.saveFig
+        else:
+            filename = input_path+' '+'state.%s' % fig_options.figFormat
+            plt.savefig(filename)
+                
+    # show fig 
+    if fig_options.showFig:
+        show_figure()
+    
+    return fig
