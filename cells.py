@@ -527,10 +527,10 @@ def init_spike_detector(cell, node=None, distance=100., threshold=-30, delay=0.0
             else:
                 node = cell.axon[-1]
                 loc = 1.
-        elif cell.ais_list:
-            node = cell.ais_list[0]
-        elif cell.soma_list:
-            node = cell.soma_list[-1]
+        elif cell.ais:
+            node = cell.ais[0]
+        elif cell.soma:
+            node = cell.soma[-1]
         else:
             raise RuntimeError('init_spike_detector: cell has neither soma nor axon compartment')
 

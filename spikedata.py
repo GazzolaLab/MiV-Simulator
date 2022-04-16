@@ -98,9 +98,9 @@ def read_spike_events(input_file, population_names, namespace_id, spike_train_at
     for pop_name in population_names:
 
         if time_range is None or time_range[1] is None:
-            logger.info('Reading spike data for population %s...' % pop_name)
+            logger.info(f'Reading spike data for population {pop_name} namespace {namespace_id}...')
         else:
-            logger.info('Reading spike data for population {} in time range {}...'.format(pop_name, str(time_range)))
+            logger.info(f'Reading spike data for population {pop_name} in time range {time_range}...')
 
         spike_train_attr_set = {spike_train_attr_name, trial_index_attr, trial_dur_attr, artificial_attr}
         spkiter_dict = scatter_read_cell_attributes(input_file, pop_name, namespaces=[namespace_id], 
@@ -114,7 +114,7 @@ def read_spike_events(input_file, population_names, namespace_id, spike_train_at
         pop_spktlst = []
         pop_spktriallst = []
 
-        logger.info('Read spike cell attributes for population %s...' % pop_name)
+        logger.info(f'Read spike cell attributes for population {pop_name}...')
 
         # Time Range
         if time_range is not None:
@@ -122,6 +122,7 @@ def read_spike_events(input_file, population_names, namespace_id, spike_train_at
                 time_range[0] = 0.0
 
         for spkind, spkattrs in spkiter:
+
             is_artificial_flag = spkattrs.get(artificial_attr, None)
             is_artificial = (is_artificial_flag[0] > 0) if is_artificial_flag is not None else None
             if is_artificial is not None:
@@ -167,8 +168,7 @@ def read_spike_events(input_file, population_names, namespace_id, spike_train_at
 
         # Limit to max_spikes
         if (max_spikes is not None) and (len(pop_spkts) > max_spikes):
-            logger.warn(' Reading only randomly sampled %i out of %i spikes for population %s' %
-                        (max_spikes, len(pop_spkts), pop_name))
+            logger.warn(f' Reading only randomly sampled {max_spikes} out of {len(pop_spkts)} spikes for population {pop_name}')
             sample_inds = np.random.randint(0, len(pop_spkinds) - 1, size=int(max_spikes))
             pop_spkts = pop_spkts[sample_inds]
             pop_spkinds = pop_spkinds[sample_inds]
@@ -198,7 +198,7 @@ def read_spike_events(input_file, population_names, namespace_id, spike_train_at
             spktlst.append(pop_trial_spktlst)
             
 
-        logger.info(' Read %i spikes and %i trials for population %s' % (this_num_cell_spks, n_trials, pop_name))
+        logger.info(f' Read {this_num_cell_spks} spikes and {n_trials} trials for population {pop_name}')
 
     return {'spkpoplst': spkpoplst, 'spktlst': spktlst, 'spkindlst': spkindlst,
             'tmin': tmin, 'tmax': tmax,

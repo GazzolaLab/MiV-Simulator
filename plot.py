@@ -521,6 +521,7 @@ def plot_cell_tree(population, gid, tree_dict, line_width=1., sample=0.05, color
     
 
     
+
 ## Plot spike raster
 def plot_spike_raster (input_path, namespace_id, include = ['eachPop'], time_range = None, time_variable='t', max_spikes = int(1e6), labels = 'legend', pop_rates = True, spike_hist = None, spike_hist_bin = 5, include_artificial=True, marker='.', **kwargs):
     ''' 
@@ -540,6 +541,8 @@ def plot_spike_raster (input_path, namespace_id, include = ['eachPop'], time_ran
 
     fig_options = copy.copy(default_fig_options)
     fig_options.update(kwargs)
+
+    mpl.rcParams['font.size'] = fig_options.fontSize
 
     (population_ranges, N) = read_population_ranges(input_path)
     population_names  = read_population_names(input_path)
@@ -580,9 +583,16 @@ def plot_spike_raster (input_path, namespace_id, include = ['eachPop'], time_ran
 
     # Calculate spike histogram if requested
     if spike_hist:
-        all_spkts = np.concatenate([np.concatenate(lst, axis=0) for lst in spktlst])
-        sphist_y, bin_edges = np.histogram(all_spkts, bins = np.arange(time_range[0], time_range[1], spike_hist_bin))
-        sphist_x = bin_edges[:-1]+(spike_hist_bin / 2)
+        all_spkts = []
+        sphist_x = None
+        sphist_y = None
+        bin_edges = None
+        if len(spktlst) > 0:
+            all_spkts = np.concatenate([np.concatenate(lst, axis=0) for lst in spktlst])
+            sphist_y, bin_edges = np.histogram(all_spkts, bins = np.arange(time_range[0], time_range[1], spike_hist_bin))
+            sphist_x = bin_edges[:-1]+(spike_hist_bin / 2)
+        else:
+            spike_hist = None
 
     maxN = 0
     minN = N
@@ -604,15 +614,21 @@ def plot_spike_raster (input_path, namespace_id, include = ['eachPop'], time_ran
 
     pop_spk_dict = { pop_name: (pop_spkinds, pop_spkts) for (pop_name, pop_spkinds, pop_spkts) in zip(spkpoplst, spkindlst, spktlst) }
 
+    n_subplots = 1
     if spike_hist is None:
-        fig, axes = plt.subplots(nrows=len(spkpoplst), sharex=True, figsize=fig_options.figSize)
+        n_subplots = max(len(spkpoplst), 1)
+        fig, axes = plt.subplots(nrows=n_subplots, sharex=True, figsize=fig_options.figSize)
     elif spike_hist == 'subplot':
-        fig, axes = plt.subplots(nrows=len(spkpoplst)+1, sharex=True, figsize=fig_options.figSize,
+        n_subplots = max(len(spkpoplst), 1) + 1
+        fig, axes = plt.subplots(nrows=n_subplots, sharex=True, figsize=fig_options.figSize,
                                  gridspec_kw={'height_ratios': [1]*len(spkpoplst) + [2]})
-    fig.suptitle ('MIV Spike Raster', fontsize=fig_options.fontSize)
+    fig.suptitle ('Spike Raster', fontsize=fig_options.fontSize)
 
     sctplots = []
-    
+
+    if n_subplots == 1:
+        axes = [axes]
+        
     for i, pop_name in enumerate(spkpoplst):
 
         if pop_name not in pop_spk_dict:
@@ -622,14 +638,16 @@ def plot_spike_raster (input_path, namespace_id, include = ['eachPop'], time_ran
 
         if max_spikes is not None:
             if int(max_spikes) < len(pop_spkinds):
-               logger.info('  Displaying only randomly sampled {max_spikes} out of {len(pop_spkts)} spikes for population {pop_name}')
+               logger.info(f'Loading only randomly sampled {max_spikes} out of {len(pop_spkts)} spikes for population {pop_name}')
                sample_inds = np.random.randint(0, len(pop_spkinds)-1, size=int(max_spikes))
                pop_spkts   = pop_spkts[sample_inds]
                pop_spkinds = pop_spkinds[sample_inds]
 
         sct = None
         if len(pop_spkinds) > 0:
-            sct = axes[i].scatter(pop_spkts, pop_spkinds, s=10, linewidths=fig_options.lw, marker=marker, c=pop_colors[pop_name], alpha=0.5, label=pop_name)
+            sct = axes[i].scatter(pop_spkts, pop_spkinds, s=1, linewidths=fig_options.lw,
+                                  marker=marker, c=pop_colors[pop_name], alpha=0.5, label=pop_name)
+
         axes[i].spines["top"].set_visible(False)
         axes[i].spines["bottom"].set_visible(False)
         axes[i].spines["left"].set_visible(False)
@@ -644,8 +662,10 @@ def plot_spike_raster (input_path, namespace_id, include = ['eachPop'], time_ran
                 for pop_name in spkpoplst ]
             
     # set raster plot y tick labels to the middle of the index range for each population
-    for pop_name, a in zip_longest(spkpoplst, fig.axes[:-1]):
+    for pop_name, a in zip_longest(spkpoplst, fig.axes):
         if pop_name not in pop_active_cells:
+            continue
+        if a is None:
             continue
         if len(pop_active_cells[pop_name]) > 0:
             maxN = max(pop_active_cells[pop_name])
@@ -656,37 +676,39 @@ def plot_spike_raster (input_path, namespace_id, include = ['eachPop'], time_ran
             yaxis.set_ticklabels([pop_name])
             yaxis.set_tick_params(length=0)
             a.get_xaxis().set_tick_params(length=0)
-        
-    # Plot spike histogram
-    pch = interpolate.pchip(sphist_x, sphist_y)
-    res_npts = int(sphist_x.max() - sphist_x.min())
-    sphist_x_res = np.linspace(sphist_x.min(), sphist_x.max(), res_npts, endpoint=True)
-    sphist_y_res = pch(sphist_x_res)
 
-    if spike_hist == 'overlay':
-        ax2 = axes[-1].twinx()
-        ax2.plot (sphist_x_res, sphist_y_res, linewidth=0.5)
-        ax2.set_ylabel('Spike count', fontsize=fig_options.fontSize) # add yaxis label in opposite side
-        ax2.set_xlim(time_range)
-    elif spike_hist == 'subplot':
-        ax2=axes[-1]
-        ax2.plot (sphist_x_res, sphist_y_res, linewidth=1.0)
-        ax2.set_xlabel('Time (ms)', fontsize=fig_options.fontSize)
-        ax2.set_ylabel('Spikes', fontsize=fig_options.fontSize)
-        ax2.set_xlim(time_range)
+    if spike_hist:
+        # Plot spike histogram
+        pch = interpolate.pchip(sphist_x, sphist_y)
+        res_npts = int((sphist_x.max() - sphist_x.min()))
+        sphist_x_res = np.linspace(sphist_x.min(), sphist_x.max(), res_npts, endpoint=True)
+        sphist_y_res = pch(sphist_x_res)
+
+        if spike_hist == 'overlay':
+            ax2 = axes[-1].twinx()
+            ax2.plot (sphist_x_res, sphist_y_res, linewidth=0.5)
+            ax2.set_ylabel('Spike count', fontsize=fig_options.fontSize) # add yaxis label in opposite side
+            ax2.set_xlim(time_range)
+        elif spike_hist == 'subplot':
+            ax2=axes[-1]
+            ax2.bar (sphist_x_res, sphist_y_res, linewidth=1.0)
+            ax2.set_xlabel('Time (ms)', fontsize=fig_options.fontSize)
+            ax2.set_ylabel('Spikes', fontsize=fig_options.fontSize)
+            ax2.set_xlim(time_range)
         
 #    locator=MaxNLocator(prune='both', nbins=10)
 #    ax2.xaxis.set_major_locator(locator)
     
     if labels == 'legend':
         # Shrink axes by 15%
-        for ax in axes:
-            box = ax.get_position()
-            ax.set_position([box.x0, box.y0, box.width * 0.85, box.height])
+        if n_subplots > 1:
+            for ax in axes:
+                box = ax.get_position()
+                ax.set_position([box.x0, box.y0, box.width * 0.85, box.height])
         if pop_rates:
-            lgd_labels = [ '{} ({:.02f}% active; {:.3g} Hz)'.format(pop_name, info[0], info[1]) for pop_name, info in zip_longest(spkpoplst, lgd_info) ]
+            lgd_labels = [ '%s (%.02f%% active; %.3g Hz)' % (pop_name, info[0], info[1]) for pop_name, info in zip_longest(spkpoplst, lgd_info) ]
         else:
-            lgd_labels = [ '{} ({:.02f}% active)'.format(pop_name, info[0]) for pop_name, info in zip_longest(spkpoplst, lgd_info) ]
+            lgd_labels = [ '%s (%.02f%% active)' % (pop_name, info[0]) for pop_name, info in zip_longest(spkpoplst, lgd_info) ]
         # Add legend
         lgd = fig.legend(sctplots, lgd_labels, loc = 'center right', 
                          fontsize='small', scatterpoints=1, markerscale=5.,
@@ -695,9 +717,9 @@ def plot_spike_raster (input_path, namespace_id, include = ['eachPop'], time_ran
        
     elif labels == 'overlay':
         if pop_rates:
-            lgd_labels = [ '{} ({:.02f}% active; {:.3g} Hz)'.format(pop_name, info[0], info[1]) for pop_name, info in zip_longest(spkpoplst, lgd_info) ]
+            lgd_labels = [ '%s (%.02f%% active; %.3g Hz)' % (pop_name, info[0], info[1]) for pop_name, info in zip_longest(spkpoplst, lgd_info) ]
         else:
-            lgd_labels = [ '{} ({:.02f}% active)'.format(pop_name, info[0]) for pop_name, info in zip_longest(spkpoplst, lgd_info) ]
+            lgd_labels = [ '%s (%.02f%% active)' % (pop_name, info[0]) for pop_name, info in zip_longest(spkpoplst, lgd_info) ]
         for i, lgd_label in enumerate(lgd_labels):
             at = AnchoredText(pop_name + ' ' + lgd_label,
                               loc='upper right', borderpad=0.01, prop=dict(size=fig_options.fontSize))
@@ -705,12 +727,17 @@ def plot_spike_raster (input_path, namespace_id, include = ['eachPop'], time_ran
         max_label_len = max([len(l) for l in lgd_labels])
         
     elif labels == 'yticks':
-        for pop_name, info, a in zip_longest(spkpoplst, lgd_info, fig.axes[:-1]):
+        for pop_name, info, a in zip_longest(spkpoplst, lgd_info, fig.axes):
+            if a is None or info is None:
+                continue
+
             if pop_rates:
-                label = '{:.02f}%\n{:.2g} Hz'.format(info[0], info[1])
+                label = '%.02f%%\n%.2g Hz' % (info[0], info[1])
             else:
                 label = '%.02f%%\n' % (info[0])
-
+            
+            
+                
             maxN = max(pop_active_cells[pop_name])
             minN = min(pop_active_cells[pop_name])
             loc = pop_start_inds[pop_name] + 0.5 * (maxN - minN)
@@ -718,11 +745,11 @@ def plot_spike_raster (input_path, namespace_id, include = ['eachPop'], time_ran
             a.set_yticklabels([pop_name, label])
             yticklabels = a.get_yticklabels()
             # Create offset transform in x direction
-            dx = -66/72.; dy = 0/72. 
+            dx = -80/72.; dy = 0/72. 
             offset = mpl.transforms.ScaledTranslation(dx, dy, fig.dpi_scale_trans)
             # apply offset transform to labels.
             yticklabels[0].set_transform(yticklabels[0].get_transform() + offset)
-            dx = -55/72.; dy = 0/72. 
+            dx = -80/72.; dy = 0/72. 
             offset = mpl.transforms.ScaledTranslation(dx, dy, fig.dpi_scale_trans)
             yticklabels[1].set_ha('left')    
             yticklabels[1].set_transform(yticklabels[1].get_transform() + offset)
