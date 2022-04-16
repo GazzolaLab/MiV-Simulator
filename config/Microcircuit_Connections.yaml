@@ -18,9 +18,11 @@ Synapses:
           tau_rise: 0.5
           tau_decay: 3.0
           e: 0
-          g_unit: 0.0001
+          g_unit: 0.005
+          weight: 1.0
         NMDA:
-          g_unit: 0.0001
+          g_unit: 0.005
+          weight: 1.0
     PYR:
       type: excitatory
       sections: [soma, basal, apical, apical]
@@ -32,8 +34,10 @@ Synapses:
           tau_decay: 3.0
           e: 0
           g_unit: 0.0001
+          weight: 1.0
         NMDA:
           g_unit: 0.0001
+          weight: 1.0
     PVBC:   
       type: inhibitory
       sections: [soma, basal, apical, ais, ais]
@@ -45,6 +49,7 @@ Synapses:
           tau_decay: 6.2
           e: -60
           g_unit: 0.000186
+          weight: 1.0
     OLM:   
       type: inhibitory
       sections: [soma, basal, apical]
@@ -56,6 +61,7 @@ Synapses:
           tau_decay: 6.2
           e: -60
           g_unit: 0.000186
+          weight: 1.0
   PVBC:
     PYR:
       type: excitatory
@@ -68,6 +74,7 @@ Synapses:
           tau_decay: 3.0
           e: 0
           g_unit: 0.001
+          weight: 1.0
     STIM:
       type: excitatory
       sections: [soma, apical, apical, basal]
@@ -78,7 +85,8 @@ Synapses:
           tau_rise: 0.5
           tau_decay: 3.0
           e: 0
-          g_unit: 0.001
+          g_unit: 0.0001
+          weight: 1.0
     PVBC:   
       type: inhibitory
       sections: [soma, apical, apical, basal]
@@ -90,6 +98,7 @@ Synapses:
           tau_decay: 4.8
           e: -60
           g_unit: 0.001
+          weight: 1.0
     OLM:   
       type: inhibitory
       sections: [apical]
@@ -101,6 +110,7 @@ Synapses:
           tau_decay: 4.8
           e: -60
           g_unit: 0.001
+          weight: 1.0
   OLM:
     PYR:
       type: excitatory
@@ -113,6 +123,7 @@ Synapses:
           tau_decay: 3.0
           e: 0
           g_unit: 0.001
+          weight: 1.0
     PVBC:   
       type: inhibitory
       sections: [basal, soma, apical]
@@ -124,3 +135,4 @@ Synapses:
           tau_decay: 4.8
           e: -60
           g_unit: 0.001
+          weight: 1.0
