@@ -363,7 +363,7 @@ def make_rec(recid, population, gid, cell, sec=None, loc=None, ps=None, param='v
         if seg is not None:
             loc = seg.x
             sec = seg.sec
-            origin = list(cell.soma)[0]
+            origin = list(cell.soma_list)[0]
             distance = h.distance(origin(0.5), seg)
             ri = h.ri(loc, sec=sec)
         else:
@@ -371,10 +371,7 @@ def make_rec(recid, population, gid, cell, sec=None, loc=None, ps=None, param='v
             ri = None
     elif (sec is not None) and (loc is not None):
         hocobj = sec(loc)
-        if cell.soma.__class__.__name__.lower() == "section":
-            origin = cell.soma
-        else:
-            origin = list(cell.soma)[0]
+        origin = list(cell.soma_list)[0]
         h.distance(sec=origin)
         distance = h.distance(loc, sec=sec)
         ri = h.ri(loc, sec=sec)

@@ -114,6 +114,8 @@ def make_hoc_cell(env, pop_name, gid, neurotree_dict=False):
         else:
             hoc_cell = template_class(gid, dataset_path)
 
+    env.biophys_cells[pop_name][gid] = hoc_cell
+
     return hoc_cell
 
 
@@ -949,6 +951,7 @@ def init_biophysics(cell, env=None, reset_cable=True, correct_cm=False, correct_
     :param reset_mech_dict: bool
     :param verbose: bool
     """
+    
     if (correct_cm or correct_g_pas) and env is None:
         raise ValueError('init_biophysics: missing Env object; required to parse network configuration and count '
                          'synapses.')
@@ -1029,7 +1032,7 @@ def correct_cell_for_spines_g_pas(cell, env, verbose=False):
     if 'soma' in cell.mech_dict:
         soma_g_pas = cell.mech_dict['soma']['pas']['g']['value']
     elif hasattr(cell, 'hoc_cell'):
-        soma_g_pas = getattr(list(cell.hoc_cell.soma)[0], 'g_pas')
+        soma_g_pas = getattr(list(cell.hoc_cell.soma_list)[0], 'g_pas')
     else:
         raise RuntimeError("unable to determine soma g_pas")
     for sec_type in ['basal', 'trunk', 'apical', 'tuft']:
@@ -1169,17 +1172,17 @@ def record_cell(env, pop_name, gid, recording_profile=None):
                                      swc_types=recdict.get('swc types', None))
                 node_type_count = collections.defaultdict(int)
                 for node in nodes:
-                    node_type_count[node.type] += 1
+                    node_type_count[node.section_type] += 1
                 visited = set()
                 for node in nodes:
-                    sec = node.get_sec()
+                    sec = node.sec
                     if str(sec) not in visited:
-                        if node_type_count[node.type] == 1:
-                            rec_id = '%s' % (node.type)
+                        if node_type_count[node.section_type] == 1:
+                            rec_id = '%s' % (node.section_type)
                         else:
-                            rec_id = '%s.%i' % (node.type, node.index)
+                            rec_id = '%s.%i' % (node.section_type, node.index)
                         rec = make_rec(rec_id, pop_name, gid, cell.hoc_cell, sec=sec, dt=dt,
-                                       loc=locdict[node.type], param=recvar, label=reclab,
+                                       loc=locdict[node.section_type], param=recvar, label=reclab,
                                        description=node.name)
                         recs.append(rec)
                         env.recs_dict[pop_name][rec_id].append(rec)
