@@ -304,7 +304,7 @@ def write_to_yaml(file_path, data, convert_scalars=False):
     """
     with open(file_path, 'w') as outfile:
         if convert_scalars:
-            data = nested_convert_scalars(data)
+            data = yaml_convert_scalars(data)
         yaml.dump(data, outfile, default_flow_style=False, Dumper=ExplicitDumper)
 
 
@@ -325,6 +325,18 @@ def read_from_yaml(file_path, include_loader=None):
     else:
         raise OSError('read_from_yaml: invalid file_path: %s' % file_path)
 
+    
+def generate_results_file_id(population, gid=None, seed=None):
+    ts = time.strftime("%Y%m%d_%H%M%S")
+    if gid is not None:
+        results_file_id_prefix = f"{population}_{gid}_{ts}" 
+    else:
+        results_file_id_prefix = f"{population}_{ts}"
+    results_file_id = f"{results_file_id_prefix}"
+    if seed is not None:
+        results_file_id = f"{results_file_id_prefix}_{seed:08d}"
+    return results_file_id
+
 
 def print_param_dict_like_yaml(param_dict, digits=6):
     """
@@ -339,19 +351,19 @@ def print_param_dict_like_yaml(param_dict, digits=6):
             print('%s: %.*E' % (param_name, digits, param_val))
 
 
-def nested_convert_scalars(data):
+def yaml_convert_scalars(data):
     """
-    Crawls a nested dictionary, and converts any scalar objects from numpy types to python types.
+    Traverses dictionary, and converts any scalar objects from numpy types to python types.
     :param data: dict
     :return: dict
     """
     if isinstance(data, dict):
         for key in data:
-            data[key] = nested_convert_scalars(data[key])
+            data[key] = yaml_convert_scalars(data[key])
     elif isinstance(data, Iterable) and not isinstance(data, (str, tuple)):
         data = list(data)
         for i in range(len(data)):
-            data[i] = nested_convert_scalars(data[i])
+            data[i] = yaml_convert_scalars(data[i])
     elif hasattr(data, 'item'):
         data = data.item()
     return data

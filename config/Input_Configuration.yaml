@@ -16,7 +16,7 @@ Selectivity Type Probabilities:
     
 Peak Rate:
   STIM:
-    constant: 20.0
+    constant: 80.0
   PYR:
     constant: 20.0
   PVBC:

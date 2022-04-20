@@ -403,3 +403,43 @@ def make_rec(recid, population, gid, cell, sec=None, loc=None, ps=None, param='v
                 }
 
     return rec_dict
+
+
+def run_iclamp(cell, record_dt = 0.1, dt = 0.0125, celsius = 36., prelength=1000.0, mainlength=10000.0, stimdur=500.0, stim_amp=0.0001, use_cvode=True):
+
+    h.cvode.use_fast_imem(1)
+    h.cvode.cache_efficient(1)
+    h.secondorder = 2
+    h.dt = dt
+
+    if record_dt < dt:
+        record_dt = dt
+
+    # Enable variable time step solver
+    if use_cvode:
+        h.cvode.active(1)
+
+    h.celsius = celsius
+    h.tstop = mainlength
+
+    vec_t = h.Vector()
+    vec_v = h.Vector()
+    vec_t.record(h._ref_t, record_dt) # Time
+    vec_v.record(list(cell.soma)[0](0.5)._ref_v, record_dt) # Voltage
+
+    # Put an IClamp at the soma
+    stim = h.IClamp(0.5, sec=list(cell.soma)[0])
+    stim.delay = prelength # Stimulus start
+    stim.dur = stimdur # Stimulus length
+    stim.amp = stim_amp # strength of current injection
+
+    h.init()
+    h.run()
+
+    t = np.asarray(vec_t)
+    v = np.asarray(vec_v)
+
+    t0 = prelength
+    t1 = prelength + stimdur
+    
+    return { 't0': t0, 't1': t1, 't': t, 'v': v }

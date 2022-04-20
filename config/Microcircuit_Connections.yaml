@@ -48,7 +48,7 @@ Synapses:
           tau_rise: 0.30
           tau_decay: 6.2
           e: -60
-          g_unit: 0.000186
+          g_unit: 0.005
           weight: 1.0
     OLM:   
       type: inhibitory
@@ -60,7 +60,7 @@ Synapses:
           tau_rise: 0.30
           tau_decay: 6.2
           e: -60
-          g_unit: 0.000186
+          g_unit: 0.005
           weight: 1.0
   PVBC:
     PYR:
