@@ -73,7 +73,7 @@ Synapses:
           tau_rise: 0.5
           tau_decay: 3.0
           e: 0
-          g_unit: 0.001
+          g_unit: 0.0005
           weight: 1.0
     STIM:
       type: excitatory
@@ -85,8 +85,8 @@ Synapses:
           tau_rise: 0.5
           tau_decay: 3.0
           e: 0
-          g_unit: 0.0001
-          weight: 1.0
+          g_unit: 0.00033
+          weight: 0.1
     PVBC:   
       type: inhibitory
       sections: [soma, apical, apical, basal]
@@ -134,5 +134,5 @@ Synapses:
           tau_rise: 0.08
           tau_decay: 4.8
           e: -60
-          g_unit: 0.001
+          g_unit: 0.0001
           weight: 1.0
