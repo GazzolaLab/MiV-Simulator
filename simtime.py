@@ -13,7 +13,7 @@ class SimTimeEvent:
 
     def __init__(self, pc, tstop, max_walltime_hours, results_write_time, setup_time, dt_status=1.0, dt_checksimtime=10.0):
         if (int(pc.id()) == 0):
-            logger.info("*** allocated wall time is %.2f hours" % (max_walltime_hours))
+            logger.info(f"*** allocated wall time is {max_walltime_hours:.2f} hours")
         wt = time.time()
         self.pc = pc
         self.tstop = tstop
@@ -46,7 +46,7 @@ class SimTimeEvent:
         wt = time.time()
         if h.t > 0.:
             if (int(self.pc.id()) == 0):
-                logger.info("*** rank 0 computation time at t={:.2f} ms was {:.2f} s".format(h.t, wt - self.walltime_status))
+                logger.info(f"*** rank 0 computation time at t={h.t:.2f} ms was {(wt - self.walltime_status):.2f} s")
         self.walltime_status = wt
         if ((h.t + self.dt_status) < self.tstop):
             h.cvode.event(h.t + self.dt_status, self.simstatus)
@@ -67,10 +67,9 @@ class SimTimeEvent:
             walltime_needed = (trem / self.dt_checksimtime) * self.tcma + self.results_write_time
             walltime_needed_max = self.pc.allreduce(walltime_needed, 2)  ## maximum value
             if (int(self.pc.id()) == 0):
-                logger.info("*** remaining computation time is {:.2f} s and remaining simulation time is {:.2f} ms".format(
-                walltime_rem, trem))
-                logger.info("*** estimated computation time to completion is %.2f s" % walltime_needed_max)
-                logger.info("*** computation time so far is %.2f s" % self.tcsum)
+                logger.info(f"*** remaining computation time is {walltime_rem:.2f} s and remaining simulation time is {trem:.2f} ms")
+                logger.info(f"*** estimated computation time to completion is {walltime_needed_max:.2f} s")
+                logger.info(f"*** computation time so far is {self.tcsum:.2f} s")
             ## if not enough time, reduce tstop and perform collective operations to set minimum (earliest) tstop across all ranks
             if (walltime_needed_max > walltime_rem_min):
                 tstop1 = int(
@@ -78,8 +77,7 @@ class SimTimeEvent:
                 min_tstop = self.pc.allreduce(tstop1, 3)  ## minimum value
                 if (int(self.pc.id()) == 0):
                     logger.info(
-                        "*** not enough time to complete {:.2f} ms simulation, simulation will likely stop around {:2.f} ms".format(
-                        self.tstop, min_tstop))
+                        f"*** not enough time to complete {self.tstop:.2f} ms simulation, simulation will likely stop around {min_tstop:.2f} ms")
                 if (min_tstop <= h.t):
                     self.tstop = h.t + h.dt
                 else:
@@ -94,8 +92,7 @@ class SimTimeEvent:
             self.tcsum += max_init_time
             if (int(self.pc.id()) == 0):
                 logger.info(f"*** max init time at t={h.t:.2f} ms was {max_init_time:.2f} s")
-                logger.info("*** computation time so far is {:.2f} and total computation time is {:.2f} s".format(
-                self.tcsum, self.walltime_max))
+                logger.info(f"*** computation time so far is {self.tcsum:.2f} and total computation time is {self.walltime_max:.2f} s")
         self.walltime_checksimtime = wt
         if (h.t + self.dt_checksimtime < self.tstop):
             h.cvode.event(h.t + self.dt_checksimtime, self.checksimtime)
