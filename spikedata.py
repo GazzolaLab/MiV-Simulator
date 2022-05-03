@@ -100,7 +100,7 @@ def read_spike_events(input_file, population_names, namespace_id, spike_train_at
         if time_range is None or time_range[1] is None:
             logger.info(f'Reading spike data for population {pop_name} namespace {namespace_id}...')
         else:
-            logger.info(f'Reading spike data for population {pop_name} in time range {time_range}...')
+            logger.info(f'Reading spike data for population {pop_name} namespace {namespace_id} in time range {time_range}...')
 
         spike_train_attr_set = {spike_train_attr_name, trial_index_attr, trial_dur_attr, artificial_attr}
         spkiter_dict = scatter_read_cell_attributes(input_file, pop_name, namespaces=[namespace_id], 

@@ -3,7 +3,7 @@ import numpy as np
 from scipy.interpolate import Rbf
 from scipy.ndimage import gaussian_filter
 from collections import defaultdict, ChainMap, namedtuple
-from MiV.utils import get_module_logger, object, range, str, Struct, gauss2d, gaussian, viewitems, mpi_op_set_union
+from MiV.utils import get_module_logger, Struct, gauss2d, gaussian, viewitems, mpi_op_set_union
 from MiV.stgen import get_inhom_poisson_spike_times_by_thinning
 from neuroh5.io import read_cell_attributes, append_cell_attributes, NeuroH5CellAttrGen, scatter_read_cell_attribute_selection
 from mpi4py import MPI

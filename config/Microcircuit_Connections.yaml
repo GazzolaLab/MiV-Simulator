@@ -18,10 +18,10 @@ Synapses:
           tau_rise: 0.5
           tau_decay: 3.0
           e: 0
-          g_unit: 0.0025
+          g_unit: 0.0001
           weight: 1.0
         NMDA:
-          g_unit: 0.0025
+          g_unit: 0.0001
           weight: 1.0
     PYR:
       type: excitatory
@@ -48,7 +48,7 @@ Synapses:
           tau_rise: 0.30
           tau_decay: 6.2
           e: -60
-          g_unit: 0.004
+          g_unit: 0.0033
           weight: 1.0
     OLM:   
       type: inhibitory
@@ -57,10 +57,10 @@ Synapses:
       proportions: [1.0, 0.5, 1.0]
       mechanisms:
         GABA_A:
-          tau_rise: 0.30
-          tau_decay: 6.2
+          tau_rise: 0.50
+          tau_decay: 9.0
           e: -60
-          g_unit: 0.00175
+          g_unit: 0.0033
           weight: 1.0
   PVBC:
     PYR:

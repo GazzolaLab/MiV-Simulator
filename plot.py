@@ -1,4 +1,4 @@
-import numbers, os, copy, pprint, sys
+import numbers, os, copy, pprint, sys, time
 from collections import defaultdict
 from scipy import interpolate, signal, ndimage
 import numpy as np
@@ -1780,4 +1780,376 @@ def plot_intracellular_state (input_path, namespace_ids, include = ['eachPop'], 
     if fig_options.showFig:
         show_figure()
     
+    return fig
+
+
+def plot_network_clamp(input_path, spike_namespace, intracellular_namespace, gid,
+                       target_input_features_path=None, target_input_features_namespace=None,
+                       target_input_features_arena_id=None, target_input_features_trajectory_id=None,
+                       config_file=None, config_prefix="config",
+                       include='eachPop', include_artificial=True, time_range=None, time_variable='t', intracellular_variable='v',
+                       labels='overlay', pop_rates=True, all_spike_hist=False, spike_hist_bin=5, lowpass_plot_type='overlay',
+                       n_trials=-1, marker='.', opt_seed=None,  **kwargs):
+    """
+    Raster plot of target cell intracellular trace + spike raster of presynaptic inputs. Returns the figure handle.
+
+    input_path: file with spike data
+    spike_namespace: attribute namespace for spike events
+    intracellular_namespace: attribute namespace for intracellular trace
+    target_input_features_path: optional file with input features
+    target_input_features_namespaces: optional attribute namespace for input features
+    config_path: path to network configuration file; required when target_input_features_path is given
+    time_range ([start:stop]): Time range of spikes shown; if None shows all (default: None)
+    time_variable: Name of variable containing spike times (default: 't')
+    labels = ('legend', 'overlay'): Show population labels in a legend or overlayed on one side of raster (default: 'legend')
+    pop_rates = (True|False): Include population rates (default: False)
+    spike_hist_bin (int): Size of bin in ms to use for histogram (default: 5)
+    marker (char): Marker for each spike (default: '.')
+    """
+    fig_options = copy.copy(default_fig_options)
+    fig_options.update(kwargs)
+
+    (population_ranges, N) = read_population_ranges(input_path)
+    population_names = read_population_names(input_path)
+
+    _, state_info = statedata.query_state(input_path, population_names, namespace_ids=[intracellular_namespace])
+    
+    state_pop_name = None
+    pop_num_cells = {}
+    pop_start_inds = {}
+
+    for population in population_names:
+        pop_start_inds[population] = population_ranges[population][0]
+        pop_range = population_ranges[population]
+        pop_num_cells[population] = pop_range[1]
+
+    if gid is None:
+        for population in state_info.keys():
+            if intracellular_namespace in state_info[population]:
+                state_pop_name = population
+                gid = dict(state_info[population][intracellular_namespace])[intracellular_variable][0]
+                break
+    else:
+        for population in population_names:
+            pop_range = population_ranges[population]
+            if (gid >= pop_range[0]) and (gid < pop_range[0] + pop_range[1]):
+                state_pop_name = population
+                break
+
+    # Replace 'eachPop' with list of populations
+    if 'eachPop' in include:
+        include.remove('eachPop')
+        for pop in population_names:
+            include.append(pop)
+
+    spk_include = include
+    if (state_pop_name is not None) and (state_pop_name not in spk_include):
+        spk_include.append(state_pop_name)
+
+    # sort according to start index
+    include.sort(key=lambda x: pop_start_inds[x])
+    include.reverse()
+
+    sys.stdout.flush()
+    spkdata = spikedata.read_spike_events(input_path, spk_include, spike_namespace, \
+                                          spike_train_attr_name=time_variable, time_range=time_range,
+                                          n_trials=n_trials, include_artificial=include_artificial )
+    logger.info('plot_network_clamp: reading recorded intracellular variable %s for gid %d' % \
+                (intracellular_variable, gid))
+    indata = statedata.read_state(input_path, [state_pop_name], intracellular_namespace, time_variable=time_variable, \
+                                  state_variables=[intracellular_variable], time_range=time_range, gid=[gid],
+                                  n_trials=n_trials)
+
+    spkpoplst = spkdata['spkpoplst']
+    spkindlst = spkdata['spkindlst']
+    spktlst = spkdata['spktlst']
+    num_cell_spks = spkdata['num_cell_spks']
+    pop_active_cells = spkdata['pop_active_cells']
+    tmin = spkdata['tmin']
+    tmax = spkdata['tmax']
+    n_trials = spkdata['n_trials']
+    
+    if time_range is None:
+        time_range = [tmin, tmax]
+
+    if time_range[0] == time_range[1] or time_range[0] == float('inf') or time_range[1] == float('inf'):
+        raise RuntimeError('plot_network_clamp: invalid time_range: %s' % time_range)
+    time_bins  = np.arange(time_range[0], time_range[1], spike_hist_bin)
+
+    baks_config = copy.copy(kwargs)
+    target_rate = None
+    target_rate_time = None
+    target_rate_ip = None
+    if (target_input_features_path is not None) and (target_input_features_namespace is not None):
+        if config_file is None:
+            raise RuntimeError("plot_network_clamp: config_file must be provided with target_input_features_path.") 
+        env = Env(config_file=config_file, config_prefix=config_prefix,
+                  arena_id=target_input_features_arena_id,
+                  trajectory_id=target_input_features_trajectory_id)
+    
+        if env.analysis_config is not None:
+            baks_config.update(env.analysis_config['Firing Rate Inference'])
+
+        target_trj_rate_maps = stimulus.rate_maps_from_features(env, state_pop_name,
+                                                                cell_index_set=[gid],
+                                                                input_features_path=target_input_features_path, 
+                                                                input_features_namespace=target_input_features_namespace,
+                                                                time_range=time_range,
+                                                                include_time=True)
+        target_rate_time, target_rate = target_trj_rate_maps[gid]
+        target_rate_ip = interpolate.Akima1DInterpolator(target_rate_time, target_rate)
+
+    maxN = 0
+    minN = N
+
+    avg_rates = {}
+    tsecs = ((time_range[1] - time_range[0]) / 1e3)
+    for i, pop_name in enumerate(spkpoplst):
+        pop_num = len(pop_active_cells[pop_name])
+        maxN = max(maxN, max(pop_active_cells[pop_name]))
+        minN = min(minN, min(pop_active_cells[pop_name]))
+        if pop_num > 0:
+            if num_cell_spks[pop_name] == 0:
+                avg_rates[pop_name] = 0
+            else:
+                avg_rates[pop_name] = (num_cell_spks[pop_name] / pop_num / n_trials) / tsecs
+
+    pop_colors = {pop_name: dflt_colors[ipop % len(dflt_colors)] for ipop, pop_name in enumerate(spkpoplst)}
+
+    pop_spk_dict = {pop_name: (pop_spkinds, pop_spkts) for (pop_name, pop_spkinds, pop_spkts) in
+                    zip(spkpoplst, spkindlst, spktlst)}
+    N = pop_num_cells[pop_name]
+    S = pop_start_inds[pop_name]
+
+    n_plots = len(spkpoplst) + 2
+    plot_height_ratios = [1] * len(spkpoplst)
+    if all_spike_hist:
+        n_plots += 1
+        plot_height_ratios.append(1)
+        
+    # Target spike plot
+    plot_height_ratios.append(1)
+    
+    if target_rate_ip is not None:
+        n_plots += 2
+        plot_height_ratios.append(0.5)
+        plot_height_ratios.append(0.5)
+
+    # State plot
+    plot_height_ratios.append(2)
+    
+    if lowpass_plot_type == 'subplot':
+        n_plots += 1
+        plot_height_ratios.append(1)
+
+        
+    fig, axes = plt.subplots(nrows=n_plots, sharex=True, figsize=fig_options.figSize,
+                             gridspec_kw={'height_ratios': plot_height_ratios})
+
+    stplots = []
+
+    def sphist(trial_spkts):
+        if len(trial_spkts) > 0:
+            bin_edges = np.histogram_bin_edges(trial_spkts[0], bins=np.arange(time_range[0], time_range[1], spike_hist_bin))
+            trial_sphist_ys = np.array([ np.histogram(spkts, bins=bin_edges)[0]
+                                     for spkts in trial_spkts ])
+            sphist_y = np.mean(trial_sphist_ys, axis=0)
+            
+            sphist_x = bin_edges[:-1] + (spike_hist_bin / 2)
+
+            pch = interpolate.pchip(sphist_x, sphist_y)
+            res_npts = int((sphist_x.max() - sphist_x.min()))
+            sphist_x_res = np.linspace(sphist_x.min(), sphist_x.max(), res_npts, endpoint=True)
+            sphist_y_res = pch(sphist_x_res)
+        else:
+            bin_edges=np.arange(time_range[0], time_range[1], spike_hist_bin)
+            sphist_x_res = bin_edges[:-1] + (spike_hist_bin / 2)
+            sphist_y_res = np.zeros(sphist_x_res.shape)
+
+        return sphist_x_res, sphist_y_res
+        
+
+    for i, pop_name in enumerate(include):
+        pop_spkinds, pop_spkts = pop_spk_dict.get(pop_name, ([], []))
+
+        sphist_x, sphist_y = sphist(pop_spkts)
+        sph = axes[i].fill_between(sphist_x, sphist_y, linewidth=fig_options.lw,
+                                    color=pop_colors.get(pop_name, dflt_colors[0]), alpha=0.5,
+                                    label=pop_name)
+        axes[i].set_ylim(0., np.ceil(np.max(sphist_y)))
+        stplots.append(sph)
+            
+        if i == 0:
+            axes[i].set_xlim(time_range)
+            axes[i].set_xlabel('Time (ms)', fontsize=fig_options.fontSize)
+            axes[i].set_ylabel('Spike Count', fontsize=fig_options.fontSize)
+
+
+
+    fig.subplots_adjust(hspace=0)
+    plt.setp([a.get_xticklabels() for a in fig.axes[:-2]], visible=False)
+
+    # set raster plot ticks to the end of the index range for each population
+    for i, pop_name in enumerate(include):
+        a = fig.axes[i]
+        start, end = a.get_ylim()
+        a.get_yaxis().set_ticks([end])
+
+    # set raster plot ticks to start and end of index range for first population
+    a = fig.axes[len(spkpoplst) - 1]
+    start, end = a.get_ylim()
+    a.get_yaxis().set_ticks([start, end])
+
+    if pop_rates:
+        lgd_labels = [pop_name + ' (%i active; %.3g Hz)' % (len(pop_active_cells[pop_name]), avg_rates[pop_name]) for
+                      pop_name in spkpoplst if pop_name in avg_rates]
+    else:
+        lgd_labels = [pop_name + ' (%i active)' % (len(pop_active_cells[pop_name])) for pop_name in spkpoplst if
+                      pop_name in avg_rates]
+
+    i_ax = len(spkpoplst)
+    
+    if spktlst:
+        if all_spike_hist:
+            # Calculate and plot total spike histogram
+            all_trial_spkts = [list() for i in range(len(spktlst[0]))]
+            for i, pop_name in enumerate(include):
+                pop_spkinds, pop_spkts = pop_spk_dict.get(pop_name, ([], []))
+                for trial_i, this_trial_spkts in enumerate(pop_spkts):
+                    all_trial_spkts[trial_i].append(this_trial_spkts)
+            merged_trial_spkts = [ np.concatenate(trial_spkts, axis=0)
+                                   for trial_spkts in all_trial_spkts ]
+            sphist_x, sphist_y = sphist(merged_trial_spkts)
+            sprate = np.sum(avg_rates[pop_name] for pop_name in avg_rates) / len(avg_rates)
+            ax_spk = axes[i_ax]
+            ax_spk.plot(sphist_x, sphist_y, linewidth=1.0)
+            ax_spk.set_xlabel('Time (ms)', fontsize=fig_options.fontSize)
+            ax_spk.set_xlim(time_range)
+            ax_spk.set_ylim((np.min(sphist_y), np.max(sphist_y)*2))
+            if pop_rates:
+                lgd_label = "mean firing rate: %.3g Hz" % sprate
+                at = AnchoredText(lgd_label, loc='upper right', borderpad=0.01,
+                                  prop=dict(size=fig_options.fontSizej))
+                ax_spk.add_artist(at)
+            i_ax += 1
+
+        # Calculate and plot spike histogram for target gid
+        pop_spkinds, pop_spkts = pop_spk_dict.get(state_pop_name, ([], []))
+        trial_sdf_ips = []
+        spk_count = 0
+        ax_spk = axes[i_ax]
+        for this_trial_spkinds, this_trial_spkts in zip_longest(pop_spkinds, pop_spkts):
+            spk_inds = np.argwhere(this_trial_spkinds == gid)
+            spk_count += len(spk_inds)
+            if target_rate_ip is not None:
+                sdf_dict = spikedata.spike_density_estimate(state_pop_name, { gid: this_trial_spkts[spk_inds] },
+                                                            time_bins, **baks_config)
+                trial_sdf_rate = sdf_dict[gid]['rate']
+                trial_sdf_time = sdf_dict[gid]['time']
+                trial_sdf_ip = interpolate.Akima1DInterpolator(trial_sdf_time, trial_sdf_rate)
+                trial_sdf_ips.append(trial_sdf_ip)
+            if len(spk_inds) > 0:
+                ax_spk.stem(this_trial_spkts[spk_inds], [0.5]*len(spk_inds), markerfmt=' ', use_line_collection=True)
+            ax_spk.set_yticks([])
+        sprate = spk_count / n_trials  / tsecs
+
+        
+        ax_spk.set_xlabel('Time (ms)', fontsize=fig_options.fontSize)
+        ax_spk.set_xlim(time_range)
+        if pop_rates:
+            lgd_label = "%s gid %d: %.3g Hz" % (state_pop_name, gid, sprate)
+            at = AnchoredText(lgd_label, loc='upper right', borderpad=0.01, 
+                              prop=dict(size=fig_options.fontSize))
+            ax_spk.add_artist(at)
+        i_ax += 1
+
+    if target_rate is not None :
+        t = np.arange(time_range[0], time_range[1], 1.)
+        target_rate_t_range = target_rate_ip(t)
+        if np.any(np.isnan(target_rate_t_range)):
+            target_rate_t_range[np.isnan(target_rate_t_range)] = 0.
+        vmin, vmax = 0, np.max(target_rate_t_range)
+        ax_target_rate = axes[i_ax]
+        i_ax += 1
+        ax_target_rate.imshow(target_rate_t_range[np.newaxis,:], vmin=vmin, vmax=vmax, aspect="auto")
+        ax_target_rate.set_yticks([])
+        ax_mean_sdf = axes[i_ax]
+        i_ax += 1
+        if len(trial_sdf_ips) > 0:
+            trial_sdf_matrix = np.row_stack([trial_sdf_ip(t) for trial_sdf_ip in trial_sdf_ips])
+            mean_sdf = np.mean(trial_sdf_matrix, axis=0)
+            ax_mean_sdf.imshow(mean_sdf[np.newaxis,:], vmin=vmin, vmax=vmax, aspect="auto")
+        ax_mean_sdf.set_yticks([])
+        
+    # Plot intracellular state
+    ax_state = axes[i_ax]
+    ax_state.set_xlabel('Time (ms)', fontsize=fig_options.fontSize)
+    ax_state.set_ylabel(intracellular_variable, fontsize=fig_options.fontSize)
+    ax_state.set_xlim(time_range)
+    i_ax += 1
+
+    # Plot lowpass-filtered intracellular state if lowpass_plot_type is set to subplot
+    if lowpass_plot_type == 'subplot':
+        ax_lowpass = axes[i_ax]
+        i_ax += 1
+    else:
+        ax_lowpass = ax_state
+
+    states = indata['states']
+    stvplots = []
+    from dentate.utils import get_low_pass_filtered_trace
+    for (pop_name, pop_states) in viewitems(states):
+        for (gid, cell_states) in viewitems(pop_states):
+            st_len = cell_states[intracellular_variable][0].shape[0]
+            st_xs = [ x[:st_len] for x in cell_states[time_variable] ]
+            st_ys = [ y[:st_len] for y in cell_states[intracellular_variable] ]
+            st_x = st_xs[0]
+            try:
+              filtered_st_ys = [get_low_pass_filtered_trace(st_y, st_x)
+                                for st_x, st_y in zip(st_xs, st_ys)]
+              filtered_st_y = np.mean(filtered_st_ys, axis=0)
+              ax_lowpass.plot(st_x, filtered_st_y, label='%s (filtered)' % pop_name,
+                              linewidth=fig_options.lw, alpha=0.75)
+            except:
+              pass
+
+            for st_y in st_ys:
+                stvplots.append(
+                    ax_state.plot(st_x, st_y, label=pop_name, linewidth=fig_options.lw, alpha=0.5))
+        
+
+    if labels == 'legend':
+        # Shrink axes by 15%
+        for ax in axes:
+            box = ax.get_position()
+            ax.set_position([box.x0, box.y0, box.width * 0.85, box.height])
+        # Add legend
+        lgd = fig.legend(stplots, lgd_labels, loc='center right', 
+                         fontsize='small', scatterpoints=1, markerscale=5.,
+                         bbox_to_anchor=(1.002, 0.5), bbox_transform=plt.gcf().transFigure)
+        fig.artists.append(lgd)
+
+    elif labels == 'overlay':
+        for i, (pop_name, lgd_label) in enumerate(zip(spkpoplst, lgd_labels)):
+            at = AnchoredText(lgd_label, loc='upper right', borderpad=0.01,
+                              prop=dict(size=fig_options.fontSize))
+            axes[i].add_artist(at)
+        max_label_len = max([len(l) for l in lgd_labels])
+
+    else:
+        raise RuntimeError('plot_network_clamp: unknown label type %s' % labels)
+        
+    # save figure
+    ts = time.strftime("%Y%m%d_%H%M%S") 
+    if fig_options.saveFig:
+        if isinstance(fig_options.saveFig, str):
+            filename = fig_options.saveFig
+        else:
+            filename = 'Network Clamp %s %i.%s' % (state_pop_name, gid, fig_options.figFormat) if opt_seed is None else 'NetworkClamp_{!s}_{:d}_{!s}_{:08d}.{!s}'.format(state_pop_name, gid, ts, opt_seed, fig_options.figFormat)
+            plt.savefig(filename)
+
+    # show fig
+    if fig_options.showFig:
+        show_figure()
+
     return fig

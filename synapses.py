@@ -2050,5 +2050,69 @@ def init_syn_mech_attrs(cell, env=None, reset_mech_dict=False, update_targets=Fa
                                                 update_targets=update_targets)
 
 
+def write_syn_spike_count(env, pop_name, output_path, filters=None, syn_names=None, write_kwds={}):
+    """
+    Writes spike counts per presynaptic source for each cell in the given population to a NeuroH5 file.
+    Assumes that attributes have been set via config_syn.
+    
+    :param env: instance of env.Env
+    :param pop_name: population name
+    :param output_path: path to NeuroH5 file
+    :param filters: optional filter for synapses
+    """
+
+    rank = int(env.pc.id())
+
+    syn_attrs = env.synapse_attributes
+    rules = syn_attrs.syn_param_rules
+
+    filters_dict = None
+    if filters is not None:
+        filters_dict = get_syn_filter_dict(env, filters, convert=True)
+    
+    if syn_names is None:
+        syn_names = list(syn_attrs.syn_name_index_dict.keys())
+
+    output_dict = {syn_name: defaultdict(lambda: defaultdict(int)) for syn_name in syn_names}
+
+    gids = []
+    if pop_name in env.biophys_cells:
+       gids = list(env.biophys_cells[pop_name].keys())
+
+    for gid in gids:
+        if filters_dict is None:
+            syns_dict = syn_attrs.syn_id_attr_dict[gid]
+        else:
+            syns_dict = syn_attrs.filter_synapses(gid, **filters_dict)
+        logger.info(f"write_syn_mech_spike_counts: rank {rank}: population {pop_name}: gid {gid}: {len(syns_dict)} synapses")
+        
+        for syn_id, syn in viewitems(syns_dict):
+            source_population = syn.source.population
+            syn_netcon_dict = syn_attrs.pps_dict[gid][syn_id].netcon
+            for syn_name in syn_names:
+                mech_name = syn_attrs.syn_mech_names[syn_name]
+                syn_index = syn_attrs.syn_name_index_dict[syn_name]
+                if syn_index in syn_netcon_dict and 'count' in rules[mech_name]['netcon_state']:
+                    count_index = rules[mech_name]['netcon_state']['count']
+                    nc = syn_netcon_dict[syn_index]
+                    spike_count = nc.weight[count_index]
+                    output_dict[syn_name][gid][source_population] += spike_count
+
+    for syn_name in sorted(output_dict):
+
+        syn_attrs_dict = output_dict[syn_name]
+        attr_dict = defaultdict(lambda: dict())
+
+        for gid, gid_syn_spk_count_dict in viewitems(syn_attrs_dict):
+            for source_index, source_count in viewitems(gid_syn_spk_count_dict):
+                source_pop_name = syn_attrs.presyn_names[source_index]
+                attr_dict[gid][source_pop_name] = np.asarray([source_count], dtype='uint32')
+                    
+        logger.info(f"write_syn_mech_spike_counts: rank {rank}: population {pop_name}: writing mechanism {syn_name} spike counts for {len(attr_dict)} gids")
+        write_cell_attributes(output_path, pop_name, attr_dict,
+                              namespace=f'{syn_name} Spike Counts',
+                              **write_kwds)
+
+
 
 
