@@ -18,6 +18,28 @@ default_ordered_sec_types = ['soma', 'hillock', 'ais', 'axon', 'basal', 'trunk',
 default_hoc_sec_lists = {'soma': 'somaidx', 'hillock': 'hilidx', 'ais': 'aisidx', 'axon': 'axonidx',
                          'basal': 'basalidx', 'apical': 'apicalidx', 'trunk': 'trunkidx', 'tuft': 'tuftidx'}
 
+
+PRconfig = namedtuple('PRconfig', ['pp', 'Ltotal', 'gc',
+                                   'soma_gmax_Na', 
+                                   'soma_gmax_K',
+                                   'soma_g_pas',
+                                   'dend_gmax_Ca',
+                                   'dend_gmax_KCa',
+                                   'dend_gmax_KAHP',
+                                   'dend_g_pas',
+                                   'dend_d_Caconc',
+                                   'global_cm',
+                                   'global_diam',
+                                   'ic_constant',
+                                   'cm_ratio',
+                                   'e_pas',
+                                   'V_rest',
+                                   'V_threshold'])
+
+
+HocCellInterface = namedtuple('HocCellInterface', ['sections', 'is_art', 'is_reduced', 'soma', 'hillock', 'ais', 'axon', 'basal', 'apical', 'all', 'state'])
+
+
 # Code by Michael Hines from this discussion thread:
 # https://www.neuron.yale.edu/phpBB/viewtopic.php?f=31&t=3628
 def cx(env):

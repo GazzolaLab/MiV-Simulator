@@ -1,7 +1,7 @@
 import collections, os, sys, traceback, copy, datetime, math, pprint
 import networkx as nx
 import numpy as np
-from MiV.neuron_utils import load_cell_template, h, d_lambda, init_nseg, reinit_diam, default_hoc_sec_lists, default_ordered_sec_types, make_rec
+from MiV.neuron_utils import PRconfig, load_cell_template, h, d_lambda, init_nseg, reinit_diam, default_hoc_sec_lists, default_ordered_sec_types, make_rec
 from MiV.utils import get_module_logger, zip_longest, viewitems, read_from_yaml, write_to_yaml, Promise
 from neuroh5.io import read_cell_attribute_selection, read_graph_selection, read_tree_selection
 
@@ -179,6 +179,231 @@ def make_section_graph(neurotree_dict):
     return sec_graph
 
 
+class PRneuron(object):
+    """
+    An implementation of a Pinsky-Rinzel-type reduced biophysical neuron model for simulation in NEURON.
+    Conforms to the same API as BiophysCell.
+    """
+    def __init__(self, gid, pop_name, env=None, cell_config=None, mech_dict=None):
+        """
+
+        :param gid: int
+        :param pop_name: str
+        :param env: :class:'Env'
+        :param cell_config: :namedtuple:'PRconfig'
+        """
+        self._gid = gid
+        self._pop_name = pop_name
+        self.tree = STree2()  # Builds a simple tree to store nodes of type 'SHocNode'
+        self.count = 0  # Keep track of number of nodes
+        if env is not None:
+            for sec_type in env.SWC_Types:
+                if sec_type not in default_ordered_sec_types:
+                    raise AttributeError('Warning! unexpected SWC Type definitions found in Env')
+        self.nodes = {key: [] for key in default_ordered_sec_types}
+        self.mech_file_path = None
+        self.init_mech_dict = dict(mech_dict) if mech_dict is not None else None
+        self.mech_dict = dict(mech_dict) if mech_dict is not None else None
+        
+        self.random = np.random.RandomState()
+        self.random.seed(self.gid)
+        self.spike_detector = None
+        self.spike_onset_delay = 0.
+        self.is_reduced = True
+        if not isinstance(cell_config, PRconfig):
+            raise RuntimeError('PRneuron: argument cell_attrs must be of type PRconfig')
+
+        param_dict = { 'pp': cell_config.pp,
+                       'Ltotal': cell_config.Ltotal,
+                       'gc': cell_config.gc,
+                       'soma_gmax_Na': cell_config.soma_gmax_Na,
+                       'soma_gmax_K': cell_config.soma_gmax_K,
+                       'soma_g_pas': cell_config.soma_g_pas,
+                       'dend_gmax_Ca': cell_config.dend_gmax_Ca,
+                       'dend_gmax_KCa': cell_config.dend_gmax_KCa,
+                       'dend_gmax_KAHP': cell_config.dend_gmax_KAHP,
+                       'dend_g_pas':  cell_config.dend_g_pas,
+                       'dend_d_Caconc':  cell_config.dend_d_Caconc,
+                       'cm_ratio':  cell_config.cm_ratio,
+                       'global_cm':  cell_config.global_cm,
+                       'global_diam':  cell_config.global_diam,
+                       'e_pas':  cell_config.e_pas,
+        }
+
+        PR_nrn = h.PR_nrn(param_dict)
+        PR_nrn.soma.ic_constant = cell_config.ic_constant
+
+        self.hoc_cell = PR_nrn
+
+        soma_node = append_section(self, 'soma', sec_index=0, sec=PR_nrn.soma)
+        apical_node = append_section(self, 'apical', sec_index=1, sec=PR_nrn.dend)
+        connect_nodes(self.soma[0], self.apical[0], connect_hoc_sections=False)
+        
+        init_spike_detector(self, self.tree.root, loc=0.5, threshold=cell_config.V_threshold)
+
+
+    def update_cell_attrs(self, **kwargs):
+        for attr_name, attr_val in kwargs.items():
+            if attr_name in PRconfig._fields:
+                setattr(self.hoc_cell, attr_name, attr_val)
+
+    @property
+    def gid(self):
+        return self._gid
+
+    @property
+    def pop_name(self):
+        return self._pop_name
+
+    @property
+    def soma(self):
+        return self.nodes['soma']
+
+    @property
+    def axon(self):
+        return self.nodes['axon']
+
+    @property
+    def basal(self):
+        return self.nodes['basal']
+
+    @property
+    def apical(self):
+        return self.nodes['apical']
+
+    @property
+    def trunk(self):
+        return self.nodes['trunk']
+
+    @property
+    def tuft(self):
+        return self.nodes['tuft']
+
+    @property
+    def spine(self):
+        return self.nodes['spine_head']
+
+    @property
+    def spine_head(self):
+        return self.nodes['spine_head']
+
+    @property
+    def spine_neck(self):
+        return self.nodes['spine_neck']
+
+    @property
+    def ais(self):
+        return self.nodes['ais']
+
+    @property
+    def hillock(self):
+        return self.nodes['hillock']
+
+
+
+class SCneuron(object):
+    """
+    Single-compartment biophysical neuron model for simulation in NEURON.
+    Conforms to the same API as BiophysCell.
+    """
+    def __init__(self, gid, pop_name, env=None, mech_dict=None, mech_file_path=None):
+        """
+
+        :param gid: int
+        :param pop_name: str
+        :param env: :class:'Env'
+        :param mech_dict: dict
+        """
+        self._gid = gid
+        self._pop_name = pop_name
+        self.tree = STree2()  # Builds a simple tree to store nodes of type 'SHocNode'
+        self.count = 0  # Keep track of number of nodes
+        if env is not None:
+            for sec_type in env.SWC_Types:
+                if sec_type not in default_ordered_sec_types:
+                    raise AttributeError('Warning! unexpected SWC Type definitions found in Env')
+        self.nodes = {key: [] for key in default_ordered_sec_types}
+        self.mech_file_path = mech_file_path
+        self.init_mech_dict = dict(mech_dict) if mech_dict is not None else None
+        self.mech_dict = dict(mech_dict) if mech_dict is not None else None
+
+        if (mech_dict is None) and (mech_file_path is not None):
+            import_mech_dict_from_file(self, self.mech_file_path)
+        elif mech_dict is None:
+            # Allows for a cell to be created and for a new mech_dict to be constructed programmatically from scratch
+            self.init_mech_dict = dict()
+            self.mech_dict = dict()
+        self.hoc_cell = hoc_cell
+        
+        self.random = np.random.RandomState()
+        self.random.seed(self.gid)
+        self.spike_detector = None
+        self.spike_onset_delay = 0.
+        self.is_reduced = True
+
+        soma = h.Section()
+        self.hoc_cell = soma
+        soma_node = append_section(self, 'soma', sec_index=0, sec=soma)
+        
+        init_cable(self)
+        init_spike_detector(self, self.tree.root, loc=0.5)
+
+
+    @property
+    def gid(self):
+        return self._gid
+
+    @property
+    def pop_name(self):
+        return self._pop_name
+
+    @property
+    def soma(self):
+        return self.nodes['soma']
+
+    @property
+    def axon(self):
+        return self.nodes['axon']
+
+    @property
+    def basal(self):
+        return self.nodes['basal']
+
+    @property
+    def apical(self):
+        return self.nodes['apical']
+
+    @property
+    def trunk(self):
+        return self.nodes['trunk']
+
+    @property
+    def tuft(self):
+        return self.nodes['tuft']
+
+    @property
+    def spine(self):
+        return self.nodes['spine_head']
+
+    @property
+    def spine_head(self):
+        return self.nodes['spine_head']
+
+    @property
+    def spine_neck(self):
+        return self.nodes['spine_neck']
+
+    @property
+    def ais(self):
+        return self.nodes['ais']
+
+    @property
+    def hillock(self):
+        return self.nodes['hillock']
+
+
+    
+    
 class BiophysCell:
     """
     A Python wrapper for neuronal cell objects specified in the NEURON language hoc.
@@ -540,6 +765,27 @@ def init_spike_detector(cell, node=None, distance=100., threshold=-30, delay=0.0
 
     return cell.spike_detector
 
+def update_biophysics_by_sec_type(cell, sec_type, reset_cable=False, verbose=False):
+    """
+    This method loops through all sections of the specified type, and consults the mechanism dictionary to update
+    mechanism properties. If the reset_cable flag is True, cable parameters are re-initialized first, then the
+    ion channel mechanisms are updated.
+
+    :param cell: :class:'BiophysCell'
+    :param sec_type: str
+    :param reset_cable: bool
+    """
+    if sec_type in cell.nodes:
+        if reset_cable:
+            # cable properties must be set first, as they can change nseg, which will affect insertion of membrane
+            # mechanism gradients
+            for node in cell.nodes[sec_type]:
+                reset_cable_by_node(cell, node, verbose=verbose)
+        if sec_type in cell.mech_dict:
+            for node in cell.nodes[sec_type]:
+                for mech_name in (mech_name for mech_name in cell.mech_dict[sec_type]
+                                  if mech_name not in ['cable', 'synapses']):
+                    update_mechanism_by_node(cell, node, mech_name, cell.mech_dict[sec_type][mech_name])
 
 def update_mechanism_by_node(cell, node, mech_name, mech_content=None, verbose=True):
     """
@@ -591,15 +837,12 @@ def set_mech_param(cell, node, mech_name, param_name, baseline, rules):
     :param baseline: float
     :param rules: dict
     """
-    if mech_name == 'ions':
-        setattr(node.sec, param_name, baseline)
-    else:
-        try:
-            node.sec.insert(mech_name)
-        except Exception:
-            raise RuntimeError(f'set_mech_param: unable to insert mechanism: {mech_name} cell: {cell} '
-                               f'in sec_type: {node.section_type}')
-        setattr(node.sec, f'{param_name}_{mech_name}', baseline)
+    try:
+        node.sec.insert(mech_name)
+    except Exception:
+        raise RuntimeError(f'set_mech_param: unable to insert mechanism: {mech_name} cell: {cell} '
+                           f'in sec_type: {node.section_type}')
+    setattr(node.sec, f'{param_name}_{mech_name}', baseline)
 
 
 def filter_nodes(cell, sections=None, layers=None, swc_types=None):
