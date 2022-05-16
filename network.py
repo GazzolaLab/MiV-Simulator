@@ -671,7 +671,7 @@ def make_cells(env):
             continue
         
         template_name_lower = template_name.lower()
-        if template_name_lower != 'izhikevich' and template_name_lower != 'vecstim':    
+        if template_name_lower != 'vecstim':    
             load_cell_template(env, pop_name, bcast_template=True)
 
         mech_file_path = None
@@ -683,8 +683,8 @@ def make_cells(env):
         else:
             mech_dict = None
 
-        is_izhikevich = (template_name.lower() == 'izhikevich')
         is_PR = (template_name.lower() == 'pr_nrn')
+        is_SC = (template_name.lower() == 'sc_nrn')
         num_cells = 0
         if (pop_name in env.cell_attribute_info) and ('Trees' in env.cell_attribute_info[pop_name]):
             if rank == 0:
@@ -707,10 +707,10 @@ def make_cells(env):
                 if first_gid is None:
                     first_gid = gid
 
-                if is_izhikevich:
-                    izhikevich_cell = cells.make_izhikevich_cell(gid=gid, pop_name=pop_name,
-                                                                 env=env, mech_dict=mech_dict)
-                    cells.register_cell(env, pop_name, gid, izhikevich_cell)
+                if is_SC:
+                    SC_cell = cells.make_SC_cell(gid=gid, pop_name=pop_name,
+                                                 env=env, mech_dict=mech_dict)
+                    cells.register_cell(env, pop_name, gid, SC_cell)
                 elif is_PR:
                     PR_cell = cells.make_PR_cell(gid=gid, pop_name=pop_name,
                                                  env=env, mech_dict=mech_dict)
@@ -761,10 +761,10 @@ def make_cells(env):
                 if rank == 0:
                     logger.info(f"*** Creating {pop_name} gid {gid}")
 
-                if is_izhikevich:
-                    izhikevich_cell = cells.make_izhikevich_cell(gid=gid, pop_name=pop_name,
-                                                                 env=env, mech_dict=mech_dict)
-                    cells.register_cell(env, pop_name, gid, izhikevich_cell)
+                if is_SC:
+                    SC_cell = cells.make_SC_cell(gid=gid, pop_name=pop_name,
+                                                 env=env, mech_dict=mech_dict)
+                    cells.register_cell(env, pop_name, gid, SC_cell)
                 elif is_PR:
                     PR_cell = cells.make_PR_cell(gid=gid, pop_name=pop_name,
                                                          env=env, mech_dict=mech_dict)
@@ -830,7 +830,7 @@ def make_cell_selection(env):
 
         template_name = env.celltypes[pop_name]['template']
         template_name_lower = template_name.lower()
-        if template_name_lower != 'izhikevich' and template_name_lower != 'vecstim':    
+        if template_name_lower != 'vecstim':    
             load_cell_template(env, pop_name, bcast_template=True)
 
         templateClass = getattr(h, env.celltypes[pop_name]['template'])
@@ -842,8 +842,8 @@ def make_cell_selection(env):
         else:
             mech_dict = None
 
-        is_izhikevich = (template_name.lower() == 'izhikevich')
         is_PR = (template_name.lower() == 'pr_nrn')
+        is_SC = (template_name.lower() == 'sc_nrn')
         num_cells = 0
         if (pop_name in env.cell_attribute_info) and ('Trees' in env.cell_attribute_info[pop_name]):
             if rank == 0:
@@ -861,10 +861,10 @@ def make_cell_selection(env):
                 if first_gid == None:
                     first_gid = gid
 
-                if is_izhikevich:
-                    izhikevich_cell = cells.make_izhikevich_cell(gid=gid, pop_name=pop_name,
-                                                                 env=env, param_dict=mech_dict)
-                    cells.register_cell(env, pop_name, gid, izhikevich_cell)
+                if is_SC:
+                    SC_cell = cells.make_SC_cell(gid=gid, pop_name=pop_name,
+                                                 env=env, param_dict=mech_dict)
+                    cells.register_cell(env, pop_name, gid, SC_cell)
                 elif is_PR:
                     PR_cell = cells.make_PR_cell(gid=gid, pop_name=pop_name,
                                                  env=env, param_dict=mech_dict)
@@ -908,10 +908,10 @@ def make_cell_selection(env):
                 if rank == 0:
                     logger.info(f"*** Creating {pop_name} gid {gid}")
 
-                if is_izhikevich:
-                    izhikevich_cell = cells.make_izhikevich_cell(gid=gid, pop_name=pop_name,
-                                                                 env=env, param_dict=mech_dict)
-                    cells.register_cell(env, pop_name, gid, izhikevich_cell)
+                if is_SC:
+                    SC_cell = cells.make_SC_cell(gid=gid, pop_name=pop_name,
+                                                 env=env, param_dict=mech_dict)
+                    cells.register_cell(env, pop_name, gid, SC_cell)
                 elif is_PR:
                     PR_cell = cells.make_PR_cell(gid=gid, pop_name=pop_name,
                                                  env=env, param_dict=mech_dict)

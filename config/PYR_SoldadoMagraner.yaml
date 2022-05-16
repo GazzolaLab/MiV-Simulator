@@ -1,37 +1,61 @@
+##
+## Conditioning by Subthreshold Synaptic Input Changes the Intrinsic
+## Firing Pattern of CA3 Hippocampal Neurons.  Saray Soldado-Magraner,
+## Federico Brandalise, Suraj Honnuraiah, Michael Pfeiffer, Marie
+## Moulinier, Urs Gerber, Rodney Douglas. J Neurophysiology, 2019.
+##
+
 soma:
   cable:
-    L: 50.0      #Length of soma (um)
-    diam: 50.0   #Diameter of soma (um)
-    Ra: 150.0
-    cm: 1.41
+    L:
+      value: 50.0      #Length of soma (um)
+    diam:
+      value: 50.0   #Diameter of soma (um)
+    Ra:
+      value: 150.0
+    cm:
+      value: 1.41
   pas:
-    g: 4.0e-5
-    e: -60.0
+    g:
+      value: 4.0e-5
+    e:
+      value: -60.0
 
 # Spiking conductances    
   na3:
-    gbar: 0.04
+    gbar:
+      value: 0.04
   kdr:
-    gkdrbar: 0.01
+    gkdrbar:
+      value: 0.01
   kap:
-    gkabar: 0.07
+    gkabar:
+      value: 0.07
     
 # Firing pattern conductances 
   km:
-    km: 0.0006
+    gbar:
+      value: 0.0006
   kd:
-    gkdbar: 0.00045
+    gkdbar:
+      value: 0.00045
   kd_slow:
-    gkdbar_kd_slow: 0
+    gkdbar:
+      value: 0
   cal:
-    gcatbar: 0.001
+    gcalbar:
+      value: 0.001
   can:
-    gcatbar: 0.001
+    gcanbar:
+      value: 0.001
   cat:
-    gcatbar: 0.001
+    gcatbar:
+      value: 0.001
   cagk:
-    gbar: 0.0001
+    gbar:
+      value: 0.0001
   cacum:
-    depth: 25.0
+    depth:
+      value: 25.0
     
 

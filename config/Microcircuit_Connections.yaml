@@ -18,10 +18,10 @@ Synapses:
           tau_rise: 0.5
           tau_decay: 3.0
           e: 0
-          g_unit: 0.0001
+          g_unit: 0.00001
           weight: 1.0
         NMDA:
-          g_unit: 0.0001
+          g_unit: 0.00001
           weight: 1.0
     PYR:
       type: excitatory

@@ -1,4 +1,5 @@
 import os, os.path, math
+from collections import namedtuple
 import numpy as np
 try:
     from mpi4py import MPI  # Must come before importing NEURON
@@ -385,7 +386,7 @@ def make_rec(recid, population, gid, cell, sec=None, loc=None, ps=None, param='v
         if seg is not None:
             loc = seg.x
             sec = seg.sec
-            origin = list(cell.soma_list)[0]
+            origin = list(cell.soma_list)[0] if hasattr(cell, 'soma_list') else cell.soma
             distance = h.distance(origin(0.5), seg)
             ri = h.ri(loc, sec=sec)
         else:
@@ -393,7 +394,7 @@ def make_rec(recid, population, gid, cell, sec=None, loc=None, ps=None, param='v
             ri = None
     elif (sec is not None) and (loc is not None):
         hocobj = sec(loc)
-        origin = list(cell.soma_list)[0]
+        origin = list(cell.soma_list)[0] if hasattr(cell, 'soma_list') else cell.soma
         h.distance(sec=origin)
         distance = h.distance(loc, sec=sec)
         ri = h.ri(loc, sec=sec)

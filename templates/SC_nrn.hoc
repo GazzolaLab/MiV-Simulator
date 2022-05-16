@@ -1,0 +1,17 @@
+
+begintemplate SC_nrn
+
+   public soma, sections, all
+   create soma
+   objref sections, all
+   
+   func is_art() {return 0}
+   func is_reduced() {return 1}
+   
+   proc init() {
+       all = new SectionList()
+       sections = new SectionList()
+       soma { sections.append() all.append() }
+     }
+
+endtemplate SC_nrn
