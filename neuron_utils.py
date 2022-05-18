@@ -1,4 +1,5 @@
 import os, os.path, math
+from collections import namedtuple
 import numpy as np
 try:
     from mpi4py import MPI  # Must come before importing NEURON
@@ -17,6 +18,28 @@ d_lambda = 0.1  # no segment will be longer than this fraction of the AC length 
 default_ordered_sec_types = ['soma', 'hillock', 'ais', 'axon', 'basal', 'trunk', 'apical', 'tuft', 'spine']
 default_hoc_sec_lists = {'soma': 'somaidx', 'hillock': 'hilidx', 'ais': 'aisidx', 'axon': 'axonidx',
                          'basal': 'basalidx', 'apical': 'apicalidx', 'trunk': 'trunkidx', 'tuft': 'tuftidx'}
+
+
+PRconfig = namedtuple('PRconfig', ['pp', 'Ltotal', 'gc',
+                                   'soma_gmax_Na', 
+                                   'soma_gmax_K',
+                                   'soma_g_pas',
+                                   'dend_gmax_Ca',
+                                   'dend_gmax_KCa',
+                                   'dend_gmax_KAHP',
+                                   'dend_g_pas',
+                                   'dend_d_Caconc',
+                                   'global_cm',
+                                   'global_diam',
+                                   'ic_constant',
+                                   'cm_ratio',
+                                   'e_pas',
+                                   'V_rest',
+                                   'V_threshold'])
+
+
+HocCellInterface = namedtuple('HocCellInterface', ['sections', 'is_art', 'is_reduced', 'soma', 'hillock', 'ais', 'axon', 'basal', 'apical', 'all', 'state'])
+
 
 # Code by Michael Hines from this discussion thread:
 # https://www.neuron.yale.edu/phpBB/viewtopic.php?f=31&t=3628
@@ -363,7 +386,7 @@ def make_rec(recid, population, gid, cell, sec=None, loc=None, ps=None, param='v
         if seg is not None:
             loc = seg.x
             sec = seg.sec
-            origin = list(cell.soma_list)[0]
+            origin = list(cell.soma_list)[0] if hasattr(cell, 'soma_list') else cell.soma
             distance = h.distance(origin(0.5), seg)
             ri = h.ri(loc, sec=sec)
         else:
@@ -371,7 +394,7 @@ def make_rec(recid, population, gid, cell, sec=None, loc=None, ps=None, param='v
             ri = None
     elif (sec is not None) and (loc is not None):
         hocobj = sec(loc)
-        origin = list(cell.soma_list)[0]
+        origin = list(cell.soma_list)[0] if hasattr(cell, 'soma_list') else cell.soma
         h.distance(sec=origin)
         distance = h.distance(loc, sec=sec)
         ri = h.ri(loc, sec=sec)

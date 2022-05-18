@@ -68,6 +68,15 @@ def init_biophys_cell(env, pop_name, gid, load_weights=True, load_connections=Tr
                                   mech_dict=mech_dict,
                                   load_synapses=True, load_weights=load_weights,
                                   load_edges=load_connections)
+    elif if template_name.lower() == 'sc_nrn':
+        cell = cells.make_SC_cell(env, pop_name, gid,
+                                  tree_dict=cell_dict.get('morph', None),
+                                  synapses_dict=cell_dict.get('synapse', None),
+                                  connection_graph=cell_dict.get('connectivity', None),
+                                  weight_dict=cell_dict.get('weight', None),
+                                  mech_dict=mech_dict,
+                                  load_synapses=True, load_weights=load_weights,
+                                  load_edges=load_connections)
     else:
         cell = cells.make_biophys_cell(env, pop_name, gid,
                                        tree_dict=cell_dict.get('morph', None),

@@ -1,7 +1,7 @@
 import collections, os, sys, traceback, copy, datetime, math, pprint
 import networkx as nx
 import numpy as np
-from MiV.neuron_utils import load_cell_template, h, d_lambda, init_nseg, reinit_diam, default_hoc_sec_lists, default_ordered_sec_types, make_rec
+from MiV.neuron_utils import PRconfig, load_cell_template, h, d_lambda, init_nseg, reinit_diam, default_hoc_sec_lists, default_ordered_sec_types, make_rec
 from MiV.utils import get_module_logger, zip_longest, viewitems, read_from_yaml, write_to_yaml, Promise
 from neuroh5.io import read_cell_attribute_selection, read_graph_selection, read_tree_selection
 
@@ -179,6 +179,232 @@ def make_section_graph(neurotree_dict):
     return sec_graph
 
 
+class PRneuron(object):
+    """
+    An implementation of a Pinsky-Rinzel-type reduced biophysical neuron model for simulation in NEURON.
+    Conforms to the same API as BiophysCell.
+    """
+    def __init__(self, gid, pop_name, env=None, cell_config=None, mech_dict=None):
+        """
+
+        :param gid: int
+        :param pop_name: str
+        :param env: :class:'Env'
+        :param cell_config: :namedtuple:'PRconfig'
+        """
+        self._gid = gid
+        self._pop_name = pop_name
+        self.tree = nx.DiGraph()
+        self.count = 0  # Keep track of number of nodes
+        if env is not None:
+            for sec_type in env.SWC_Types:
+                if sec_type not in default_ordered_sec_types:
+                    raise AttributeError('Warning! unexpected SWC Type definitions found in Env')
+        self.nodes = {key: [] for key in default_ordered_sec_types}
+        self.mech_file_path = None
+        self.init_mech_dict = dict(mech_dict) if mech_dict is not None else None
+        self.mech_dict = dict(mech_dict) if mech_dict is not None else None
+        
+        self.random = np.random.RandomState()
+        self.random.seed(self.gid)
+        self.spike_detector = None
+        self.spike_onset_delay = 0.
+        self.is_reduced = True
+        if not isinstance(cell_config, PRconfig):
+            raise RuntimeError('PRneuron: argument cell_attrs must be of type PRconfig')
+
+        param_dict = { 'pp': cell_config.pp,
+                       'Ltotal': cell_config.Ltotal,
+                       'gc': cell_config.gc,
+                       'soma_gmax_Na': cell_config.soma_gmax_Na,
+                       'soma_gmax_K': cell_config.soma_gmax_K,
+                       'soma_g_pas': cell_config.soma_g_pas,
+                       'dend_gmax_Ca': cell_config.dend_gmax_Ca,
+                       'dend_gmax_KCa': cell_config.dend_gmax_KCa,
+                       'dend_gmax_KAHP': cell_config.dend_gmax_KAHP,
+                       'dend_g_pas':  cell_config.dend_g_pas,
+                       'dend_d_Caconc':  cell_config.dend_d_Caconc,
+                       'cm_ratio':  cell_config.cm_ratio,
+                       'global_cm':  cell_config.global_cm,
+                       'global_diam':  cell_config.global_diam,
+                       'e_pas':  cell_config.e_pas,
+        }
+
+        PR_nrn = h.PR_nrn(param_dict)
+        PR_nrn.soma.ic_constant = cell_config.ic_constant
+
+        self.hoc_cell = PR_nrn
+
+        soma_node = insert_section_node(self, 'soma', index=0, sec=PR_nrn.soma)
+        apical_node = insert_section_node(self, 'apical', index=1, sec=PR_nrn.dend)
+        connect_nodes(self.soma[0], self.apical[0], connect_hoc_sections=False)
+        
+        init_spike_detector(self, threshold=cell_config.V_threshold)
+
+
+    def update_cell_attrs(self, **kwargs):
+        for attr_name, attr_val in kwargs.items():
+            if attr_name in PRconfig._fields:
+                setattr(self.hoc_cell, attr_name, attr_val)
+
+    @property
+    def gid(self):
+        return self._gid
+
+    @property
+    def pop_name(self):
+        return self._pop_name
+
+    @property
+    def soma(self):
+        return self.nodes['soma']
+
+    @property
+    def axon(self):
+        return self.nodes['axon']
+
+    @property
+    def basal(self):
+        return self.nodes['basal']
+
+    @property
+    def apical(self):
+        return self.nodes['apical']
+
+    @property
+    def trunk(self):
+        return self.nodes['trunk']
+
+    @property
+    def tuft(self):
+        return self.nodes['tuft']
+
+    @property
+    def spine(self):
+        return self.nodes['spine_head']
+
+    @property
+    def spine_head(self):
+        return self.nodes['spine_head']
+
+    @property
+    def spine_neck(self):
+        return self.nodes['spine_neck']
+
+    @property
+    def ais(self):
+        return self.nodes['ais']
+
+    @property
+    def hillock(self):
+        return self.nodes['hillock']
+
+
+
+class SCneuron(object):
+    """
+    Single-compartment biophysical neuron model for simulation in NEURON.
+    Conforms to the same API as BiophysCell.
+    """
+    def __init__(self, gid, pop_name, env=None, mech_dict=None, mech_file_path=None):
+        """
+
+        :param gid: int
+        :param pop_name: str
+        :param env: :class:'Env'
+        :param mech_dict: dict
+        """
+        self._gid = gid
+        self._pop_name = pop_name
+        self.tree = nx.DiGraph()
+        self.count = 0  # Keep track of number of nodes
+        if env is not None:
+            for sec_type in env.SWC_Types:
+                if sec_type not in default_ordered_sec_types:
+                    raise AttributeError('Warning! unexpected SWC Type definitions found in Env')
+        self.nodes = {key: [] for key in default_ordered_sec_types}
+        self.mech_file_path = mech_file_path
+        self.init_mech_dict = dict(mech_dict) if mech_dict is not None else None
+        self.mech_dict = dict(mech_dict) if mech_dict is not None else None
+
+        if (mech_dict is None) and (mech_file_path is not None):
+            import_mech_dict_from_file(self, self.mech_file_path)
+        elif mech_dict is None:
+            # Allows for a cell to be created and for a new mech_dict to be constructed programmatically from scratch
+            self.init_mech_dict = dict()
+            self.mech_dict = dict()
+        
+        self.random = np.random.RandomState()
+        self.random.seed(self.gid)
+        self.spike_detector = None
+        self.spike_onset_delay = 0.
+        self.is_reduced = True
+
+        SC_nrn = h.SC_nrn()
+
+        self.hoc_cell = SC_nrn
+        soma_node = insert_section_node(self, 'soma', index=0, sec=SC_nrn.soma)
+
+        
+        init_cable(self)
+        init_spike_detector(self)
+
+
+    @property
+    def gid(self):
+        return self._gid
+
+    @property
+    def pop_name(self):
+        return self._pop_name
+
+    @property
+    def soma(self):
+        return self.nodes['soma']
+
+    @property
+    def axon(self):
+        return self.nodes['axon']
+
+    @property
+    def basal(self):
+        return self.nodes['basal']
+
+    @property
+    def apical(self):
+        return self.nodes['apical']
+
+    @property
+    def trunk(self):
+        return self.nodes['trunk']
+
+    @property
+    def tuft(self):
+        return self.nodes['tuft']
+
+    @property
+    def spine(self):
+        return self.nodes['spine_head']
+
+    @property
+    def spine_head(self):
+        return self.nodes['spine_head']
+
+    @property
+    def spine_neck(self):
+        return self.nodes['spine_neck']
+
+    @property
+    def ais(self):
+        return self.nodes['ais']
+
+    @property
+    def hillock(self):
+        return self.nodes['hillock']
+
+
+    
+    
 class BiophysCell:
     """
     A Python wrapper for neuronal cell objects specified in the NEURON language hoc.
@@ -338,6 +564,7 @@ def insert_section_node(cell, section_type, index, sec, content=None):
     cell.nodes[section_type].append(node)
     return node
 
+
 def insert_section_tree(cell, sec_list, sec_dict, parent=None, connect_hoc_sections=False):
     sec_stack = []
     for sec in sec_list:
@@ -448,7 +675,7 @@ def reset_cable_by_node(cell, node, verbose=True):
     if sec_type in cell.mech_dict and 'cable' in cell.mech_dict[sec_type]:
         mech_content = cell.mech_dict[sec_type]['cable']
         if mech_content is not None:
-            update_mechanisms_by_node(cell, node, 'cable', mech_content, verbose=verbose)
+            update_mechanism_by_node(cell, node, 'cable', mech_content, verbose=verbose)
     else:
         init_nseg(node.section, verbose=verbose)
         reinit_diam(node.section, node.diam_bounds)
@@ -540,6 +767,27 @@ def init_spike_detector(cell, node=None, distance=100., threshold=-30, delay=0.0
 
     return cell.spike_detector
 
+def update_biophysics_by_sec_type(cell, sec_type, reset_cable=False, verbose=False):
+    """
+    This method loops through all sections of the specified type, and consults the mechanism dictionary to update
+    mechanism properties. If the reset_cable flag is True, cable parameters are re-initialized first, then the
+    ion channel mechanisms are updated.
+
+    :param cell: :class:'BiophysCell'
+    :param sec_type: str
+    :param reset_cable: bool
+    """
+    if sec_type in cell.nodes:
+        if reset_cable:
+            # cable properties must be set first, as they can change nseg, which will affect insertion of membrane
+            # mechanism gradients
+            for node in cell.nodes[sec_type]:
+                reset_cable_by_node(cell, node, verbose=verbose)
+        if sec_type in cell.mech_dict:
+            for node in cell.nodes[sec_type]:
+                for mech_name in (mech_name for mech_name in cell.mech_dict[sec_type]
+                                  if mech_name not in ['cable', 'synapses']):
+                    update_mechanism_by_node(cell, node, mech_name, cell.mech_dict[sec_type][mech_name])
 
 def update_mechanism_by_node(cell, node, mech_name, mech_content=None, verbose=True):
     """
@@ -552,10 +800,16 @@ def update_mechanism_by_node(cell, node, mech_name, mech_content=None, verbose=T
     :param verbose: bool
     """
     if mech_content is not None:
-        for param_name in mech_content:
-            # process a list of dicts specifying rules for a single parameter
+        # process either a dict, or a list of dicts specifying rules for a single parameter
+        if isinstance(mech_content, dict):
+            for param_name in mech_content:
+                apply_mech_rules(cell, node, mech_name, param_name, mech_content[param_name], verbose=verbose)
+        elif isinstance(mech_content, list):
             for mech_content_entry in mech_content[param_name]:
                 apply_mech_rules(cell, node, mech_name, param_name, mech_content_entry, verbose=verbose)
+        else:
+            raise RuntimeError('update_mechanism_by_node: unknown mechanism rule structure')
+                    
     else:
         node.section.insert(mech_name)
 
@@ -576,7 +830,7 @@ def apply_mech_rules(cell, node, mech_name, param_name, rules, verbose=True):
 
     if mech_name == 'cable':
         setattr(node.sec, param_name, baseline)
-        init_nseg(node.section, get_spatial_res(cell, node), verbose=verbose)
+        init_nseg(node.section, verbose=verbose)
         reinit_diam(node.section, node.diam_bounds)
     else:
         set_mech_param(cell, node, mech_name, param_name, baseline, rules)
@@ -591,15 +845,12 @@ def set_mech_param(cell, node, mech_name, param_name, baseline, rules):
     :param baseline: float
     :param rules: dict
     """
-    if mech_name == 'ions':
-        setattr(node.sec, param_name, baseline)
-    else:
-        try:
-            node.sec.insert(mech_name)
-        except Exception:
-            raise RuntimeError(f'set_mech_param: unable to insert mechanism: {mech_name} cell: {cell} '
-                               f'in sec_type: {node.section_type}')
-        setattr(node.sec, f'{param_name}_{mech_name}', baseline)
+    try:
+        node.sec.insert(mech_name)
+    except Exception:
+        raise RuntimeError(f'set_mech_param: unable to insert mechanism: {mech_name} cell: {cell} '
+                           f'in sec_type: {node.section_type}')
+    setattr(node.sec, f'{param_name}_{mech_name}', baseline)
 
 
 def filter_nodes(cell, sections=None, layers=None, swc_types=None):
@@ -1101,6 +1352,93 @@ def make_biophys_cell(env, population_name, gid,
 
     env.biophys_cells[population_name][gid] = cell
 
+    return cell
+
+
+def make_PR_cell(env, pop_name, gid, mech_file_path=None, mech_dict=None,
+                 tree_dict=None,  load_synapses=False, synapses_dict=None, 
+                 load_edges=False, connection_graph=None,
+                 load_weights=False, weight_dict=None, 
+                 set_edge_delays=True, bcast_template=True, **kwargs):
+    """
+    :param env: :class:'Env'
+    :param pop_name: str
+    :param gid: int
+    :param mech_file_path: str (path)
+    :param mech_dict: dict
+    :param synapses_dict: dict
+    :param weight_dicts: list of dict
+    :param load_synapses: bool
+    :param load_edges: bool
+    :param load_weights: bool
+    :param set_edge_delays: bool
+    :return: :class:'PRneuron'
+    """
+    load_cell_template(env, pop_name, bcast_template=bcast_template)
+
+    if mech_dict is None and mech_file_path is None:
+        raise RuntimeError('make_PR_cell: mech_dict or mech_file_path must be specified')
+
+    if mech_dict is None and mech_file_path is not None:
+        mech_dict = read_from_yaml(mech_file_path)
+
+    cell = PRneuron(gid=gid, pop_name=pop_name, env=env,
+                    cell_config=PRconfig(**mech_dict['PinskyRinzel']),
+                    mech_dict={ k: mech_dict[k] for k in mech_dict if k != 'PinskyRinzel' })
+
+    circuit_flag = load_edges or load_weights or load_synapses or synapses_dict or weight_dict or connection_graph
+    if circuit_flag:
+        init_circuit_context(env, pop_name, gid, 
+                             load_synapses=load_synapses,
+                             synapses_dict=synapses_dict,
+                             load_edges=load_edges, connection_graph=connection_graph,
+                             load_weights=load_weights, weight_dict=weight_dict, 
+                             set_edge_delays=set_edge_delays, **kwargs)
+        
+    env.biophys_cells[pop_name][gid] = cell
+    return cell
+
+
+def make_SC_cell(env, pop_name, gid, mech_file_path=None, mech_dict=None,
+                 tree_dict=None,  load_synapses=False, synapses_dict=None, 
+                 load_edges=False, connection_graph=None,
+                 load_weights=False, weight_dict=None, 
+                 set_edge_delays=True, bcast_template=True, **kwargs):
+    """
+    :param env: :class:'Env'
+    :param pop_name: str
+    :param gid: int
+    :param mech_file_path: str (path)
+    :param mech_dict: dict
+    :param synapses_dict: dict
+    :param weight_dicts: list of dict
+    :param load_synapses: bool
+    :param load_edges: bool
+    :param load_weights: bool
+    :param set_edge_delays: bool
+    :return: :class:'SCneuron'
+    """
+    load_cell_template(env, pop_name, bcast_template=bcast_template)
+
+    if mech_dict is None and mech_file_path is None:
+        raise RuntimeError('make_SC_cell: mech_dict or mech_file_path must be specified')
+
+    if mech_dict is None and mech_file_path is not None:
+        mech_dict = read_from_yaml(mech_file_path)
+
+    cell = SCneuron(gid=gid, pop_name=pop_name, env=env,
+                    mech_dict=mech_dict)
+
+    circuit_flag = load_edges or load_weights or load_synapses or synapses_dict or weight_dict or connection_graph
+    if circuit_flag:
+        init_circuit_context(env, pop_name, gid, 
+                             load_synapses=load_synapses,
+                             synapses_dict=synapses_dict,
+                             load_edges=load_edges, connection_graph=connection_graph,
+                             load_weights=load_weights, weight_dict=weight_dict, 
+                             set_edge_delays=set_edge_delays, **kwargs)
+        
+    env.biophys_cells[pop_name][gid] = cell
     return cell
 
 
