@@ -1,5 +1,5 @@
 ## Model configuration of microcircuit network
-Model Name: Microcircuit_Basis
+Model Name: Microcircuit_PYR
 Dataset Name: Microcircuit
 Definitions: !include Definitions.yaml
 Global Parameters: !include Global.yaml
@@ -7,6 +7,8 @@ Geometry: !include Geometry.yaml
 Random Seeds: !include Random.yaml
 Connection Generator: !include Microcircuit_Connections.yaml
 Recording: !include Recording.yaml
+Cell Data: MiV_Cells_Microcircuit_20220412.h5
+Connection Data: MiV_Connections_Microcircuit_20220412.h5
 Stimulus: !include Input_Configuration.yaml
 Analysis: !include Analysis_Configuration.yaml
 Cell Types:
@@ -26,5 +28,5 @@ Cell Types:
   STIM:
     template: VecStim
     spike train:
-      namespace: Input Spikes
+      namespace: MNIST
       attribute: Spike Train

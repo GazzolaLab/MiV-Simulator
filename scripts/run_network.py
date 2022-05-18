@@ -33,7 +33,7 @@ sys.excepthook = mpi_excepthook
 
 
 @click.command()
-@click.option("--arena-id", required=True, type=str,
+@click.option("--arena-id", required=False, type=str,
               help='name of arena used for stimulus')
 @click.option("--cell-selection-path", required=False, type=click.Path(exists=True, file_okay=True, dir_okay=False),
               help='name of file specifying subset of cells gids to be instantiated')

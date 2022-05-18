@@ -33,10 +33,10 @@ Synapses:
           tau_rise: 0.5
           tau_decay: 3.0
           e: 0
-          g_unit: 0.0001
+          g_unit: 0.00001
           weight: 1.0
         NMDA:
-          g_unit: 0.0001
+          g_unit: 0.00001
           weight: 1.0
     PVBC:   
       type: inhibitory
@@ -48,7 +48,7 @@ Synapses:
           tau_rise: 0.30
           tau_decay: 6.2
           e: -60
-          g_unit: 0.0033
+          g_unit: 0.005
           weight: 1.0
     OLM:   
       type: inhibitory
@@ -85,7 +85,7 @@ Synapses:
           tau_rise: 0.5
           tau_decay: 3.0
           e: 0
-          g_unit: 0.00033
+          g_unit: 0.0002
           weight: 0.1
     PVBC:   
       type: inhibitory
