@@ -3,17 +3,27 @@
 ## Load configuration and instantiate env.
 ##
 
-import os, sys, os.path, itertools, random, pickle, logging, click, gc
+import gc
+import itertools
+import logging
 import math
-from mpi4py import MPI
+import os
+import os.path
+import pickle
+import random
+import sys
+
+import click
 import h5py
 import numpy as np
-from neuroh5.io import append_cell_attributes, read_population_ranges
 from MiV.env import Env
-from MiV.utils import get_script_logger, config_logging, list_find, viewitems
+from MiV.utils import config_logging, get_script_logger, list_find, viewitems
+from mpi4py import MPI
+from neuroh5.io import append_cell_attributes, read_population_ranges
 
 script_name = os.path.basename(__file__)
 logger = get_script_logger(script_name)
+
 
 def mpi_excepthook(type, value, traceback):
     """
@@ -31,26 +41,32 @@ def mpi_excepthook(type, value, traceback):
 sys_excepthook = sys.excepthook
 sys.excepthook = mpi_excepthook
 
-def random_subset( iterator, K ):
+
+def random_subset(iterator, K):
     result = []
     N = 0
 
     for item in iterator:
         N += 1
-        if len( result ) < K:
-            result.append( item )
+        if len(result) < K:
+            result.append(item)
         else:
             s = int(random.random() * N)
             if s < K:
-                result[ s ] = item
+                result[s] = item
 
     return result
 
 
 @click.command()
 @click.option("--config", required=True, type=str)
-@click.option("--config-prefix", required=False, type=click.Path(exists=True, file_okay=False, dir_okay=True), default="config")
-@click.option("--verbose", '-v', type=bool, default=False, is_flag=True)
+@click.option(
+    "--config-prefix",
+    required=False,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default="config",
+)
+@click.option("--verbose", "-v", type=bool, default=False, is_flag=True)
 def main(config, config_prefix, verbose):
 
     config_logging(verbose)
@@ -59,9 +75,19 @@ def main(config, config_prefix, verbose):
     comm = MPI.COMM_WORLD
     rank = comm.rank
     size = comm.size
-    
+
     env = Env(comm=comm, config_file=config, config_prefix=config_prefix)
 
 
-if __name__ == '__main__':
-    main(args=sys.argv[(list_find(lambda x: os.path.basename(x) == os.path.basename(__file__), sys.argv)+1):])
+if __name__ == "__main__":
+    main(
+        args=sys.argv[
+            (
+                list_find(
+                    lambda x: os.path.basename(x) == os.path.basename(__file__),
+                    sys.argv,
+                )
+                + 1
+            ) :
+        ]
+    )
