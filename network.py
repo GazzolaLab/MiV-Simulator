@@ -1001,7 +1001,7 @@ def make_input_cell_selection(env):
             env.node_allocation.add(gid)
 
 def merge_spiketrain_trials(spiketrain, trial_index, trial_duration, n_trials):
-    if trial_index is not None:
+    if (trial_index is not None) and (trial_duration is not None):
         trial_spiketrains = []
         for trial_i in range(n_trials):
             trial_spiketrain_i = spiketrain[np.where(trial_index == trial_i)[0]]
@@ -1040,64 +1040,76 @@ def init_input_cells(env):
             vecstim_attr = env.celltypes[pop_name]['spike train']['attribute']
 
             has_vecstim = False
-            if env.cell_attribute_info is not None:
+            vecstim_source_loc = []
+            if (env.spike_input_attribute_info is not None) and (env.spike_input_ns is not None):
+                if (pop_name in env.spike_input_attribute_info) and \
+                   (env.spike_input_ns in env.spike_input_attribute_info[pop_name]):
+                   has_vecstim = True
+                   vecstim_source_loc.append((env.spike_input_path, env.spike_input_ns, env.spike_input_attr))
+            if (env.cell_attribute_info is not None) and (vecstim_namespace is not None):
                 if (pop_name in env.cell_attribute_info) and \
                    (vecstim_namespace in env.cell_attribute_info[pop_name]):
-                     has_vecstim = True
+                    has_vecstim = True
+                    vecstim_source_loc.append((input_file_path, vecstim_namespace, vecstim_attr))
 
             if has_vecstim:
-                if rank == 0:
-                    logger.info(f"*** Initializing stimulus population {pop_name} from namespace {vecstim_namespace}")
 
-                if env.cell_selection is None:
-                    if env.node_allocation is None:
-                        cell_vecstim_dict = scatter_read_cell_attributes(input_file_path, pop_name,
-                                                                         namespaces=[vecstim_namespace],
-                                                                         mask={vecstim_attr, trial_index_attr, trial_dur_attr},
-                                                                         comm=env.comm, io_size=env.io_size,
-                                                                         return_type='tuple')
+                for (input_path, input_ns, input_attr) in vecstim_source_loc:
+
+                    if rank == 0:
+                        logger.info(f"*** Initializing stimulus population {pop_name} from input path {input_path} namespace {vecstim_namespace}")
+
+                        
+                    if env.cell_selection is None:
+                        if env.node_allocation is None:
+                            cell_vecstim_dict = scatter_read_cell_attributes(input_path, pop_name,
+                                                                             namespaces=[input_ns],
+                                                                             mask={input_attr, vecstim_attr, trial_index_attr, trial_dur_attr},
+                                                                             comm=env.comm, io_size=env.io_size,
+                                                                             return_type='tuple')
+                        else:
+                            cell_vecstim_dict = scatter_read_cell_attributes(input_path, pop_name,
+                                                                             namespaces=[input_ns],
+                                                                             node_allocation=env.node_allocation,
+                                                                             mask={input_attr, vecstim_attr, trial_index_attr, trial_dur_attr},
+                                                                             comm=env.comm, io_size=env.io_size,
+                                                                             return_type='tuple')
+                        
+                        vecstim_iter, vecstim_attr_info = cell_vecstim_dict[input_ns]
                     else:
-                        cell_vecstim_dict = scatter_read_cell_attributes(input_file_path, pop_name,
-                                                                         namespaces=[vecstim_namespace],
-                                                                         node_allocation=env.node_allocation,
-                                                                         mask={vecstim_attr, trial_index_attr, trial_dur_attr},
-                                                                         comm=env.comm, io_size=env.io_size,
-                                                                         return_type='tuple')
-                    vecstim_iter, vecstim_attr_info = cell_vecstim_dict[vecstim_namespace]
-                else:
-                    if pop_name in env.cell_selection:
-                        gid_range = [gid for gid in env.cell_selection[pop_name] if env.pc.gid_exists(gid)]
-                        vecstim_iter, vecstim_attr_info = scatter_read_cell_attribute_selection(input_file_path, \
-                                                                                                pop_name, gid_range, \
-                                                                                                namespace=vecstim_namespace, \
-                                                                                                selection=list(gid_range), \
-                                                                                                mask={vecstim_attr, trial_index_attr, trial_dur_attr}, \
-                                                                                                comm=env.comm, io_size=env.io_size, return_type='tuple')
-                    else:
-                        vecstim_iter = []
+                        if pop_name in env.cell_selection:
+                            gid_range = [gid for gid in env.cell_selection[pop_name] if env.pc.gid_exists(gid)]
+                            vecstim_iter, vecstim_attr_info = scatter_read_cell_attribute_selection(input_path, \
+                                                                                                    pop_name, gid_range, \
+                                                                                                    namespace=input_ns, \
+                                                                                                    selection=list(gid_range), \
+                                                                                                    mask={input_attr, vecstim_attr, trial_index_attr, trial_dur_attr}, \
+                                                                                                    comm=env.comm, io_size=env.io_size, return_type='tuple')
+                        else:
+                            vecstim_iter = []
 
-                vecstim_attr_index = vecstim_attr_info.get(vecstim_attr, None)
-                trial_index_attr_index = vecstim_attr_info.get(trial_index_attr, None)
-                trial_dur_attr_index = vecstim_attr_info.get(trial_dur_attr, None)
-                for (gid, vecstim_tuple) in vecstim_iter:
-                    if not (env.pc.gid_exists(gid)):
-                        continue
+                    vecstim_attr_index = vecstim_attr_info.get(vecstim_attr, None)
+                    trial_index_attr_index = vecstim_attr_info.get(trial_index_attr, None)
+                    trial_dur_attr_index = vecstim_attr_info.get(trial_dur_attr, None)
+                    for (gid, vecstim_tuple) in vecstim_iter:
+                        if not (env.pc.gid_exists(gid)):
+                            continue
 
-                    cell = env.artificial_cells[pop_name][gid]
+                        cell = env.artificial_cells[pop_name][gid]
 
-                    spiketrain = vecstim_tuple[vecstim_attr_index]
-                    trial_index = None
-                    trial_duration = None
-                    if trial_index_attr_index is not None:
-                        trial_index = vecstim_tuple[trial_index_attr_index]
-                        trial_duration = vecstim_tuple[trial_dur_attr_index]
-                    if len(spiketrain) > 0:
-                        spiketrain = merge_spiketrain_trials(spiketrain, trial_index, trial_duration, env.n_trials)
-                        spiketrain += float(env.stimulus_config['Equilibration Duration']) + env.stimulus_onset
+                        spiketrain = vecstim_tuple[vecstim_attr_index]
+                        trial_duration = None
+                        trial_index = None
+                        if trial_index_attr_index is not None:
+                            trial_index = vecstim_tuple[trial_index_attr_index]
+                            trial_duration = vecstim_tuple[trial_dur_attr_index]
                         if len(spiketrain) > 0:
-                            cell.play(h.Vector(spiketrain.astype(np.float64)))
-                            if rank == 0:
-                                logger.info(f"*** Spike train for {pop_name} gid {gid} is of length {len(spiketrain)} ({spiketrain[0]} : {spiketrain[-1]} ms)")
+                            spiketrain = merge_spiketrain_trials(spiketrain, trial_index, trial_duration, env.n_trials)
+                            spiketrain += float(env.stimulus_config['Equilibration Duration']) + env.stimulus_onset
+                            if len(spiketrain) > 0:
+                                cell.play(h.Vector(spiketrain.astype(np.float64)))
+                                if rank == 0:
+                                    logger.info(f"*** Spike train for {pop_name} gid {gid} is of length {len(spiketrain)} ({spiketrain[0]} : {spiketrain[-1]} ms)")
 
 
     gc.collect()
