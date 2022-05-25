@@ -1,0 +1,13 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.3.0
+    hooks:
+      - id: trailing-whitespace
+      - id: check-json
+      - id: end-of-file-fixer
+      - id: requirements-txt-fixer
+  - repo: https://github.com/psf/black
+    rev: stable
+    hooks:
+      - id: black
+        additional_dependencies: ["click==8.0.4"]

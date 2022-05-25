@@ -1,14 +1,36 @@
-import os, itertools, pprint, gc
+import gc
+import itertools
+import os
+import pprint
 from collections import defaultdict
-from mpi4py import MPI
+
 import h5py
 import numpy as np
-from MiV.utils import Struct, viewitems, Iterable, compose_iter, get_module_logger, get_trial_time_ranges
-from neuroh5.io import read_cell_attributes, write_cell_attributes, append_cell_attributes, read_cell_attribute_info, scatter_read_tree_selection, append_cell_trees, scatter_read_cell_attribute_selection, scatter_read_graph_selection, write_graph
+from MiV.utils import (
+    Iterable,
+    Struct,
+    compose_iter,
+    get_module_logger,
+    get_trial_time_ranges,
+    viewitems,
+)
+from mpi4py import MPI
+from neuroh5.io import (
+    append_cell_attributes,
+    append_cell_trees,
+    read_cell_attribute_info,
+    read_cell_attributes,
+    scatter_read_cell_attribute_selection,
+    scatter_read_graph_selection,
+    scatter_read_tree_selection,
+    write_cell_attributes,
+    write_graph,
+)
 
 
 def set_union(a, b, datatype):
     return a.union(b)
+
 
 mpi_op_set_union = MPI.Op.Create(set_union, commute=True)
 
@@ -16,23 +38,30 @@ mpi_op_set_union = MPI.Op.Create(set_union, commute=True)
 logger = get_module_logger(__name__)
 
 
-grp_h5types = 'H5Types'
-grp_projections = 'Projections'
-grp_populations = 'Populations'
+grp_h5types = "H5Types"
+grp_projections = "Projections"
+grp_populations = "Populations"
 
-path_population_labels = '/%s/Population labels' % grp_h5types
-path_population_range = '/%s/Population range' % grp_h5types
+path_population_labels = "/%s/Population labels" % grp_h5types
+path_population_range = "/%s/Population range" % grp_h5types
 
-grp_population_projections = 'Population projections'
-grp_valid_population_projections = 'Valid population projections'
-path_population_projections = '/%s/Population projections' % grp_h5types
+grp_population_projections = "Population projections"
+grp_valid_population_projections = "Valid population projections"
+path_population_projections = "/%s/Population projections" % grp_h5types
 
 # Default I/O configuration
-default_io_options = Struct(io_size=-1, chunk_size=1000, value_chunk_size=1000, cache_size=50, write_size=10000)
+default_io_options = Struct(
+    io_size=-1,
+    chunk_size=1000,
+    value_chunk_size=1000,
+    cache_size=50,
+    write_size=10000,
+)
 
 
 def list_concat(a, b, datatype):
-    return a+b
+    return a + b
+
 
 mpi_op_concat = MPI.Op.Create(list_concat, commute=True)
 
@@ -67,17 +96,17 @@ def show_celltypes(input_path, output=print):
 
         dt_population_labels = h5[path_population_labels]
         enum_dtype_dict = h5py.h5t.check_enum_dtype(dt_population_labels.dtype)
-        population_idx_dict = { enum_dtype_dict[k]: k for k in enum_dtype_dict }
+        population_idx_dict = {enum_dtype_dict[k]: k for k in enum_dtype_dict}
 
         g = h5_get_group(h5, grp_h5types)
 
         populations = h5_get_dataset(g, grp_populations)
-        output (f"{'Name':<10} {'Start':<8} {'Count':<8}")
-        output (f"{'====':<10} {'=====':<8} {'=====':<8}")
+        output(f"{'Name':<10} {'Start':<8} {'Count':<8}")
+        output(f"{'====':<10} {'=====':<8} {'=====':<8}")
         for i in range(len(populations)):
             start, count, idx = populations[i]
             name = population_idx_dict[idx]
-            output (f"{name:<10} {start:<8} {count:<8}")
+            output(f"{name:<10} {start:<8} {count:<8}")
 
     h5.close()
 
@@ -88,14 +117,14 @@ def import_celltypes(celltype_path, output_path):
 
     population_dict = {}
 
-    with open(celltype_path, mode='r') as infile:
+    with open(celltype_path, mode="r") as infile:
 
         reader = csv.DictReader(infile, delimiter="\t")
         for row in reader:
-            celltype = row['celltype']
-            type_index = int(row['typeIndex'])
-            range_start = int(row['rangeStart'])
-            range_end = int(row['rangeEnd'])
+            celltype = row["celltype"]
+            type_index = int(row["typeIndex"])
+            range_start = int(row["rangeStart"])
+            range_end = int(row["rangeEnd"])
             count = range_end - range_start + 1
             population_dict[celltype] = (type_index, count)
 
@@ -115,8 +144,13 @@ def import_celltypes(celltype_path, output_path):
 
         h5[path_population_labels] = dt_population_labels
 
-        dt_populations = np.dtype([("Start", np.uint64), ("Count", np.uint32),
-                                   ("Population", h5[path_population_labels].dtype)])
+        dt_populations = np.dtype(
+            [
+                ("Start", np.uint64),
+                ("Count", np.uint32),
+                ("Population", h5[path_population_labels].dtype),
+            ]
+        )
         h5[path_population_range] = dt_populations
 
         # create an HDF5 compound type for population ranges
@@ -124,14 +158,16 @@ def import_celltypes(celltype_path, output_path):
 
         g = h5_get_group(h5, grp_h5types)
 
-        dset = h5_get_dataset(g, grp_populations, maxshape=(len(populations),), dtype=dt)
+        dset = h5_get_dataset(
+            g, grp_populations, maxshape=(len(populations),), dtype=dt
+        )
         dset.resize((len(populations),))
         a = np.zeros(len(populations), dtype=dt)
         start = 0
         for name, idx, count in populations:
-            a[idx-min_pop_idx]["Start"] = start
-            a[idx-min_pop_idx]["Count"] = count
-            a[idx-min_pop_idx]["Population"] = idx
+            a[idx - min_pop_idx]["Start"] = start
+            a[idx - min_pop_idx]["Count"] = count
+            a[idx - min_pop_idx]["Population"] = idx
             start += count
         dset[:] = a
 
@@ -139,7 +175,15 @@ def import_celltypes(celltype_path, output_path):
     return populations
 
 
-def import_spikeraster(celltype_path, spikeraster_path, output_path, output_npy=False, namespace="Spike Data", progress=False, comm=None):
+def import_spikeraster(
+    celltype_path,
+    spikeraster_path,
+    output_path,
+    output_npy=False,
+    namespace="Spike Data",
+    progress=False,
+    comm=None,
+):
 
     if progress:
         import tqdm
@@ -153,25 +197,29 @@ def import_spikeraster(celltype_path, spikeraster_path, output_path, output_npy=
     start = 0
     pop_range_bins = []
     for name, idx, count in populations[:-1]:
-        pop_range_bins.append(start+count)
-        start = start+count
+        pop_range_bins.append(start + count)
+        start = start + count
 
-    logger.info(f"populations: {populations} total: {start} pop_range_bins: {pop_range_bins}")
+    logger.info(
+        f"populations: {populations} total: {start} pop_range_bins: {pop_range_bins}"
+    )
 
     logger.info(f"Reading spike data from file {spikeraster_path}...")
 
-    if spikeraster_path.endswith('.npy'):
+    if spikeraster_path.endswith(".npy"):
         spike_array = np.load(spikeraster_path)
     else:
-        spike_array = np.loadtxt(spikeraster_path, dtype=np.dtype([("time", np.float32),
-                                                                   ("gid", np.uint32)]))
+        spike_array = np.loadtxt(
+            spikeraster_path,
+            dtype=np.dtype([("time", np.float32), ("gid", np.uint32)]),
+        )
 
     if output_npy:
-        np.save(f'{spikeraster_path}.npy', spike_array)
+        np.save(f"{spikeraster_path}.npy", spike_array)
 
     logger.info(f"Done reading spike data from file {spikeraster_path}")
 
-    gid_array = spike_array['gid']
+    gid_array = spike_array["gid"]
     gid_bins = np.digitize(gid_array, np.asarray(pop_range_bins))
 
     pop_spk_dict = defaultdict(lambda: defaultdict(list))
@@ -191,11 +239,20 @@ def import_spikeraster(celltype_path, spikeraster_path, output_path, output_npy=
     for pop_name, _, _ in populations:
 
         this_spk_dict = pop_spk_dict[pop_name]
-        logger.info(f"Saving spike data for population {pop_name} gid set {sorted(this_spk_dict.keys())}")
-        output_dict = { gid: { 't': np.asarray(spk_ts, dtype=np.float32) } for gid, spk_ts in viewitems(this_spk_dict) }
+        logger.info(
+            f"Saving spike data for population {pop_name} gid set {sorted(this_spk_dict.keys())}"
+        )
+        output_dict = {
+            gid: {"t": np.asarray(spk_ts, dtype=np.float32)}
+            for gid, spk_ts in viewitems(this_spk_dict)
+        }
 
-        write_cell_attributes(output_path, pop_name, output_dict, namespace=namespace, comm=comm)
-        logger.info(f"Saved spike data for population {pop_name} to file {output_path}")
+        write_cell_attributes(
+            output_path, pop_name, output_dict, namespace=namespace, comm=comm
+        )
+        logger.info(
+            f"Saved spike data for population {pop_name} to file {output_path}"
+        )
 
     comm.barrier()
 
@@ -203,7 +260,7 @@ def import_spikeraster(celltype_path, spikeraster_path, output_path, output_npy=
 def make_h5types(env, output_path, gap_junctions=False):
     populations = []
     for pop_name, pop_idx in viewitems(env.Populations):
-        layer_counts = env.geometry['Cell Distribution'][pop_name]
+        layer_counts = env.geometry["Cell Distribution"][pop_name]
         pop_count = 0
         for layer_name, layer_count in viewitems(layer_counts):
             pop_count += layer_count
@@ -218,7 +275,9 @@ def make_h5types(env, output_path, gap_junctions=False):
     else:
         for post, connection_dict in viewitems(env.connection_config):
             for pre, _ in viewitems(connection_dict):
-                projections.append((env.Populations[pre], env.Populations[post]))
+                projections.append(
+                    (env.Populations[pre], env.Populations[post])
+                )
 
     # create an HDF5 enumerated type for the population label
     mapping = {name: idx for name, idx in viewitems(env.Populations)}
@@ -228,8 +287,13 @@ def make_h5types(env, output_path, gap_junctions=False):
 
         h5[path_population_labels] = dt_population_labels
 
-        dt_populations = np.dtype([("Start", np.uint64), ("Count", np.uint32),
-                                   ("Population", h5[path_population_labels].dtype)])
+        dt_populations = np.dtype(
+            [
+                ("Start", np.uint64),
+                ("Count", np.uint32),
+                ("Population", h5[path_population_labels].dtype),
+            ]
+        )
         h5[path_population_range] = dt_populations
 
         # create an HDF5 compound type for population ranges
@@ -237,7 +301,9 @@ def make_h5types(env, output_path, gap_junctions=False):
 
         g = h5_get_group(h5, grp_h5types)
 
-        dset = h5_get_dataset(g, grp_populations, maxshape=(len(populations),), dtype=dt)
+        dset = h5_get_dataset(
+            g, grp_populations, maxshape=(len(populations),), dtype=dt
+        )
         dset.resize((len(populations),))
         a = np.zeros(len(populations), dtype=dt)
         start = 0
@@ -248,14 +314,22 @@ def make_h5types(env, output_path, gap_junctions=False):
             start += count
         dset[:] = a
 
-        dt_projections = np.dtype([("Source", h5[path_population_labels].dtype),
-                                   ("Destination", h5[path_population_labels].dtype)])
+        dt_projections = np.dtype(
+            [
+                ("Source", h5[path_population_labels].dtype),
+                ("Destination", h5[path_population_labels].dtype),
+            ]
+        )
 
         h5[path_population_projections] = dt_projections
 
         dt = h5[path_population_projections]
-        dset = h5_get_dataset(g, grp_valid_population_projections,
-                              maxshape=(len(projections),), dtype=dt)
+        dset = h5_get_dataset(
+            g,
+            grp_valid_population_projections,
+            maxshape=(len(projections),),
+            dtype=dt,
+        )
         dset.resize((len(projections),))
         a = np.zeros(len(projections), dtype=dt)
         idx = 0
@@ -268,6 +342,7 @@ def make_h5types(env, output_path, gap_junctions=False):
 
     h5.close()
 
+
 def mkout(env, results_filename):
     """
     Creates simulation results file and adds H5Types group compatible with NeuroH5.
@@ -276,18 +351,19 @@ def mkout(env, results_filename):
     :param results_filename:
     :return:
     """
-    if 'Cell Data' in env.model_config:
+    if "Cell Data" in env.model_config:
         dataset_path = os.path.join(env.dataset_prefix, env.datasetName)
-        data_file_path = os.path.join(dataset_path, env.model_config['Cell Data'])
-        data_file = h5py.File(data_file_path, 'r')
-        results_file = h5py.File(results_filename, 'a')
-        if 'H5Types' not in results_file:
-            data_file.copy('/H5Types', results_file)
+        data_file_path = os.path.join(
+            dataset_path, env.model_config["Cell Data"]
+        )
+        data_file = h5py.File(data_file_path, "r")
+        results_file = h5py.File(results_filename, "a")
+        if "H5Types" not in results_file:
+            data_file.copy("/H5Types", results_file)
             data_file.close()
             results_file.close()
     else:
         make_h5types(env, results_filename)
-
 
 
 def spikeout(env, output_path, t_start=None, clear_data=False):
@@ -299,19 +375,27 @@ def spikeout(env, output_path, t_start=None, clear_data=False):
     :param clear_data:
     :return:
     """
-    equilibration_duration = float(env.stimulus_config['Equilibration Duration'])
+    equilibration_duration = float(
+        env.stimulus_config["Equilibration Duration"]
+    )
     n_trials = env.n_trials
 
     t_vec = env.t_vec.as_numpy()
     id_vec = np.asarray(env.id_vec.as_numpy(), dtype=np.uint32)
 
-    trial_time_ranges = get_trial_time_ranges(env.t_rec.to_python(), env.n_trials)
-    trial_time_bins = [ t_trial_start for t_trial_start, t_trial_end in trial_time_ranges ]
-    trial_dur = np.asarray([env.tstop + equilibration_duration] * n_trials, dtype=np.float32)
+    trial_time_ranges = get_trial_time_ranges(
+        env.t_rec.to_python(), env.n_trials
+    )
+    trial_time_bins = [
+        t_trial_start for t_trial_start, t_trial_end in trial_time_ranges
+    ]
+    trial_dur = np.asarray(
+        [env.tstop + equilibration_duration] * n_trials, dtype=np.float32
+    )
 
     binlst = []
     typelst = sorted(env.celltypes.keys())
-    binvect = np.asarray([env.celltypes[k]['start'] for k in typelst ])
+    binvect = np.asarray([env.celltypes[k]["start"] for k in typelst])
     sort_idx = np.argsort(binvect, axis=0)
     pop_names = [typelst[i] for i in sort_idx]
     bins = binvect[sort_idx][1:]
@@ -333,26 +417,41 @@ def spikeout(env, output_path, t_start=None, clear_data=False):
                 t = ts[j]
                 if (t_start is None) or (t >= t_start):
                     if gid in spkdict:
-                        spkdict[gid]['t'].append(t)
+                        spkdict[gid]["t"].append(t)
                     else:
-                        spkdict[gid] = {'t': [t]}
+                        spkdict[gid] = {"t": [t]}
             for gid in spkdict:
                 is_artificial = gid in env.artificial_cells[pop_name]
-                spiketrain = np.array(spkdict[gid]['t'], dtype=np.float32)
+                spiketrain = np.array(spkdict[gid]["t"], dtype=np.float32)
                 if gid in env.spike_onset_delay:
                     spiketrain -= env.spike_onset_delay[gid]
                 trial_bins = np.digitize(spiketrain, trial_time_bins) - 1
-                trial_spikes = [np.copy(spiketrain[np.where(trial_bins == trial_i)[0]])
-                                for trial_i in range(n_trials)]
+                trial_spikes = [
+                    np.copy(spiketrain[np.where(trial_bins == trial_i)[0]])
+                    for trial_i in range(n_trials)
+                ]
                 for trial_i, trial_spiketrain in enumerate(trial_spikes):
                     trial_spiketrain = trial_spikes[trial_i]
-                    trial_spiketrain -= np.sum(trial_dur[:(trial_i)]) + equilibration_duration
-                spkdict[gid]['t'] = np.concatenate(trial_spikes)
-                spkdict[gid]['Trial Duration'] = trial_dur
-                spkdict[gid]['Trial Index'] = np.asarray(trial_bins, dtype=np.uint8)
-                spkdict[gid]['artificial'] = np.asarray([1 if is_artificial else 0], dtype=np.uint8)
-        append_cell_attributes(output_path, pop_name, spkdict, namespace=namespace_id, comm=env.comm, io_size=env.io_size)
-        del (spkdict)
+                    trial_spiketrain -= (
+                        np.sum(trial_dur[:(trial_i)]) + equilibration_duration
+                    )
+                spkdict[gid]["t"] = np.concatenate(trial_spikes)
+                spkdict[gid]["Trial Duration"] = trial_dur
+                spkdict[gid]["Trial Index"] = np.asarray(
+                    trial_bins, dtype=np.uint8
+                )
+                spkdict[gid]["artificial"] = np.asarray(
+                    [1 if is_artificial else 0], dtype=np.uint8
+                )
+        append_cell_attributes(
+            output_path,
+            pop_name,
+            spkdict,
+            namespace=namespace_id,
+            comm=env.comm,
+            io_size=env.io_size,
+        )
+        del spkdict
 
     if clear_data:
         env.t_vec.resize(0)
@@ -363,7 +462,14 @@ def spikeout(env, output_path, t_start=None, clear_data=False):
         logger.info("*** Output spike results to file %s" % output_path)
 
 
-def recsout(env, output_path, t_start=None, clear_data=False, write_cell_location_data=False, write_trial_data=False):
+def recsout(
+    env,
+    output_path,
+    t_start=None,
+    clear_data=False,
+    write_cell_location_data=False,
+    write_trial_data=False,
+):
     """
     Writes intracellular state traces to specified NeuroH5 output file.
 
@@ -374,23 +480,35 @@ def recsout(env, output_path, t_start=None, clear_data=False, write_cell_locatio
     :return:
     """
     t_rec = env.t_rec
-    equilibration_duration = float(env.stimulus_config['Equilibration Duration'])
-    reduce_data = env.recording_profile.get('reduce', None)
+    equilibration_duration = float(
+        env.stimulus_config["Equilibration Duration"]
+    )
+    reduce_data = env.recording_profile.get("reduce", None)
     n_trials = env.n_trials
 
-    trial_time_ranges = get_trial_time_ranges(env.t_rec.to_python(), env.n_trials)
-    trial_time_bins = [ t_trial_start for t_trial_start, t_trial_end in trial_time_ranges ]
-    trial_dur = np.asarray([env.tstop + equilibration_duration] * n_trials, dtype=np.float32)
+    trial_time_ranges = get_trial_time_ranges(
+        env.t_rec.to_python(), env.n_trials
+    )
+    trial_time_bins = [
+        t_trial_start for t_trial_start, t_trial_end in trial_time_ranges
+    ]
+    trial_dur = np.asarray(
+        [env.tstop + equilibration_duration] * n_trials, dtype=np.float32
+    )
 
     for pop_name in sorted(env.celltypes.keys()):
         local_rec_types = list(env.recs_dict[pop_name].keys())
-        rec_types = sorted(set(env.comm.allreduce(local_rec_types, op=mpi_op_concat)))
+        rec_types = sorted(
+            set(env.comm.allreduce(local_rec_types, op=mpi_op_concat))
+        )
         for rec_type in rec_types:
             recs = env.recs_dict[pop_name][rec_type]
             attr_dict = defaultdict(lambda: {})
             for rec in recs:
-                gid = rec['gid']
-                data_vec = np.array(rec['vec'], copy=clear_data, dtype=np.float32)
+                gid = rec["gid"]
+                data_vec = np.array(
+                    rec["vec"], copy=clear_data, dtype=np.float32
+                )
                 time_vec = np.array(t_rec, copy=clear_data, dtype=np.float32)
                 if t_start is not None:
                     time_inds = np.where(time_vec >= t_start)[0]
@@ -399,44 +517,66 @@ def recsout(env, output_path, t_start=None, clear_data=False, write_cell_locatio
                 trial_bins = np.digitize(time_vec, trial_time_bins) - 1
                 for trial_i in range(n_trials):
                     trial_inds = np.where(trial_bins == trial_i)[0]
-                    time_vec[trial_inds] -= np.sum(trial_dur[:(trial_i)]) + equilibration_duration
-                label = rec['label']
+                    time_vec[trial_inds] -= (
+                        np.sum(trial_dur[:(trial_i)]) + equilibration_duration
+                    )
+                label = rec["label"]
                 if label in attr_dict[gid]:
                     if reduce_data is None:
-                        raise RuntimeError('recsout: duplicate recorder labels and no reduce strategy specified')
+                        raise RuntimeError(
+                            "recsout: duplicate recorder labels and no reduce strategy specified"
+                        )
                     elif reduce_data is True:
                         attr_dict[gid][label] += data_vec
                     else:
-                        raise RuntimeError('recsout: unsupported reduce strategy specified')
+                        raise RuntimeError(
+                            "recsout: unsupported reduce strategy specified"
+                        )
                 else:
                     attr_dict[gid][label] = data_vec
-                    attr_dict[gid]['t'] = time_vec
+                    attr_dict[gid]["t"] = time_vec
                 if write_trial_data:
-                    attr_dict[gid]['trial duration'] = trial_dur
+                    attr_dict[gid]["trial duration"] = trial_dur
                 if write_cell_location_data:
-                    distance = rec.get('distance', None)
+                    distance = rec.get("distance", None)
                     if distance is not None:
-                        attr_dict[gid]['distance'] = np.asarray([distance], dtype=np.float32)
-                    section = rec.get('section', None)
+                        attr_dict[gid]["distance"] = np.asarray(
+                            [distance], dtype=np.float32
+                        )
+                    section = rec.get("section", None)
                     if section is not None:
-                        attr_dict[gid]['section'] = np.asarray([section], dtype=np.int16)
-                    loc = rec.get('loc', None)
+                        attr_dict[gid]["section"] = np.asarray(
+                            [section], dtype=np.int16
+                        )
+                    loc = rec.get("loc", None)
                     if loc is not None:
-                        attr_dict[gid]['loc'] = np.asarray([loc], dtype=np.float32)
+                        attr_dict[gid]["loc"] = np.asarray(
+                            [loc], dtype=np.float32
+                        )
                 if clear_data:
-                    rec['vec'].resize(0)
+                    rec["vec"].resize(0)
             if env.results_namespace_id is None:
                 namespace_id = "Intracellular %s" % (rec_type)
             else:
-                namespace_id = "Intracellular {} {}".format(rec_type, str(env.results_namespace_id))
-            append_cell_attributes(output_path, pop_name, attr_dict, namespace=namespace_id,
-                                   comm=env.comm, io_size=env.io_size)
+                namespace_id = "Intracellular {} {}".format(
+                    rec_type, str(env.results_namespace_id)
+                )
+            append_cell_attributes(
+                output_path,
+                pop_name,
+                attr_dict,
+                namespace=namespace_id,
+                comm=env.comm,
+                io_size=env.io_size,
+            )
     if clear_data:
         env.t_rec.resize(0)
 
     env.comm.barrier()
     if env.comm.Get_rank() == 0:
-        logger.info("*** Output intracellular state results to file %s" % output_path)
+        logger.info(
+            "*** Output intracellular state results to file %s" % output_path
+        )
 
 
 def lfpout(env, output_path):
@@ -454,14 +594,17 @@ def lfpout(env, output_path):
         if env.results_namespace_id is None:
             namespace_id = "Local Field Potential %s" % str(lfp.label)
         else:
-            namespace_id = "Local Field Potential {} {}".format(str(lfp.label), str(env.results_namespace_id))
+            namespace_id = "Local Field Potential {} {}".format(
+                str(lfp.label), str(env.results_namespace_id)
+            )
         import h5py
-        output = h5py.File(output_path, 'a')
+
+        output = h5py.File(output_path, "a")
 
         grp = output.create_group(namespace_id)
 
-        grp['t'] = np.asarray(lfp.t, dtype=np.float32)
-        grp['v'] = np.asarray(lfp.meanlfp, dtype=np.float32)
+        grp["t"] = np.asarray(lfp.t, dtype=np.float32)
+        grp["v"] = np.asarray(lfp.meanlfp, dtype=np.float32)
 
         output.close()
 
@@ -479,13 +622,13 @@ def get_h5py_attr(attrs, key):
     :return: val with type converted if str or array of str
     """
     if key not in attrs:
-        raise KeyError('get_h5py_attr: invalid key: %s' % key)
+        raise KeyError("get_h5py_attr: invalid key: %s" % key)
     val = attrs[key]
     if isinstance(val, str):
         val = np.string_(val).astype(str)
     elif isinstance(val, Iterable) and len(val) > 0:
         if isinstance(val[0], str):
-            val = np.array(val, dtype='str')
+            val = np.array(val, dtype="str")
     return val
 
 
@@ -502,7 +645,7 @@ def set_h5py_attr(attrs, key, val):
         val = np.string_(val)
     elif isinstance(val, Iterable) and len(val) > 0:
         if isinstance(val[0], str):
-            val = np.array(val, dtype='S')
+            val = np.array(val, dtype="S")
     attrs[key] = val
 
 
@@ -522,24 +665,28 @@ def get_h5py_group(file, hierarchy, create=False):
                 if create:
                     target = target.create_group(key)
                 else:
-                    raise KeyError('get_h5py_group: target: %s does not contain key: %s; valid keys: %s' %
-                                   (target, key, list(target.keys())))
+                    raise KeyError(
+                        "get_h5py_group: target: %s does not contain key: %s; valid keys: %s"
+                        % (target, key, list(target.keys()))
+                    )
             else:
                 target = target[key]
     return target
 
 
-def write_cell_selection(env, write_selection_file_path, populations=None, write_kwds={}):
+def write_cell_selection(
+    env, write_selection_file_path, populations=None, write_kwds={}
+):
     """
     Writes out the data necessary to instantiate the selected cells.
 
     :param env: an instance of the `Env` class
     """
 
-    if 'comm' not in write_kwds:
-        write_kwds['comm'] = env.comm
-    if 'io_size' not in write_kwds:
-        write_kwds['io_size'] = env.io_size
+    if "comm" not in write_kwds:
+        write_kwds["comm"] = env.comm
+    if "io_size" not in write_kwds:
+        write_kwds["io_size"] = env.io_size
 
     rank = int(env.comm.Get_rank())
     nhosts = int(env.comm.Get_size())
@@ -552,53 +699,88 @@ def write_cell_selection(env, write_selection_file_path, populations=None, write
     else:
         pop_names = populations
 
-
     for pop_name in pop_names:
 
-        gid_range = [gid for i, gid in enumerate(env.cell_selection[pop_name]) if i % nhosts == rank]
+        gid_range = [
+            gid
+            for i, gid in enumerate(env.cell_selection[pop_name])
+            if i % nhosts == rank
+        ]
 
         trees_output_dict = {}
         coords_output_dict = {}
         num_cells = 0
-        if (pop_name in env.cell_attribute_info) and ('Trees' in env.cell_attribute_info[pop_name]):
+        if (pop_name in env.cell_attribute_info) and (
+            "Trees" in env.cell_attribute_info[pop_name]
+        ):
             if rank == 0:
                 logger.info("*** Reading trees for population %s" % pop_name)
 
-            cell_tree_iter, _ = scatter_read_tree_selection(data_file_path, pop_name, selection=gid_range, \
-                                                            topology=False, comm=env.comm, io_size=env.io_size)
+            cell_tree_iter, _ = scatter_read_tree_selection(
+                data_file_path,
+                pop_name,
+                selection=gid_range,
+                topology=False,
+                comm=env.comm,
+                io_size=env.io_size,
+            )
             if rank == 0:
-                logger.info("*** Done reading trees for population %s" % pop_name)
+                logger.info(
+                    "*** Done reading trees for population %s" % pop_name
+                )
 
             for i, (gid, tree) in enumerate(cell_tree_iter):
                 trees_output_dict[gid] = tree
                 num_cells += 1
 
-            assert(len(trees_output_dict) == len(gid_range))
+            assert len(trees_output_dict) == len(gid_range)
 
-        elif (pop_name in env.cell_attribute_info) and ('Coordinates' in env.cell_attribute_info[pop_name]):
+        elif (pop_name in env.cell_attribute_info) and (
+            "Coordinates" in env.cell_attribute_info[pop_name]
+        ):
             if rank == 0:
-                logger.info("*** Reading coordinates for population %s" % pop_name)
+                logger.info(
+                    "*** Reading coordinates for population %s" % pop_name
+                )
 
-            cell_attributes_iter = scatter_read_cell_attribute_selection(data_file_path, pop_name, selection=gid_range, \
-                                                                         namespace='Coordinates', comm=env.comm, io_size=env.io_size)
+            cell_attributes_iter = scatter_read_cell_attribute_selection(
+                data_file_path,
+                pop_name,
+                selection=gid_range,
+                namespace="Coordinates",
+                comm=env.comm,
+                io_size=env.io_size,
+            )
 
             if rank == 0:
-                logger.info("*** Done reading coordinates for population %s" % pop_name)
+                logger.info(
+                    "*** Done reading coordinates for population %s" % pop_name
+                )
 
             for i, (gid, coords) in enumerate(cell_attributes_iter):
                 coords_output_dict[gid] = coords
                 num_cells += 1
 
-
         if rank == 0:
-            logger.info(f"*** Writing cell selection for population {pop_name} to file {write_selection_file_path}")
-        append_cell_trees(write_selection_file_path, pop_name, trees_output_dict, **write_kwds)
-        write_cell_attributes(write_selection_file_path, pop_name, coords_output_dict,
-                              namespace='Coordinates', **write_kwds)
+            logger.info(
+                f"*** Writing cell selection for population {pop_name} to file {write_selection_file_path}"
+            )
+        append_cell_trees(
+            write_selection_file_path, pop_name, trees_output_dict, **write_kwds
+        )
+        write_cell_attributes(
+            write_selection_file_path,
+            pop_name,
+            coords_output_dict,
+            namespace="Coordinates",
+            **write_kwds,
+        )
         env.comm.barrier()
 
 
-def write_connection_selection(env, write_selection_file_path, populations=None, write_kwds={}):
+def write_connection_selection(
+    env, write_selection_file_path, populations=None, write_kwds={}
+):
     """
     Loads NeuroH5 connectivity file, and writes the corresponding
     synapse and network connection mechanisms for the selected postsynaptic cells.
@@ -606,11 +788,10 @@ def write_connection_selection(env, write_selection_file_path, populations=None,
     :param env: an instance of the `Env` class
     """
 
-    if 'comm' not in write_kwds:
-        write_kwds['comm'] = env.comm
-    if 'io_size' not in write_kwds:
-        write_kwds['io_size'] = env.io_size
-
+    if "comm" not in write_kwds:
+        write_kwds["comm"] = env.comm
+    if "io_size" not in write_kwds:
+        write_kwds["io_size"] = env.io_size
 
     connectivity_file_path = env.connectivity_file_path
     forest_file_path = env.forest_file_path
@@ -630,31 +811,51 @@ def write_connection_selection(env, write_selection_file_path, populations=None,
         gc.collect()
 
         if rank == 0:
-            logger.info('*** Writing connection selection of population %s' % (postsyn_name))
+            logger.info(
+                "*** Writing connection selection of population %s"
+                % (postsyn_name)
+            )
 
         if postsyn_name not in pop_names:
             continue
 
-        gid_range = [gid for i, gid in enumerate(env.cell_selection[postsyn_name]) if i % nhosts == rank]
+        gid_range = [
+            gid
+            for i, gid in enumerate(env.cell_selection[postsyn_name])
+            if i % nhosts == rank
+        ]
 
-        synapse_config = env.celltypes[postsyn_name]['synapses']
+        synapse_config = env.celltypes[postsyn_name]["synapses"]
 
         weight_dicts = []
         has_weights = False
-        if 'weights' in synapse_config:
+        if "weights" in synapse_config:
             has_weights = True
-            weight_dicts = synapse_config['weights']
+            weight_dicts = synapse_config["weights"]
 
         if rank == 0:
-            logger.info('*** Reading synaptic attributes for population %s' % (postsyn_name))
+            logger.info(
+                "*** Reading synaptic attributes for population %s"
+                % (postsyn_name)
+            )
 
-        syn_attributes_iter = scatter_read_cell_attribute_selection(forest_file_path, postsyn_name, selection=gid_range,
-                                                                    namespace='Synapse Attributes', comm=env.comm,
-                                                                    io_size=env.io_size)
-
+        syn_attributes_iter = scatter_read_cell_attribute_selection(
+            forest_file_path,
+            postsyn_name,
+            selection=gid_range,
+            namespace="Synapse Attributes",
+            comm=env.comm,
+            io_size=env.io_size,
+        )
 
         syn_attributes_output_dict = dict(list(syn_attributes_iter))
-        write_cell_attributes(write_selection_file_path, postsyn_name, syn_attributes_output_dict, namespace='Synapse Attributes', **write_kwds)
+        write_cell_attributes(
+            write_selection_file_path,
+            postsyn_name,
+            syn_attributes_output_dict,
+            namespace="Synapse Attributes",
+            **write_kwds,
+        )
         del syn_attributes_output_dict
         del syn_attributes_iter
 
@@ -662,30 +863,52 @@ def write_connection_selection(env, write_selection_file_path, populations=None,
 
             for weight_dict in weight_dicts:
 
-                weights_namespaces = weight_dict['namespace']
+                weights_namespaces = weight_dict["namespace"]
 
                 if rank == 0:
-                    logger.info('*** Reading synaptic weights of population {} from namespaces {}'.format(postsyn_name, str(weights_namespaces)))
+                    logger.info(
+                        "*** Reading synaptic weights of population {} from namespaces {}".format(
+                            postsyn_name, str(weights_namespaces)
+                        )
+                    )
 
                 for weights_namespace in weights_namespaces:
-                    syn_weights_iter = scatter_read_cell_attribute_selection(forest_file_path, postsyn_name,
-                                                                             namespace=weights_namespace,
-                                                                             selection=gid_range,
-                                                                             comm=env.comm, io_size=env.io_size)
+                    syn_weights_iter = scatter_read_cell_attribute_selection(
+                        forest_file_path,
+                        postsyn_name,
+                        namespace=weights_namespace,
+                        selection=gid_range,
+                        comm=env.comm,
+                        io_size=env.io_size,
+                    )
 
                     weight_attributes_output_dict = dict(list(syn_weights_iter))
-                    write_cell_attributes(write_selection_file_path, postsyn_name, weight_attributes_output_dict,
-                                          namespace=weights_namespace, **write_kwds)
+                    write_cell_attributes(
+                        write_selection_file_path,
+                        postsyn_name,
+                        weight_attributes_output_dict,
+                        namespace=weights_namespace,
+                        **write_kwds,
+                    )
                     del weight_attributes_output_dict
                     del syn_weights_iter
 
+        logger.info(
+            "*** Rank %i: reading connectivity selection from file %s for postsynaptic population: %s: selection: %s"
+            % (rank, connectivity_file_path, postsyn_name, str(gid_range))
+        )
 
-        logger.info('*** Rank %i: reading connectivity selection from file %s for postsynaptic population: %s: selection: %s' % (rank, connectivity_file_path, postsyn_name, str(gid_range)))
-
-        (graph, attr_info) = scatter_read_graph_selection(connectivity_file_path, selection=gid_range, \
-                                                          projections=[ (presyn_name, postsyn_name) for presyn_name in sorted(presyn_names) ], \
-                                                          comm=env.comm, io_size=env.io_size, namespaces=['Synapses', 'Connections'])
-
+        (graph, attr_info) = scatter_read_graph_selection(
+            connectivity_file_path,
+            selection=gid_range,
+            projections=[
+                (presyn_name, postsyn_name)
+                for presyn_name in sorted(presyn_names)
+            ],
+            comm=env.comm,
+            io_size=env.io_size,
+            namespaces=["Synapses", "Connections"],
+        )
 
         for presyn_name in sorted(presyn_names):
             gid_dict = {}
@@ -693,47 +916,80 @@ def write_connection_selection(env, write_selection_file_path, populations=None,
             node_count = 0
             if postsyn_name in graph:
 
-                if postsyn_name in attr_info and presyn_name in attr_info[postsyn_name]:
+                if (
+                    postsyn_name in attr_info
+                    and presyn_name in attr_info[postsyn_name]
+                ):
                     edge_attr_info = attr_info[postsyn_name][presyn_name]
                 else:
-                    raise RuntimeError('write_connection_selection: missing edge attributes for projection %s -> %s' % \
-                                       (presyn_name, postsyn_name))
+                    raise RuntimeError(
+                        "write_connection_selection: missing edge attributes for projection %s -> %s"
+                        % (presyn_name, postsyn_name)
+                    )
 
-                if 'Synapses' in edge_attr_info and \
-                        'syn_id' in edge_attr_info['Synapses'] and \
-                        'Connections' in edge_attr_info and \
-                        'distance' in edge_attr_info['Connections']:
-                    syn_id_attr_index = edge_attr_info['Synapses']['syn_id']
-                    distance_attr_index = edge_attr_info['Connections']['distance']
+                if (
+                    "Synapses" in edge_attr_info
+                    and "syn_id" in edge_attr_info["Synapses"]
+                    and "Connections" in edge_attr_info
+                    and "distance" in edge_attr_info["Connections"]
+                ):
+                    syn_id_attr_index = edge_attr_info["Synapses"]["syn_id"]
+                    distance_attr_index = edge_attr_info["Connections"][
+                        "distance"
+                    ]
                 else:
-                    raise RuntimeError('write_connection_selection: missing edge attributes for projection %s -> %s' % \
-                                           (presyn_name, postsyn_name))
+                    raise RuntimeError(
+                        "write_connection_selection: missing edge attributes for projection %s -> %s"
+                        % (presyn_name, postsyn_name)
+                    )
 
-                edge_iter = compose_iter(lambda edgeset: input_sources[presyn_name].update(edgeset[1][0]), \
-                                         graph[postsyn_name][presyn_name])
+                edge_iter = compose_iter(
+                    lambda edgeset: input_sources[presyn_name].update(
+                        edgeset[1][0]
+                    ),
+                    graph[postsyn_name][presyn_name],
+                )
                 for (postsyn_gid, edges) in edge_iter:
 
                     presyn_gids, edge_attrs = edges
-                    edge_syn_ids = edge_attrs['Synapses'][syn_id_attr_index]
-                    edge_dists = edge_attrs['Connections'][distance_attr_index]
+                    edge_syn_ids = edge_attrs["Synapses"][syn_id_attr_index]
+                    edge_dists = edge_attrs["Connections"][distance_attr_index]
 
-                    gid_dict[postsyn_gid] = (presyn_gids,
-                                             {'Synapses': {'syn_id': edge_syn_ids},
-                                              'Connections': {'distance': edge_dists} })
+                    gid_dict[postsyn_gid] = (
+                        presyn_gids,
+                        {
+                            "Synapses": {"syn_id": edge_syn_ids},
+                            "Connections": {"distance": edge_dists},
+                        },
+                    )
                     edge_count += len(presyn_gids)
                     node_count += 1
 
             env.comm.barrier()
-            logger.info('*** Rank %d: Writing projection %s -> %s selection: %d nodes, %d edges' % (rank, presyn_name, postsyn_name, node_count, edge_count))
-            write_graph(write_selection_file_path, \
-                        src_pop_name=presyn_name, dst_pop_name=postsyn_name, \
-                        edges=gid_dict, comm=env.comm, io_size=env.io_size)
+            logger.info(
+                "*** Rank %d: Writing projection %s -> %s selection: %d nodes, %d edges"
+                % (rank, presyn_name, postsyn_name, node_count, edge_count)
+            )
+            write_graph(
+                write_selection_file_path,
+                src_pop_name=presyn_name,
+                dst_pop_name=postsyn_name,
+                edges=gid_dict,
+                comm=env.comm,
+                io_size=env.io_size,
+            )
             env.comm.barrier()
 
     return input_sources
 
 
-def write_input_cell_selection(env, input_sources, write_selection_file_path, populations=None, write_kwds={}):
+def write_input_cell_selection(
+    env,
+    input_sources,
+    write_selection_file_path,
+    populations=None,
+    write_kwds={},
+):
     """
     Writes out predefined spike trains when only a subset of the network is instantiated.
 
@@ -741,10 +997,10 @@ def write_input_cell_selection(env, input_sources, write_selection_file_path, po
     :param input_sources: a dictionary of the form { pop_name, gid_sources }
     """
 
-    if 'comm' not in write_kwds:
-        write_kwds['comm'] = env.comm
-    if 'io_size' not in write_kwds:
-        write_kwds['io_size'] = env.io_size
+    if "comm" not in write_kwds:
+        write_kwds["comm"] = env.comm
+    if "io_size" not in write_kwds:
+        write_kwds["io_size"] = env.io_size
 
     rank = int(env.comm.Get_rank())
     nhosts = int(env.comm.Get_size())
@@ -766,8 +1022,12 @@ def write_input_cell_selection(env, input_sources, write_selection_file_path, po
 
         spikes_output_dict = {}
 
-        if (env.cell_selection is not None) and (pop_name in env.cell_selection):
-            local_gid_range = gid_range.difference(set(env.cell_selection[pop_name]))
+        if (env.cell_selection is not None) and (
+            pop_name in env.cell_selection
+        ):
+            local_gid_range = gid_range.difference(
+                set(env.cell_selection[pop_name])
+            )
         else:
             local_gid_range = gid_range
 
@@ -777,57 +1037,86 @@ def write_input_cell_selection(env, input_sources, write_selection_file_path, po
             if i % nhosts == rank:
                 this_gid_range.add(gid)
 
-
         has_spike_train = False
         spike_input_source_loc = []
-        if (env.spike_input_attribute_info is not None) and (env.spike_input_ns is not None):
-            if (pop_name in env.spike_input_attribute_info) and \
-                    (env.spike_input_ns in env.spike_input_attribute_info[pop_name]):
+        if (env.spike_input_attribute_info is not None) and (
+            env.spike_input_ns is not None
+        ):
+            if (pop_name in env.spike_input_attribute_info) and (
+                env.spike_input_ns in env.spike_input_attribute_info[pop_name]
+            ):
                 has_spike_train = True
-                spike_input_source_loc.append((env.spike_input_path, env.spike_input_ns))
-        if (env.cell_attribute_info is not None) and (env.spike_input_ns is not None):
-            if (pop_name in env.cell_attribute_info) and \
-                    (env.spike_input_ns in env.cell_attribute_info[pop_name]):
+                spike_input_source_loc.append(
+                    (env.spike_input_path, env.spike_input_ns)
+                )
+        if (env.cell_attribute_info is not None) and (
+            env.spike_input_ns is not None
+        ):
+            if (pop_name in env.cell_attribute_info) and (
+                env.spike_input_ns in env.cell_attribute_info[pop_name]
+            ):
                 has_spike_train = True
-                spike_input_source_loc.append((input_file_path,env.spike_input_ns))
+                spike_input_source_loc.append(
+                    (input_file_path, env.spike_input_ns)
+                )
 
         if rank == 0:
-            logger.info('*** Reading spike trains for population %s: %d cells: has_spike_train = %s' % (pop_name, len(this_gid_range), str(has_spike_train)))
+            logger.info(
+                "*** Reading spike trains for population %s: %d cells: has_spike_train = %s"
+                % (pop_name, len(this_gid_range), str(has_spike_train))
+            )
 
         if has_spike_train:
 
-            vecstim_attr_set = {'t'}
+            vecstim_attr_set = {"t"}
             if env.spike_input_attr is not None:
                 vecstim_attr_set.add(env.spike_input_attr)
-            if 'spike train' in env.celltypes[pop_name]:
-                vecstim_attr_set.add(env.celltypes[pop_name]['spike train']['attribute'])
+            if "spike train" in env.celltypes[pop_name]:
+                vecstim_attr_set.add(
+                    env.celltypes[pop_name]["spike train"]["attribute"]
+                )
 
-            cell_spikes_iters = [ scatter_read_cell_attribute_selection(input_path, pop_name, \
-                                                                        list(this_gid_range), \
-                                                                        namespace=input_ns, \
-                                                                        mask=vecstim_attr_set, \
-                                                                        comm=env.comm, io_size=env.io_size)
-                                  for (input_path, input_ns) in spike_input_source_loc ]
-
+            cell_spikes_iters = [
+                scatter_read_cell_attribute_selection(
+                    input_path,
+                    pop_name,
+                    list(this_gid_range),
+                    namespace=input_ns,
+                    mask=vecstim_attr_set,
+                    comm=env.comm,
+                    io_size=env.io_size,
+                )
+                for (input_path, input_ns) in spike_input_source_loc
+            ]
 
             for cell_spikes_iter in cell_spikes_iters:
                 spikes_output_dict.update(dict(list(cell_spikes_iter)))
 
         if rank == 0:
-            logger.info('*** Writing spike trains for population {}: {}'.format(pop_name, str(spikes_output_dict)))
+            logger.info(
+                "*** Writing spike trains for population {}: {}".format(
+                    pop_name, str(spikes_output_dict)
+                )
+            )
 
-
-        write_cell_attributes(write_selection_file_path, pop_name, spikes_output_dict,  \
-                              namespace=env.spike_input_ns, **write_kwds)
+        write_cell_attributes(
+            write_selection_file_path,
+            pop_name,
+            spikes_output_dict,
+            namespace=env.spike_input_ns,
+            **write_kwds,
+        )
 
 
 def query_cell_attributes(input_file, population_names, namespace_ids=None):
 
     pop_state_dict = {}
 
-    logger.info('Querying cell attribute data...')
+    logger.info("Querying cell attribute data...")
 
-    attr_info_dict = read_cell_attribute_info(input_file, populations=population_names, read_cell_index=True)
+    attr_info_dict = read_cell_attribute_info(
+        input_file, populations=population_names, read_cell_index=True
+    )
 
     namespace_id_lst = []
     for pop_name in attr_info_dict:

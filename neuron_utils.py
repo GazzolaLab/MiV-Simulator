@@ -1,6 +1,10 @@
-import os, os.path, math
+import math
+import os
+import os.path
 from collections import namedtuple
+
 import numpy as np
+
 try:
     from mpi4py import MPI  # Must come before importing NEURON
 except Exception:
@@ -15,30 +19,70 @@ logger = get_module_logger(__name__)
 
 freq = 100  # Hz, frequency at which AC length constant will be computed
 d_lambda = 0.1  # no segment will be longer than this fraction of the AC length constant
-default_ordered_sec_types = ['soma', 'hillock', 'ais', 'axon', 'basal', 'trunk', 'apical', 'tuft', 'spine']
-default_hoc_sec_lists = {'soma': 'somaidx', 'hillock': 'hilidx', 'ais': 'aisidx', 'axon': 'axonidx',
-                         'basal': 'basalidx', 'apical': 'apicalidx', 'trunk': 'trunkidx', 'tuft': 'tuftidx'}
+default_ordered_sec_types = [
+    "soma",
+    "hillock",
+    "ais",
+    "axon",
+    "basal",
+    "trunk",
+    "apical",
+    "tuft",
+    "spine",
+]
+default_hoc_sec_lists = {
+    "soma": "somaidx",
+    "hillock": "hilidx",
+    "ais": "aisidx",
+    "axon": "axonidx",
+    "basal": "basalidx",
+    "apical": "apicalidx",
+    "trunk": "trunkidx",
+    "tuft": "tuftidx",
+}
 
 
-PRconfig = namedtuple('PRconfig', ['pp', 'Ltotal', 'gc',
-                                   'soma_gmax_Na', 
-                                   'soma_gmax_K',
-                                   'soma_g_pas',
-                                   'dend_gmax_Ca',
-                                   'dend_gmax_KCa',
-                                   'dend_gmax_KAHP',
-                                   'dend_g_pas',
-                                   'dend_d_Caconc',
-                                   'global_cm',
-                                   'global_diam',
-                                   'ic_constant',
-                                   'cm_ratio',
-                                   'e_pas',
-                                   'V_rest',
-                                   'V_threshold'])
+PRconfig = namedtuple(
+    "PRconfig",
+    [
+        "pp",
+        "Ltotal",
+        "gc",
+        "soma_gmax_Na",
+        "soma_gmax_K",
+        "soma_g_pas",
+        "dend_gmax_Ca",
+        "dend_gmax_KCa",
+        "dend_gmax_KAHP",
+        "dend_g_pas",
+        "dend_d_Caconc",
+        "global_cm",
+        "global_diam",
+        "ic_constant",
+        "cm_ratio",
+        "e_pas",
+        "V_rest",
+        "V_threshold",
+    ],
+)
 
 
-HocCellInterface = namedtuple('HocCellInterface', ['sections', 'is_art', 'is_reduced', 'soma', 'hillock', 'ais', 'axon', 'basal', 'apical', 'all', 'state'])
+HocCellInterface = namedtuple(
+    "HocCellInterface",
+    [
+        "sections",
+        "is_art",
+        "is_reduced",
+        "soma",
+        "hillock",
+        "ais",
+        "axon",
+        "basal",
+        "apical",
+        "all",
+        "state",
+    ],
+)
 
 
 # Code by Michael Hines from this discussion thread:
@@ -59,6 +103,7 @@ def cx(env):
     env.cxvec = cxvec
     return cxvec
 
+
 def lambda_f(sec, f=freq):
     """
     Calculates the AC length constant for the given section at the frequency f
@@ -70,7 +115,7 @@ def lambda_f(sec, f=freq):
     diam = np.mean([seg.diam for seg in sec])
     Ra = sec.Ra
     cm = np.mean([seg.cm for seg in sec])
-    return 1e5 * math.sqrt(diam / (4. * math.pi * f * Ra * cm))
+    return 1e5 * math.sqrt(diam / (4.0 * math.pi * f * Ra * cm))
 
 
 def d_lambda_nseg(sec, lam=d_lambda, f=freq):
@@ -96,7 +141,7 @@ def reinit_diam(sec, diam_bounds):
     """
     if diam_bounds is not None:
         diam1, diam2 = diam_bounds
-        h(f'diam(0:1)={diam1}:{diam2}', sec=sec)
+        h(f"diam(0:1)={diam1}:{diam2}", sec=sec)
 
 
 def init_nseg(sec, spatial_res=0, verbose=True):
@@ -109,9 +154,11 @@ def init_nseg(sec, spatial_res=0, verbose=True):
     :param verbose: bool
     """
     sugg_nseg = d_lambda_nseg(sec)
-    sugg_nseg *= 3 ** spatial_res
+    sugg_nseg *= 3**spatial_res
     if verbose:
-        logger.info(f'init_nseg: changed {sec.hname()}.nseg {sec.nseg} --> {sugg_nseg}')
+        logger.info(
+            f"init_nseg: changed {sec.hname()}.nseg {sec.nseg} --> {sugg_nseg}"
+        )
     sec.nseg = int(sugg_nseg)
 
 
@@ -133,7 +180,7 @@ def mknetcon(pc, source, syn, weight=0, delay=0.1):
 
 def mknetcon_vecstim(syn, delay=0.1, weight=0, source=None):
     """
-    Creates a VecStim object to drive the provided synaptic point process, 
+    Creates a VecStim object to drive the provided synaptic point process,
     and a network connection from the VecStim source to the synapse target.
     :param syn: synapse point process
     :param delay: float
@@ -145,7 +192,8 @@ def mknetcon_vecstim(syn, delay=0.1, weight=0, source=None):
     nc.weight[0] = weight
     nc.delay = delay
     return nc, vs
-    
+
+
 def mkgap(env, cell, gid, secpos, secidx, sgid, dgid, w):
     """
     Create gap junctions
@@ -179,23 +227,37 @@ def load_cell_template(env, pop_name, bcast_template=False):
         return env.template_dict[pop_name]
     rank = env.comm.Get_rank()
     if not (pop_name in env.celltypes):
-        raise KeyError(f'load_cell_templates: unrecognized cell population: {pop_name}')
+        raise KeyError(
+            f"load_cell_templates: unrecognized cell population: {pop_name}"
+        )
 
-    template_name = env.celltypes[pop_name]['template']
-    if 'template file' in env.celltypes[pop_name]:
-        template_file = env.celltypes[pop_name]['template file']
+    template_name = env.celltypes[pop_name]["template"]
+    if "template file" in env.celltypes[pop_name]:
+        template_file = env.celltypes[pop_name]["template file"]
     else:
         template_file = None
     if not hasattr(h, template_name):
-        find_template(env, template_name, template_file=template_file, path=env.template_paths, bcast_template=bcast_template)
-    assert (hasattr(h, template_name))
+        find_template(
+            env,
+            template_name,
+            template_file=template_file,
+            path=env.template_paths,
+            bcast_template=bcast_template,
+        )
+    assert hasattr(h, template_name)
     template_class = getattr(h, template_name)
     env.template_dict[pop_name] = template_class
     return template_class
 
 
-
-def find_template(env, template_name, path=['templates'], template_file=None, bcast_template=False, root=0):
+def find_template(
+    env,
+    template_name,
+    path=["templates"],
+    template_file=None,
+    bcast_template=False,
+    root=0,
+):
     """
     Finds and loads a template located in a directory within the given path list.
     :param env: :class:'Env'
@@ -208,20 +270,24 @@ def find_template(env, template_name, path=['templates'], template_file=None, bc
         bcast_template = False
     rank = env.comm.rank if env.comm is not None else 0
     found = False
-    template_path = ''
+    template_path = ""
     if template_file is None:
-        template_file = '%s.hoc' % template_name
+        template_file = "%s.hoc" % template_name
     if bcast_template:
         env.comm.barrier()
-    if (env.comm is None) or (not bcast_template) or (bcast_template and (rank == root)):
+    if (
+        (env.comm is None)
+        or (not bcast_template)
+        or (bcast_template and (rank == root))
+    ):
         for template_dir in path:
             if template_file is None:
-                template_path = f'{template_dir}/{template_name}.hoc'
+                template_path = f"{template_dir}/{template_name}.hoc"
             else:
-                template_path = f'{template_dir}/{template_file}'
+                template_path = f"{template_dir}/{template_file}"
             found = os.path.isfile(template_path)
             if found and (rank == 0):
-                logger.info(f'Loaded {template_name} from {template_path}')
+                logger.info(f"Loaded {template_name} from {template_path}")
                 break
     if bcast_template:
         found = env.comm.bcast(found, root=root)
@@ -232,8 +298,10 @@ def find_template(env, template_name, path=['templates'], template_file=None, bc
             env.comm.barrier()
         h.load_file(template_path)
     else:
-        raise Exception('find_template: template %s not found: file %s; path is %s' %
-                        (template_name, template_file, str(path)))
+        raise Exception(
+            "find_template: template %s not found: file %s; path is %s"
+            % (template_name, template_file, str(path))
+        )
 
 
 def configure_hoc_env(env, bcast_template=False):
@@ -248,12 +316,15 @@ def configure_hoc_env(env, bcast_template=False):
             h.load_file(path)
     h.cvode.use_fast_imem(1)
     h.cvode.cache_efficient(1)
-    h('objref pc, nc, nil')
-    h('strdef dataset_path')
-    if hasattr(env, 'dataset_path'):
-        h.dataset_path = env.dataset_path if env.dataset_path is not None else ""
+    h("objref pc, nc, nil")
+    h("strdef dataset_path")
+    if hasattr(env, "dataset_path"):
+        h.dataset_path = (
+            env.dataset_path if env.dataset_path is not None else ""
+        )
     if env.use_coreneuron:
         from neuron import coreneuron
+
         coreneuron.enable = True
         coreneuron.verbose = 1 if env.verbose else 0
     h.pc = h.ParallelContext()
@@ -263,14 +334,14 @@ def configure_hoc_env(env, bcast_template=False):
     h.tstop = env.tstop
     env.t_vec = h.Vector()  # Spike time of all cells on this host
     env.id_vec = h.Vector()  # Ids of spike times on this host
-    env.t_rec = h.Vector() # Timestamps of intracellular traces on this host
-    if 'celsius' in env.globals:
-        h.celsius = env.globals['celsius']
+    env.t_rec = h.Vector()  # Timestamps of intracellular traces on this host
+    if "celsius" in env.globals:
+        h.celsius = env.globals["celsius"]
     ## more accurate integration of synaptic discontinuities
-    if hasattr(h, 'nrn_netrec_state_adjust'):
+    if hasattr(h, "nrn_netrec_state_adjust"):
         h.nrn_netrec_state_adjust = 1
     ## sparse parallel transfer
-    if hasattr(h, 'nrn_sparse_partrans'):
+    if hasattr(h, "nrn_sparse_partrans"):
         h.nrn_sparse_partrans = 1
 
 
@@ -316,6 +387,7 @@ def mkgap(env, cell, gid, secpos, secidx, sgid, dgid, w):
 
     env.gjlist.append(gj)
     return gj
+
 
 def interplocs(sec):
     """Computes interpolants for xyz coords of locations in a section whose topology & geometry are defined by pt3d data.
@@ -363,7 +435,19 @@ def interplocs(sec):
     return pch_x, pch_y, pch_z, pch_diam
 
 
-def make_rec(recid, population, gid, cell, sec=None, loc=None, ps=None, param='v', label=None, dt=None, description=''):
+def make_rec(
+    recid,
+    population,
+    gid,
+    cell,
+    sec=None,
+    loc=None,
+    ps=None,
+    param="v",
+    label=None,
+    dt=None,
+    description="",
+):
     """
     Makes a recording vector for the specified quantity in the specified section and location.
 
@@ -386,7 +470,11 @@ def make_rec(recid, population, gid, cell, sec=None, loc=None, ps=None, param='v
         if seg is not None:
             loc = seg.x
             sec = seg.sec
-            origin = list(cell.soma_list)[0] if hasattr(cell, 'soma_list') else cell.soma
+            origin = (
+                list(cell.soma_list)[0]
+                if hasattr(cell, "soma_list")
+                else cell.soma
+            )
             distance = h.distance(origin(0.5), seg)
             ri = h.ri(loc, sec=sec)
         else:
@@ -394,12 +482,16 @@ def make_rec(recid, population, gid, cell, sec=None, loc=None, ps=None, param='v
             ri = None
     elif (sec is not None) and (loc is not None):
         hocobj = sec(loc)
-        origin = list(cell.soma_list)[0] if hasattr(cell, 'soma_list') else cell.soma
+        origin = (
+            list(cell.soma_list)[0] if hasattr(cell, "soma_list") else cell.soma
+        )
         h.distance(sec=origin)
         distance = h.distance(loc, sec=sec)
         ri = h.ri(loc, sec=sec)
     else:
-        raise RuntimeError('make_rec: either sec and loc or ps must be specified')
+        raise RuntimeError(
+            "make_rec: either sec and loc or ps must be specified"
+        )
     section_index = None
     if sec is not None:
         for i, this_section in enumerate(cell.sections):
@@ -409,26 +501,37 @@ def make_rec(recid, population, gid, cell, sec=None, loc=None, ps=None, param='v
     if label is None:
         label = param
     if dt is None:
-        vec.record(getattr(hocobj, f'_ref_{param}'))
+        vec.record(getattr(hocobj, f"_ref_{param}"))
     else:
-        vec.record(getattr(hocobj, f'_ref_{param}'), dt)
-    rec_dict = {'name': recid,
-                'gid': gid,
-                'cell': cell,
-                'population': population,
-                'loc': loc,
-                'section': section_index,
-                'distance': distance,
-                'ri': ri,
-                'description': description,
-                'vec': vec,
-                'label': label
-                }
+        vec.record(getattr(hocobj, f"_ref_{param}"), dt)
+    rec_dict = {
+        "name": recid,
+        "gid": gid,
+        "cell": cell,
+        "population": population,
+        "loc": loc,
+        "section": section_index,
+        "distance": distance,
+        "ri": ri,
+        "description": description,
+        "vec": vec,
+        "label": label,
+    }
 
     return rec_dict
 
 
-def run_iclamp(cell, record_dt = 0.1, dt = 0.0125, celsius = 36., prelength=1000.0, mainlength=10000.0, stimdur=500.0, stim_amp=0.0001, use_cvode=True):
+def run_iclamp(
+    cell,
+    record_dt=0.1,
+    dt=0.0125,
+    celsius=36.0,
+    prelength=1000.0,
+    mainlength=10000.0,
+    stimdur=500.0,
+    stim_amp=0.0001,
+    use_cvode=True,
+):
 
     h.cvode.use_fast_imem(1)
     h.cvode.cache_efficient(1)
@@ -447,14 +550,14 @@ def run_iclamp(cell, record_dt = 0.1, dt = 0.0125, celsius = 36., prelength=1000
 
     vec_t = h.Vector()
     vec_v = h.Vector()
-    vec_t.record(h._ref_t, record_dt) # Time
-    vec_v.record(list(cell.soma)[0](0.5)._ref_v, record_dt) # Voltage
+    vec_t.record(h._ref_t, record_dt)  # Time
+    vec_v.record(list(cell.soma)[0](0.5)._ref_v, record_dt)  # Voltage
 
     # Put an IClamp at the soma
     stim = h.IClamp(0.5, sec=list(cell.soma)[0])
-    stim.delay = prelength # Stimulus start
-    stim.dur = stimdur # Stimulus length
-    stim.amp = stim_amp # strength of current injection
+    stim.delay = prelength  # Stimulus start
+    stim.dur = stimdur  # Stimulus length
+    stim.amp = stim_amp  # strength of current injection
 
     h.init()
     h.run()
@@ -464,5 +567,5 @@ def run_iclamp(cell, record_dt = 0.1, dt = 0.0125, celsius = 36., prelength=1000
 
     t0 = prelength
     t1 = prelength + stimdur
-    
-    return { 't0': t0, 't1': t1, 't': t, 'v': v }
+
+    return {"t0": t0, "t1": t1, "t": t, "v": v}
