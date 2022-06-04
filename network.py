@@ -46,6 +46,9 @@ from neuroh5.io import (
     write_cell_attributes,
     write_graph,
 )
+from MiV.env import Env
+from numpy import ndarray
+from typing import Dict, Union
 
 # This logger will inherit its settings from the root logger, created in MiV.env
 logger = get_module_logger(__name__)
@@ -108,7 +111,7 @@ def lpt_bal(env):
     env.pc.barrier()
 
 
-def connect_cells(env):
+def connect_cells(env: Env) -> None:
     """
     Loads NeuroH5 connectivity file, instantiates the corresponding
     synapse and network connection mechanisms for each postsynaptic cell.
@@ -507,7 +510,31 @@ def connect_cells(env):
         )
 
 
-def find_gid_pop(celltypes, gid):
+def find_gid_pop(
+    celltypes: Dict[
+        str,
+        Dict[
+            str,
+            Union[
+                str,
+                Dict[str, Dict[str, Dict[str, Dict[str, Dict[str, float]]]]],
+                int,
+                Dict[
+                    str,
+                    Dict[
+                        str,
+                        Union[
+                            Dict[str, Dict[str, float]],
+                            Dict[str, Dict[str, int]],
+                        ],
+                    ],
+                ],
+                Dict[str, str],
+            ],
+        ],
+    ],
+    gid: int,
+) -> str:
     """
     Given a celltypes structure and a gid, find the population to which the gid belongs.
     """
@@ -801,7 +828,7 @@ def connect_cell_selection(env):
                 del env.biophys_cells[pop_name][gid]
 
 
-def connect_gjs(env):
+def connect_gjs(env: Env) -> None:
     """
     Loads NeuroH5 connectivity file, instantiates the corresponding
     half-gap mechanisms on the pre- and post-junction cells.
@@ -896,7 +923,7 @@ def connect_gjs(env):
         )
 
 
-def make_cells(env):
+def make_cells(env: Env) -> None:
     """
     Instantiates cell templates according to population ranges and NeuroH5 morphology if present.
 
@@ -1376,7 +1403,12 @@ def make_input_cell_selection(env):
             env.node_allocation.add(gid)
 
 
-def merge_spiketrain_trials(spiketrain, trial_index, trial_duration, n_trials):
+def merge_spiketrain_trials(
+    spiketrain: ndarray,
+    trial_index: ndarray,
+    trial_duration: ndarray,
+    n_trials: int,
+) -> ndarray:
     if (trial_index is not None) and (trial_duration is not None):
         trial_spiketrains = []
         for trial_i in range(n_trials):
@@ -1388,7 +1420,7 @@ def merge_spiketrain_trials(spiketrain, trial_index, trial_duration, n_trials):
     return spiketrain
 
 
-def init_input_cells(env):
+def init_input_cells(env: Env) -> None:
     """
     Initializes cells with predefined spike patterns.
 
@@ -1713,7 +1745,7 @@ def init_input_cells(env):
     gc.collect()
 
 
-def init(env):
+def init(env: Env) -> None:
     """
     Initializes the network by calling make_cells, init_input_cells, connect_cells, connect_gjs.
     If env.optldbal or env.optlptbal are specified, performs load balancing.
@@ -1848,7 +1880,12 @@ def init(env):
         h.cvode.use_fast_imem(1)
 
 
-def run(env, output=True, shutdown=True, output_syn_spike_count=False):
+def run(
+    env: Env,
+    output: bool = True,
+    shutdown: bool = True,
+    output_syn_spike_count: bool = False,
+):
     """
     Runs network simulation. Assumes that procedure `init` has been
     called with the network configuration provided by the `env`

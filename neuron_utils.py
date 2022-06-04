@@ -9,9 +9,13 @@ try:
     from mpi4py import MPI  # Must come before importing NEURON
 except Exception:
     pass
-from MiV.utils import get_module_logger
+from MiV.utils import AbstractEnv, get_module_logger
 from neuron import h
 from scipy import interpolate
+from hoc import HocObject
+from nrn import Section
+from numpy import float64, uint32
+from typing import Dict, List, Optional, Union
 
 # This logger will inherit its settings from the root logger, created in MiV.env
 logger = get_module_logger(__name__)
@@ -87,11 +91,11 @@ HocCellInterface = namedtuple(
 
 # Code by Michael Hines from this discussion thread:
 # https://www.neuron.yale.edu/phpBB/viewtopic.php?f=31&t=3628
-def cx(env):
+def cx(env: AbstractEnv):
     """
     Estimates cell complexity. Uses the LoadBalance class.
 
-    :param env: an instance of the `dentate.Env` class.
+    :param env: an instance of the `Env` class.
     """
     rank = int(env.pc.id())
     lb = h.LoadBalance()
@@ -104,7 +108,7 @@ def cx(env):
     return cxvec
 
 
-def lambda_f(sec, f=freq):
+def lambda_f(sec: Section, f: int = freq) -> float:
     """
     Calculates the AC length constant for the given section at the frequency f
     Used to determine the number of segments per hoc section to achieve the desired spatial and temporal resolution
@@ -118,7 +122,7 @@ def lambda_f(sec, f=freq):
     return 1e5 * math.sqrt(diam / (4.0 * math.pi * f * Ra * cm))
 
 
-def d_lambda_nseg(sec, lam=d_lambda, f=freq):
+def d_lambda_nseg(sec: Section, lam: float = d_lambda, f: int = freq) -> int:
     """
     The AC length constant for this section and the user-defined fraction is used to determine the maximum size of each
     segment to achieve the desired spatial and temporal resolution. This method returns the number of segments to set
@@ -133,7 +137,7 @@ def d_lambda_nseg(sec, lam=d_lambda, f=freq):
     return int(((L / (lam * lambda_f(sec, f))) + 0.9) / 2) * 2 + 1
 
 
-def reinit_diam(sec, diam_bounds):
+def reinit_diam(sec: Section, diam_bounds: None) -> None:
     """
     For a node associated with a hoc section that is a tapered cylinder, every time the spatial resolution
     of the section (nseg) is changed, the section diameters must be reinitialized. This method checks the
@@ -144,7 +148,7 @@ def reinit_diam(sec, diam_bounds):
         h(f"diam(0:1)={diam1}:{diam2}", sec=sec)
 
 
-def init_nseg(sec, spatial_res=0, verbose=True):
+def init_nseg(sec: Section, spatial_res: int = 0, verbose: bool = True) -> None:
     """
     Initializes the number of segments in this section (nseg) based on the AC length constant. Must be re-initialized
     whenever basic cable properties Ra or cm are changed. The spatial resolution parameter increases the number of
@@ -162,7 +166,13 @@ def init_nseg(sec, spatial_res=0, verbose=True):
     sec.nseg = int(sugg_nseg)
 
 
-def mknetcon(pc, source, syn, weight=0, delay=0.1):
+def mknetcon(
+    pc: HocObject,
+    source: uint32,
+    syn: HocObject,
+    weight: int = 0,
+    delay: Union[float, float64] = 0.1,
+) -> HocObject:
     """
     Creates a network connection from the provided source to the provided synaptic point process.
     :param pc: :class:'h.ParallelContext'
@@ -194,7 +204,7 @@ def mknetcon_vecstim(syn, delay=0.1, weight=0, source=None):
     return nc, vs
 
 
-def mkgap(env, cell, gid, secpos, secidx, sgid, dgid, w):
+def mkgap(env: AbstractEnv, cell, gid, secpos, secidx, sgid, dgid, w):
     """
     Create gap junctions
     :param pc:
@@ -219,7 +229,9 @@ def mkgap(env, cell, gid, secpos, secidx, sgid, dgid, w):
     return gj
 
 
-def load_cell_template(env, pop_name, bcast_template=False):
+def load_cell_template(
+    env: AbstractEnv, pop_name: str, bcast_template: bool = False
+) -> HocObject:
     """
     :param pop_name: str
     """
@@ -251,13 +263,13 @@ def load_cell_template(env, pop_name, bcast_template=False):
 
 
 def find_template(
-    env,
-    template_name,
-    path=["templates"],
-    template_file=None,
-    bcast_template=False,
-    root=0,
-):
+    env: AbstractEnv,
+    template_name: str,
+    path: List[str] = ["templates"],
+    template_file: None = None,
+    bcast_template: bool = False,
+    root: int = 0,
+) -> None:
     """
     Finds and loads a template located in a directory within the given path list.
     :param env: :class:'Env'
@@ -304,7 +316,7 @@ def find_template(
         )
 
 
-def configure_hoc_env(env, bcast_template=False):
+def configure_hoc_env(env: AbstractEnv, bcast_template: bool = False) -> None:
     """
     :param env: :class:'Env'
     """
@@ -351,7 +363,7 @@ def cx(env):
     """
     Estimates cell complexity. Uses the LoadBalance class.
 
-    :param env: an instance of the `dentate.Env` class.
+    :param env: an instance of the `Env` class.
     """
     rank = int(env.pc.id())
     lb = h.LoadBalance()
@@ -364,7 +376,7 @@ def cx(env):
     return cxvec
 
 
-def mkgap(env, cell, gid, secpos, secidx, sgid, dgid, w):
+def mkgap(env: AbstractEnv, cell, gid, secpos, secidx, sgid, dgid, w):
     """
     Create gap junctions
     :param pc:
@@ -436,18 +448,18 @@ def interplocs(sec):
 
 
 def make_rec(
-    recid,
-    population,
-    gid,
-    cell,
-    sec=None,
-    loc=None,
-    ps=None,
-    param="v",
-    label=None,
-    dt=None,
-    description="",
-):
+    recid: str,
+    population: str,
+    gid: int,
+    cell: HocObject,
+    sec: Optional[Section] = None,
+    loc: Optional[float] = None,
+    ps: None = None,
+    param: str = "v",
+    label: Optional[str] = None,
+    dt: Optional[float] = None,
+    description: str = "",
+) -> Dict[str, Union[str, int, HocObject, float]]:
     """
     Makes a recording vector for the specified quantity in the specified section and location.
 

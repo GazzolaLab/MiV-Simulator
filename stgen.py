@@ -1,5 +1,8 @@
 import numpy as np
-from numpy import array, log
+from random.mtrand import RandomState
+from typing import List, Optional
+
+from numpy import float64, ndarray, array, log
 from scipy.interpolate import Akima1DInterpolator
 
 """
@@ -26,8 +29,12 @@ gamma_hazard - Compute the hazard function for a gamma process with parameters a
 
 
 def get_inhom_poisson_spike_times_by_thinning(
-    rate, t, dt=0.02, refractory=3.0, generator=None
-):
+    rate: ndarray,
+    t: ndarray,
+    dt: float = 0.02,
+    refractory: float = 3.0,
+    generator: Optional[RandomState] = None,
+) -> List[float64]:
     """
     Given a time series of instantaneous spike rates in Hz, produce a spike train consistent
     with an inhomogeneous Poisson process with a refractory period after each spike.

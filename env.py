@@ -2,11 +2,11 @@ import logging
 import os
 import pprint
 from collections import defaultdict, namedtuple
-
 import numpy as np
 import yaml
 from MiV.synapses import SynapseAttributes, get_syn_filter_dict
 from MiV.utils import (
+    AbstractEnv,
     ExprClosure,
     IncludeLoader,
     get_root_logger,
@@ -20,6 +20,8 @@ from neuroh5.io import (
     read_population_ranges,
     read_projection_names,
 )
+from mpi4py.MPI import Intracomm
+from typing import Dict, Optional, Union
 
 SynapseConfig = namedtuple(
     "SynapseConfig",
@@ -53,54 +55,54 @@ DomainConfig = namedtuple("Domain", ["vertices", "simplices"])
 StimulusConfig = namedtuple("Stimulus", ["velocity", "path"])
 
 
-class Env:
+class Env(AbstractEnv):
     """
     Network model configuration.
     """
 
     def __init__(
         self,
-        comm=None,
-        config_file=None,
-        template_paths="templates",
-        hoc_lib_path=None,
-        dataset_prefix=None,
-        config_prefix=None,
-        results_path=None,
-        results_file_id=None,
-        results_namespace_id=None,
-        node_rank_file=None,
-        node_allocation=None,
-        io_size=0,
-        use_cell_attr_gen=False,
-        cell_attr_gen_cache_size=10,
-        recording_profile=None,
-        tstart=0.0,
-        tstop=0.0,
-        v_init=-65,
-        stimulus_onset=0.0,
-        n_trials=1,
-        max_walltime_hours=0.5,
-        checkpoint_interval=500.0,
-        checkpoint_clear_data=True,
-        nrn_timeout=600.0,
-        results_write_time=0,
-        dt=None,
-        ldbal=False,
-        lptbal=False,
-        cell_selection_path=None,
-        microcircuit_inputs=False,
-        spike_input_path=None,
-        spike_input_namespace=None,
-        spike_input_attr=None,
-        cleanup=True,
-        cache_queries=False,
-        profile_memory=False,
-        use_coreneuron=False,
-        transfer_debug=False,
-        verbose=False,
+        comm: Optional[Intracomm] = None,
+        config_file: Optional[str] = None,
+        template_paths: str = "templates",
+        hoc_lib_path: Optional[str] = None,
+        dataset_prefix: Optional[str] = None,
+        config_prefix: Optional[str] = None,
+        results_path: Optional[str] = None,
+        results_file_id: Optional[str] = None,
+        results_namespace_id: None = None,
+        node_rank_file: None = None,
+        node_allocation: None = None,
+        io_size: int = 0,
+        use_cell_attr_gen: bool = False,
+        cell_attr_gen_cache_size: int = 10,
+        recording_profile: Optional[str] = None,
+        tstart: float = 0.0,
+        tstop: Union[int, float] = 0.0,
+        v_init: Union[int, float] = -65,
+        stimulus_onset: float = 0.0,
+        n_trials: int = 1,
+        max_walltime_hours: float = 0.5,
+        checkpoint_interval: float = 500.0,
+        checkpoint_clear_data: bool = True,
+        nrn_timeout: float = 600.0,
+        results_write_time: Union[int, float] = 0,
+        dt: Optional[float] = None,
+        ldbal: bool = False,
+        lptbal: bool = False,
+        cell_selection_path: None = None,
+        microcircuit_inputs: bool = False,
+        spike_input_path: None = None,
+        spike_input_namespace: None = None,
+        spike_input_attr: None = None,
+        cleanup: bool = True,
+        cache_queries: bool = False,
+        profile_memory: bool = False,
+        use_coreneuron: bool = False,
+        transfer_debug: bool = False,
+        verbose: bool = False,
         **kwargs,
-    ):
+    ) -> None:
         """
         :param comm: :class:'MPI.COMM_WORLD'
         :param config_file: str; model configuration file name
@@ -539,7 +541,12 @@ class Env:
 
         return StimulusConfig(velocity, path)
 
-    def init_stimulus_config(self, arena_id=None, stimulus_id=None, **kwargs):
+    def init_stimulus_config(
+        self,
+        arena_id: Optional[str] = None,
+        stimulus_id: Optional[str] = None,
+        **kwargs,
+    ) -> None:
         if arena_id is not None:
             if arena_id in self.stimulus_config["Arena"]:
                 self.arena_id = arena_id
@@ -560,7 +567,7 @@ class Env:
                         "init_stimulus_config: stimulus id parameter not found in stimulus configuration"
                     )
 
-    def parse_stimulus_config(self):
+    def parse_stimulus_config(self) -> None:
         stimulus_dict = self.model_config["Stimulus"]
         stimulus_config = {}
 
@@ -644,7 +651,7 @@ class Env:
             template_params, weight_generator_dict, opt_param_rules_dict
         )
 
-    def parse_origin_coords(self):
+    def parse_origin_coords(self) -> None:
         origin_spec = self.geometry["Parametric Surface"]["Origin"]
 
         coords = {}
@@ -664,7 +671,7 @@ class Env:
                 raise ValueError
         self.geometry["Parametric Surface"]["Origin"] = coords
 
-    def parse_definitions(self):
+    def parse_definitions(self) -> None:
         defs = self.model_config["Definitions"]
         self.Populations = defs["Populations"]
         self.SWC_Types = defs["SWC Types"]
@@ -672,10 +679,15 @@ class Env:
         self.layers = defs["Layers"]
         self.selectivity_types = defs["Input Selectivity Types"]
 
-    def parse_globals(self):
+    def parse_globals(self) -> None:
         self.globals = self.model_config["Global Parameters"]
 
-    def parse_syn_mechparams(self, mechparams_dict):
+    def parse_syn_mechparams(
+        self,
+        mechparams_dict: Dict[
+            str, Union[Dict[str, Union[int, float]], Dict[str, float]]
+        ],
+    ) -> Dict[str, Union[Dict[str, Union[int, float]], Dict[str, float]]]:
         res = {}
         for mech_name, mech_params in viewitems(mechparams_dict):
             mech_params1 = {}
@@ -698,7 +710,7 @@ class Env:
             res[mech_name] = mech_params1
         return res
 
-    def parse_connection_config(self):
+    def parse_connection_config(self) -> None:
         """
 
         :return:
@@ -815,7 +827,7 @@ class Env:
 
         self.connection_config = connection_dict
 
-    def parse_gapjunction_config(self):
+    def parse_gapjunction_config(self) -> None:
         """
 
         :return:
@@ -937,7 +949,7 @@ class Env:
                 self.node_allocation = None
                 break
 
-    def load_celltypes(self):
+    def load_celltypes(self) -> None:
         """
 
         :return:

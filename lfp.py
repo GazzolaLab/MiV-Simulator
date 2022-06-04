@@ -12,11 +12,23 @@ import logging
 import math
 
 from neuron import h
+from hoc import HocObject
+from typing import Dict, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
 
-def interpxyz(nn, nsegs, xx, yy, zz, ll, xint, yint, zint):
+def interpxyz(
+    nn: int,
+    nsegs: int,
+    xx: HocObject,
+    yy: HocObject,
+    zz: HocObject,
+    ll: HocObject,
+    xint: HocObject,
+    yint: HocObject,
+    zint: HocObject,
+) -> None:
     """Computes xyz coords of nodes in a model cell  whose topology & geometry are defined by pt3d data.
     Code by Ted Carnevale.
     """
@@ -47,16 +59,16 @@ def interpxyz(nn, nsegs, xx, yy, zz, ll, xint, yint, zint):
 class LFP:
     def __init__(
         self,
-        label,
-        pc,
-        pop_gid_dict,
-        pos,
-        rho=333.0,
-        fdst=0.1,
-        maxEDist=100.0,
-        dt_lfp=0.5,
-        seed=1,
-    ):
+        label: str,
+        pc: HocObject,
+        pop_gid_dict: Dict[str, Set[int]],
+        pos: Tuple[float, float, float],
+        rho: float = 333.0,
+        fdst: float = 0.1,
+        maxEDist: float = 100.0,
+        dt_lfp: float = 0.5,
+        seed: int = 1,
+    ) -> None:
         self.label = label
         self.pc = pc
         self.dt_lfp = dt_lfp
@@ -76,7 +88,7 @@ class LFP:
         self.fih_lfp = h.FInitializeHandler(1, self.sample_lfp)
         self.setup_lfp()
 
-    def setup_lfp_coeffs(self):
+    def setup_lfp_coeffs(self) -> None:
 
         ex, ey, ez = self.epoint
         for pop_name in self.pop_gid_dict:
@@ -162,7 +174,7 @@ class LFP:
                             lfp_coeffs.o(i).x[j] = k
                             j = j + 1
 
-    def setup_lfp(self):
+    def setup_lfp(self) -> None:
         ## Calculate distances from recording electrode to all
         ## compartments of all cells, calculate scaling coefficients
         ## for the LFP calculation, and save them in lfp_coeffs.
@@ -244,7 +256,7 @@ class LFP:
 
         self.setup_lfp_coeffs()
 
-    def pos_lfp(self):
+    def pos_lfp(self) -> float:
         ## Calculate the average LFP of select cells in the network,
         ##  only including cells whose somata are within maxEDist
         ##  microns of the (x,y,z) recording electrode location
@@ -272,7 +284,7 @@ class LFP:
         meanlfp = self.pc.allreduce(vlfp, 1)
         return meanlfp
 
-    def sample_lfp(self):
+    def sample_lfp(self) -> None:
 
         ## recording electrode position (um)
         ex, ey, ez = self.epoint

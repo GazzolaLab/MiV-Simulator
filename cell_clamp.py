@@ -9,15 +9,24 @@ import uuid
 import click
 import numpy as np
 from MiV import cells, io_utils, neuron_utils, synapses, utils
-from MiV.env import Env
 from MiV.neuron_utils import configure_hoc_env, h, make_rec, run_iclamp
 from MiV.synapses import get_syn_filter_dict
-from MiV.utils import Context, config_logging, get_module_logger, is_interactive
+from MiV.utils import (
+    AbstractEnv,
+    Context,
+    config_logging,
+    get_module_logger,
+    is_interactive,
+)
+from MiV.cells import BiophysCell
+from MiV.env import Env
 from mpi4py import MPI  # Must come before importing NEURON
 from neuroh5.io import append_cell_attributes
 from neuron import h
 from scipy import signal
 from scipy.optimize import curve_fit
+from numpy import ndarray
+from typing import Dict, List, Optional, Tuple, Union
 
 # This logger will inherit its settings from the root logger, created in MiV.env
 logger = get_module_logger(__name__)
@@ -26,16 +35,45 @@ context = Context()
 
 
 def init_biophys_cell(
-    env,
-    pop_name,
-    gid,
-    load_weights=True,
-    load_connections=True,
-    register_cell=True,
-    write_cell=False,
-    validate_tree=True,
-    cell_dict={},
-):
+    env: AbstractEnv,
+    pop_name: str,
+    gid: int,
+    load_weights: bool = True,
+    load_connections: bool = True,
+    register_cell: bool = True,
+    write_cell: bool = False,
+    validate_tree: bool = True,
+    cell_dict: Dict[
+        str,
+        Optional[
+            Union[
+                Dict[
+                    str,
+                    Union[
+                        ndarray,
+                        Dict[str, Union[int, Dict[int, ndarray], ndarray]],
+                    ],
+                ],
+                Dict[str, ndarray],
+                Tuple[
+                    Dict[
+                        str,
+                        Dict[
+                            str,
+                            List[
+                                Tuple[
+                                    int,
+                                    Tuple[ndarray, Dict[str, List[ndarray]]],
+                                ]
+                            ],
+                        ],
+                    ],
+                    Dict[str, Dict[str, Dict[str, Dict[str, int]]]],
+                ],
+            ]
+        ],
+    ] = {},
+) -> BiophysCell:
     """
     Instantiates a BiophysCell instance and all its synapses.
 
@@ -313,7 +351,7 @@ def measure_passive(
     gid,
     pop_name,
     v_init,
-    env,
+    env: AbstractEnv,
     prelength=1000.0,
     mainlength=3000.0,
     stimdur=1000.0,
@@ -365,7 +403,7 @@ def measure_passive(
     return results
 
 
-def measure_ap(gid, pop_name, v_init, env, cell_dict={}):
+def measure_ap(gid, pop_name, v_init, env: AbstractEnv, cell_dict={}):
 
     biophys_cell = init_biophys_cell(
         env, pop_name, gid, register_cell=False, cell_dict=cell_dict
@@ -411,7 +449,7 @@ def measure_ap_rate(
     gid,
     pop_name,
     v_init,
-    env,
+    env: AbstractEnv,
     prelength=1000.0,
     mainlength=3000.0,
     stimdur=1000.0,
@@ -531,7 +569,7 @@ def measure_ap_rate(
     return results
 
 
-def measure_fi(gid, pop_name, v_init, env, cell_dict={}):
+def measure_fi(gid, pop_name, v_init, env: AbstractEnv, cell_dict={}):
 
     biophys_cell = init_biophys_cell(
         env, pop_name, gid, register_cell=False, cell_dict=cell_dict
@@ -596,7 +634,7 @@ def measure_fi(gid, pop_name, v_init, env, cell_dict={}):
     return results
 
 
-def measure_gap_junction_coupling(gid, population, v_init, env):
+def measure_gap_junction_coupling(gid, population, v_init, env: AbstractEnv):
 
     h("objref gjlist, cells, Vlog1, Vlog2")
 
@@ -679,7 +717,7 @@ def measure_psc(
     gid,
     pop_name,
     presyn_name,
-    env,
+    env: AbstractEnv,
     v_init,
     v_holding,
     load_weights=False,
@@ -757,7 +795,7 @@ def measure_psp(
     presyn_name,
     syn_mech_name,
     swc_type,
-    env,
+    env: AbstractEnv,
     v_init,
     erev,
     syn_layer=None,

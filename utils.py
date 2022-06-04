@@ -13,13 +13,17 @@ import sys
 import time
 from collections import defaultdict, namedtuple
 from collections.abc import Iterable, MutableMapping
-
+from abc import ABC, abstractmethod
 import click
 import numpy as np
 import scipy
 import yaml
 from mpi4py import MPI
 from scipy import signal, sparse
+from io import TextIOWrapper
+from numpy import float64, uint32
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
+from yaml.nodes import ScalarNode
 
 is_interactive = bool(getattr(sys, "ps1", sys.flags.interactive))
 
@@ -31,8 +35,14 @@ def set_union(a, b, datatype):
 mpi_op_set_union = MPI.Op.Create(set_union, commute=True)
 
 
+class AbstractEnv(ABC):
+    @abstractmethod
+    def __init__(self):
+        pass
+
+
 class Struct:
-    def __init__(self, **items):
+    def __init__(self, **items) -> None:
         self.__dict__.update(items)
 
     def update(self, items):
@@ -135,10 +145,10 @@ class Context:
     A container replacement for global variables to be shared and modified by any function in a module.
     """
 
-    def __init__(self, namespace_dict=None, **kwargs):
+    def __init__(self, namespace_dict: None = None, **kwargs) -> None:
         self.update(namespace_dict, **kwargs)
 
-    def update(self, namespace_dict=None, **kwargs):
+    def update(self, namespace_dict: None = None, **kwargs) -> None:
         """
         Converts items in a dictionary (such as globals() or locals()) into context object internals.
         :param namespace_dict: dict
@@ -284,11 +294,11 @@ class IncludeLoader(yaml.Loader):
     YAML loader with `!include` handler.
     """
 
-    def __init__(self, stream):
+    def __init__(self, stream: TextIOWrapper) -> None:
         self._root = os.path.split(stream.name)[0]
         yaml.Loader.__init__(self, stream)
 
-    def include(self, node):
+    def include(self, node: ScalarNode) -> Dict[str, Any]:
         """
 
         :param node:
@@ -311,19 +321,19 @@ class ExplicitDumper(yaml.SafeDumper):
         return True
 
 
-def config_logging(verbose):
+def config_logging(verbose: bool) -> None:
     if verbose:
         logging.basicConfig(level=logging.INFO)
     else:
         logging.basicConfig(level=logging.WARN)
 
 
-def get_root_logger():
+def get_root_logger() -> logging.Logger:
     logger = logging.getLogger("MiV")
     return logger
 
 
-def get_module_logger(name):
+def get_module_logger(name: str) -> logging.Logger:
     logger = logging.getLogger("%s" % name)
     return logger
 
@@ -353,7 +363,9 @@ def write_to_yaml(file_path, data, convert_scalars=False):
         )
 
 
-def read_from_yaml(file_path, include_loader=None):
+def read_from_yaml(
+    file_path: str, include_loader: None = None
+) -> Dict[str, Dict[str, Dict[str, Union[Dict[str, float], Dict[str, int]]]]]:
     """
 
     :param file_path: str (should end in '.yaml')
@@ -371,7 +383,9 @@ def read_from_yaml(file_path, include_loader=None):
         raise OSError("read_from_yaml: invalid file_path: %s" % file_path)
 
 
-def generate_results_file_id(population, gid=None, seed=None):
+def generate_results_file_id(
+    population: str, gid: None = None, seed: None = None
+) -> str:
     ts = time.strftime("%Y%m%d_%H%M%S")
     if gid is not None:
         results_file_id_prefix = f"{population}_{gid}_{ts}"
@@ -432,7 +446,7 @@ def list_index(element, lst):
         return None
 
 
-def list_find(f, lst):
+def list_find(f: Callable, lst: List[str]) -> int:
     """
 
     :param f:
@@ -517,7 +531,7 @@ def viewvalues(obj, **kwargs):
     return func(**kwargs)
 
 
-def zip_longest(*args, **kwds):
+def zip_longest(*args, **kwds) -> itertools.zip_longest:
     if hasattr(itertools, "izip_longest"):
         return itertools.izip_longest(*args, **kwds)
     else:
@@ -771,7 +785,9 @@ def NamedTupleWithDocstring(docstring, *ntargs):
     return NT
 
 
-def partitionn(items, predicate=int, n=2):
+def partitionn(
+    items: List[uint32], predicate: Callable = int, n: int = 2
+) -> Iterator[Any]:
     """
     Filter an iterator into N parts lazily
     http://paddy3118.blogspot.com/2013/06/filtering-iterator-into-n-parts-lazily.html
@@ -795,7 +811,7 @@ def generator_peek(iterable):
     return first, itertools.chain([first], iterable)
 
 
-def generator_ifempty(iterable):
+def generator_ifempty(iterable: Iterator[Any]) -> Optional[itertools.chain]:
     """
     If the iterable is empty, return None, otherwise return the
     iterable with the first element attached back.
@@ -1034,7 +1050,9 @@ def get_low_pass_filtered_trace(trace, t, down_dt=0.5):
     return filtered
 
 
-def get_trial_time_ranges(time_vec, n_trials, t_offset=0.0):
+def get_trial_time_ranges(
+    time_vec: List[float], n_trials: int, t_offset: float = 0.0
+) -> List[Tuple[float64, float64]]:
     time_vec = np.asarray(time_vec, dtype=np.float32) - t_offset
     t_trial = (np.max(time_vec) - np.min(time_vec)) / float(n_trials)
     t_start = np.min(time_vec)
