@@ -4,8 +4,8 @@ import pprint
 from collections import defaultdict, namedtuple
 import numpy as np
 import yaml
-from MiV.synapses import SynapseAttributes, get_syn_filter_dict
-from MiV.utils import (
+from miv_simulator.synapses import SynapseAttributes, get_syn_filter_dict
+from miv_simulator.utils import (
     AbstractEnv,
     ExprClosure,
     IncludeLoader,

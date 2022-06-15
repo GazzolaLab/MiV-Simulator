@@ -9,7 +9,7 @@ import traceback
 
 import networkx as nx
 import numpy as np
-from MiV.neuron_utils import (
+from miv_simulator.neuron_utils import (
     PRconfig,
     d_lambda,
     default_hoc_sec_lists,
@@ -20,7 +20,7 @@ from MiV.neuron_utils import (
     make_rec,
     reinit_diam,
 )
-from MiV.utils import (
+from miv_simulator.utils import (
     AbstractEnv,
     Promise,
     get_module_logger,

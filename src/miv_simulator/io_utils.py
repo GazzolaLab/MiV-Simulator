@@ -6,7 +6,7 @@ from collections import defaultdict
 
 import h5py
 import numpy as np
-from MiV.utils import (
+from miv_simulator.utils import (
     AbstractEnv,
     Iterable,
     Struct,

@@ -9,7 +9,7 @@ try:
     from mpi4py import MPI  # Must come before importing NEURON
 except Exception:
     pass
-from MiV.utils import AbstractEnv, get_module_logger
+from miv_simulator.utils import AbstractEnv, get_module_logger
 from neuron import h
 from scipy import interpolate
 from hoc import HocObject

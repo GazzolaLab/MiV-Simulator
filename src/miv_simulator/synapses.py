@@ -12,9 +12,9 @@ from functools import reduce
 import numpy as np
 import scipy
 import scipy.optimize as opt
-from MiV.cells import BiophysCell, SCneuron, make_section_graph
-from MiV.neuron_utils import default_ordered_sec_types, interplocs, mknetcon
-from MiV.utils import (
+from miv_simulator.cells import BiophysCell, SCneuron, make_section_graph
+from miv_simulator.neuron_utils import default_ordered_sec_types, interplocs, mknetcon
+from miv_simulator.utils import (
     AbstractEnv,
     ExprClosure,
     NamedTupleWithDocstring,
