@@ -12,13 +12,15 @@ from MiV.utils import (
     list_find_all,
     random_choice_w_replacement,
     random_clustered_shuffle,
-    range,
-    str,
     viewitems,
-    zip,
 )
 from neuroh5.io import NeuroH5CellAttrGen, append_graph
 from scipy.stats import norm
+from MiV.env import SynapseConfig
+from mpi4py.MPI import Intracomm
+from numpy import int8, ndarray, uint8
+from numpy.random.mtrand import RandomState
+from typing import Any, Callable, DefaultDict, Dict, List, Tuple, Union
 
 ## This logger will inherit its setting from its root logger,
 ## which is created in module env
@@ -34,8 +36,8 @@ class ConnectionProb:
     """
 
     def __init__(
-        self, destination_population, soma_coords, soma_distances, extents
-    ):
+        self, destination_population: str, soma_coords: Dict[str, Dict[int, Tuple[float, float, float]]], soma_distances: Dict[str, Dict[int, Tuple[float, float]]], extents: Dict[str, Dict[str, Dict[str, List[Union[float, int]]]]]
+    ) -> None:
         """
         Warning: This method does not produce an absolute probability. It must be normalized so that the total area
         (volume) under the distribution is 1 before sampling.
@@ -116,8 +118,8 @@ class ConnectionProb:
                 )
 
     def filter_by_distance(
-        self, destination_gid, source_population, source_layer
-    ):
+        self, destination_gid: int, source_population: str, source_layer: int
+    ) -> Tuple[float, float, ndarray, ndarray, ndarray, ndarray, ndarray]:
         """
         Given the id of a target neuron, returns the distances along u and v
         and the gids of source neurons whose axons potentially contact the target neuron.
@@ -189,7 +191,7 @@ class ConnectionProb:
             np.asarray(source_gid_lst, dtype=np.uint32),
         )
 
-    def get_prob(self, destination_gid, source, source_layers):
+    def get_prob(self, destination_gid: int, source: str, source_layers: List[int]) -> Dict[int, Tuple[ndarray, ndarray, ndarray, ndarray]]:
         """
         Given the soma coordinates of a destination neuron and a
         population source, return an array of connection probabilities
@@ -236,14 +238,14 @@ class ConnectionProb:
 
 
 def choose_synapse_projection(
-    ranstream_syn,
-    syn_layer,
-    swc_type,
-    syn_type,
-    population_dict,
-    projection_synapse_dict,
-    log=False,
-):
+    ranstream_syn: RandomState,
+    syn_layer: int8,
+    swc_type: uint8,
+    syn_type: uint8,
+    population_dict: Dict[str, int],
+    projection_synapse_dict: Dict[str, Tuple[int, List[int], List[int], List[float], int]],
+    log: bool=False,
+) -> str:
     """
     Given a synapse projection, SWC synapse location, and synapse type,
     chooses a projection from the given projection dictionary based on
@@ -307,20 +309,20 @@ def choose_synapse_projection(
 
 
 def generate_synaptic_connections(
-    rank,
-    gid,
-    ranstream_syn,
-    ranstream_con,
-    cluster_seed,
-    destination_gid,
-    synapse_dict,
-    population_dict,
-    projection_synapse_dict,
-    projection_prob_dict,
-    connection_dict,
-    random_choice=random_choice_w_replacement,
-    debug_flag=False,
-):
+    rank: int,
+    gid: int,
+    ranstream_syn: RandomState,
+    ranstream_con: RandomState,
+    cluster_seed: int,
+    destination_gid: int,
+    synapse_dict: Dict[str, ndarray],
+    population_dict: Dict[str, int],
+    projection_synapse_dict: Dict[str, Tuple[int, List[int], List[int], List[float], int]],
+    projection_prob_dict: Dict[str, Dict[int, Tuple[ndarray, ndarray, ndarray, ndarray]]],
+    connection_dict: DefaultDict[Any, Any],
+    random_choice: Callable=random_choice_w_replacement,
+    debug_flag: bool=False,
+) -> int:
     """
     Given a set of synapses for a particular gid, projection
     configuration, projection and connection probability dictionaries,
@@ -357,7 +359,7 @@ def generate_synaptic_connections(
         it < maxit
     ):
         log_flag = it > 1
-        if log_flag or debug_flag:
+        if log_flag:
             logger.info(
                 f"generate_synaptic_connections: gid {gid}: iteration {it}: "
                 f"source_populations = {source_populations} "
@@ -384,7 +386,7 @@ def generate_synaptic_connections(
                 projection_synapse_dict,
                 log=log_flag,
             )
-            if log_flag or debug_flag:
+            if log_flag:
                 logger.info(
                     f"generate_synaptic_connections: gid {gid}: "
                     f"syn_id = {syn_id} syn_type = {syn_type} swc_type = {swc_type} "
@@ -526,25 +528,25 @@ def generate_synaptic_connections(
 
 
 def generate_uv_distance_connections(
-    comm,
-    population_dict,
-    connection_config,
-    connection_prob,
-    forest_path,
-    synapse_seed,
-    connectivity_seed,
-    cluster_seed,
-    synapse_namespace,
-    connectivity_namespace,
-    connectivity_path,
-    io_size,
-    chunk_size,
-    value_chunk_size,
-    cache_size,
-    write_size=1,
-    dry_run=False,
-    debug=False,
-):
+    comm: Intracomm,
+    population_dict: Dict[str, int],
+    connection_config: Dict[str, Dict[str, SynapseConfig]],
+    connection_prob: ConnectionProb,
+    forest_path: str,
+    synapse_seed: int,
+    connectivity_seed: int,
+    cluster_seed: int,
+    synapse_namespace: str,
+    connectivity_namespace: str,
+    connectivity_path: str,
+    io_size: int,
+    chunk_size: int,
+    value_chunk_size: int,
+    cache_size: int,
+    write_size: int=1,
+    dry_run: bool=False,
+    debug: bool=False,
+) -> None:
     """
     Generates connectivity based on U, V distance-weighted probabilities.
 
@@ -701,7 +703,7 @@ def generate_uv_distance_connections(
 
         gid_count += 1
         it_count += 1
-        if (it_count > 250) and debug:
+        if (it_count > 1) and debug:
             break
 
     gc.collect()
