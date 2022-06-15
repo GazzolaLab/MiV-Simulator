@@ -12,9 +12,10 @@ from functools import reduce
 import numpy as np
 import scipy
 import scipy.optimize as opt
-from MiV.cells import make_section_graph
+from MiV.cells import BiophysCell, SCneuron, make_section_graph
 from MiV.neuron_utils import default_ordered_sec_types, interplocs, mknetcon
 from MiV.utils import (
+    AbstractEnv,
     ExprClosure,
     NamedTupleWithDocstring,
     Promise,
@@ -29,6 +30,10 @@ from MiV.utils import (
 )
 from neuroh5.io import write_cell_attributes
 from neuron import h
+from hoc import HocObject
+from nrn import Section, Segment
+from numpy import float64, ndarray, uint32
+from typing import Any, DefaultDict, Dict, List, Optional, Tuple, Union
 
 # This logger will inherit its settings from the root logger, created in env
 logger = get_module_logger(__name__)
@@ -544,7 +549,7 @@ class SynapseSource:
 
     __slots__ = "gid", "population", "delay"
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.gid = None
         self.population = None
         self.delay = None
@@ -609,7 +614,14 @@ class SynapseAttributes:
     complex subcellular gradients of synaptic mechanism attributes.
     """
 
-    def __init__(self, env, syn_mech_names, syn_param_rules):
+    def __init__(
+        self,
+        env: AbstractEnv,
+        syn_mech_names: Dict[str, str],
+        syn_param_rules: Dict[
+            str, Dict[str, Union[str, List[str], Dict[str, int]]]
+        ],
+    ) -> None:
         """An Env object containing imported network configuration metadata
         uses an instance of SynapseAttributes to track all metadata
         related to the identity, location, and configuration of all
@@ -706,8 +718,15 @@ class SynapseAttributes:
             )
 
     def init_syn_id_attrs(
-        self, gid, syn_ids, syn_layers, syn_types, swc_types, syn_secs, syn_locs
-    ):
+        self,
+        gid: int,
+        syn_ids: ndarray,
+        syn_layers: ndarray,
+        syn_types: ndarray,
+        swc_types: ndarray,
+        syn_secs: ndarray,
+        syn_locs: ndarray,
+    ) -> None:
 
         """
         Initializes synaptic attributes for the given cell gid.
@@ -762,8 +781,13 @@ class SynapseAttributes:
                 sec_dict[syn_sec].append((syn_id, syn))
 
     def init_edge_attrs(
-        self, gid, presyn_name, presyn_gids, edge_syn_ids, delays=None
-    ):
+        self,
+        gid: int,
+        presyn_name: str,
+        presyn_gids: ndarray,
+        edge_syn_ids: ndarray,
+        delays: Optional[List[Union[float64, float]]] = None,
+    ) -> None:
         """
         Sets connection edge attributes for the specified synapse ids.
 
@@ -801,8 +825,13 @@ class SynapseAttributes:
             syn.source.delay = delay
 
     def init_edge_attrs_from_iter(
-        self, pop_name, presyn_name, attr_info, edge_iter, set_edge_delays=True
-    ):
+        self,
+        pop_name: str,
+        presyn_name: str,
+        attr_info: Dict[str, Dict[str, Dict[str, Dict[str, int]]]],
+        edge_iter: List[Tuple[int, Tuple[ndarray, Dict[str, List[ndarray]]]]],
+        set_edge_delays: bool = True,
+    ) -> None:
         """
         Initializes edge attributes for all cell gids returned by iterator.
 
@@ -854,7 +883,9 @@ class SynapseAttributes:
                 delays=delays,
             )
 
-    def add_pps(self, gid, syn_id, syn_name, pps):
+    def add_pps(
+        self, gid: int, syn_id: uint32, syn_name: str, pps: HocObject
+    ) -> HocObject:
         """
         Adds mechanism point process for the specified cell/synapse id/mechanism name.
 
@@ -888,7 +919,9 @@ class SynapseAttributes:
         pps_dict = gid_pps_dict[syn_id]
         return syn_index in pps_dict.mech
 
-    def get_pps(self, gid, syn_id, syn_name, throw_error=True):
+    def get_pps(
+        self, gid: int, syn_id: uint32, syn_name: str, throw_error: bool = True
+    ) -> HocObject:
         """
         Returns the mechanism for the given synapse id on the given cell.
 
@@ -910,7 +943,9 @@ class SynapseAttributes:
             else:
                 return None
 
-    def add_netcon(self, gid, syn_id, syn_name, nc):
+    def add_netcon(
+        self, gid: int, syn_id: uint32, syn_name: str, nc: HocObject
+    ) -> HocObject:
         """
         Adds a NetCon object for the specified cell/synapse id/mechanism name.
 
@@ -1297,15 +1332,15 @@ class SynapseAttributes:
 
     def filter_synapses(
         self,
-        gid,
-        syn_sections=None,
-        syn_indexes=None,
-        syn_types=None,
-        layers=None,
-        sources=None,
-        swc_types=None,
-        cache=False,
-    ):
+        gid: int,
+        syn_sections: Optional[List[int]] = None,
+        syn_indexes: None = None,
+        syn_types: Optional[List[int]] = None,
+        layers: None = None,
+        sources: None = None,
+        swc_types: None = None,
+        cache: bool = False,
+    ) -> Dict[Any, Any]:
         """
         Returns a subset of the synapses of the given cell according to the given criteria.
 
@@ -1378,7 +1413,9 @@ class SynapseAttributes:
 
         return result
 
-    def partition_synapses_by_source(self, gid, syn_ids=None):
+    def partition_synapses_by_source(
+        self, gid: int, syn_ids: Optional[List[uint32]] = None
+    ) -> Dict[str, Optional[itertools.chain]]:
         """
         Partitions the synapse objects for the given cell based on the
         presynaptic (source) population index.
@@ -1454,7 +1491,9 @@ class SynapseAttributes:
             ).keys()
         )
 
-    def partition_syn_ids_by_source(self, gid, syn_ids=None):
+    def partition_syn_ids_by_source(
+        self, gid: int, syn_ids: Optional[List[uint32]] = None
+    ) -> Dict[str, itertools.chain]:
         """
         Partitions the synapse ids for the given cell based on the
         presynaptic (source) population index.
@@ -1492,7 +1531,7 @@ class SynapseAttributes:
             for source_id_x in enumerate(source_iter)
         }
 
-    def del_syn_id_attr_dict(self, gid):
+    def del_syn_id_attr_dict(self, gid: int) -> None:
         """
         Removes the synapse attributes associated with the given cell gid.
         """
@@ -1526,15 +1565,21 @@ class SynapseAttributes:
 
 
 def insert_hoc_cell_syns(
-    env,
-    gid,
-    cell,
-    syn_ids,
-    syn_params,
-    unique=False,
-    insert_netcons=False,
-    insert_vecstims=False,
-):
+    env: AbstractEnv,
+    gid: int,
+    cell: HocObject,
+    syn_ids: Union[List[uint32], itertools.chain],
+    syn_params: Dict[
+        str,
+        Union[
+            Dict[str, Dict[str, Union[int, float]]],
+            Dict[str, Union[Dict[str, Union[int, float]], Dict[str, float]]],
+        ],
+    ],
+    unique: bool = False,
+    insert_netcons: bool = False,
+    insert_vecstims: bool = False,
+) -> Tuple[int, int, int]:
     """
     TODO: Only config the point process object if it has not already been configured.
 
@@ -1707,16 +1752,16 @@ def insert_hoc_cell_syns(
 
 
 def insert_biophys_cell_syns(
-    env,
-    gid,
-    postsyn_name,
-    presyn_name,
-    syn_ids,
-    unique=None,
-    insert_netcons=True,
-    insert_vecstims=True,
-    verbose=False,
-):
+    env: AbstractEnv,
+    gid: int,
+    postsyn_name: str,
+    presyn_name: str,
+    syn_ids: itertools.chain,
+    unique: None = None,
+    insert_netcons: bool = True,
+    insert_vecstims: bool = True,
+    verbose: bool = False,
+) -> None:
     """
 
     1) make syns (if not unique, keep track of syn_in_seg for shared synapses)
@@ -1772,17 +1817,17 @@ def insert_biophys_cell_syns(
 
 
 def config_biophys_cell_syns(
-    env,
-    gid,
-    postsyn_name,
-    syn_ids=None,
-    unique=None,
-    insert=False,
-    insert_netcons=False,
-    insert_vecstims=False,
-    verbose=False,
-    throw_error=False,
-):
+    env: AbstractEnv,
+    gid: int,
+    postsyn_name: str,
+    syn_ids: None = None,
+    unique: None = None,
+    insert: bool = False,
+    insert_netcons: bool = False,
+    insert_vecstims: bool = False,
+    verbose: bool = False,
+    throw_error: bool = False,
+) -> Tuple[int, int]:
     """
     Configures the given syn_ids, and call config_syn with mechanism
     and netcon parameters (which must not be empty).  If syn_ids=None,
@@ -1853,18 +1898,18 @@ def config_biophys_cell_syns(
 
 
 def config_hoc_cell_syns(
-    env,
-    gid,
-    postsyn_name,
-    cell=None,
-    syn_ids=None,
-    unique=None,
-    insert=False,
-    insert_netcons=False,
-    insert_vecstims=False,
-    verbose=False,
-    throw_error=False,
-):
+    env: AbstractEnv,
+    gid: int,
+    postsyn_name: str,
+    cell: Optional[HocObject] = None,
+    syn_ids: Optional[List[uint32]] = None,
+    unique: Optional[bool] = None,
+    insert: bool = False,
+    insert_netcons: bool = False,
+    insert_vecstims: bool = False,
+    verbose: bool = False,
+    throw_error: bool = False,
+) -> Tuple[int, int, int]:
     """
     Configures the given syn_ids, and call config_syn with mechanism and netcon parameters (which must not be empty).
     If syn_ids=None, configures all synapses for the cell with the given gid.
@@ -2014,7 +2059,14 @@ def config_hoc_cell_syns(
     return total_syn_id_count, total_mech_count, total_nc_count
 
 
-def config_syn(syn_name, rules, mech_names=None, syn=None, nc=None, **params):
+def config_syn(
+    syn_name: str,
+    rules: Dict[str, Dict[str, Union[str, List[str], Dict[str, int]]]],
+    mech_names: Optional[Dict[str, str]] = None,
+    syn: Optional[HocObject] = None,
+    nc: Optional[HocObject] = None,
+    **params,
+) -> Tuple[bool, bool]:
     """
     Initializes synaptic and connection mechanisms with parameters specified in the synapse attribute dictionaries.
 
@@ -2100,7 +2152,13 @@ def config_syn(syn_name, rules, mech_names=None, syn=None, nc=None, **params):
     return (mech_param, nc_param)
 
 
-def syn_in_seg(syn_name, seg, syns_dict):
+def syn_in_seg(
+    syn_name: str,
+    seg: Segment,
+    syns_dict: DefaultDict[
+        Section, DefaultDict[float, DefaultDict[str, HocObject]]
+    ],
+) -> Optional[HocObject]:
     """
     If a synaptic mechanism of the specified type already exists in the specified segment, it is returned. Otherwise,
     it returns None.
@@ -2118,7 +2176,7 @@ def syn_in_seg(syn_name, seg, syns_dict):
     return None
 
 
-def make_syn_mech(mech_name, seg):
+def make_syn_mech(mech_name: str, seg: Segment) -> HocObject:
     """
     TODO: Why was the hasattr(h, mech_name) check removed?
     :param mech_name: str (name of the point_process, specified by Env.synapse_attributes.syn_mech_names)
@@ -2129,7 +2187,14 @@ def make_syn_mech(mech_name, seg):
     return syn
 
 
-def make_shared_synapse_mech(syn_name, seg, syns_dict, mech_names=None):
+def make_shared_synapse_mech(
+    syn_name: str,
+    seg: Segment,
+    syns_dict: DefaultDict[
+        Section, DefaultDict[float, DefaultDict[str, HocObject]]
+    ],
+    mech_names: Optional[Dict[str, str]] = None,
+) -> HocObject:
     """
     If a synaptic mechanism of the specified type already exists in the specified segment, it is returned.
     Otherwise, this method creates one in the provided segment and adds it to the provided syns_dict before it is
@@ -2200,7 +2265,12 @@ def get_syn_mech_param(syn_name, rules, param_name, mech_names=None, nc=None):
     )
 
 
-def get_syn_filter_dict(env, rules, convert=False, check_valid=True):
+def get_syn_filter_dict(
+    env: AbstractEnv,
+    rules: Dict[str, List[str]],
+    convert: bool = False,
+    check_valid: bool = True,
+) -> Dict[str, List[int]]:
     """Used by modify_syn_param. Takes in a series of arguments and
     constructs a validated rules dictionary that specifies to which
     sets of synapses a rule applies. Values of filter queries are
@@ -2262,7 +2332,7 @@ def get_syn_filter_dict(env, rules, convert=False, check_valid=True):
     return rules_dict
 
 
-def validate_syn_mech_param(env, syn_name, param_name):
+def validate_syn_mech_param(env: AbstractEnv, syn_name, param_name):
     """
 
     :param env: :class:'Env'
@@ -2292,7 +2362,7 @@ def validate_syn_mech_param(env, syn_name, param_name):
 
 def modify_syn_param(
     cell,
-    env,
+    env: AbstractEnv,
     sec_type,
     syn_name,
     param_name=None,
@@ -2393,7 +2463,7 @@ def modify_syn_param(
 
 def update_syn_mech_by_sec_type(
     cell,
-    env,
+    env: AbstractEnv,
     sec_type,
     syn_name,
     mech_content,
@@ -2430,7 +2500,7 @@ def update_syn_mech_by_sec_type(
 
 def update_syn_mech_param_by_sec_type(
     cell,
-    env,
+    env: AbstractEnv,
     sec_type,
     syn_name,
     param_name,
@@ -2497,7 +2567,7 @@ def update_syn_mech_param_by_sec_type(
 
 def apply_syn_mech_rules(
     cell,
-    env,
+    env: AbstractEnv,
     syn_name,
     param_name,
     rules,
@@ -2573,7 +2643,7 @@ def apply_syn_mech_rules(
 
 def set_syn_mech_param(
     cell,
-    env,
+    env: AbstractEnv,
     node,
     syn_ids,
     syn_name,
@@ -2621,8 +2691,11 @@ def set_syn_mech_param(
 
 
 def init_syn_mech_attrs(
-    cell, env=None, reset_mech_dict=False, update_targets=False
-):
+    cell: Union[SCneuron, BiophysCell],
+    env: Optional[AbstractEnv] = None,
+    reset_mech_dict: bool = False,
+    update_targets: bool = False,
+) -> None:
     """Consults a dictionary specifying parameters of NEURON synaptic mechanisms (point processes) for each type of
     section in a BiophysCell. Traverses through the tree of SHocNode nodes following order of inheritance. Calls
     update_syn_mech_by_sec_type to set placeholder values in the syn_mech_attrs_dict of a SynapseAttributes object. If
@@ -2652,8 +2725,13 @@ def init_syn_mech_attrs(
 
 
 def write_syn_spike_count(
-    env, pop_name, output_path, filters=None, syn_names=None, write_kwds={}
-):
+    env: AbstractEnv,
+    pop_name: str,
+    output_path: str,
+    filters: Optional[Dict[str, List[str]]] = None,
+    syn_names: None = None,
+    write_kwds: Dict[str, int] = {},
+) -> None:
     """
     Writes spike counts per presynaptic source for each cell in the given population to a NeuroH5 file.
     Assumes that attributes have been set via config_syn.

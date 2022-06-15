@@ -7,6 +7,7 @@ from collections import defaultdict
 import h5py
 import numpy as np
 from MiV.utils import (
+    AbstractEnv,
     Iterable,
     Struct,
     compose_iter,
@@ -26,6 +27,7 @@ from neuroh5.io import (
     write_cell_attributes,
     write_graph,
 )
+from typing import Any, List, Optional, Union
 
 
 def set_union(a, b, datatype):
@@ -59,7 +61,9 @@ default_io_options = Struct(
 )
 
 
-def list_concat(a, b, datatype):
+def list_concat(
+    a: List[Union[str, Any]], b: List[Union[str, Any]], datatype: None
+) -> List[Union[str, Any]]:
     return a + b
 
 
@@ -257,7 +261,7 @@ def import_spikeraster(
     comm.barrier()
 
 
-def make_h5types(env, output_path, gap_junctions=False):
+def make_h5types(env: AbstractEnv, output_path, gap_junctions=False):
     populations = []
     for pop_name, pop_idx in viewitems(env.Populations):
         layer_counts = env.geometry["Cell Distribution"][pop_name]
@@ -343,7 +347,7 @@ def make_h5types(env, output_path, gap_junctions=False):
     h5.close()
 
 
-def mkout(env, results_filename):
+def mkout(env: AbstractEnv, results_filename: str) -> None:
     """
     Creates simulation results file and adds H5Types group compatible with NeuroH5.
 
@@ -366,7 +370,12 @@ def mkout(env, results_filename):
         make_h5types(env, results_filename)
 
 
-def spikeout(env, output_path, t_start=None, clear_data=False):
+def spikeout(
+    env: AbstractEnv,
+    output_path: str,
+    t_start: Optional[float] = None,
+    clear_data: bool = False,
+) -> None:
     """
     Writes spike times to specified NeuroH5 output file.
 
@@ -463,13 +472,13 @@ def spikeout(env, output_path, t_start=None, clear_data=False):
 
 
 def recsout(
-    env,
-    output_path,
-    t_start=None,
-    clear_data=False,
-    write_cell_location_data=False,
-    write_trial_data=False,
-):
+    env: AbstractEnv,
+    output_path: str,
+    t_start: Optional[float] = None,
+    clear_data: bool = False,
+    write_cell_location_data: bool = False,
+    write_trial_data: bool = False,
+) -> None:
     """
     Writes intracellular state traces to specified NeuroH5 output file.
 
@@ -579,7 +588,7 @@ def recsout(
         )
 
 
-def lfpout(env, output_path):
+def lfpout(env: AbstractEnv, output_path: str):
     """
     Writes local field potential voltage traces to specified HDF5 output file.
 
@@ -675,7 +684,7 @@ def get_h5py_group(file, hierarchy, create=False):
 
 
 def write_cell_selection(
-    env, write_selection_file_path, populations=None, write_kwds={}
+    env: AbstractEnv, write_selection_file_path, populations=None, write_kwds={}
 ):
     """
     Writes out the data necessary to instantiate the selected cells.
@@ -779,7 +788,7 @@ def write_cell_selection(
 
 
 def write_connection_selection(
-    env, write_selection_file_path, populations=None, write_kwds={}
+    env: AbstractEnv, write_selection_file_path, populations=None, write_kwds={}
 ):
     """
     Loads NeuroH5 connectivity file, and writes the corresponding
@@ -984,7 +993,7 @@ def write_connection_selection(
 
 
 def write_input_cell_selection(
-    env,
+    env: AbstractEnv,
     input_sources,
     write_selection_file_path,
     populations=None,

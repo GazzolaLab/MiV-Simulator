@@ -21,6 +21,7 @@ from MiV.neuron_utils import (
     reinit_diam,
 )
 from MiV.utils import (
+    AbstractEnv,
     Promise,
     get_module_logger,
     read_from_yaml,
@@ -33,13 +34,24 @@ from neuroh5.io import (
     read_graph_selection,
     read_tree_selection,
 )
+from hoc import HocObject
+from networkx.classes.digraph import DiGraph
+from nrn import Section
+from numpy import ndarray, uint32
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 # This logger will inherit its settings from the root logger, created in env
 logger = get_module_logger(__name__)
 
 
 class SectionNode:
-    def __init__(self, section_type, index, section, content=None):
+    def __init__(
+        self,
+        section_type: str,
+        index: int,
+        section: Section,
+        content: Optional[Dict[str, ndarray]] = None,
+    ) -> None:
         self.name = f"{section_type}{index}"
         self.section = section
         self.index = index
@@ -49,10 +61,10 @@ class SectionNode:
         self.content = content
 
     @property
-    def diam_bounds(self):
+    def diam_bounds(self) -> None:
         return self.content.get("diam_bounds", None)
 
-    def get_layer(self, x=None):
+    def get_layer(self, x: None = None) -> ndarray:
         """
         NEURON sections can be assigned a layer type for convenience in order to later specify synaptic mechanisms and
         properties for each layer. If 3D points are used to specify cell morphology, each element in the list
@@ -71,7 +83,7 @@ class SectionNode:
         return result
 
     @property
-    def sec(self):
+    def sec(self) -> Section:
         return self.section
 
     def __str__(self):
@@ -82,8 +94,13 @@ class SectionNode:
 
 
 def make_neurotree_hoc_cell(
-    template_class, gid=0, neurotree_dict={}, section_content=None
-):
+    template_class: HocObject,
+    gid: int = 0,
+    neurotree_dict: Dict[
+        str, Union[ndarray, Dict[str, Union[int, Dict[int, ndarray], ndarray]]]
+    ] = {},
+    section_content: Optional[bool] = None,
+) -> Union[HocObject, Tuple[HocObject, Dict[int, Dict[str, ndarray]]]]:
     """
     :param template_class:
     :param local_id:
@@ -124,7 +141,18 @@ def make_neurotree_hoc_cell(
         return cell
 
 
-def make_hoc_cell(env, pop_name, gid, neurotree_dict=False):
+def make_hoc_cell(
+    env: AbstractEnv,
+    pop_name: str,
+    gid: int,
+    neurotree_dict: Union[
+        bool,
+        Dict[
+            str,
+            Union[ndarray, Dict[str, Union[int, Dict[int, ndarray], ndarray]]],
+        ],
+    ] = False,
+) -> HocObject:
     """
 
     :param env:
@@ -162,8 +190,14 @@ def make_hoc_cell(env, pop_name, gid, neurotree_dict=False):
 
 
 def make_input_cell(
-    env, gid, pop_id, input_source_dict, spike_train_attr_name="t"
-):
+    env: AbstractEnv,
+    gid: uint32,
+    pop_id: int,
+    input_source_dict: Dict[
+        int, Dict[str, Union[Dict[Any, Any], Dict[int, Dict[str, ndarray]]]]
+    ],
+    spike_train_attr_name: str = "t",
+) -> HocObject:
     """
     Instantiates an input generator according to the given cell template.
     """
@@ -365,8 +399,18 @@ class SCneuron(object):
     """
 
     def __init__(
-        self, gid, pop_name, env=None, mech_dict=None, mech_file_path=None
-    ):
+        self,
+        gid: int,
+        pop_name: str,
+        env: Optional[AbstractEnv] = None,
+        mech_dict: Optional[
+            Dict[
+                str,
+                Dict[str, Dict[str, Union[Dict[str, float], Dict[str, int]]]],
+            ]
+        ] = None,
+        mech_file_path: None = None,
+    ) -> None:
         """
 
         :param gid: int
@@ -411,7 +455,7 @@ class SCneuron(object):
         init_spike_detector(self)
 
     @property
-    def gid(self):
+    def gid(self) -> int:
         return self._gid
 
     @property
@@ -419,11 +463,11 @@ class SCneuron(object):
         return self._pop_name
 
     @property
-    def soma(self):
+    def soma(self) -> List[SectionNode]:
         return self.nodes["soma"]
 
     @property
-    def axon(self):
+    def axon(self) -> List[Any]:
         return self.nodes["axon"]
 
     @property
@@ -455,7 +499,7 @@ class SCneuron(object):
         return self.nodes["spine_neck"]
 
     @property
-    def ais(self):
+    def ais(self) -> List[Any]:
         return self.nodes["ais"]
 
     @property
@@ -470,14 +514,21 @@ class BiophysCell:
 
     def __init__(
         self,
-        gid,
-        population_name,
-        hoc_cell=None,
-        neurotree_dict=None,
-        mech_file_path=None,
-        mech_dict=None,
-        env=None,
-    ):
+        gid: int,
+        population_name: str,
+        hoc_cell: None = None,
+        neurotree_dict: Optional[
+            Dict[
+                str,
+                Union[
+                    ndarray, Dict[str, Union[int, Dict[int, ndarray], ndarray]]
+                ],
+            ]
+        ] = None,
+        mech_file_path: None = None,
+        mech_dict: None = None,
+        env: Optional[AbstractEnv] = None,
+    ) -> None:
         """
 
         :param gid: int
@@ -531,7 +582,7 @@ class BiophysCell:
         init_spike_detector(self)
 
     @property
-    def gid(self):
+    def gid(self) -> int:
         return self._gid
 
     @property
@@ -539,11 +590,11 @@ class BiophysCell:
         return self._population_name
 
     @property
-    def soma(self):
+    def soma(self) -> List[SectionNode]:
         return self.nodes["soma"]
 
     @property
-    def axon(self):
+    def axon(self) -> List[Union[Any, SectionNode]]:
         return self.nodes["axon"]
 
     @property
@@ -567,7 +618,7 @@ class BiophysCell:
         return self.nodes["spine"]
 
     @property
-    def ais(self):
+    def ais(self) -> List[Union[Any, SectionNode]]:
         return self.nodes["ais"]
 
     @property
@@ -575,7 +626,12 @@ class BiophysCell:
         return self.nodes["hillock"]
 
 
-def get_distance_to_node(cell, node, root=None, loc=None):
+def get_distance_to_node(
+    cell: BiophysCell,
+    node: SectionNode,
+    root: Optional[SectionNode] = None,
+    loc: Optional[float] = None,
+) -> float:
     """
     Returns the distance from the given location on the given node to its connection with a root node.
     :param node: int
@@ -603,7 +659,9 @@ def get_distance_to_node(cell, node, root=None, loc=None):
     return length
 
 
-def get_node_parent(cell, node, return_edge_data=False):
+def get_node_parent(
+    cell: BiophysCell, node: SectionNode, return_edge_data: bool = False
+) -> Union[Tuple[None, None], Tuple[SectionNode, Dict[str, float]]]:
     predecessors = list(cell.tree.predecessors(node))
     if len(predecessors) > 1:
         raise RuntimeError(
@@ -620,7 +678,9 @@ def get_node_parent(cell, node, return_edge_data=False):
         return parent
 
 
-def get_node_children(cell, node, return_edge_data=False):
+def get_node_children(
+    cell: BiophysCell, node: SectionNode, return_edge_data: bool = False
+) -> List[Union[Any, SectionNode]]:
     successors = cell.tree.successors(node)
     edge_data = []
     children = []
@@ -633,7 +693,13 @@ def get_node_children(cell, node, return_edge_data=False):
         return children
 
 
-def insert_section_node(cell, section_type, index, sec, content=None):
+def insert_section_node(
+    cell: Union[BiophysCell, SCneuron],
+    section_type: str,
+    index: int,
+    sec: Section,
+    content: Optional[Dict[str, ndarray]] = None,
+) -> SectionNode:
     node = SectionNode(section_type, index, sec, content=content)
     if cell.tree.has_node(node) or node in cell.nodes[section_type]:
         raise RuntimeError(
@@ -645,8 +711,12 @@ def insert_section_node(cell, section_type, index, sec, content=None):
 
 
 def insert_section_tree(
-    cell, sec_list, sec_dict, parent=None, connect_hoc_sections=False
-):
+    cell: BiophysCell,
+    sec_list: List[Section],
+    sec_dict: Dict[Section, Dict[str, Union[str, int, Dict[str, ndarray]]]],
+    parent: None = None,
+    connect_hoc_sections: bool = False,
+) -> None:
     sec_stack = []
     for sec in sec_list:
         sec_stack.append((parent, sec))
@@ -673,13 +743,13 @@ def insert_section_tree(
 
 
 def connect_nodes(
-    tree,
-    parent,
-    child,
-    parent_loc=1.0,
-    child_loc=0.0,
-    connect_hoc_sections=False,
-):
+    tree: DiGraph,
+    parent: SectionNode,
+    child: SectionNode,
+    parent_loc: float = 1.0,
+    child_loc: float = 0.0,
+    connect_hoc_sections: bool = False,
+) -> DiGraph:
     """
     Connects the given section node to a parent node, and if specified, establishes a connection between their associated
     hoc sections.
@@ -695,7 +765,11 @@ def connect_nodes(
     return tree
 
 
-def import_morphology_from_hoc(cell, hoc_cell, section_content=None):
+def import_morphology_from_hoc(
+    cell: BiophysCell,
+    hoc_cell: HocObject,
+    section_content: Optional[Dict[int, Dict[str, ndarray]]] = None,
+) -> None:
     """
     Append sections from an existing instance of a NEURON cell template to a Python cell wrapper.
     :param cell: :class:'BiophysCell'
@@ -769,13 +843,17 @@ def import_mech_dict_from_file(cell, mech_file_path=None):
     cell.mech_dict = copy.deepcopy(cell.init_mech_dict)
 
 
-def init_cable(cell, verbose=False):
+def init_cable(
+    cell: Union[BiophysCell, SCneuron], verbose: bool = False
+) -> None:
     for sec_type in cell.nodes:
         for node in cell.nodes[sec_type]:
             reset_cable_by_node(cell, node, verbose=verbose)
 
 
-def reset_cable_by_node(cell, node, verbose=True):
+def reset_cable_by_node(
+    cell: Union[BiophysCell, SCneuron], node: SectionNode, verbose: bool = True
+) -> None:
     """
     Consults a dictionary specifying parameters of NEURON cable properties such as axial resistance ('Ra'),
     membrane specific capacitance ('cm'), and a spatial resolution parameter to specify the number of separate
@@ -797,15 +875,15 @@ def reset_cable_by_node(cell, node, verbose=True):
 
 
 def connect2target(
-    cell,
-    sec,
-    loc=1.0,
-    param="_ref_v",
-    delay=None,
-    weight=None,
-    threshold=None,
-    target=None,
-):
+    cell: Union[BiophysCell, SCneuron],
+    sec: Section,
+    loc: float = 1.0,
+    param: str = "_ref_v",
+    delay: Optional[float] = None,
+    weight: None = None,
+    threshold: Optional[int] = None,
+    target: None = None,
+) -> HocObject:
     """
     Converts analog voltage in the specified section to digital spike output. Initializes and returns an h.NetCon
     object with voltage as a reference parameter connected to the specified target.
@@ -842,14 +920,14 @@ def connect2target(
 
 
 def init_spike_detector(
-    cell,
-    node=None,
-    distance=100.0,
-    threshold=-30,
-    delay=0.05,
-    onset_delay=0.0,
-    loc=0.5,
-):
+    cell: Union[BiophysCell, SCneuron],
+    node: None = None,
+    distance: float = 100.0,
+    threshold: int = -30,
+    delay: float = 0.05,
+    onset_delay: float = 0.0,
+    loc: float = 0.5,
+) -> HocObject:
     """
     Initializes the spike detector in the given cell according to the
     given arguments or a spike detector configuration of the mechanism
@@ -910,8 +988,11 @@ def init_spike_detector(
 
 
 def update_biophysics_by_sec_type(
-    cell, sec_type, reset_cable=False, verbose=False
-):
+    cell: SCneuron,
+    sec_type: str,
+    reset_cable: bool = False,
+    verbose: bool = False,
+) -> None:
     """
     This method loops through all sections of the specified type, and consults the mechanism dictionary to update
     mechanism properties. If the reset_cable flag is True, cable parameters are re-initialized first, then the
@@ -943,8 +1024,14 @@ def update_biophysics_by_sec_type(
 
 
 def update_mechanism_by_node(
-    cell, node, mech_name, mech_content=None, verbose=True
-):
+    cell: SCneuron,
+    node: SectionNode,
+    mech_name: str,
+    mech_content: Optional[
+        Dict[str, Union[Dict[str, float], Dict[str, int]]]
+    ] = None,
+    verbose: bool = True,
+) -> None:
     """
     This method loops through all the parameters for a single mechanism specified in the mechanism dictionary and
     calls apply_mech_rules to interpret the rules and set the values for the given node.
@@ -985,7 +1072,14 @@ def update_mechanism_by_node(
         node.section.insert(mech_name)
 
 
-def apply_mech_rules(cell, node, mech_name, param_name, rules, verbose=True):
+def apply_mech_rules(
+    cell: SCneuron,
+    node: SectionNode,
+    mech_name: str,
+    param_name: str,
+    rules: Dict[str, Union[int, float]],
+    verbose: bool = True,
+) -> None:
     """
     Provided a membrane density mechanism, a parameter, a node, and a dict of rules, interprets the provided rules,
     and applies resulting parameter values to mechanisms in the corresponding section.
@@ -1007,7 +1101,14 @@ def apply_mech_rules(cell, node, mech_name, param_name, rules, verbose=True):
         set_mech_param(cell, node, mech_name, param_name, baseline, rules)
 
 
-def set_mech_param(cell, node, mech_name, param_name, baseline, rules):
+def set_mech_param(
+    cell: SCneuron,
+    node: SectionNode,
+    mech_name: str,
+    param_name: str,
+    baseline: Union[int, float],
+    rules: Dict[str, Union[int, float]],
+) -> None:
     """
 
     :param node: :class:'SectionNode'
@@ -1026,7 +1127,12 @@ def set_mech_param(cell, node, mech_name, param_name, baseline, rules):
     setattr(node.sec, f"{param_name}_{mech_name}", baseline)
 
 
-def filter_nodes(cell, sections=None, layers=None, swc_types=None):
+def filter_nodes(
+    cell: BiophysCell,
+    sections: None = None,
+    layers: None = None,
+    swc_types: Optional[List[str]] = None,
+) -> List[SectionNode]:
     """
     Returns a subset of the nodes of the given cell according to the given criteria.
 
@@ -1059,7 +1165,9 @@ def filter_nodes(cell, sections=None, layers=None, swc_types=None):
     return result
 
 
-def report_topology(env, cell, node=None):
+def report_topology(
+    env: AbstractEnv, cell: BiophysCell, node: Optional[SectionNode] = None
+) -> None:
     """
     Traverse a cell and report topology and number of synapses.
     :param cell:
@@ -1187,13 +1295,45 @@ def make_morph_graph(biophys_cell, node_filters={}):
 
 
 def load_biophys_cell_dicts(
-    env,
-    pop_name,
-    gid_set,
-    data_file_path=None,
-    load_connections=True,
-    validate_tree=True,
-):
+    env: AbstractEnv,
+    pop_name: str,
+    gid_set: Set[int],
+    data_file_path: None = None,
+    load_connections: bool = True,
+    validate_tree: bool = True,
+) -> Dict[
+    int,
+    Dict[
+        str,
+        Optional[
+            Union[
+                Dict[
+                    str,
+                    Union[
+                        ndarray,
+                        Dict[str, Union[int, Dict[int, ndarray], ndarray]],
+                    ],
+                ],
+                Dict[str, ndarray],
+                Tuple[
+                    Dict[
+                        str,
+                        Dict[
+                            str,
+                            List[
+                                Tuple[
+                                    int,
+                                    Tuple[ndarray, Dict[str, List[ndarray]]],
+                                ]
+                            ],
+                        ],
+                    ],
+                    Dict[str, Dict[str, Dict[str, Dict[str, int]]]],
+                ],
+            ]
+        ],
+    ],
+]:
     """
     Loads the data necessary to instantiate BiophysCell into the given dictionary.
 
@@ -1313,18 +1453,29 @@ def load_biophys_cell_dicts(
 
 
 def init_circuit_context(
-    env,
-    pop_name,
-    gid,
-    load_edges=False,
-    connection_graph=None,
-    load_weights=False,
-    weight_dict=None,
-    load_synapses=False,
-    synapses_dict=None,
-    set_edge_delays=True,
+    env: AbstractEnv,
+    pop_name: str,
+    gid: int,
+    load_edges: bool = False,
+    connection_graph: Optional[
+        Tuple[
+            Dict[
+                str,
+                Dict[
+                    str,
+                    List[Tuple[int, Tuple[ndarray, Dict[str, List[ndarray]]]]],
+                ],
+            ],
+            Dict[str, Dict[str, Dict[str, Dict[str, int]]]],
+        ]
+    ] = None,
+    load_weights: bool = False,
+    weight_dict: None = None,
+    load_synapses: bool = False,
+    synapses_dict: Optional[Dict[str, ndarray]] = None,
+    set_edge_delays: bool = True,
     **kwargs,
-):
+) -> None:
 
     syn_attrs = env.synapse_attributes
     synapse_config = env.celltypes[pop_name]["synapses"]
@@ -1515,14 +1666,14 @@ def init_circuit_context(
 
 
 def init_biophysics(
-    cell,
-    env=None,
-    reset_cable=True,
-    correct_cm=False,
-    correct_g_pas=False,
-    reset_mech_dict=False,
-    verbose=True,
-):
+    cell: Union[BiophysCell, SCneuron],
+    env: Optional[AbstractEnv] = None,
+    reset_cable: bool = True,
+    correct_cm: bool = False,
+    correct_g_pas: bool = False,
+    reset_mech_dict: bool = False,
+    verbose: bool = True,
+) -> None:
     """
     Consults a dictionary specifying parameters of NEURON cable properties, density mechanisms, and point processes for
     each type of section in a BiophysCell. Traverses through the tree of SHocNode nodes following order of inheritance.
@@ -1560,7 +1711,9 @@ def init_biophysics(
         correct_cell_for_spines_g_pas(cell, env, verbose=verbose)
 
 
-def correct_node_for_spines_g_pas(node, env, gid, soma_g_pas, verbose=True):
+def correct_node_for_spines_g_pas(
+    node, env: AbstractEnv, gid, soma_g_pas, verbose=True
+):
     """
     If not explicitly modeling spine compartments for excitatory synapses, this method scales g_pas in this
     dendritic section proportional to the number of excitatory synapses contained in the section.
@@ -1589,7 +1742,7 @@ def correct_node_for_spines_g_pas(node, env, gid, soma_g_pas, verbose=True):
             )
 
 
-def correct_node_for_spines_cm(node, env, gid, verbose=True):
+def correct_node_for_spines_cm(node, env: AbstractEnv, gid, verbose=True):
     """
     If not explicitly modeling spine compartments for excitatory synapses, this method scales cm in this
     dendritic section proportional to the number of excitatory synapses contained in the section.
@@ -1618,7 +1771,7 @@ def correct_node_for_spines_cm(node, env, gid, verbose=True):
             )
 
 
-def correct_cell_for_spines_g_pas(cell, env, verbose=False):
+def correct_cell_for_spines_g_pas(cell, env: AbstractEnv, verbose=False):
     """
     If not explicitly modeling spine compartments for excitatory synapses, this method scales g_pas in all
     dendritic sections proportional to the number of excitatory synapses contained in each section.
@@ -1639,7 +1792,7 @@ def correct_cell_for_spines_g_pas(cell, env, verbose=False):
             )
 
 
-def correct_cell_for_spines_cm(cell, env, verbose=False):
+def correct_cell_for_spines_cm(cell, env: AbstractEnv, verbose=False):
     """
 
     :param cell: :class:'BiophysCell'
@@ -1659,23 +1812,39 @@ def correct_cell_for_spines_cm(cell, env, verbose=False):
 
 
 def make_biophys_cell(
-    env,
-    population_name,
-    gid,
-    mech_file_path=None,
-    mech_dict=None,
-    tree_dict=None,
-    load_synapses=False,
-    synapses_dict=None,
-    load_edges=False,
-    connection_graph=None,
-    load_weights=False,
-    weight_dict=None,
-    set_edge_delays=True,
-    bcast_template=True,
-    validate_tree=True,
+    env: AbstractEnv,
+    population_name: str,
+    gid: int,
+    mech_file_path: None = None,
+    mech_dict: None = None,
+    tree_dict: Optional[
+        Dict[
+            str,
+            Union[ndarray, Dict[str, Union[int, Dict[int, ndarray], ndarray]]],
+        ]
+    ] = None,
+    load_synapses: bool = False,
+    synapses_dict: Optional[Dict[str, ndarray]] = None,
+    load_edges: bool = False,
+    connection_graph: Optional[
+        Tuple[
+            Dict[
+                str,
+                Dict[
+                    str,
+                    List[Tuple[int, Tuple[ndarray, Dict[str, List[ndarray]]]]],
+                ],
+            ],
+            Dict[str, Dict[str, Dict[str, Dict[str, int]]]],
+        ]
+    ] = None,
+    load_weights: bool = False,
+    weight_dict: None = None,
+    set_edge_delays: bool = True,
+    bcast_template: bool = True,
+    validate_tree: bool = True,
     **kwargs,
-):
+) -> BiophysCell:
     """
     :param env: :class:'Env'
     :param population_name: str
@@ -1740,7 +1909,7 @@ def make_biophys_cell(
 
 
 def make_PR_cell(
-    env,
+    env: AbstractEnv,
     pop_name,
     gid,
     mech_file_path=None,
@@ -1816,22 +1985,24 @@ def make_PR_cell(
 
 
 def make_SC_cell(
-    env,
-    pop_name,
-    gid,
-    mech_file_path=None,
-    mech_dict=None,
-    tree_dict=None,
-    load_synapses=False,
-    synapses_dict=None,
-    load_edges=False,
-    connection_graph=None,
-    load_weights=False,
-    weight_dict=None,
-    set_edge_delays=True,
-    bcast_template=True,
+    env: AbstractEnv,
+    pop_name: str,
+    gid: int,
+    mech_file_path: None = None,
+    mech_dict: Optional[
+        Dict[str, Dict[str, Dict[str, Union[Dict[str, float], Dict[str, int]]]]]
+    ] = None,
+    tree_dict: None = None,
+    load_synapses: bool = False,
+    synapses_dict: None = None,
+    load_edges: bool = False,
+    connection_graph: None = None,
+    load_weights: bool = False,
+    weight_dict: None = None,
+    set_edge_delays: bool = True,
+    bcast_template: bool = True,
     **kwargs,
-):
+) -> SCneuron:
     """
     :param env: :class:'Env'
     :param pop_name: str
@@ -1885,11 +2056,16 @@ def make_SC_cell(
     return cell
 
 
-def register_cell(env, pop_name, gid, cell):
+def register_cell(
+    env: AbstractEnv,
+    pop_name: str,
+    gid: Union[uint32, int],
+    cell: Union[HocObject, BiophysCell, SCneuron],
+) -> None:
     """
     Registers a cell in a network environment.
 
-    :param env: an instance of the `dentate.Env` class
+    :param env: an instance of the `Env` class
     :param pop_name: population name
     :param gid: gid
     :param cell: cell instance
@@ -1922,14 +2098,16 @@ def register_cell(env, pop_name, gid, cell):
         env.spike_onset_delay[gid] = cell.spike_onset_delay
 
 
-def is_cell_registered(env, gid):
+def is_cell_registered(env: AbstractEnv, gid: Union[uint32, int]) -> int:
     """
     Returns True if cell gid has already been registered, False otherwise.
     """
     return env.pc.gid_exists(gid)
 
 
-def record_cell(env, pop_name, gid, recording_profile=None):
+def record_cell(
+    env: AbstractEnv, pop_name: str, gid: int, recording_profile: None = None
+) -> List[Dict[str, Union[str, int, HocObject, float]]]:
     """
     Creates a recording object for the given cell, according to configuration in env.recording_profile.
     """

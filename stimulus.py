@@ -9,6 +9,7 @@ import h5py
 import numpy as np
 from MiV.stgen import get_inhom_poisson_spike_times_by_thinning
 from MiV.utils import (
+    AbstractEnv,
     Struct,
     gauss2d,
     gaussian,
@@ -25,6 +26,9 @@ from neuroh5.io import (
 )
 from scipy.interpolate import Rbf
 from scipy.ndimage import gaussian_filter
+from mpi4py.MPI import Intracomm
+from numpy import ndarray, uint8
+from typing import Dict, List, Optional, Tuple
 
 ## This logger will inherit its setting from its root logger, dentate,
 ## which is created in module env
@@ -40,13 +44,13 @@ PhaseModConfig = namedtuple(
 class ConstantInputCellConfig:
     def __init__(
         self,
-        selectivity_type=None,
-        arena=None,
-        peak_rate=None,
-        local_random=None,
-        selectivity_attr_dict=None,
-        phase_mod_config=None,
-    ):
+        selectivity_type: None = None,
+        arena: None = None,
+        peak_rate: None = None,
+        local_random: None = None,
+        selectivity_attr_dict: Optional[Dict[str, ndarray]] = None,
+        phase_mod_config: None = None,
+    ) -> None:
         """
         :param selectivity_type: int
         :param arena: namedtuple
@@ -86,7 +90,9 @@ class ConstantInputCellConfig:
             self.selectivity_type = selectivity_type
             self.peak_rate = peak_rate
 
-    def init_from_attr_dict(self, selectivity_attr_dict):
+    def init_from_attr_dict(
+        self, selectivity_attr_dict: Dict[str, ndarray]
+    ) -> None:
         self.selectivity_type = selectivity_attr_dict["Selectivity Type"][0]
         self.peak_rate = selectivity_attr_dict["Peak Rate"][0]
 
@@ -98,7 +104,13 @@ class ConstantInputCellConfig:
             "Peak Rate": np.array([self.peak_rate], dtype=np.float32),
         }
 
-    def get_rate_map(self, x, y, velocity=None, initial_phase=0.0):
+    def get_rate_map(
+        self,
+        x: ndarray,
+        y: ndarray,
+        velocity: None = None,
+        initial_phase: float = 0.0,
+    ) -> ndarray:
         """
 
         :param x: array
@@ -131,18 +143,18 @@ class ConstantInputCellConfig:
 
 
 def get_input_cell_config(
-    selectivity_type,
-    selectivity_type_names,
-    population=None,
-    stimulus_config=None,
-    arena=None,
-    distance=None,
-    local_random=None,
-    selectivity_attr_dict=None,
-    phase_mod_config=None,
-    noise_gen_dict=None,
-    comm=None,
-):
+    selectivity_type: uint8,
+    selectivity_type_names: Dict[int, str],
+    population: None = None,
+    stimulus_config: None = None,
+    arena: None = None,
+    distance: None = None,
+    local_random: None = None,
+    selectivity_attr_dict: Optional[Dict[str, ndarray]] = None,
+    phase_mod_config: None = None,
+    noise_gen_dict: None = None,
+    comm: None = None,
+) -> ConstantInputCellConfig:
     """
 
     :param selectivity_type: int
@@ -204,7 +216,7 @@ def get_input_cell_config(
     return input_cell_config
 
 
-def get_equilibration(env):
+def get_equilibration(env: AbstractEnv) -> Tuple[ndarray, int]:
     if (
         "Equilibration Duration" in env.stimulus_config
         and env.stimulus_config["Equilibration Duration"] > 0.0
@@ -362,27 +374,27 @@ def generate_linear_trajectory(
 
 
 def generate_input_spike_trains(
-    env,
-    population,
-    selectivity_type_names,
-    trajectory,
-    gid,
-    selectivity_attr_dict,
-    spike_train_attr_name="Spike Train",
-    selectivity_type_name=None,
-    spike_hist_resolution=1000,
-    equilibrate=None,
-    phase_mod_config=None,
-    initial_phases=None,
-    spike_hist_sum=None,
-    return_selectivity_features=True,
-    n_trials=1,
-    merge_trials=True,
-    time_range=None,
-    comm=None,
-    seed=None,
-    debug=False,
-):
+    env: AbstractEnv,
+    population: str,
+    selectivity_type_names: Dict[int, str],
+    trajectory: Tuple[ndarray, ndarray, ndarray, ndarray],
+    gid: int,
+    selectivity_attr_dict: Dict[str, ndarray],
+    spike_train_attr_name: str = "Spike Train",
+    selectivity_type_name: None = None,
+    spike_hist_resolution: int = 1000,
+    equilibrate: Optional[Tuple[ndarray, int]] = None,
+    phase_mod_config: None = None,
+    initial_phases: None = None,
+    spike_hist_sum: None = None,
+    return_selectivity_features: bool = True,
+    n_trials: int = 1,
+    merge_trials: bool = True,
+    time_range: Optional[List[float]] = None,
+    comm: Optional[Intracomm] = None,
+    seed: None = None,
+    debug: bool = False,
+) -> Dict[str, ndarray]:
     """
     Generates spike trains for the given gid according to the
     input selectivity rate maps contained in the given selectivity

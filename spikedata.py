@@ -6,6 +6,7 @@ from collections import defaultdict
 import MiV
 import numpy as np
 from MiV.utils import (
+    AbstractEnv,
     Struct,
     baks,
     get_module_logger,
@@ -19,6 +20,8 @@ from neuroh5.io import (
     scatter_read_cell_attributes,
     write_cell_attributes,
 )
+from numpy import ndarray, uint32
+from typing import Dict, List
 
 ## This logger will inherit its setting from its root logger
 ## which is created in module env
@@ -29,7 +32,9 @@ default_baks_analysis_options = Struct(
 )
 
 
-def get_env_spike_dict(env, include_artificial=True):
+def get_env_spike_dict(
+    env: AbstractEnv, include_artificial: None = True
+) -> Dict[str, Dict[uint32, List[ndarray]]]:
     """
     Constructs  a dictionary with per-gid per-trial spike times from the output vectors with spike times and gids contained in env.
     """

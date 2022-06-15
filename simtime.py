@@ -4,6 +4,7 @@ import time
 
 from MiV.utils import get_module_logger
 from neuron import h
+from hoc import HocObject
 
 # This logger will inherit its settings from the root logger, created in MiV.env
 logger = get_module_logger(__name__)
@@ -12,14 +13,14 @@ logger = get_module_logger(__name__)
 class SimTimeEvent:
     def __init__(
         self,
-        pc,
-        tstop,
-        max_walltime_hours,
-        results_write_time,
-        setup_time,
-        dt_status=1.0,
-        dt_checksimtime=10.0,
-    ):
+        pc: HocObject,
+        tstop: float,
+        max_walltime_hours: float,
+        results_write_time: float,
+        setup_time: float,
+        dt_status: float = 1.0,
+        dt_checksimtime: float = 10.0,
+    ) -> None:
         if int(pc.id()) == 0:
             logger.info(
                 f"*** allocated wall time is {max_walltime_hours:.2f} hours"
@@ -43,7 +44,7 @@ class SimTimeEvent:
                 f"*** max wall time is {self.walltime_max:.2f} s; max setup time was {setup_time:.2f} s"
             )
 
-    def reset(self):
+    def reset(self) -> None:
         wt = time.time()
         self.walltime_max = self.walltime_max - self.tcsum
         self.tcsum = 0.0
@@ -54,7 +55,7 @@ class SimTimeEvent:
         self.fih_checksimtime = h.FInitializeHandler(1, self.checksimtime)
         self.fih_simstatus = h.FInitializeHandler(1, self.simstatus)
 
-    def simstatus(self):
+    def simstatus(self) -> None:
         wt = time.time()
         if h.t > 0.0:
             if int(self.pc.id()) == 0:
@@ -65,7 +66,7 @@ class SimTimeEvent:
         if (h.t + self.dt_status) < self.tstop:
             h.cvode.event(h.t + self.dt_status, self.simstatus)
 
-    def checksimtime(self):
+    def checksimtime(self) -> None:
         wt = time.time()
         if h.t > 0:
             tt = wt - self.walltime_checksimtime
