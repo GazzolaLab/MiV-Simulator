@@ -499,6 +499,7 @@ class Env(AbstractEnv):
         self.t_rec = None
         self.recs_dict = {}  # Intracellular samples on this host
         self.recs_count = 0
+        self.recs_pps_set = set()
         for pop_name, _ in viewitems(self.Populations):
             self.recs_dict[pop_name] = defaultdict(list)
 
@@ -1044,5 +1045,6 @@ class Env(AbstractEnv):
             self.t_rec.resize(0)
         self.recs_dict = {}
         self.recs_count = 0
+        self.recs_pps_set = set()
         for pop_name, _ in viewitems(self.Populations):
             self.recs_dict[pop_name] = defaultdict(list)

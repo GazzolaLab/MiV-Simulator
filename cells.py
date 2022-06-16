@@ -2181,7 +2181,8 @@ def record_cell(
                         pps = syn_attrs.get_pps(
                             gid, syn_id, syn_name, throw_error=False
                         )
-                        if pps is not None:
+                        if (pps is not None) and (pps not in env.recs_pps_set):
+                            
                             rec_id = "%d.%s.%s" % (
                                 syn_id,
                                 syn_name,
@@ -2206,6 +2207,7 @@ def record_cell(
                             )
                             env.recs_dict[pop_name][ns].append(rec)
                             env.recs_count += 1
+                            env.recs_pps_set.add(pps)
                             recs.append(rec)
 
     return recs
