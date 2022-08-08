@@ -1,17 +1,22 @@
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple, Union
+
 import collections
 import copy
-import datetime
 import math
 import os
-import pprint
-import sys
-import traceback
 
 import networkx as nx
 import numpy as np
-from miv_simulator.neuron_utils import (
+from miv_simulator.utils import (
+    AbstractEnv,
+    Promise,
+    get_module_logger,
+    read_from_yaml,
+    viewitems,
+    zip_longest,
+)
+from miv_simulator.utils.neuron import (
     PRconfig,
-    d_lambda,
     default_hoc_sec_lists,
     default_ordered_sec_types,
     h,
@@ -20,25 +25,17 @@ from miv_simulator.neuron_utils import (
     make_rec,
     reinit_diam,
 )
-from miv_simulator.utils import (
-    AbstractEnv,
-    Promise,
-    get_module_logger,
-    read_from_yaml,
-    viewitems,
-    write_to_yaml,
-    zip_longest,
-)
+from networkx.classes.digraph import DiGraph
 from neuroh5.io import (
     read_cell_attribute_selection,
     read_graph_selection,
     read_tree_selection,
 )
-from hoc import HocObject
-from networkx.classes.digraph import DiGraph
 from nrn import Section
 from numpy import ndarray, uint32
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+
+if TYPE_CHECKING:
+    from neuron.hoc import HocObject
 
 # This logger will inherit its settings from the root logger, created in env
 logger = get_module_logger(__name__)
@@ -94,13 +91,13 @@ class SectionNode:
 
 
 def make_neurotree_hoc_cell(
-    template_class: HocObject,
+    template_class: "HocObject",
     gid: int = 0,
     neurotree_dict: Dict[
         str, Union[ndarray, Dict[str, Union[int, Dict[int, ndarray], ndarray]]]
     ] = {},
     section_content: Optional[bool] = None,
-) -> Union[HocObject, Tuple[HocObject, Dict[int, Dict[str, ndarray]]]]:
+) -> Union["HocObject", Tuple["HocObject", Dict[int, Dict[str, ndarray]]]]:
     """
     :param template_class:
     :param local_id:
@@ -152,7 +149,7 @@ def make_hoc_cell(
             Union[ndarray, Dict[str, Union[int, Dict[int, ndarray], ndarray]]],
         ],
     ] = False,
-) -> HocObject:
+) -> "HocObject":
     """
 
     :param env:
@@ -197,7 +194,7 @@ def make_input_cell(
         int, Dict[str, Union[Dict[Any, Any], Dict[int, Dict[str, ndarray]]]]
     ],
     spike_train_attr_name: str = "t",
-) -> HocObject:
+) -> "HocObject":
     """
     Instantiates an input generator according to the given cell template.
     """
@@ -767,7 +764,7 @@ def connect_nodes(
 
 def import_morphology_from_hoc(
     cell: BiophysCell,
-    hoc_cell: HocObject,
+    hoc_cell: "HocObject",
     section_content: Optional[Dict[int, Dict[str, ndarray]]] = None,
 ) -> None:
     """
@@ -883,7 +880,7 @@ def connect2target(
     weight: None = None,
     threshold: Optional[int] = None,
     target: None = None,
-) -> HocObject:
+) -> "HocObject":
     """
     Converts analog voltage in the specified section to digital spike output. Initializes and returns an h.NetCon
     object with voltage as a reference parameter connected to the specified target.
@@ -927,7 +924,7 @@ def init_spike_detector(
     delay: float = 0.05,
     onset_delay: float = 0.0,
     loc: float = 0.5,
-) -> HocObject:
+) -> "HocObject":
     """
     Initializes the spike detector in the given cell according to the
     given arguments or a spike detector configuration of the mechanism
@@ -2060,7 +2057,7 @@ def register_cell(
     env: AbstractEnv,
     pop_name: str,
     gid: Union[uint32, int],
-    cell: Union[HocObject, BiophysCell, SCneuron],
+    cell: Union["HocObject", BiophysCell, SCneuron],
 ) -> None:
     """
     Registers a cell in a network environment.
@@ -2107,7 +2104,7 @@ def is_cell_registered(env: AbstractEnv, gid: Union[uint32, int]) -> int:
 
 def record_cell(
     env: AbstractEnv, pop_name: str, gid: int, recording_profile: None = None
-) -> List[Dict[str, Union[str, int, HocObject, float]]]:
+) -> List[Dict[str, Union[str, int, "HocObject", float]]]:
     """
     Creates a recording object for the given cell, according to configuration in env.recording_profile.
     """
@@ -2182,7 +2179,7 @@ def record_cell(
                             gid, syn_id, syn_name, throw_error=False
                         )
                         if (pps is not None) and (pps not in env.recs_pps_set):
-                            
+
                             rec_id = "%d.%s.%s" % (
                                 syn_id,
                                 syn_name,

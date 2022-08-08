@@ -1,7 +1,9 @@
+from typing import Dict, Optional, Union
+
 import logging
 import os
-import pprint
 from collections import defaultdict, namedtuple
+
 import numpy as np
 import yaml
 from miv_simulator.synapses import SynapseAttributes, get_syn_filter_dict
@@ -14,14 +16,13 @@ from miv_simulator.utils import (
     viewitems,
 )
 from mpi4py import MPI
+from mpi4py.MPI import Intracomm
 from neuroh5.io import (
     read_cell_attribute_info,
     read_population_names,
     read_population_ranges,
     read_projection_names,
 )
-from mpi4py.MPI import Intracomm
-from typing import Dict, Optional, Union
 
 SynapseConfig = namedtuple(
     "SynapseConfig",

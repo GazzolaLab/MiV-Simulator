@@ -1,8 +1,17 @@
-import collections
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    DefaultDict,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
+
 import copy
 import itertools
 import math
-import pprint
 import sys
 import time
 import traceback
@@ -10,10 +19,7 @@ from collections import defaultdict
 from functools import reduce
 
 import numpy as np
-import scipy
-import scipy.optimize as opt
 from miv_simulator.cells import BiophysCell, SCneuron, make_section_graph
-from miv_simulator.neuron_utils import default_ordered_sec_types, interplocs, mknetcon
 from miv_simulator.utils import (
     AbstractEnv,
     ExprClosure,
@@ -28,12 +34,18 @@ from miv_simulator.utils import (
     viewkeys,
     zip_longest,
 )
+from miv_simulator.utils.neuron import (
+    default_ordered_sec_types,
+    interplocs,
+    mknetcon,
+)
 from neuroh5.io import write_cell_attributes
 from neuron import h
-from hoc import HocObject
 from nrn import Section, Segment
 from numpy import float64, ndarray, uint32
-from typing import Any, DefaultDict, Dict, List, Optional, Tuple, Union
+
+if TYPE_CHECKING:
+    from neuron.hoc import HocObject
 
 # This logger will inherit its settings from the root logger, created in env
 logger = get_module_logger(__name__)
@@ -884,8 +896,8 @@ class SynapseAttributes:
             )
 
     def add_pps(
-        self, gid: int, syn_id: uint32, syn_name: str, pps: HocObject
-    ) -> HocObject:
+        self, gid: int, syn_id: uint32, syn_name: str, pps: "HocObject"
+    ) -> "HocObject":
         """
         Adds mechanism point process for the specified cell/synapse id/mechanism name.
 
@@ -921,7 +933,7 @@ class SynapseAttributes:
 
     def get_pps(
         self, gid: int, syn_id: uint32, syn_name: str, throw_error: bool = True
-    ) -> HocObject:
+    ) -> "HocObject":
         """
         Returns the mechanism for the given synapse id on the given cell.
 
@@ -944,8 +956,8 @@ class SynapseAttributes:
                 return None
 
     def add_netcon(
-        self, gid: int, syn_id: uint32, syn_name: str, nc: HocObject
-    ) -> HocObject:
+        self, gid: int, syn_id: uint32, syn_name: str, nc: "HocObject"
+    ) -> "HocObject":
         """
         Adds a NetCon object for the specified cell/synapse id/mechanism name.
 
@@ -1567,7 +1579,7 @@ class SynapseAttributes:
 def insert_hoc_cell_syns(
     env: AbstractEnv,
     gid: int,
-    cell: HocObject,
+    cell: "HocObject",
     syn_ids: Union[List[uint32], itertools.chain],
     syn_params: Dict[
         str,
@@ -1901,7 +1913,7 @@ def config_hoc_cell_syns(
     env: AbstractEnv,
     gid: int,
     postsyn_name: str,
-    cell: Optional[HocObject] = None,
+    cell: Optional["HocObject"] = None,
     syn_ids: Optional[List[uint32]] = None,
     unique: Optional[bool] = None,
     insert: bool = False,
@@ -2063,8 +2075,8 @@ def config_syn(
     syn_name: str,
     rules: Dict[str, Dict[str, Union[str, List[str], Dict[str, int]]]],
     mech_names: Optional[Dict[str, str]] = None,
-    syn: Optional[HocObject] = None,
-    nc: Optional[HocObject] = None,
+    syn: Optional["HocObject"] = None,
+    nc: Optional["HocObject"] = None,
     **params,
 ) -> Tuple[bool, bool]:
     """
@@ -2156,9 +2168,9 @@ def syn_in_seg(
     syn_name: str,
     seg: Segment,
     syns_dict: DefaultDict[
-        Section, DefaultDict[float, DefaultDict[str, HocObject]]
+        Section, DefaultDict[float, DefaultDict[str, "HocObject"]]
     ],
-) -> Optional[HocObject]:
+) -> Optional["HocObject"]:
     """
     If a synaptic mechanism of the specified type already exists in the specified segment, it is returned. Otherwise,
     it returns None.
@@ -2176,7 +2188,7 @@ def syn_in_seg(
     return None
 
 
-def make_syn_mech(mech_name: str, seg: Segment) -> HocObject:
+def make_syn_mech(mech_name: str, seg: Segment) -> "HocObject":
     """
     TODO: Why was the hasattr(h, mech_name) check removed?
     :param mech_name: str (name of the point_process, specified by Env.synapse_attributes.syn_mech_names)
@@ -2191,10 +2203,10 @@ def make_shared_synapse_mech(
     syn_name: str,
     seg: Segment,
     syns_dict: DefaultDict[
-        Section, DefaultDict[float, DefaultDict[str, HocObject]]
+        Section, DefaultDict[float, DefaultDict[str, "HocObject"]]
     ],
     mech_names: Optional[Dict[str, str]] = None,
-) -> HocObject:
+) -> "HocObject":
     """
     If a synaptic mechanism of the specified type already exists in the specified segment, it is returned.
     Otherwise, this method creates one in the provided segment and adds it to the provided syns_dict before it is
