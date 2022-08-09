@@ -573,7 +573,6 @@ class LinearVolume(object):
             None
         """
         from matplotlib.colors import ColorConverter
-        from mayavi import mlab
 
         if not "color" in kwargs:
             # Generate random color
@@ -598,6 +597,8 @@ class LinearVolume(object):
         meshpts2 = self.ev(hru, hrv, np.min(self.l))
 
         if figax is None:
+            from mayavi import mlab
+
             m1 = mlab.mesh(*meshpts1, **kwargs)
             m2 = mlab.mesh(*meshpts2, **kwargs)
 
