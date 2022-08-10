@@ -134,7 +134,7 @@ def import_celltypes(celltype_path, output_path):
             population_dict[celltype] = (type_index, count)
 
     populations = []
-    for pop_name, pop_info in viewitems(population_dict):
+    for pop_name, pop_info in population_dict.items():
         pop_idx = pop_info[0]
         pop_count = pop_info[1]
         populations.append((pop_name, pop_idx, pop_count))
@@ -249,7 +249,7 @@ def import_spikeraster(
         )
         output_dict = {
             gid: {"t": np.asarray(spk_ts, dtype=np.float32)}
-            for gid, spk_ts in viewitems(this_spk_dict)
+            for gid, spk_ts in this_spk_dict.items()
         }
 
         write_cell_attributes(
@@ -264,10 +264,10 @@ def import_spikeraster(
 
 def make_h5types(env: AbstractEnv, output_path, gap_junctions=False):
     populations = []
-    for pop_name, pop_idx in viewitems(env.Populations):
+    for pop_name, pop_idx in env.Populations.items():
         layer_counts = env.geometry["Cell Distribution"][pop_name]
         pop_count = 0
-        for layer_name, layer_count in viewitems(layer_counts):
+        for layer_name, layer_count in layer_counts.items():
             pop_count += layer_count
         populations.append((pop_name, pop_idx, pop_count))
     populations.sort(key=lambda x: x[1])
@@ -275,17 +275,17 @@ def make_h5types(env: AbstractEnv, output_path, gap_junctions=False):
 
     projections = []
     if gap_junctions:
-        for (post, pre), connection_dict in viewitems(env.gapjunctions):
+        for (post, pre), connection_dict in env.gapjunctions.items():
             projections.append((env.Populations[pre], env.Populations[post]))
     else:
-        for post, connection_dict in viewitems(env.connection_config):
-            for pre, _ in viewitems(connection_dict):
+        for post, connection_dict in env.connection_config.items():
+            for pre, _ in connection_dict.items():
                 projections.append(
                     (env.Populations[pre], env.Populations[post])
                 )
 
     # create an HDF5 enumerated type for the population label
-    mapping = {name: idx for name, idx in viewitems(env.Populations)}
+    mapping = {name: idx for name, idx in env.Populations.items()}
     dt_population_labels = h5py.special_dtype(enum=(np.uint16, mapping))
 
     with h5py.File(output_path, "a") as h5:
@@ -735,9 +735,7 @@ def write_cell_selection(
                 io_size=env.io_size,
             )
             if rank == 0:
-                logger.info(
-                    f"*** Done reading trees for population {pop_name}"
-                )
+                logger.info(f"*** Done reading trees for population {pop_name}")
 
             for i, (gid, tree) in enumerate(cell_tree_iter):
                 trees_output_dict[gid] = tree
@@ -816,7 +814,7 @@ def write_connection_selection(
 
     input_sources = {pop_name: set() for pop_name in env.celltypes}
 
-    for (postsyn_name, presyn_names) in sorted(viewitems(env.projection_dict)):
+    for (postsyn_name, presyn_names) in sorted(env.projection_dict.items()):
 
         gc.collect()
 
@@ -1021,7 +1019,7 @@ def write_input_cell_selection(
     else:
         pop_names = populations
 
-    for pop_name, gid_range in sorted(viewitems(input_sources)):
+    for pop_name, gid_range in sorted(input_sources.items()):
 
         gc.collect()
 

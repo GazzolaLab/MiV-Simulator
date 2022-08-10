@@ -9,11 +9,10 @@ from collections import defaultdict
 
 import h5py
 import numpy as np
-from MiV import cells, neuron_utils, synapses, utils
-from MiV.cells import load_cell_template, make_section_graph
-from MiV.env import Env
-from MiV.neuron_utils import configure_hoc_env
-from MiV.utils import viewitems
+from miv_simulator import cells, synapses, utils
+from miv_simulator.cells import load_cell_template, make_section_graph
+from miv_simulator.env import Env
+from miv_simulator.utils.neuron import configure_hoc_env
 from mpi4py import MPI
 from neuroh5.io import (
     NeuroH5TreeGen,

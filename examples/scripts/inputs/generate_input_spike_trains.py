@@ -343,7 +343,7 @@ def main(
         valid_selectivity_namespaces, root=0
     )
     selectivity_type_names = {
-        val: key for (key, val) in viewitems(env.selectivity_types)
+        val: key for (key, val) in env.selectivity_types.items()
     }
 
     equilibrate = get_equilibration(env)
@@ -549,7 +549,7 @@ def main(
         if gather:
             this_spike_hist_sum = {
                 key: dict(val.items())
-                for key, val in viewitems(spike_hist_sum_dict)
+                for key, val in spike_hist_sum_dict.items()
             }
             spike_hist_sum = comm.gather(this_spike_hist_sum, root=0)
 

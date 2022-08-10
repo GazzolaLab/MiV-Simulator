@@ -738,7 +738,7 @@ def rate_maps_from_features(
         "Y Offset",
     ]
 
-    selectivity_type_names = {i: n for n, i in viewitems(env.selectivity_types)}
+    selectivity_type_names = {i: n for n, i in env.selectivity_types.items()}
 
     arena = env.stimulus_config["Arena"][arena_id]
 
@@ -782,7 +782,7 @@ def rate_maps_from_features(
             io_size=env.io_size,
         )
     else:
-        input_features_iter = viewitems(input_features_dict)
+        input_features_iter = input_features_dict.items()
 
     for gid, selectivity_attr_dict in input_features_iter:
 
@@ -850,7 +850,7 @@ def arena_rate_maps_from_features(
         "Y Offset",
     ]
 
-    selectivity_type_names = {i: n for n, i in viewitems(env.selectivity_types)}
+    selectivity_type_names = {i: n for n, i in env.selectivity_types.items()}
 
     arena = env.stimulus_config["Arena"][arena_id]
     arena_x, arena_y = get_2D_arena_spatial_mesh(

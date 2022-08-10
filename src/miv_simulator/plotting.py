@@ -270,7 +270,7 @@ def plot_spatial_bin_graph(graph_dict, **kwargs):
         nodes[source] = [(s, d) for s, d in GU.nodes() if s == source]
 
     snodes = {}
-    for group, nodelist in viewitems(nodes):
+    for group, nodelist in nodes.items():
         snodes[group] = sorted(nodelist)
 
     edges = {}
@@ -582,7 +582,7 @@ def plot_cell_tree(
     )
 
     edges = []
-    for sec, nodes in viewitems(secnodes):
+    for sec, nodes in secnodes.items():
         for i in range(1, len(nodes)):
             srcnode = nodes[i - 1]
             dstnode = nodes[i]
@@ -1175,7 +1175,7 @@ def plot_spike_histogram(
                 subset, spkdict, time_bins, progress=progress, **baks_config
             )
             bin_dict = defaultdict(lambda: {"rates": 0.0, "active": 0})
-            for (ind, dct) in viewitems(sdf_dict):
+            for (ind, dct) in sdf_dict.items():
                 rate = dct["rate"]
                 for ibin in range(0, len(time_bins)):
                     d = bin_dict[ibin]
@@ -1192,7 +1192,7 @@ def plot_spike_histogram(
             spkdict = spikedata.make_spike_dict(spkinds, spkts)
             count_bin_dict = spikedata.spike_bin_counts(spkdict, time_bins)
             bin_dict = defaultdict(lambda: {"counts": 0, "active": 0})
-            for (ind, counts) in viewitems(count_bin_dict):
+            for (ind, counts) in count_bin_dict.items():
                 for ibin in range(0, len(time_bins) - 1):
                     d = bin_dict[ibin]
                     d["counts"] += counts[ibin]
@@ -1299,9 +1299,7 @@ def plot_spike_histogram(
         if isinstance(fig_options.saveFig, str):
             filename = fig_options.saveFig
         else:
-            filename = (
-                namespace_id + " " + f"histogram.{fig_options.figFormat}"
-            )
+            filename = namespace_id + " " + f"histogram.{fig_options.figFormat}"
         plt.savefig(filename)
 
     if fig_options.showFig:
@@ -1435,7 +1433,7 @@ def plot_lfp(
 
     else:
         for iplot, (lfp_label, lfp_config_dict) in enumerate(
-            viewitems(env.LFP_config)
+            env.LFP_config.items()
         ):
             namespace_id = f"Local Field Potential {str(lfp_label)}"
             import h5py
@@ -1620,7 +1618,7 @@ def plot_lfp_spectrogram(
 
     else:
         for iplot, (lfp_label, lfp_config_dict) in enumerate(
-            viewitems(env.LFP_config)
+            env.LFP_config.items()
         ):
             namespace_id = f"Local Field Potential {str(lfp_label)}"
             import h5py
@@ -1720,26 +1718,26 @@ def plot_biophys_cell_tree(
     syn_sec_dict = defaultdict(list)
     if (syn_source_threshold is not None) and (syn_source_threshold > 0.0):
         syn_source_count = defaultdict(int)
-        for syn_id, syn in viewitems(syns_dict):
+        for syn_id, syn in syns_dict.items():
             syn_source_count[syn.source.gid] += 1
         syn_source_max = 0
         syn_source_pctile = {}
-        for source_id, source_id_count in viewitems(syn_source_count):
+        for source_id, source_id_count in syn_source_count.items():
             syn_source_max = max(syn_source_max, source_id_count)
         logger.info("synapse source max count is %d" % (syn_source_max))
-        for syn_id, syn in viewitems(syns_dict):
+        for syn_id, syn in syns_dict.items():
             count = syn_source_count[syn.source.gid]
             syn_source_pctile[syn_id] = float(count) / float(syn_source_max)
         syns_dict = {
             syn_id: syn
-            for syn_id, syn in viewitems(syns_dict)
+            for syn_id, syn in syns_dict.items()
             if syn_source_pctile[syn_id] >= syn_source_threshold
         }
-    for syn_id, syn in viewitems(syns_dict):
+    for syn_id, syn in syns_dict.items():
         syn_sec_dict[syn.syn_section].append(syn)
     syn_xyz_sec_dict = {}
     syn_src_sec_dict = {}
-    for sec_id, syns in viewitems(syn_sec_dict):
+    for sec_id, syns in syn_sec_dict.items():
         sec = biophys_cell.hoc_cell.sections[sec_id]
         syn_locs = [syn.syn_loc for syn in syns]
         ip_x, ip_y, ip_z, ip_diam = interplocs(sec)
@@ -1792,7 +1790,7 @@ def plot_biophys_cell_tree(
         )
 
         logger.info(f"plotting {len(syns_dict)} synapses")
-        for sec_id, syn_xyz in viewitems(syn_xyz_sec_dict):
+        for sec_id, syn_xyz in syn_xyz_sec_dict.items():
             syn_sources = syn_src_sec_dict[sec_id]
             if None in syn_sources:
                 mlab.points3d(
@@ -1863,7 +1861,7 @@ def plot_biophys_cell_tree(
 
             ax.plot(e_x, e_y, e_z, c="black", alpha=0.5)
 
-        for sec_id, syn_xyz in viewitems(syn_xyz_sec_dict):
+        for sec_id, syn_xyz in syn_xyz_sec_dict.items():
             syn_sources = syn_src_sec_dict[sec_id]
             if None in syn_sources:
                 ax.scatter(
@@ -2256,13 +2254,13 @@ def plot_intracellular_state(
         )
         states = data["states"]
 
-        for (pop_name, pop_states) in viewitems(states):
-            for (gid, cell_states) in viewitems(pop_states):
+        for (pop_name, pop_states) in states.items():
+            for (gid, cell_states) in pop_states.items():
                 pop_states_dict[pop_name][gid][namespace_id] = cell_states
 
     pop_state_mat_dict = defaultdict(lambda: dict())
-    for (pop_name, pop_states) in viewitems(pop_states_dict):
-        for (gid, cell_state_dict) in viewitems(pop_states):
+    for (pop_name, pop_states) in pop_states_dict.items():
+        for (gid, cell_state_dict) in pop_states.items():
             nss = sorted(cell_state_dict.keys())
             cell_state_x = cell_state_dict[nss[0]][time_variable]
             cell_state_mat = np.matrix(
@@ -2306,9 +2304,9 @@ def plot_intracellular_state(
         ax_lowpass = ax
 
     legend_labels = []
-    for (pop_name, pop_states) in viewitems(pop_state_mat_dict):
+    for (pop_name, pop_states) in pop_state_mat_dict.items():
 
-        for (gid, cell_state_mat) in viewitems(pop_states):
+        for (gid, cell_state_mat) in pop_states.items():
 
             m, n = cell_state_mat[1].shape
             st_x = cell_state_mat[0][0].reshape((n,))
@@ -2877,8 +2875,8 @@ def plot_network_clamp(
     stvplots = []
     from dentate.utils import get_low_pass_filtered_trace
 
-    for (pop_name, pop_states) in viewitems(states):
-        for (gid, cell_states) in viewitems(pop_states):
+    for (pop_name, pop_states) in states.items():
+        for (gid, cell_states) in pop_states.items():
             st_len = cell_states[intracellular_variable][0].shape[0]
             st_xs = [x[:st_len] for x in cell_states[time_variable]]
             st_ys = [y[:st_len] for y in cell_states[intracellular_variable]]

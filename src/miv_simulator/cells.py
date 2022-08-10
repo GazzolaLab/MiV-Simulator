@@ -775,7 +775,7 @@ def import_morphology_from_hoc(
     """
     sec_info_dict = {}
     root_sec = None
-    for sec_type, sec_index_list in viewitems(default_hoc_sec_lists):
+    for sec_type, sec_index_list in default_hoc_sec_lists.items():
         hoc_sec_attr_name = sec_type
         if not hasattr(hoc_cell, hoc_sec_attr_name):
             hoc_sec_attr_name = f"{sec_type}_list"
@@ -1250,7 +1250,7 @@ def make_morph_graph(biophys_cell, node_filters={}):
 
     sec_pt_idxs = {}
     edges = []
-    for sec, pts in viewitems(sec_pts):
+    for sec, pts in sec_pts.items():
         sec_pt_idxs[pts[0]] = sec
         for i in range(1, len(pts)):
             sec_pt_idxs[pts[i]] = sec
@@ -2170,7 +2170,7 @@ def record_cell(
                 syn_names = recdict.get(
                     "syn names", syn_attrs.syn_name_index_dict.keys()
                 )
-                for syn_id, syn in viewitems(synapses):
+                for syn_id, syn in synapses.items():
                     syn_swc_type_name = env.SWC_Type_index[syn.swc_type]
                     syn_section = syn.syn_section
                     for syn_name in syn_names:

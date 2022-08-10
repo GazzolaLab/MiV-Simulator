@@ -95,10 +95,10 @@ def generate_weights(env, weight_source_rules, this_syn_attrs):
 
     if len(weight_source_rules) > 0:
 
-        for presyn_id, weight_rule in viewitems(weight_source_rules):
+        for presyn_id, weight_rule in weight_source_rules.items():
             source_syn_dict = defaultdict(list)
 
-            for syn_id, syn in viewitems(this_syn_attrs):
+            for syn_id, syn in this_syn_attrs.items():
                 this_presyn_id = syn.source.population
                 this_presyn_gid = syn.source.gid
                 if this_presyn_id == presyn_id:
@@ -279,7 +279,7 @@ def init_inputs_from_features(
         "Y Offset",
     ]
 
-    selectivity_type_names = {i: n for n, i in viewitems(env.selectivity_types)}
+    selectivity_type_names = {i: n for n, i in env.selectivity_types.items()}
 
     arena = env.stimulus_config["Arena"][arena_id]
     arena_x, arena_y = stimulus.get_2D_arena_spatial_mesh(
@@ -457,7 +457,7 @@ def init(
         )
         del cell_dict[gid]
 
-    pop_index_dict = {ind: name for name, ind in viewitems(env.Populations)}
+    pop_index_dict = {ind: name for name, ind in env.Populations.items()}
 
     ## Determine presynaptic populations that connect to this cell type
     presyn_names = sorted(env.projection_dict[pop_name])
@@ -488,7 +488,7 @@ def init(
 
     for gid in my_cell_index_set:
         this_syn_attrs = syn_attrs[gid]
-        for syn_id, syn in viewitems(this_syn_attrs):
+        for syn_id, syn in this_syn_attrs.items():
             presyn_id = syn.source.population
             if presyn_id is None:
                 raise RuntimeError(
@@ -773,12 +773,12 @@ def run(env, cvode=False, pc_runworker=False):
 
 def update_params(env, pop_param_dict):
 
-    for population, param_tuple_dict in viewitems(pop_param_dict):
+    for population, param_tuple_dict in pop_param_dict.items():
 
         synapse_config = env.celltypes[population]["synapses"]
         weights_dict = synapse_config.get("weights", {})
         biophys_cell_dict = env.biophys_cells[population]
-        for gid, param_tuples in viewitems(param_tuple_dict):
+        for gid, param_tuples in param_tuple_dict.items():
 
             if gid not in biophys_cell_dict:
                 continue
@@ -1410,7 +1410,7 @@ def init_rate_dist_objfun(
         time_range=None,
         arena_id=arena_id,
     )
-    for gid, target_rate_vector in viewitems(target_rate_vector_dict):
+    for gid, target_rate_vector in target_rate_vector_dict.items():
         target_rate_vector[
             np.isclose(target_rate_vector, 0.0, atol=1e-3, rtol=1e-3)
         ] = 0.0
@@ -1655,7 +1655,7 @@ def optimize_run(
     if opt_results is not None:
         if ProblemRegime[problem_regime] == ProblemRegime.every:
             gid_results_config_dict = {}
-            for gid, opt_result in viewitems(opt_results):
+            for gid, opt_result in opt_results.items():
                 params_dict = dict(opt_result[0])
                 result_value = opt_result[1]
                 results_config_tuples = []
@@ -1853,9 +1853,9 @@ def write_params(env, pop_params_dict):
     if rank == 0:
         logger.info("*** Writing synapse parameters")
         output_pop_params_dict = {}
-        for this_pop_name, this_pop_param_dict in viewitems(pop_params_dict):
+        for this_pop_name, this_pop_param_dict in pop_params_dict.items():
             this_pop_output_params_dict = {}
-            for this_gid, this_gid_param_list in viewitems(this_pop_param_dict):
+            for this_gid, this_gid_param_list in this_pop_param_dict.items():
                 this_gid_param_dicts = []
                 for this_gid_param in this_gid_param_list:
                     syn_param, param_val = this_gid_param

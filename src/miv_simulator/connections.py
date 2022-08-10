@@ -58,9 +58,9 @@ class ConnectionProb:
         self.offset = defaultdict(dict)
         self.scale_factor = defaultdict(dict)
 
-        for source_population, layer_extents in viewitems(extents):
+        for source_population, layer_extents in extents.items():
 
-            for layer, extents in viewitems(layer_extents):
+            for layer, extents in layer_extents.items():
 
                 extent_width = extents["width"]
                 if "offset" in extents:
@@ -168,7 +168,7 @@ class ConnectionProb:
         max_distance_u = source_width["u"] + source_offset["u"]
         max_distance_v = source_width["v"] + source_offset["v"]
 
-        for (source_gid, coords) in viewitems(source_coords):
+        for (source_gid, coords) in source_coords.items():
 
             source_u, source_v, source_l = coords
 
@@ -270,7 +270,7 @@ def choose_synapse_projection(
     :param projection_synapse_dict: mapping of projection names to a tuple of the form: <type, layers, swc sections, proportions>
 
     """
-    ivd = {v: k for k, v in viewitems(population_dict)}
+    ivd = {v: k for k, v in population_dict.items()}
     projection_lst = []
     projection_prob_lst = []
     for k, (
@@ -279,7 +279,7 @@ def choose_synapse_projection(
         syn_config_sections,
         syn_config_proportions,
         syn_config_contacts,
-    ) in viewitems(projection_synapse_dict):
+    ) in projection_synapse_dict.items():
         if (syn_type == syn_config_type) and (swc_type in syn_config_sections):
             ord_indices = list_find_all(
                 lambda x: x == swc_type, syn_config_sections
@@ -429,7 +429,7 @@ def generate_synaptic_connections(
 
     ## Choose source connections based on distance-weighted probability
     count = 0
-    for projection, prj_layer_dict in viewitems(synapse_prj_partition):
+    for projection, prj_layer_dict in synapse_prj_partition.items():
         (
             syn_config_type,
             syn_config_layers,
@@ -441,7 +441,7 @@ def generate_synaptic_connections(
         prj_source_vertices = []
         prj_syn_ids = []
         prj_distances = []
-        for prj_layer, syn_ids in viewitems(prj_layer_dict):
+        for prj_layer, syn_ids in prj_layer_dict.items():
             (
                 source_probs,
                 source_gids,

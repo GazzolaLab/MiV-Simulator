@@ -275,13 +275,13 @@ class Env(AbstractEnv):
         if "Definitions" in self.model_config:
             self.parse_definitions()
             self.SWC_Type_index = {
-                item[1]: item[0] for item in viewitems(self.SWC_Types)
+                item[1]: item[0] for item in self.SWC_Types.items()
             }
             self.Synapse_Type_index = {
-                item[1]: item[0] for item in viewitems(self.Synapse_Types)
+                item[1]: item[0] for item in self.Synapse_Types.items()
             }
             self.layer_type_index = {
-                item[1]: item[0] for item in viewitems(self.layers)
+                item[1]: item[0] for item in self.layers.items()
             }
 
         if "Global Parameters" in self.model_config:
@@ -305,9 +305,7 @@ class Env(AbstractEnv):
             self.datasetName = self.model_config["Dataset Name"]
 
         if rank == 0:
-            self.logger.info(
-                f"env.dataset_prefix = {str(self.dataset_prefix)}"
-            )
+            self.logger.info(f"env.dataset_prefix = {str(self.dataset_prefix)}")
 
         # Cell selection for simulations of subsets of the network
         self.cell_selection = None
@@ -379,9 +377,7 @@ class Env(AbstractEnv):
                 self.data_file_path = None
                 self.forest_file_path = None
             if rank == 0:
-                self.logger.info(
-                    f"env.data_file_path = {self.data_file_path}"
-                )
+                self.logger.info(f"env.data_file_path = {self.data_file_path}")
             if "Connection Data" in self.model_config:
                 self.connectivity_file_path = os.path.join(
                     self.dataset_path, self.model_config["Connection Data"]
@@ -500,7 +496,7 @@ class Env(AbstractEnv):
         self.recs_dict = {}  # Intracellular samples on this host
         self.recs_count = 0
         self.recs_pps_set = set()
-        for pop_name, _ in viewitems(self.Populations):
+        for pop_name, _ in self.Populations.items():
             self.recs_dict[pop_name] = defaultdict(list)
 
         # used to calculate model construction times and run time
@@ -572,15 +568,15 @@ class Env(AbstractEnv):
         stimulus_dict = self.model_config["Stimulus"]
         stimulus_config = {}
 
-        for k, v in viewitems(stimulus_dict):
+        for k, v in stimulus_dict.items():
             if k == "Selectivity Type Probabilities":
                 selectivity_type_prob_dict = {}
-                for (pop, dvals) in viewitems(v):
+                for (pop, dvals) in v.items():
                     pop_selectivity_type_prob_dict = {}
                     for (
                         selectivity_type_name,
                         selectivity_type_prob,
-                    ) in viewitems(dvals):
+                    ) in dvals.items():
                         pop_selectivity_type_prob_dict[
                             int(self.selectivity_types[selectivity_type_name])
                         ] = float(selectivity_type_prob)
@@ -592,9 +588,9 @@ class Env(AbstractEnv):
                 ] = selectivity_type_prob_dict
             elif k == "Peak Rate":
                 peak_rate_dict = {}
-                for (pop, dvals) in viewitems(v):
+                for (pop, dvals) in v.items():
                     pop_peak_rate_dict = {}
-                    for (selectivity_type_name, peak_rate) in viewitems(dvals):
+                    for (selectivity_type_name, peak_rate) in dvals.items():
                         pop_peak_rate_dict[
                             int(self.selectivity_types[selectivity_type_name])
                         ] = float(peak_rate)
@@ -602,15 +598,15 @@ class Env(AbstractEnv):
                 stimulus_config["Peak Rate"] = peak_rate_dict
             elif k == "Arena":
                 stimulus_config["Arena"] = {}
-                for arena_id, arena_val in viewitems(v):
+                for arena_id, arena_val in v.items():
                     arena_properties = {}
                     arena_domain = None
                     arena_trajectories = {}
-                    for kk, vv in viewitems(arena_val):
+                    for kk, vv in arena_val.items():
                         if kk == "Domain":
                             arena_domain = self.parse_arena_domain(vv)
                         elif kk == "Trajectory":
-                            for name, trajectory_config in viewitems(vv):
+                            for name, trajectory_config in vv.items():
                                 trajectory = self.parse_arena_trajectory(
                                     trajectory_config
                                 )
@@ -645,7 +641,7 @@ class Env(AbstractEnv):
             ]
 
         template_params = {}
-        for (template_name, params) in viewitems(template_param_rules_dict):
+        for (template_name, params) in template_param_rules_dict.items():
             template_params[template_name] = params
 
         self.netclamp_config = NetclampConfig(
@@ -690,9 +686,9 @@ class Env(AbstractEnv):
         ],
     ) -> Dict[str, Union[Dict[str, Union[int, float]], Dict[str, float]]]:
         res = {}
-        for mech_name, mech_params in viewitems(mechparams_dict):
+        for mech_name, mech_params in mechparams_dict.items():
             mech_params1 = {}
-            for k, v in viewitems(mech_params):
+            for k, v in mech_params.items():
                 if isinstance(v, dict):
                     if "expr" in v:
                         mech_params1[k] = ExprClosure(
@@ -755,10 +751,10 @@ class Env(AbstractEnv):
         synapse_config = connection_config["Synapses"]
         connection_dict = {}
 
-        for (key_postsyn, val_syntypes) in viewitems(synapse_config):
+        for (key_postsyn, val_syntypes) in synapse_config.items():
             connection_dict[key_postsyn] = {}
 
-            for (key_presyn, syn_dict) in viewitems(val_syntypes):
+            for (key_presyn, syn_dict) in val_syntypes.items():
                 val_type = syn_dict["type"]
                 val_synsections = syn_dict["sections"]
                 val_synlayers = syn_dict["layers"]
@@ -816,7 +812,7 @@ class Env(AbstractEnv):
                 ):
                     config_dict[(conn_config.type, s, l)] += p
 
-            for (k, v) in viewitems(config_dict):
+            for (k, v) in config_dict.items():
                 try:
                     assert np.isclose(v, 1.0)
                 except Exception as e:
@@ -838,8 +834,8 @@ class Env(AbstractEnv):
 
             gj_sections = gj_config["Locations"]
             sections = {}
-            for pop_a, pop_dict in viewitems(gj_sections):
-                for pop_b, sec_names in viewitems(pop_dict):
+            for pop_a, pop_dict in gj_sections.items():
+                for pop_b, sec_names in pop_dict.items():
                     pair = (pop_a, pop_b)
                     sec_idxs = []
                     for sec_name in sec_names:
@@ -848,8 +844,8 @@ class Env(AbstractEnv):
 
             gj_connection_probs = gj_config["Connection Probabilities"]
             connection_probs = {}
-            for pop_a, pop_dict in viewitems(gj_connection_probs):
-                for pop_b, prob in viewitems(pop_dict):
+            for pop_a, pop_dict in gj_connection_probs.items():
+                for pop_b, prob in pop_dict.items():
                     pair = (pop_a, pop_b)
                     connection_probs[pair] = float(prob)
 
@@ -872,8 +868,8 @@ class Env(AbstractEnv):
 
             gj_coupling_coeffs = gj_config["Coupling Coefficients"]
             coupling_coeffs = {}
-            for pop_a, pop_dict in viewitems(gj_coupling_coeffs):
-                for pop_b, coeff in viewitems(pop_dict):
+            for pop_a, pop_dict in gj_coupling_coeffs.items():
+                for pop_b, coeff in pop_dict.items():
                     pair = (pop_a, pop_b)
                     coupling_coeffs[pair] = float(coeff)
 
@@ -897,7 +893,7 @@ class Env(AbstractEnv):
             coupling_bounds = coupling_bounds
 
             self.gapjunctions = {}
-            for pair, sec_idxs in viewitems(sections):
+            for pair, sec_idxs in sections.items():
                 self.gapjunctions[pair] = GapjunctionConfig(
                     sec_idxs,
                     connection_probs[pair],
@@ -967,9 +963,7 @@ class Env(AbstractEnv):
         comm0 = self.comm.Split(color, 0)
 
         if rank == 0:
-            self.logger.info(
-                f"env.data_file_path = {str(self.data_file_path)}"
-            )
+            self.logger.info(f"env.data_file_path = {str(self.data_file_path)}")
 
         self.cell_attribute_info = None
         population_ranges = None
@@ -984,9 +978,7 @@ class Env(AbstractEnv):
             )
             self.logger.info(f"population_names = {str(population_names)}")
             self.logger.info(f"population_ranges = {str(population_ranges)}")
-            self.logger.info(
-                f"attribute info: {str(self.cell_attribute_info)}"
-            )
+            self.logger.info(f"attribute info: {str(self.cell_attribute_info)}")
         population_ranges = self.comm.bcast(population_ranges, root=0)
         population_names = self.comm.bcast(population_names, root=0)
         self.cell_attribute_info = self.comm.bcast(
@@ -1045,5 +1037,5 @@ class Env(AbstractEnv):
         self.recs_dict = {}
         self.recs_count = 0
         self.recs_pps_set = set()
-        for pop_name, _ in viewitems(self.Populations):
+        for pop_name, _ in self.Populations.items():
             self.recs_dict[pop_name] = defaultdict(list)

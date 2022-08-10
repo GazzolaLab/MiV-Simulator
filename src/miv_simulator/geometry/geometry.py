@@ -101,7 +101,7 @@ def get_layer_extents(layer_extents, layer):
     min_u, max_u = 0.0, 0.0
     min_v, max_v = 0.0, 0.0
     min_l, max_l = 0.0, 0.0
-    for current_layer, extent in viewitems(layer_extents):
+    for current_layer, extent in layer_extents.items():
         if current_layer == layer:
             min_u, max_u = extent[0][0], extent[1][0]
             min_v, max_v = extent[0][1], extent[1][1]
@@ -120,7 +120,7 @@ def get_total_extents(layer_extents):
     min_l = float("inf")
     max_l = 0.0
 
-    for layer, extent in viewitems(layer_extents):
+    for layer, extent in layer_extents.items():
         min_u = min(extent[0][0], min_u)
         min_v = min(extent[0][1], min_v)
         min_l = min(extent[0][2], min_l)
@@ -132,7 +132,7 @@ def get_total_extents(layer_extents):
 
 
 def uvl_in_bounds(uvl_coords, layer_extents, pop_layers):
-    for layer, count in viewitems(pop_layers):
+    for layer, count in pop_layers.items():
         if count > 0:
             min_extent = layer_extents[layer][0]
             max_extent = layer_extents[layer][1]
@@ -207,7 +207,7 @@ def optimize_inverse_uvl_coords(
     import dlib
 
     f_uvl_distance = make_uvl_distance(vol, xyz_coords, rotate=rotate)
-    for layer, count in viewitems(pop_layers):
+    for layer, count in pop_layers.items():
         if count > 0:
             min_extent = layer_extents[layer][0]
             max_extent = layer_extents[layer][1]
@@ -490,7 +490,7 @@ def interp_soma_distances(
         u_obs = []
         v_obs = []
         gids = []
-        for gid, coords in viewitems(coords_dict):
+        for gid, coords in coords_dict.items():
             if gid % size == rank:
                 soma_u, soma_v, soma_l = coords
                 try:
@@ -536,7 +536,7 @@ def interp_soma_distances(
             dist_dicts = comm.allgather(local_dist_dict)
             combined_dist_dict = {}
             for dist_dict in dist_dicts:
-                for k, v in viewitems(dist_dict):
+                for k, v in dist_dict.items():
                     combined_dist_dict[k] = v
             soma_distances[pop] = combined_dist_dict
         else:
@@ -569,9 +569,7 @@ def make_distance_interpolant(
 
     ip_volume = None
     if rank == 0:
-        logger.info(
-            f"Creating volume: min_l = {min_l:f} max_l = {max_l:f}..."
-        )
+        logger.info(f"Creating volume: min_l = {min_l:f} max_l = {max_l:f}...")
         ip_volume = make_volume(
             (min_u - safety, max_u + safety),
             (min_v - safety, max_v + safety),
@@ -806,7 +804,7 @@ def icp_transform(
         count = 0
         xyz_coords = []
         gids = []
-        for gid, coords in viewitems(coords_dict):
+        for gid, coords in coords_dict.items():
             if gid % size == rank:
                 soma_u, soma_v, soma_l = coords
                 xyz_coords.append(volume(soma_u, soma_v, soma_l, rotate=rotate))

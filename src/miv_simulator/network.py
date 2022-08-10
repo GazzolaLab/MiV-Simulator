@@ -125,7 +125,7 @@ def connect_cells(env: Env) -> None:
         logger.info("*** Reading projections: ")
 
     biophys_cell_count = 0
-    for (postsyn_name, presyn_names) in sorted(viewitems(env.projection_dict)):
+    for (postsyn_name, presyn_names) in sorted(env.projection_dict.items()):
 
         if rank == 0:
             logger.info(f"*** Reading projections of population {postsyn_name}")
@@ -305,7 +305,7 @@ def connect_cells(env: Env) -> None:
                     syn_name_inds = [
                         (syn_name, attr_index)
                         for syn_name, attr_index in sorted(
-                            viewitems(weight_attr_info)
+                            weight_attr_info.items()
                         )
                         if syn_name != "syn_id"
                     ]
@@ -561,9 +561,9 @@ def connect_cell_selection(env):
         logger.info(f"*** Connectivity file path is {connectivity_file_path}")
         logger.info("*** Reading projections: ")
 
-    selection_pop_names = sorted(viewkeys(env.cell_selection))
+    selection_pop_names = sorted(env.cell_selection.keys())
     biophys_cell_count = 0
-    for postsyn_name in sorted(viewkeys(env.projection_dict)):
+    for postsyn_name in sorted(env.projection_dict.keys()):
 
         if rank == 0:
             logger.info(f"*** Postsynaptic population: {postsyn_name}")
@@ -660,7 +660,7 @@ def connect_cell_selection(env):
                     syn_name_inds = [
                         (syn_name, attr_index)
                         for syn_name, attr_index in sorted(
-                            viewitems(weight_attr_info)
+                            weight_attr_info.items()
                         )
                         if syn_name != "syn_id"
                     ]
@@ -853,7 +853,7 @@ def connect_gjs(env: Env) -> None:
         )
 
         ggid = 2e6
-        for name in sorted(viewkeys(gapjunctions)):
+        for name in sorted(gapjunctions.keys()):
             if rank == 0:
                 logger.info(f"*** Creating gap junctions {name}")
             prj = graph[name[0]][name[1]]
@@ -865,7 +865,7 @@ def connect_gjs(env: Env) -> None:
             srcsec_idx = attrmap["Location"]["Source section"]
             srcpos_idx = attrmap["Location"]["Source position"]
 
-            for src in sorted(viewkeys(prj)):
+            for src in sorted(prj.keys()):
                 edges = prj[src]
                 destinations = edges[0]
                 cc_dict = edges[1]["Coupling strength"]
@@ -937,7 +937,7 @@ def make_cells(env: Env) -> None:
 
     dataset_path = env.dataset_path
     data_file_path = env.data_file_path
-    pop_names = sorted(viewkeys(env.celltypes))
+    pop_names = sorted(env.celltypes.keys())
 
     if rank == 0:
         logger.info(
@@ -1155,7 +1155,7 @@ def make_cell_selection(env):
     dataset_path = env.dataset_path
     data_file_path = env.data_file_path
 
-    pop_names = sorted(viewkeys(env.cell_selection))
+    pop_names = sorted(env.cell_selection.keys())
 
     for pop_name in pop_names:
         if rank == 0:
@@ -1327,7 +1327,7 @@ def make_input_cell_selection(env):
         pop_name: set() for pop_name in env.celltypes.keys()
     }
     for pop_name, input_gid_range in sorted(
-        viewitems(env.microcircuit_input_sources)
+        env.microcircuit_input_sources.items()
     ):
 
         pop_index = int(env.Populations[pop_name])
@@ -1395,7 +1395,7 @@ def make_input_cell_selection(env):
 
     if env.node_allocation is None:
         env.node_allocation = set()
-    for _, this_gidset in viewitems(env.microcircuit_input_sources):
+    for _, this_gidset in env.microcircuit_input_sources.items():
         for gid in this_gidset:
             env.node_allocation.add(gid)
 
@@ -1432,7 +1432,7 @@ def init_input_cells(env: Env) -> None:
     dataset_path = env.dataset_path
     input_file_path = env.data_file_path
 
-    pop_names = sorted(viewkeys(env.celltypes))
+    pop_names = sorted(env.celltypes.keys())
 
     trial_index_attr = "Trial Index"
     trial_dur_attr = "Trial Duration"
@@ -1598,7 +1598,7 @@ def init_input_cells(env: Env) -> None:
 
     if env.microcircuit_inputs:
 
-        for pop_name in sorted(viewkeys(env.microcircuit_input_sources)):
+        for pop_name in sorted(env.microcircuit_input_sources.keys()):
 
             gid_range = env.microcircuit_input_sources.get(pop_name, set())
 
@@ -1680,18 +1680,18 @@ def init_input_cells(env: Env) -> None:
                         spike_train_attr_index = cell_spikes_attr_info.get(
                             env.spike_input_attr, None
                         )
-                    elif "t" in viewkeys(cell_spikes_attr_info):
+                    elif "t" in cell_spikes_attr_info.keys():
                         spike_train_attr_index = cell_spikes_attr_info.get(
                             "t", None
                         )
-                    elif "Spike Train" in viewkeys(cell_spikes_attr_info):
+                    elif "Spike Train" in cell_spikes_attr_info.keys():
                         spike_train_attr_index = cell_spikes_attr_info.get(
                             "Spike Train", None
                         )
                     elif len(this_gid_range) > 0:
                         raise RuntimeError(
                             f"init_input_cells: unable to determine spike train attribute for population {pop_name} in spike input file {env.spike_input_path};"
-                            f" namespace {env.spike_input_ns}; attr keys {list(viewkeys(cell_spikes_attr_info))}"
+                            f" namespace {env.spike_input_ns}; attr keys {list(cell_spikes_attr_info.keys())}"
                         )
                     for gid, cell_spikes_tuple in cell_spikes_iter:
                         if not (env.pc.gid_exists(gid)):
@@ -1777,7 +1777,7 @@ def init(env: Env) -> None:
     if rank == 0:
         logger.info(f"*** Cells created in {env.mkcellstime:.02f} s")
     local_num_cells = imapreduce(
-        viewitems(env.cells), lambda kv: len(kv[1]), lambda ax, x: ax + x
+        env.cells.items(), lambda kv: len(kv[1]), lambda ax, x: ax + x
     )
     logger.info(f"*** Rank {rank} created {local_num_cells} cells")
     if env.cell_selection is None:
@@ -1799,9 +1799,9 @@ def init(env: Env) -> None:
             pop_name: set(viewkeys(env.cells[pop_name])).difference(
                 set(viewkeys(env.artificial_cells[pop_name]))
             )
-            for pop_name in viewkeys(env.cells)
+            for pop_name in env.cells.keys()
         }
-        for lfp_label, lfp_config_dict in sorted(viewitems(env.LFP_config)):
+        for lfp_label, lfp_config_dict in sorted(env.LFP_config.items()):
             env.lfp[lfp_label] = lfp.LFP(
                 lfp_label,
                 env.pc,
@@ -1989,7 +1989,7 @@ def run(
         if env.simtime is not None:
             env.tstop = env.simtime.tstop
     if output_syn_spike_count:
-        for pop_name in sorted(viewkeys(env.biophys_cells)):
+        for pop_name in sorted(env.biophys_cells.keys()):
             presyn_names = sorted(env.projection_dict[pop_name])
             synapses.write_syn_spike_count(
                 env,

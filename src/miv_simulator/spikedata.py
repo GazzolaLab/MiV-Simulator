@@ -342,16 +342,16 @@ def spike_density_estimate(
 
     spktrains = {
         ind: make_spktrain(lst, t_start, t_stop)
-        for (ind, lst) in viewitems(spkdict)
+        for (ind, lst) in spkdict.items()
     }
     baks_args = dict()
     baks_args["a"] = analysis_options["BAKS Alpha"]
     baks_args["b"] = analysis_options["BAKS Beta"]
 
     if progress:
-        seq = tqdm(viewitems(spktrains))
+        seq = tqdm(spktrains.items())
     else:
-        seq = viewitems(spktrains)
+        seq = spktrains.items()
 
     spk_rate_dict = {
         ind: baks(spkts / 1000.0, time_bins / 1000.0, **baks_args)[0].reshape(
@@ -383,12 +383,12 @@ def spike_density_estimate(
 
     result = {
         ind: {"rate": rate, "time": time_bins}
-        for ind, rate in viewitems(spk_rate_dict)
+        for ind, rate in spk_rate_dict.items()
     }
 
     result = {
         ind: {"rate": rate, "time": time_bins}
-        for ind, rate in viewitems(spk_rate_dict)
+        for ind, rate in spk_rate_dict.items()
     }
 
     return result
@@ -396,7 +396,7 @@ def spike_density_estimate(
 
 def spike_bin_counts(spkdict, time_bins):
     bin_dict = {}
-    for (ind, lst) in viewitems(spkdict):
+    for (ind, lst) in spkdict.items():
 
         if len(lst) > 0:
             spkts = np.asarray(lst, dtype=np.float32)

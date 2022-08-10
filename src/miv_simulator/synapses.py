@@ -106,10 +106,10 @@ def synapse_seg_density(
         secnodes_dict = neurotree_dict["section_topology"]["nodes"]
     else:
         secnodes_dict = None
-    for (syn_type_label, layer_density_dict) in viewitems(layer_density_dicts):
+    for (syn_type_label, layer_density_dict) in layer_density_dicts.items():
         syn_type = syn_type_dict[syn_type_label]
         rans = {}
-        for (layer_label, density_dict) in viewitems(layer_density_dict):
+        for (layer_label, density_dict) in layer_density_dict.items():
             if layer_label == "default":
                 layer = layer_label
             else:
@@ -118,7 +118,7 @@ def synapse_seg_density(
         segdensity = defaultdict(list)
         layers = defaultdict(list)
         total_seg_density = 0.0
-        for sec_index, seg_list in viewitems(seg_dict):
+        for sec_index, seg_list in seg_dict.items():
             for seg in seg_list:
                 L = seg.sec.L
                 nseg = seg.sec.nseg
@@ -197,10 +197,10 @@ def synapse_seg_counts(
         secnodes_dict = neurotree_dict["section_topology"]["nodes"]
     else:
         secnodes_dict = None
-    for (syn_type_label, layer_density_dict) in viewitems(layer_density_dicts):
+    for (syn_type_label, layer_density_dict) in layer_density_dicts.items():
         syn_type = syn_type_dict[syn_type_label]
         rans = {}
-        for (layer_label, density_dict) in viewitems(layer_density_dict):
+        for (layer_label, density_dict) in layer_density_dict.items():
             if layer_label == "default":
                 layer = layer_label
             else:
@@ -209,7 +209,7 @@ def synapse_seg_counts(
             rans[layer] = ran
         segcounts = []
         layers = []
-        for sec_index, seg_list in viewitems(seg_dict):
+        for sec_index, seg_list in seg_dict.items():
             for seg in seg_list:
                 L = seg.sec.L
                 nseg = seg.sec.nseg
@@ -287,7 +287,7 @@ def distribute_uniform_synapses(
 
     sec_interp_loc_dict = {}
     segcounts_per_sec = {}
-    for (sec_name, layer_density_dict) in viewitems(sec_layer_density_dict):
+    for (sec_name, layer_density_dict) in sec_layer_density_dict.items():
         sec_index_dict = cell_secidx_dict[sec_name]
         swc_type = swc_type_dict[sec_name]
         seg_list = []
@@ -299,7 +299,7 @@ def distribute_uniform_synapses(
             sec_interp_loc_dict[idx] = interplocs(sec)
         sec_dict = {int(idx): sec for sec, idx in zip(seclst, secidxlst)}
         seg_dict = {}
-        for (sec_index, sec) in viewitems(sec_dict):
+        for (sec_index, sec) in sec_dict.items():
             seg_list = []
             if maxdist is None:
                 for seg in sec:
@@ -326,11 +326,11 @@ def distribute_uniform_synapses(
         )
         segcounts_per_sec[sec_name] = segcounts_dict
         sample_size = total
-        for (syn_type_label, _) in viewitems(layer_density_dict):
+        for (syn_type_label, _) in layer_density_dict.items():
             syn_type = syn_type_dict[syn_type_label]
             segcounts = segcounts_dict[syn_type]
             layers = layers_dict[syn_type]
-            for sec_index, seg_list in viewitems(seg_dict):
+            for sec_index, seg_list in seg_dict.items():
                 interp_loc = sec_interp_loc_dict[sec_index]
                 for seg, layer, seg_count in zip(seg_list, layers, segcounts):
                     seg_start = seg.x - (0.5 / seg.sec.nseg)
@@ -415,7 +415,7 @@ def distribute_poisson_synapses(
 
     debug_flag = False
     secnodes_dict = neurotree_dict["section_topology"]["nodes"]
-    for sec, secnodes in viewitems(secnodes_dict):
+    for sec, secnodes in secnodes_dict.items():
         if len(secnodes) < 2:
             debug_flag = True
 
@@ -427,7 +427,7 @@ def distribute_poisson_synapses(
     seg_density_per_sec = {}
     r = np.random.RandomState()
     r.seed(int(density_seed))
-    for (sec_name, layer_density_dict) in viewitems(sec_layer_density_dict):
+    for (sec_name, layer_density_dict) in sec_layer_density_dict.items():
 
         swc_type = swc_type_dict[sec_name]
         seg_dict = {}
@@ -452,7 +452,7 @@ def distribute_poisson_synapses(
                 sec_edges = [(None, idx) for idx in list(sec_dict.keys())]
         else:
             sec_edges = [(None, idx) for idx in list(sec_dict.keys())]
-        for sec_index, sec in viewitems(sec_dict):
+        for sec_index, sec in sec_dict.items():
             seg_list = []
             if maxdist is None:
                 for seg in sec:
@@ -477,7 +477,7 @@ def distribute_poisson_synapses(
             neurotree_dict=neurotree_dict,
         )
         seg_density_per_sec[sec_name] = seg_density_dict
-        for (syn_type_label, _) in viewitems(layer_density_dict):
+        for (syn_type_label, _) in layer_density_dict.items():
             syn_type = syn_type_dict[syn_type_label]
             seg_density = seg_density_dict[syn_type]
             layers = layers_dict[syn_type]
@@ -652,7 +652,7 @@ class SynapseAttributes:
         self.syn_mech_names = syn_mech_names
         self.syn_config = {
             k: v["synapses"]
-            for k, v in viewitems(env.celltypes)
+            for k, v in env.celltypes.items()
             if "synapses" in v
         }
         self.syn_param_rules = syn_param_rules
@@ -669,9 +669,7 @@ class SynapseAttributes:
                 lambda: SynapsePointProcess(mech={}, netcon={}, vecstim={})
             )
         )
-        self.presyn_names = {
-            id: name for name, id in viewitems(env.Populations)
-        }
+        self.presyn_names = {id: name for name, id in env.Populations.items()}
         self.filter_cache = {}
 
     def init_syn_id_attrs_from_iter(
@@ -1209,7 +1207,7 @@ class SynapseAttributes:
             mech_params = section_syn_params.get(syn_name, {})
 
         attr_dict = syn.attr_dict[syn_index]
-        for k, v in viewitems(params):
+        for k, v in params.items():
             if k in rules[mech_name]["mech_params"]:
                 mech_param = mech_params.get(k, None)
                 if isinstance(mech_param, ExprClosure):
@@ -1230,10 +1228,10 @@ class SynapseAttributes:
                         attr_dict[k] = Promise(new_val, old_val)
                 elif isinstance(new_val, dict):
                     if isinstance(old_val, Promise):
-                        for sk, sv in viewitems(new_val):
+                        for sk, sv in new_val.items():
                             old_val.clos[sk] = sv
                     elif isinstance(old_val, ExprClosure):
-                        for sk, sv in viewitems(new_val):
+                        for sk, sv in new_val.items():
                             old_val[sk] = sv
                     else:
                         if expr_param_check == "ignore":
@@ -1266,10 +1264,10 @@ class SynapseAttributes:
                         attr_dict[k] = Promise(new_val, old_val)
                 elif isinstance(new_val, dict):
                     if isinstance(old_val, Promise):
-                        for sk, sv in viewitems(new_val):
+                        for sk, sv in new_val.items():
                             old_val.clos[sk] = sv
                     elif isinstance(old_val, ExprClosure):
-                        for sk, sv in viewitems(new_val):
+                        for sk, sv in new_val.items():
                             old_val[sk] = sv
                     else:
                         if expr_param_check == "ignore":
@@ -1329,7 +1327,7 @@ class SynapseAttributes:
                     )
 
             attr_dict = syn.attr_dict[syn_index]
-            for k, v in viewitems(params_dict):
+            for k, v in params_dict.items():
                 if v is None:
                     raise RuntimeError(
                         "add_mech_attrs_from_iter: "
@@ -1409,7 +1407,7 @@ class SynapseAttributes:
 
         result = {
             k: v
-            for k, v in viewitems(syn_dict)
+            for k, v in syn_dict.items()
             if matches(
                 [
                     (syn_indexes, k),
@@ -1455,7 +1453,7 @@ class SynapseAttributes:
             }
 
         source_parts = partitionn(
-            viewitems(syn_id_attr_dict),
+            syn_id_attr_dict.items(),
             lambda syn_id_syn: source_order[syn_id_syn[1].source.population],
             n=len(source_names),
         )
@@ -1567,10 +1565,10 @@ class SynapseAttributes:
         return gid in self.syn_id_attr_dict
 
     def gids(self):
-        return viewkeys(self.syn_id_attr_dict)
+        return self.syn_id_attr_dict.keys()
 
     def items(self):
-        return viewitems(self.syn_id_attr_dict)
+        return self.syn_id_attr_dict.items()
 
     def __getitem__(self, gid):
         return self.syn_id_attr_dict[gid]
@@ -1707,7 +1705,7 @@ def insert_hoc_cell_syns(
         else:
             mech_params = syn_params[swc_type]
 
-        for syn_name, params in viewitems(mech_params):
+        for syn_name, params in mech_params.items():
 
             syn_mech = make_syn_mech(
                 syn_name=syn_name,
@@ -1874,7 +1872,7 @@ def config_biophys_cell_syns(
                 f"config_biophys_cell_syns: insert: biophysical cell with gid {gid} does not exist"
             )
 
-        for presyn_name, source_syn_ids in viewitems(source_syn_ids_dict):
+        for presyn_name, source_syn_ids in source_syn_ids_dict.items():
             if (presyn_name is not None) and (source_syn_ids is not None):
                 insert_biophys_cell_syns(
                     env,
@@ -1968,7 +1966,7 @@ def config_hoc_cell_syns(
             )
         if cell is None:
             cell = env.pc.gid2cell(gid)
-        for presyn_name, source_syns in viewitems(source_syn_dict):
+        for presyn_name, source_syns in source_syn_dict.items():
             if (presyn_name is not None) and (source_syns is not None):
                 source_syn_ids = [x[0] for x in source_syns]
                 connection_syn_params = env.connection_config[postsyn_name][
@@ -1999,7 +1997,7 @@ def config_hoc_cell_syns(
     total_mech_count = 0
     total_syn_id_count = 0
     config_time = time.time()
-    for presyn_name, source_syns in viewitems(source_syn_dict):
+    for presyn_name, source_syns in source_syn_dict.items():
 
         if source_syns is None:
             continue
@@ -2034,7 +2032,7 @@ def config_hoc_cell_syns(
 
                     params = syn.attr_dict[syn_index]
                     upd_params = {}
-                    for param_name, param_val in viewitems(params):
+                    for param_name, param_val in params.items():
                         if param_val is None:
                             raise RuntimeError(
                                 f"config_hoc_cell_syns: insert: cell gid {gid} synapse {syn_id} presyn source {presyn_name} does not have a "
@@ -2099,7 +2097,7 @@ def config_syn(
     nc_param = False
     mech_param = False
 
-    for param, val in viewitems(params):
+    for param, val in params.items():
         failed = True
         if param in mech_rules["mech_params"]:
             if syn is None:
@@ -2495,7 +2493,7 @@ def update_syn_mech_by_sec_type(
     :param update_targets: bool
     :param verbose: bool
     """
-    for param_name, param_content in viewitems(mech_content):
+    for param_name, param_content in mech_content.items():
         mech_param_contents = param_content
         for param_content_entry in mech_param_contents:
             update_syn_mech_param_by_sec_type(
@@ -2621,7 +2619,7 @@ def apply_syn_mech_rules(
         if len(filtered_syns) == 0:
             return
         syn_distances = []
-        for syn_id, syn in viewitems(filtered_syns):
+        for syn_id, syn in filtered_syns.items():
             syn_distances.append(
                 get_distance_to_node(
                     cell, cell.tree.root, node, loc=syn.syn_loc
@@ -2784,7 +2782,7 @@ def write_syn_spike_count(
             f"write_syn_mech_spike_counts: rank {rank}: population {pop_name}: gid {gid}: {len(syns_dict)} synapses"
         )
 
-        for syn_id, syn in viewitems(syns_dict):
+        for syn_id, syn in syns_dict.items():
             source_population = syn.source.population
             syn_netcon_dict = syn_attrs.pps_dict[gid][syn_id].netcon
             for syn_name in syn_names:
@@ -2804,8 +2802,8 @@ def write_syn_spike_count(
         syn_attrs_dict = output_dict[syn_name]
         attr_dict = defaultdict(lambda: dict())
 
-        for gid, gid_syn_spk_count_dict in viewitems(syn_attrs_dict):
-            for source_index, source_count in viewitems(gid_syn_spk_count_dict):
+        for gid, gid_syn_spk_count_dict in syn_attrs_dict.items():
+            for source_index, source_count in gid_syn_spk_count_dict.items():
                 source_pop_name = syn_attrs.presyn_names[source_index]
                 attr_dict[gid][source_pop_name] = np.asarray(
                     [source_count], dtype="uint32"

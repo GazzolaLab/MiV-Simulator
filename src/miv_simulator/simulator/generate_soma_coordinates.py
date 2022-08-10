@@ -209,7 +209,7 @@ def generate_soma_coordinates(
     layer_extent_vals = {}
     layer_extent_transformed_vals = {}
     if rank == 0:
-        for layer, extents in viewitems(layer_extents):
+        for layer, extents in layer_extents.items():
             (extent_u, extent_v, extent_l) = get_layer_extents(
                 layer_extents, layer
             )
@@ -284,7 +284,7 @@ def generate_soma_coordinates(
                 )
 
             pop_layer_count = 0
-            for layer, count in viewitems(pop_layers):
+            for layer, count in pop_layers.items():
                 pop_layer_count += count
             if population_count != pop_layer_count:
                 logger.error(
@@ -293,7 +293,7 @@ def generate_soma_coordinates(
             assert population_count == pop_layer_count
 
             xyz_coords_lst = []
-            for layer, count in viewitems(pop_layers):
+            for layer, count in pop_layers.items():
                 if count <= 0:
                     continue
 
@@ -537,7 +537,7 @@ def generate_soma_coordinates(
                 safety = 0.01
                 delta = pop_count - len(all_coords)
                 for i in range(delta):
-                    for layer, count in viewitems(pop_layers):
+                    for layer, count in pop_layers.items():
                         if count > 0:
                             min_extent = layer_extents[layer][0]
                             max_extent = layer_extents[layer][1]

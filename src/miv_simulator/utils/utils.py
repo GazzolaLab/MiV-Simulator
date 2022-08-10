@@ -93,7 +93,7 @@ class ExprClosure:
 
     def __init_feval__(self):
         fexpr = self.expr
-        for k, v in viewitems(self.consts):
+        for k, v in self.consts.items():
             sym = self.sympy.Symbol(k)
             fexpr = fexpr.subs(sym, v)
         if self.formals is None:
@@ -405,7 +405,7 @@ def print_param_dict_like_yaml(param_dict, digits=6):
     :param param_dict: dict
     :param digits: int
     """
-    for param_name, param_val in viewitems(param_dict):
+    for param_name, param_val in param_dict.items():
         if isinstance(param_val, int):
             print(f"{param_name}: {param_val}")
         else:
@@ -863,7 +863,7 @@ def update_bins(bins, binsize, *xs):
 
 
 def finalize_bins(bins, binsize):
-    bin_keys = zip_longest(*viewkeys(bins))
+    bin_keys = zip_longest(*bins.keys())
     bin_ranges = [(int(min(ks)), int(max(ks))) for ks in bin_keys]
     dims = tuple((imax - imin + 1) for imin, imax in bin_ranges)
     if len(dims) > 1:
@@ -882,7 +882,7 @@ def finalize_bins(bins, binsize):
 
 
 def merge_bins(bins1, bins2, datatype):
-    for i, count in viewitems(bins2):
+    for i, count in bins2.items():
         if i in bins1:
             bins1[i] += count
         else:
