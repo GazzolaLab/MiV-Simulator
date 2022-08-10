@@ -336,12 +336,12 @@ def get_root_logger() -> logging.Logger:
 
 
 def get_module_logger(name: str) -> logging.Logger:
-    logger = logging.getLogger("%s" % name)
+    logger = logging.getLogger(f"{name}")
     return logger
 
 
 def get_script_logger(name):
-    logger = logging.getLogger("MiV.%s" % name)
+    logger = logging.getLogger(f"MiV.{name}")
     return logger
 
 
@@ -382,7 +382,7 @@ def read_from_yaml(
             data = yaml.load(stream, Loader=Loader)
         return data
     else:
-        raise OSError("read_from_yaml: invalid file_path: %s" % file_path)
+        raise OSError(f"read_from_yaml: invalid file_path: {file_path}")
 
 
 def generate_results_file_id(

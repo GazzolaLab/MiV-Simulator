@@ -420,8 +420,8 @@ def distribute_poisson_synapses(
             debug_flag = True
 
     if debug_flag:
-        logger.debug("sec_graph: %s" % str(list(sec_graph.edges)))
-        logger.debug("neurotree_dict: %s" % str(neurotree_dict))
+        logger.debug(f"sec_graph: {str(list(sec_graph.edges))}")
+        logger.debug(f"neurotree_dict: {str(neurotree_dict)}")
 
     sec_interp_loc_dict = {}
     seg_density_per_sec = {}

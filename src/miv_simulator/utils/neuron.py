@@ -287,7 +287,7 @@ def find_template(
     found = False
     template_path = ""
     if template_file is None:
-        template_file = "%s.hoc" % template_name
+        template_file = f"{template_name}.hoc"
     if bcast_template:
         env.comm.barrier()
     if (
@@ -326,7 +326,7 @@ def configure_hoc_env(env: AbstractEnv, bcast_template: bool = False) -> None:
     h.load_file("stdrun.hoc")
     h.load_file("loadbal.hoc")
     for template_dir in env.template_paths:
-        path = "%s/rn.hoc" % template_dir
+        path = f"{template_dir}/rn.hoc"
         if os.path.exists(path):
             h.load_file(path)
     h.cvode.use_fast_imem(1)

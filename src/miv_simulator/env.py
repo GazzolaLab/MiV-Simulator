@@ -264,7 +264,7 @@ class Env(AbstractEnv):
             if rank == 0:
                 if not os.path.isfile(config_file_path):
                     raise RuntimeError(
-                        "configuration file %s was not found" % config_file_path
+                        f"configuration file {config_file_path} was not found"
                     )
                 with open(config_file_path) as fp:
                     self.model_config = yaml.load(fp, IncludeLoader)
@@ -306,7 +306,7 @@ class Env(AbstractEnv):
 
         if rank == 0:
             self.logger.info(
-                "env.dataset_prefix = %s" % str(self.dataset_prefix)
+                f"env.dataset_prefix = {str(self.dataset_prefix)}"
             )
 
         # Cell selection for simulations of subsets of the network
@@ -314,7 +314,7 @@ class Env(AbstractEnv):
         self.cell_selection_path = cell_selection_path
         if rank == 0:
             self.logger.info(
-                "env.cell_selection_path = %s" % str(self.cell_selection_path)
+                f"env.cell_selection_path = {str(self.cell_selection_path)}"
             )
             if cell_selection_path is not None:
                 with open(cell_selection_path) as fp:
@@ -329,7 +329,7 @@ class Env(AbstractEnv):
         if self.spike_input_path is not None:
             if rank == 0:
                 self.logger.info(
-                    "env.spike_input_path = %s" % str(self.spike_input_path)
+                    f"env.spike_input_path = {str(self.spike_input_path)}"
                 )
                 self.spike_input_attribute_info = read_cell_attribute_info(
                     self.spike_input_path,
@@ -353,7 +353,7 @@ class Env(AbstractEnv):
                 self.results_file_path = f"{self.results_path}/{self.modelName}_results_{self.results_file_id}.h5"
         else:
             if self.results_file_id is None:
-                self.results_file_path = "%s_results.h5" % (self.modelName)
+                self.results_file_path = f"{self.modelName}_results.h5"
             else:
                 self.results_file_path = (
                     f"{self.modelName}_results_{self.results_file_id}.h5"
@@ -380,7 +380,7 @@ class Env(AbstractEnv):
                 self.forest_file_path = None
             if rank == 0:
                 self.logger.info(
-                    "env.data_file_path = %s" % self.data_file_path
+                    f"env.data_file_path = {self.data_file_path}"
                 )
             if "Connection Data" in self.model_config:
                 self.connectivity_file_path = os.path.join(
@@ -431,8 +431,7 @@ class Env(AbstractEnv):
             if rank == 0:
                 projection_dict = defaultdict(list)
                 self.logger.info(
-                    "env.connectivity_file_path = %s"
-                    % str(self.connectivity_file_path)
+                    f"env.connectivity_file_path = {str(self.connectivity_file_path)}"
                 )
                 if self.connectivity_file_path is not None:
                     for (src, dst) in read_projection_names(
@@ -441,7 +440,7 @@ class Env(AbstractEnv):
                         projection_dict[dst].append(src)
                 self.projection_dict = dict(projection_dict)
                 self.logger.info(
-                    "projection_dict = %s" % str(self.projection_dict)
+                    f"projection_dict = {str(self.projection_dict)}"
                 )
             self.projection_dict = self.comm.bcast(self.projection_dict, root=0)
 
@@ -704,8 +703,7 @@ class Env(AbstractEnv):
                         )
                     else:
                         raise RuntimeError(
-                            "parse_syn_mechparams: unknown parameter type %s"
-                            % str(v)
+                            f"parse_syn_mechparams: unknown parameter type {str(v)}"
                         )
                 else:
                     mech_params1[k] = v
@@ -970,7 +968,7 @@ class Env(AbstractEnv):
 
         if rank == 0:
             self.logger.info(
-                "env.data_file_path = %s" % str(self.data_file_path)
+                f"env.data_file_path = {str(self.data_file_path)}"
             )
 
         self.cell_attribute_info = None
@@ -984,10 +982,10 @@ class Env(AbstractEnv):
             self.cell_attribute_info = read_cell_attribute_info(
                 self.data_file_path, population_names, comm=comm0
             )
-            self.logger.info("population_names = %s" % str(population_names))
-            self.logger.info("population_ranges = %s" % str(population_ranges))
+            self.logger.info(f"population_names = {str(population_names)}")
+            self.logger.info(f"population_ranges = {str(population_ranges)}")
             self.logger.info(
-                "attribute info: %s" % str(self.cell_attribute_info)
+                f"attribute info: {str(self.cell_attribute_info)}"
             )
         population_ranges = self.comm.bcast(population_ranges, root=0)
         population_names = self.comm.bcast(population_names, root=0)

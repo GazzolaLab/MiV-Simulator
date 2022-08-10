@@ -190,7 +190,7 @@ def generate_soma_coordinates(
             "Constructing alpha shape for volume: extents: %s..."
             % str((extent_u, extent_v, extent_l))
         )
-        vol_alpha_shape_path = "%s/all" % (layer_alpha_shape_path)
+        vol_alpha_shape_path = f"{layer_alpha_shape_path}/all"
         if geometry_path:
             vol_alpha_shape = load_alpha_shape(
                 geometry_path, vol_alpha_shape_path
@@ -376,7 +376,7 @@ def generate_soma_coordinates(
 
     if rank == 0:
         logger.info(
-            "Computing UVL coordinates of %i nodes..." % len(all_xyz_coords1)
+            f"Computing UVL coordinates of {len(all_xyz_coords1)} nodes..."
         )
 
     all_xyz_coords_interp = None

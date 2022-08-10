@@ -2683,11 +2683,11 @@ def optimize(
     if rank == 0:
         ts = time.strftime("%Y%m%d_%H%M%S")
         opt_seed_lab = (
-            "NOS{:08d}".format(np.random.randint(99999999))
+            f"NOS{np.random.randint(99999999):08d}"
             if opt_seed is None
-            else "{:08d}".format(opt_seed)
+            else f"{opt_seed:08d}"
         )
-        results_file_id = "{!s}_{!s}_{!s}".format(population, ts, opt_seed_lab)
+        results_file_id = f"{population!s}_{ts!s}_{opt_seed_lab!s}"
 
     results_file_id = comm.bcast(results_file_id, root=0)
     comm.barrier()

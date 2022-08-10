@@ -60,7 +60,7 @@ def update_syn_stats(env, syn_stats_dict, syn_dict):
         elif syn_type == syn_type_inhibitory:
             syn_type_str = "inhibitory"
         else:
-            raise ValueError("Unknown synapse type %s" % str(syn_type))
+            raise ValueError(f"Unknown synapse type {str(syn_type)}")
 
         syn_stats_dict["section"][syn_sec][syn_type_str] += 1
         syn_stats_dict["layer"][syn_layer][syn_type_str] += 1
@@ -310,7 +310,7 @@ def distribute_synapse_locations(
                     )
                 else:
                     raise Exception(
-                        "Unknown distribution type: %s" % distribution
+                        f"Unknown distribution type: {distribution}"
                     )
 
                 synapse_dict[gid] = syn_dict

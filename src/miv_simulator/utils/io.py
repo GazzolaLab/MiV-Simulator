@@ -45,12 +45,12 @@ grp_h5types = "H5Types"
 grp_projections = "Projections"
 grp_populations = "Populations"
 
-path_population_labels = "/%s/Population labels" % grp_h5types
-path_population_range = "/%s/Population range" % grp_h5types
+path_population_labels = f"/{grp_h5types}/Population labels"
+path_population_range = f"/{grp_h5types}/Population range"
 
 grp_population_projections = "Population projections"
 grp_valid_population_projections = "Valid population projections"
-path_population_projections = "/%s/Population projections" % grp_h5types
+path_population_projections = f"/{grp_h5types}/Population projections"
 
 # Default I/O configuration
 default_io_options = Struct(
@@ -414,7 +414,7 @@ def spikeout(
     if env.results_namespace_id is None:
         namespace_id = "Spike Events"
     else:
-        namespace_id = "Spike Events %s" % str(env.results_namespace_id)
+        namespace_id = f"Spike Events {str(env.results_namespace_id)}"
 
     for i, pop_name in enumerate(pop_names):
         spkdict = {}
@@ -469,7 +469,7 @@ def spikeout(
 
     env.comm.barrier()
     if env.comm.Get_rank() == 0:
-        logger.info("*** Output spike results to file %s" % output_path)
+        logger.info(f"*** Output spike results to file {output_path}")
 
 
 def recsout(
@@ -566,7 +566,7 @@ def recsout(
                 if clear_data:
                     rec["vec"].resize(0)
             if env.results_namespace_id is None:
-                namespace_id = "Intracellular %s" % (rec_type)
+                namespace_id = f"Intracellular {rec_type}"
             else:
                 namespace_id = "Intracellular {} {}".format(
                     rec_type, str(env.results_namespace_id)
@@ -585,7 +585,7 @@ def recsout(
     env.comm.barrier()
     if env.comm.Get_rank() == 0:
         logger.info(
-            "*** Output intracellular state results to file %s" % output_path
+            f"*** Output intracellular state results to file {output_path}"
         )
 
 
@@ -602,7 +602,7 @@ def lfpout(env: AbstractEnv, output_path: str):
     for lfp in list(env.lfp.values()):
 
         if env.results_namespace_id is None:
-            namespace_id = "Local Field Potential %s" % str(lfp.label)
+            namespace_id = f"Local Field Potential {str(lfp.label)}"
         else:
             namespace_id = "Local Field Potential {} {}".format(
                 str(lfp.label), str(env.results_namespace_id)
@@ -619,7 +619,7 @@ def lfpout(env: AbstractEnv, output_path: str):
         output.close()
 
     if env.comm.Get_rank() == 0:
-        logger.info("*** Output LFP results to file %s" % output_path)
+        logger.info(f"*** Output LFP results to file {output_path}")
 
 
 def get_h5py_attr(attrs, key):
@@ -632,7 +632,7 @@ def get_h5py_attr(attrs, key):
     :return: val with type converted if str or array of str
     """
     if key not in attrs:
-        raise KeyError("get_h5py_attr: invalid key: %s" % key)
+        raise KeyError(f"get_h5py_attr: invalid key: {key}")
     val = attrs[key]
     if isinstance(val, str):
         val = np.string_(val).astype(str)
@@ -724,7 +724,7 @@ def write_cell_selection(
             "Trees" in env.cell_attribute_info[pop_name]
         ):
             if rank == 0:
-                logger.info("*** Reading trees for population %s" % pop_name)
+                logger.info(f"*** Reading trees for population {pop_name}")
 
             cell_tree_iter, _ = scatter_read_tree_selection(
                 data_file_path,
@@ -736,7 +736,7 @@ def write_cell_selection(
             )
             if rank == 0:
                 logger.info(
-                    "*** Done reading trees for population %s" % pop_name
+                    f"*** Done reading trees for population {pop_name}"
                 )
 
             for i, (gid, tree) in enumerate(cell_tree_iter):
@@ -750,7 +750,7 @@ def write_cell_selection(
         ):
             if rank == 0:
                 logger.info(
-                    "*** Reading coordinates for population %s" % pop_name
+                    f"*** Reading coordinates for population {pop_name}"
                 )
 
             cell_attributes_iter = scatter_read_cell_attribute_selection(
@@ -764,7 +764,7 @@ def write_cell_selection(
 
             if rank == 0:
                 logger.info(
-                    "*** Done reading coordinates for population %s" % pop_name
+                    f"*** Done reading coordinates for population {pop_name}"
                 )
 
             for i, (gid, coords) in enumerate(cell_attributes_iter):
@@ -822,8 +822,7 @@ def write_connection_selection(
 
         if rank == 0:
             logger.info(
-                "*** Writing connection selection of population %s"
-                % (postsyn_name)
+                f"*** Writing connection selection of population {postsyn_name}"
             )
 
         if postsyn_name not in pop_names:
@@ -845,8 +844,7 @@ def write_connection_selection(
 
         if rank == 0:
             logger.info(
-                "*** Reading synaptic attributes for population %s"
-                % (postsyn_name)
+                f"*** Reading synaptic attributes for population {postsyn_name}"
             )
 
         syn_attributes_iter = scatter_read_cell_attribute_selection(

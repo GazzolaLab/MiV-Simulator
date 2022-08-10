@@ -831,8 +831,7 @@ def import_mech_dict_from_file(cell, mech_file_path=None):
             )
     elif not os.path.isfile(mech_file_path):
         raise OSError(
-            "import_mech_dict_from_file: invalid mech_file_path: %s"
-            % mech_file_path
+            f"import_mech_dict_from_file: invalid mech_file_path: {mech_file_path}"
         )
     else:
         cell.mech_file_path = mech_file_path
@@ -1190,7 +1189,7 @@ def report_topology(
     )
 
     diams_str = ", ".join(
-        "%.2f" % node.sec.diam3d(i) for i in range(node.sec.n3d())
+        f"{node.sec.diam3d(i):.2f}" for i in range(node.sec.n3d())
     )
     report = (
         f"node: {node.name}, L: {node.sec.L:.1f}, diams: [{diams_str}], nseg: {node.sec.nseg}, "
@@ -2141,7 +2140,7 @@ def record_cell(
                     sec = node.sec
                     if str(sec) not in visited:
                         if node_type_count[node.section_type] == 1:
-                            rec_id = "%s" % (node.section_type)
+                            rec_id = f"{node.section_type}"
                         else:
                             rec_id = "%s.%i" % (node.section_type, node.index)
                         rec = make_rec(
@@ -2185,7 +2184,7 @@ def record_cell(
                                 syn_name,
                                 str(recvar),
                             )
-                            label = "%s" % (str(recvar))
+                            label = f"{str(recvar)}"
                             rec = make_rec(
                                 rec_id,
                                 pop_name,
@@ -2195,7 +2194,7 @@ def record_cell(
                                 dt=dt,
                                 param=recvar,
                                 label=label,
-                                description="%s" % label,
+                                description=f"{label}",
                             )
                             ns = "%s%d.%s" % (
                                 syn_swc_type_name,

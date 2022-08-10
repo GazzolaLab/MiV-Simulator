@@ -11,7 +11,7 @@ from miv_simulator.geometry.rbf_volume import RBFVolume
 from mpi4py import MPI
 
 ## This logger will inherit its setting from its root logger
-logger = logging.getLogger("%s" % __name__)
+logger = logging.getLogger(f"{__name__}")
 
 
 def viewitems(obj, **kwargs):
@@ -570,7 +570,7 @@ def make_distance_interpolant(
     ip_volume = None
     if rank == 0:
         logger.info(
-            "Creating volume: min_l = %f max_l = %f..." % (min_l, max_l)
+            f"Creating volume: min_l = {min_l:f} max_l = {max_l:f}..."
         )
         ip_volume = make_volume(
             (min_u - safety, max_u + safety),
@@ -801,7 +801,7 @@ def icp_transform(
         coords_dict = soma_coords[pop]
         if rank == 0:
             logger.info(
-                "Computing point transformation for population %s..." % pop
+                f"Computing point transformation for population {pop}..."
             )
         count = 0
         xyz_coords = []
@@ -830,9 +830,9 @@ def icp_transform(
                 cloud_in, cloud_prj, max_iter=icp_iter
             )
             logger.info(
-                "Transformation of population %s has converged: " % (pop)
+                f"Transformation of population {pop} has converged: "
                 + str(converged)
-                + " score: %f" % (fitness)
+                + f" score: {fitness:f}"
             )
             for i, gid in zip(list(range(0, estimate.size)), gids):
                 est_xyz_coords = estimate[i]
@@ -926,7 +926,7 @@ def test_nodes():
     # remove nodes outside of the domain
     in_nodes = nodes[contains(nodes, vert, smp)]
 
-    print("Generated %d interior nodes" % len(in_nodes))
+    print(f"Generated {len(in_nodes)} interior nodes")
 
     vol.mplot_surface(color=(0, 1, 0), opacity=0.33, ures=10, vres=10)
     mlab.points3d(*in_nodes.T, color=(1, 1, 0), scale_factor=15.0)

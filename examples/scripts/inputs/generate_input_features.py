@@ -352,7 +352,7 @@ def main(
         chars = list(this_selectivity_type_name)
         chars[0] = chars[0].upper()
         selectivity_type_namespaces[this_selectivity_type_name] = (
-            "".join(chars) + " Selectivity %s" % arena_id
+            "".join(chars) + f" Selectivity {arena_id}"
         )
 
     if arena_id not in env.stimulus_config["Arena"]:

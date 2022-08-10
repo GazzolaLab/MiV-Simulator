@@ -211,10 +211,7 @@ def main(
 
     env.comm.barrier()
 
-    write_selection_file_path = "{}/{}_selection.h5".format(
-        env.results_path,
-        env.modelName,
-    )
+    write_selection_file_path = f"{env.results_path}/{env.modelName}_selection.h5"
 
     if rank == 0:
         io_utils.mkout(env, write_selection_file_path)

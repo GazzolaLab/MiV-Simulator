@@ -962,12 +962,12 @@ def plot_spike_raster(
                 ax.set_position([box.x0, box.y0, box.width * 0.85, box.height])
         if pop_rates:
             lgd_labels = [
-                "%s (%.02f%% active; %.3g Hz)" % (pop_name, info[0], info[1])
+                f"{pop_name} ({info[0]:.02f}% active; {info[1]:.3g} Hz)"
                 for pop_name, info in zip_longest(spkpoplst, lgd_info)
             ]
         else:
             lgd_labels = [
-                "%s (%.02f%% active)" % (pop_name, info[0])
+                f"{pop_name} ({info[0]:.02f}% active)"
                 for pop_name, info in zip_longest(spkpoplst, lgd_info)
             ]
         # Add legend
@@ -986,12 +986,12 @@ def plot_spike_raster(
     elif labels == "overlay":
         if pop_rates:
             lgd_labels = [
-                "%s (%.02f%% active; %.3g Hz)" % (pop_name, info[0], info[1])
+                f"{pop_name} ({info[0]:.02f}% active; {info[1]:.3g} Hz)"
                 for pop_name, info in zip_longest(spkpoplst, lgd_info)
             ]
         else:
             lgd_labels = [
-                "%s (%.02f%% active)" % (pop_name, info[0])
+                f"{pop_name} ({info[0]:.02f}% active)"
                 for pop_name, info in zip_longest(spkpoplst, lgd_info)
             ]
         for i, lgd_label in enumerate(lgd_labels):
@@ -1010,9 +1010,9 @@ def plot_spike_raster(
                 continue
 
             if pop_rates:
-                label = "%.02f%%\n%.2g Hz" % (info[0], info[1])
+                label = f"{info[0]:.02f}%\n{info[1]:.2g} Hz"
             else:
-                label = "%.02f%%\n" % (info[0])
+                label = f"{info[0]:.02f}%\n"
 
             maxN = max(pop_active_cells[pop_name])
             minN = min(pop_active_cells[pop_name])
@@ -1240,9 +1240,7 @@ def plot_spike_histogram(
                 avg_rates[subset],
             )
         else:
-            label = str(subset) + " (%i active)" % (
-                len(pop_active_cells[subset])
-            )
+            label = str(subset) + f" ({len(pop_active_cells[subset])} active)"
 
         ax = plt.subplot(len(spkpoplst), 1, (iplot + 1))
         plt.title(label, fontsize=fig_options.fontSize)
@@ -1302,7 +1300,7 @@ def plot_spike_histogram(
             filename = fig_options.saveFig
         else:
             filename = (
-                namespace_id + " " + "histogram.%s" % fig_options.figFormat
+                namespace_id + " " + f"histogram.{fig_options.figFormat}"
             )
         plt.savefig(filename)
 
@@ -1420,7 +1418,7 @@ def plot_lfp(
                 "Power Spectral Density (dB/Hz)", fontsize=fig_options.fontSize
             )
             ax.set_title(
-                "PSD (peak: %.3g Hz)" % (freqs[peak_index]),
+                f"PSD (peak: {freqs[peak_index]:.3g} Hz)",
                 fontsize=fig_options.fontSize,
             )
 
@@ -1439,12 +1437,12 @@ def plot_lfp(
         for iplot, (lfp_label, lfp_config_dict) in enumerate(
             viewitems(env.LFP_config)
         ):
-            namespace_id = "Local Field Potential %s" % str(lfp_label)
+            namespace_id = f"Local Field Potential {str(lfp_label)}"
             import h5py
 
             infile = h5py.File(input_path)
 
-            logger.info("plot_lfp: reading data for %s..." % namespace_id)
+            logger.info(f"plot_lfp: reading data for {namespace_id}...")
             if time_range is None:
                 t = infile[namespace_id]["t"]
                 v = infile[namespace_id]["v"]
@@ -1485,7 +1483,7 @@ def plot_lfp(
                 )
 
             ax = plt.subplot(gs[iplot, 0])
-            ax.set_title("%s" % (namespace_id), fontsize=fig_options.fontSize)
+            ax.set_title(f"{namespace_id}", fontsize=fig_options.fontSize)
             ax.plot(t, v, label=lfp_label, linewidth=fig_options.lw)
             ax.set_xlabel("Time (ms)", fontsize=fig_options.fontSize)
             ax.set_ylabel("Field Potential (mV)", fontsize=fig_options.fontSize)
@@ -1494,7 +1492,7 @@ def plot_lfp(
                     ax.plot(
                         t,
                         filtered_v,
-                        label="%s (filtered)" % lfp_label,
+                        label=f"{lfp_label} (filtered)",
                         color="red",
                         linewidth=fig_options.lw,
                     )
@@ -1507,7 +1505,7 @@ def plot_lfp(
                     fontsize=fig_options.fontSize,
                 )
                 ax.set_title(
-                    "PSD (peak: %.3g Hz)" % (freqs[peak_index]),
+                    f"PSD (peak: {freqs[peak_index]:.3g} Hz)",
                     fontsize=fig_options.fontSize,
                 )
 
@@ -1516,7 +1514,7 @@ def plot_lfp(
             if isinstance(fig_options.saveFig, str):
                 filename = fig_options.saveFig
             else:
-                filename = namespace_id + ".%s" % fig_options.figFormat
+                filename = namespace_id + f".{fig_options.figFormat}"
                 plt.savefig(filename)
 
         # show fig
@@ -1613,7 +1611,7 @@ def plot_lfp_spectrogram(
             if isinstance(fig_options.saveFig, str):
                 filename = fig_options.saveFig
         else:
-            filename = namespace_id + ".%s" % fig_options.figFormat
+            filename = namespace_id + f".{fig_options.figFormat}"
             plt.savefig(filename)
 
         # show fig
@@ -1624,12 +1622,12 @@ def plot_lfp_spectrogram(
         for iplot, (lfp_label, lfp_config_dict) in enumerate(
             viewitems(env.LFP_config)
         ):
-            namespace_id = "Local Field Potential %s" % str(lfp_label)
+            namespace_id = f"Local Field Potential {str(lfp_label)}"
             import h5py
 
             infile = h5py.File(input_path)
 
-            logger.info("plot_lfp: reading data for %s..." % namespace_id)
+            logger.info(f"plot_lfp: reading data for {namespace_id}...")
             if time_range is None:
                 t = infile[namespace_id]["t"]
                 v = infile[namespace_id]["v"]
@@ -1661,7 +1659,7 @@ def plot_lfp_spectrogram(
 
             axes[iplot, 0].set_ylim(*frequency_range)
             axes[iplot, 0].set_title(
-                "%s" % (namespace_id), fontsize=fig_options.fontSize
+                f"{namespace_id}", fontsize=fig_options.fontSize
             )
             axes[iplot, 0].pcolormesh(t, freqs, sxx, cmap="jet")
             axes[iplot, 0].set_xlabel("Time (s)", fontsize=fig_options.fontSize)
@@ -1674,7 +1672,7 @@ def plot_lfp_spectrogram(
                 if isinstance(fig_options.saveFig, str):
                     filename = fig_options.saveFig
             else:
-                filename = namespace_id + ".%s" % fig_options.figFormat
+                filename = namespace_id + f".{fig_options.figFormat}"
                 plt.savefig(filename)
 
             # show fig
@@ -2433,7 +2431,7 @@ def plot_intracellular_state(
         if isinstance(fig_options.saveFig, str):
             filename = fig_options.saveFig
         else:
-            filename = input_path + " " + "state.%s" % fig_options.figFormat
+            filename = input_path + " " + f"state.{fig_options.figFormat}"
             plt.savefig(filename)
 
     # show fig
@@ -2576,7 +2574,7 @@ def plot_network_clamp(
         or time_range[1] == float("inf")
     ):
         raise RuntimeError(
-            "plot_network_clamp: invalid time_range: %s" % time_range
+            f"plot_network_clamp: invalid time_range: {time_range}"
         )
     time_bins = np.arange(time_range[0], time_range[1], spike_hist_bin)
 
@@ -2749,7 +2747,7 @@ def plot_network_clamp(
         ]
     else:
         lgd_labels = [
-            pop_name + " (%i active)" % (len(pop_active_cells[pop_name]))
+            pop_name + f" ({len(pop_active_cells[pop_name])} active)"
             for pop_name in spkpoplst
             if pop_name in avg_rates
         ]
@@ -2778,7 +2776,7 @@ def plot_network_clamp(
             ax_spk.set_xlim(time_range)
             ax_spk.set_ylim((np.min(sphist_y), np.max(sphist_y) * 2))
             if pop_rates:
-                lgd_label = "mean firing rate: %.3g Hz" % sprate
+                lgd_label = f"mean firing rate: {sprate:.3g} Hz"
                 at = AnchoredText(
                     lgd_label,
                     loc="upper right",
@@ -2894,7 +2892,7 @@ def plot_network_clamp(
                 ax_lowpass.plot(
                     st_x,
                     filtered_st_y,
-                    label="%s (filtered)" % pop_name,
+                    label=f"{pop_name} (filtered)",
                     linewidth=fig_options.lw,
                     alpha=0.75,
                 )
@@ -2942,7 +2940,7 @@ def plot_network_clamp(
         max_label_len = max([len(l) for l in lgd_labels])
 
     else:
-        raise RuntimeError("plot_network_clamp: unknown label type %s" % labels)
+        raise RuntimeError(f"plot_network_clamp: unknown label type {labels}")
 
     # save figure
     ts = time.strftime("%Y%m%d_%H%M%S")

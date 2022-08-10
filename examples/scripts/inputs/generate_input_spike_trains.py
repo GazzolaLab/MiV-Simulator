@@ -327,7 +327,7 @@ def main(
             valid_selectivity_namespaces[population] = []
             with h5py.File(selectivity_path, "r") as selectivity_f:
                 for this_namespace in selectivity_f["Populations"][population]:
-                    if "Selectivity %s" % arena_id in this_namespace:
+                    if f"Selectivity {arena_id}" in this_namespace:
                         valid_selectivity_namespaces[population].append(
                             this_namespace
                         )

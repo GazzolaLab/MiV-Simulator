@@ -785,7 +785,7 @@ def measure_psc(
 
     amp_i = abs(i_peak - i_holding) * 1000
 
-    logger.info("measure_psc: amp_i = %f" % amp_i)
+    logger.info(f"measure_psc: amp_i = {amp_i:f}")
 
     return amp_i
 
@@ -908,18 +908,14 @@ def measure_psp(
         "measure_psp: v0 = %f v_peak = %f (at t %f)"
         % (vec_v[0], v_peak, vec_t[i_peak_index])
     )
-    print("measure_psp: i_peak = %f (at t %f)" % (i_peak, vec_t[i_peak_index]))
-    print("measure_psp: amp_v = %f amp_i = %f" % (amp_v, amp_i))
+    print(f"measure_psp: i_peak = {i_peak:f} (at t {vec_t[i_peak_index]:f})")
+    print(f"measure_psp: amp_v = {amp_v:f} amp_i = {amp_i:f}")
 
     results = {
-        "%s %s PSP"
-        % (presyn_name, syn_mech_name): np.asarray([amp_v], dtype=np.float32),
-        "%s %s PSP i"
-        % (presyn_name, syn_mech_name): np.asarray(vec_i, dtype=np.float32),
-        "%s %s PSP v"
-        % (presyn_name, syn_mech_name): np.asarray(vec_v, dtype=np.float32),
-        "%s %s PSP t"
-        % (presyn_name, syn_mech_name): np.asarray(vec_t, dtype=np.float32),
+        f"{presyn_name} {syn_mech_name} PSP": np.asarray([amp_v], dtype=np.float32),
+        f"{presyn_name} {syn_mech_name} PSP i": np.asarray(vec_i, dtype=np.float32),
+        f"{presyn_name} {syn_mech_name} PSP v": np.asarray(vec_v, dtype=np.float32),
+        f"{presyn_name} {syn_mech_name} PSP t": np.asarray(vec_t, dtype=np.float32),
     }
 
     env.synapse_attributes.del_syn_id_attr_dict(gid)

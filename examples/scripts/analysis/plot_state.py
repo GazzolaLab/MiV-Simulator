@@ -79,13 +79,12 @@ def main(
                 if this_namespace_id not in attr_info_dict[population]:
                     continue
                 print(
-                    "Population %s; Namespace: %s"
-                    % (population, str(this_namespace_id))
+                    f"Population {population}; Namespace: {str(this_namespace_id)}"
                 )
                 for attr_name, attr_cell_index in attr_info_dict[population][
                     this_namespace_id
                 ]:
-                    print("\tAttribute: %s" % str(attr_name))
+                    print(f"\tAttribute: {str(attr_name)}")
                     for i in attr_cell_index:
                         print("\t%d" % i)
         sys.exit()

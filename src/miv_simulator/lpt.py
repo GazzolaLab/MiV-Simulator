@@ -55,7 +55,7 @@ def statistics(parts):
 
 if __name__ == "__main__":
     for cx in ([(i, i) for i in range(10)], []):
-        logger.info("%i complexity items %s" % (len(cx), cx))
+        logger.info(f"{len(cx)} complexity items {cx}")
         pinfo = lpt(cx, 3)
-        logger.info("%i lpt partitions %s" % (len(pinfo), str(pinfo)))
+        logger.info(f"{len(pinfo)} lpt partitions {str(pinfo)}")
         statistics(pinfo)

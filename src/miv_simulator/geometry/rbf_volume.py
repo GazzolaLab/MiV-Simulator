@@ -909,9 +909,9 @@ def test_precision():
     interp_xyz = vol(u, v, l, mesh=False).reshape(3, u.size).T
 
     error = xyz - interp_xyz
-    print(("Min error: %f" % np.min(error)))
-    print(("Max error: %f" % np.max(error)))
-    print(("Mean error: %f" % np.mean(error)))
+    print(f"Min error: {np.min(error):f}")
+    print(f"Max error: {np.max(error):f}")
+    print(f"Mean error: {np.mean(error):f}")
 
 
 def test_tri():

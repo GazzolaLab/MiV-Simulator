@@ -665,7 +665,7 @@ class StGen:
         )
 
         if time_it:
-            print("Elapsed %.3f seconds." % (time.time() - t1))
+            print(f"Elapsed {time.time() - t1:.3f} seconds.")
 
         return (y, t)
 

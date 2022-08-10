@@ -199,7 +199,7 @@ def main(
         for k, v in utils.viewitems(selection_dict):
             yaml_output_dict[k] = list(v)
 
-        yaml_output_path = "%s/DG_slice.yaml" % output_path
+        yaml_output_path = f"{output_path}/DG_slice.yaml"
         with open(yaml_output_path, "w") as outfile:
             yaml.dump(yaml_output_dict, outfile)
 
@@ -209,10 +209,7 @@ def main(
 
     write_selection_file_path = None
     if write_selection:
-        write_selection_file_path = "{}/{}_selection.h5".format(
-            env.results_path,
-            env.modelName,
-        )
+        write_selection_file_path = f"{env.results_path}/{env.modelName}_selection.h5"
 
     if write_selection_file_path is not None:
         if rank == 0:
