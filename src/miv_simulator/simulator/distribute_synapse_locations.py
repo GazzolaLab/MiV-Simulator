@@ -1,8 +1,5 @@
 import gc
-import itertools
-import logging
 import os
-import string
 import sys
 import time
 from collections import defaultdict
@@ -10,7 +7,7 @@ from collections import defaultdict
 import h5py
 import numpy as np
 from miv_simulator import cells, synapses, utils
-from miv_simulator.cells import load_cell_template, make_section_graph
+from miv_simulator.cells import load_cell_template
 from miv_simulator.env import Env
 from miv_simulator.utils.neuron import configure_hoc_env
 from mpi4py import MPI
@@ -146,7 +143,7 @@ def check_syns(
             f"  seg_density_per_sec: {seg_density_per_sec}\n"
             f"  morph_dict: {morph_dict}"
         )
-    for syn_type, swc_set in viewitems(swc_set_dict):
+    for syn_type, swc_set in swc_set_dict.items():
         for swc_type in swc_set:
             if swc_type in swc_stats:
                 if swc_stats[swc_type][syn_type] <= 0:
@@ -234,8 +231,8 @@ def distribute_synapse_locations(
         density_dict = env.celltypes[population]["synapses"]["density"]
         layer_set_dict = defaultdict(set)
         swc_set_dict = defaultdict(set)
-        for sec_name, sec_dict in viewitems(density_dict):
-            for syn_type, syn_dict in viewitems(sec_dict):
+        for sec_name, sec_dict in density_dict.items():
+            for syn_type, syn_dict in sec_dict.items():
                 swc_set_dict[syn_type].add(env.SWC_Types[sec_name])
                 for layer_name in syn_dict:
                     if layer_name != "default":

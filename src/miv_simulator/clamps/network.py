@@ -1,19 +1,17 @@
 """
 Routines for Network Clamp simulation.
 """
-import copy
 import gc
 import os
 import pprint
 import sys
 import time
-import uuid
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 
 import click
 import h5py
 import numpy as np
-from MiV import cell_clamp, io_utils, spikedata, stimulus, synapses
+from MiV import io_utils, spikedata, stimulus, synapses
 from MiV.cell_clamp import init_biophys_cell
 from MiV.cells import (
     h,
@@ -30,26 +28,20 @@ from MiV.stimulus import oscillation_phase_mod_config, rate_maps_from_features
 from MiV.utils import (
     Context,
     config_logging,
-    contiguous_ranges,
     generate_results_file_id,
     get_low_pass_filtered_trace,
     get_module_logger,
     get_trial_time_indices,
-    get_trial_time_ranges,
     is_interactive,
-    is_iterable,
     list_find,
     list_index,
     read_from_yaml,
-    viewitems,
     write_to_yaml,
-    zip_longest,
 )
 from mpi4py import MPI
 from neuroh5.io import (
     bcast_cell_attributes,
     read_cell_attribute_info,
-    read_cell_attribute_selection,
     scatter_read_cell_attribute_selection,
 )
 
@@ -382,7 +374,7 @@ def init(
     coords_path=None,
     distances_namespace="Arc Distances",
     phase_mod=False,
-    generate_weights_pops=set([]),
+    generate_weights_pops=set(),
     t_min=None,
     t_max=None,
     write_cell=False,
@@ -484,7 +476,7 @@ def init(
 
     min_delay = float("inf")
     syn_attrs = env.synapse_attributes
-    presyn_sources = {presyn_name: set([]) for presyn_name in presyn_names}
+    presyn_sources = {presyn_name: set() for presyn_name in presyn_names}
 
     for gid in my_cell_index_set:
         this_syn_attrs = syn_attrs[gid]
@@ -506,7 +498,7 @@ def init(
         env.comm.barrier()
         if env.comm.rank == 0:
             presyn_gid_rank_dict = {
-                rank: set([]) for rank in range(env.comm.size)
+                rank: set() for rank in range(env.comm.size)
             }
             for i, gid in enumerate(presyn_gid_set):
                 rank = i % env.comm.size
@@ -661,7 +653,6 @@ def init(
     gc.collect()
 
     if plot_cell:
-        import MiV.plot
         from MiV.plot import plot_synaptic_attribute_distribution
 
         syn_attrs = env.synapse_attributes
@@ -1577,11 +1568,9 @@ def optimize_run(
     problem_metadata = np.array(
         [
             tuple(
-                (
-                    opt_targets[k]
-                    for k in sorted(opt_targets)
-                    if isinstance(opt_targets[k], float)
-                )
+                opt_targets[k]
+                for k in sorted(opt_targets)
+                if isinstance(opt_targets[k], float)
             )
         ],
         dtype=[
@@ -2035,7 +2024,7 @@ def show(
         init(
             env,
             population,
-            set([gid]),
+            {gid},
             arena_id,
             trajectory_id,
             spike_events_path=spike_events_path,
@@ -2297,13 +2286,15 @@ def go(
             for this_params_path, this_param_id in zip(params_path, params_id):
                 pop_params_dict = read_from_yaml(this_params_path)
                 pop_params_tuple_dict = {}
-                for this_pop_name, this_pop_param_dict in viewitems(
-                    pop_params_dict
-                ):
+                for (
+                    this_pop_name,
+                    this_pop_param_dict,
+                ) in pop_params_dict.items():
                     this_pop_params_tuple_dict = defaultdict(list)
-                    for this_gid, this_gid_params in viewitems(
-                        this_pop_param_dict
-                    ):
+                    for (
+                        this_gid,
+                        this_gid_params,
+                    ) in this_pop_param_dict.items():
                         if this_param_id is not None:
                             this_gid_params_list = this_gid_params[
                                 this_param_id
@@ -2338,9 +2329,9 @@ def go(
     init_params["results_file_id"] = results_file_id
     pop_params_tuple_dicts = comm.bcast(pop_params_tuple_dicts, root=0)
 
-    cell_index_set = set([])
+    cell_index_set = set()
     if gid_selection_file is not None:
-        with open(gid_selection_file, "r") as f:
+        with open(gid_selection_file) as f:
             lines = f.readlines()
             for line in lines:
                 gid = int(line)
@@ -2696,9 +2687,9 @@ def optimize(
     verbose = True
     cache_queries = True
 
-    cell_index_set = set([])
+    cell_index_set = set()
     if gid_selection_file is not None:
-        with open(gid_selection_file, "r") as f:
+        with open(gid_selection_file) as f:
             lines = f.readlines()
             for line in lines:
                 gid = int(line)

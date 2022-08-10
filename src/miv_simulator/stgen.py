@@ -3,7 +3,7 @@ from typing import List, Optional
 from random.mtrand import RandomState
 
 import numpy as np
-from numpy import array, float64, log, ndarray
+from numpy import float64, ndarray
 from scipy.interpolate import Akima1DInterpolator
 
 """

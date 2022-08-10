@@ -21,7 +21,6 @@ from miv_simulator.utils import (
     make_geometric_graph,
     signal_power_spectrogram,
     signal_psd,
-    viewitems,
     zip_longest,
 )
 from miv_simulator.utils.neuron import h, interplocs
@@ -141,13 +140,13 @@ raster_colors = [
 def hex2rgb(hexcode):
     if hasattr(hexcode, "decode"):
         return tuple(
-            [float(b) / 255.0 for b in map(ord, hexcode[1:].decode("hex"))]
+            float(b) / 255.0 for b in map(ord, hexcode[1:].decode("hex"))
         )
     else:
         import codecs
 
         bhexcode = bytes(hexcode[1:], "utf-8")
-        return tuple([float(b) / 255.0 for b in codecs.decode(bhexcode, "hex")])
+        return tuple(float(b) / 255.0 for b in codecs.decode(bhexcode, "hex"))
 
 
 mpl.rcParams["svg.fonttype"] = "none"
@@ -251,7 +250,6 @@ def clean_axes(axes, left=True, right=False):
 def plot_spatial_bin_graph(graph_dict, **kwargs):
 
     import hiveplot as hv
-    import networkx as nx
 
     edge_dflt_colors = ["red", "crimson", "coral", "purple"]
 
@@ -494,7 +492,6 @@ def plot_coords_in_volume(
         from mayavi import mlab
     else:
         import matplotlib.pyplot as plt
-        from mpl_toolkits.mplot3d import Axes3D
 
     logger.info("Plotting coordinates...")
     if mayavi:
@@ -931,7 +928,7 @@ def plot_spike_raster(
     if spike_hist:
         # Plot spike histogram
         pch = interpolate.pchip(sphist_x, sphist_y)
-        res_npts = int((sphist_x.max() - sphist_x.min()))
+        res_npts = int(sphist_x.max() - sphist_x.min())
         sphist_x_res = np.linspace(
             sphist_x.min(), sphist_x.max(), res_npts, endpoint=True
         )
@@ -1002,7 +999,7 @@ def plot_spike_raster(
                 prop=dict(size=fig_options.fontSize),
             )
             axes[i].add_artist(at)
-        max_label_len = max([len(l) for l in lgd_labels])
+        max_label_len = max(len(l) for l in lgd_labels)
 
     elif labels == "yticks":
         for pop_name, info, a in zip_longest(spkpoplst, lgd_info, fig.axes):
@@ -1292,7 +1289,7 @@ def plot_spike_histogram(
             loc=2,
             borderaxespad=0.0,
         )
-        maxLabelLen = min(10, max([len(str(l)) for l in include]))
+        maxLabelLen = min(10, max(len(str(l)) for l in include))
         plt.subplots_adjust(right=(0.9 - 0.012 * maxLabelLen))
 
     if fig_options.saveFig:
@@ -1699,8 +1696,6 @@ def plot_biophys_cell_tree(
 
     fig_options = copy.copy(default_fig_options)
     fig_options.update(kwargs)
-
-    import networkx as nx
 
     morph_graph = cells.make_morph_graph(
         biophys_cell, node_filters=node_filters
@@ -2689,7 +2684,7 @@ def plot_network_clamp(
             sphist_x = bin_edges[:-1] + (spike_hist_bin / 2)
 
             pch = interpolate.pchip(sphist_x, sphist_y)
-            res_npts = int((sphist_x.max() - sphist_x.min()))
+            res_npts = int(sphist_x.max() - sphist_x.min())
             sphist_x_res = np.linspace(
                 sphist_x.min(), sphist_x.max(), res_npts, endpoint=True
             )
@@ -2935,7 +2930,7 @@ def plot_network_clamp(
                 prop=dict(size=fig_options.fontSize),
             )
             axes[i].add_artist(at)
-        max_label_len = max([len(l) for l in lgd_labels])
+        max_label_len = max(len(l) for l in lgd_labels)
 
     else:
         raise RuntimeError(f"plot_network_clamp: unknown label type {labels}")

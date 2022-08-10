@@ -3,7 +3,6 @@ import copy
 import gc
 import math
 import os
-import random
 import sys
 import time
 from collections import defaultdict
@@ -16,7 +15,6 @@ from miv_simulator.stimulus import (
     generate_input_spike_trains,
     generate_linear_trajectory,
     get_equilibration,
-    get_input_cell_config,
     oscillation_phase_mod_config,
 )
 from miv_simulator.utils import (
@@ -25,7 +23,6 @@ from miv_simulator.utils import (
     get_script_logger,
     is_interactive,
     list_find,
-    viewitems,
 )
 from mpi4py import MPI
 from neuroh5.io import (
@@ -86,12 +83,10 @@ def plot_summed_spike_psth(
     fig_options,
 ):
     import matplotlib.pyplot as plt
-    from MiV.plot import clean_axes, save_figure
+    from miv_simulator.plotting import clean_axes, save_figure
 
     spike_hist_edges = np.linspace(min(t), max(t), spike_hist_resolution + 1)
-    for population, this_selectivity_type_name in viewitems(
-        merged_spike_hist_sum
-    ):
+    for population, this_selectivity_type_name in merged_spike_hist_sum.items():
         for this_selectivity_type_name in merged_spike_hist_sum[population]:
             fig_title = (
                 f"{population} {this_selectivity_type_name} summed spike PSTH"

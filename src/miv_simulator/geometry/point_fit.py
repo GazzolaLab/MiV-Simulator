@@ -1,5 +1,4 @@
 """Procedures to fit 3d point clouds to an alpha shape"""
-from __future__ import division
 
 import numpy as np
 from past.utils import old_div

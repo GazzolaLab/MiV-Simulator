@@ -2,10 +2,8 @@
 import sys
 
 import click
-import numpy as np
 from miv_simulator import plottting as plot
 from miv_simulator import utils
-from mpi4py import MPI
 
 
 def list_find(f, lst):

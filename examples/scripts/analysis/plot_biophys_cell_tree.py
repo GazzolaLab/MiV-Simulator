@@ -9,8 +9,7 @@ from miv_simulator import utils
 from miv_simulator.cells import make_biophys_cell
 from miv_simulator.env import Env
 from miv_simulator.synapses import init_syn_mech_attrs
-from miv_simulator.utils.neuron import configure_hoc_env, h
-from mpi4py import MPI
+from miv_simulator.utils.neuron import configure_hoc_env
 
 script_name = os.path.basename(__file__)
 

@@ -27,11 +27,7 @@ from miv_simulator.utils import (
     Promise,
     generator_ifempty,
     get_module_logger,
-    ifempty,
     partitionn,
-    rejection_sampling,
-    viewitems,
-    viewkeys,
     zip_longest,
 )
 from miv_simulator.utils.neuron import (
@@ -1374,17 +1370,15 @@ class SynapseAttributes:
 
         if cache:
             cache_args = tuple(
-                [
-                    tuple(x) if isinstance(x, list) else x
-                    for x in [
-                        gid,
-                        syn_sections,
-                        syn_indexes,
-                        syn_types,
-                        layers,
-                        sources,
-                        swc_types,
-                    ]
+                tuple(x) if isinstance(x, list) else x
+                for x in [
+                    gid,
+                    syn_sections,
+                    syn_indexes,
+                    syn_types,
+                    layers,
+                    sources,
+                    swc_types,
                 ]
             )
             if cache_args in self.filter_cache:

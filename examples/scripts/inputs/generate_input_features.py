@@ -13,8 +13,6 @@ import numpy as np
 from miv_simulator.env import Env
 from miv_simulator.stimulus import (
     generate_input_features,
-    get_2D_arena_bounds,
-    get_2D_arena_extents,
     get_2D_arena_spatial_mesh,
 )
 from miv_simulator.utils import (
@@ -22,7 +20,6 @@ from miv_simulator.utils import (
     config_logging,
     get_script_logger,
     list_find,
-    viewitems,
 )
 from mpi4py import MPI
 from neuroh5.io import (
@@ -342,7 +339,7 @@ def main(
     )
 
     selectivity_type_names = {
-        val: key for (key, val) in viewitems(env.selectivity_types)
+        val: key for (key, val) in env.selectivity_types.items()
     }
     selectivity_type_namespaces = dict()
     for this_selectivity_type in selectivity_type_names:

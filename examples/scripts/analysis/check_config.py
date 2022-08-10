@@ -3,28 +3,15 @@
 ## Load configuration and instantiate env.
 ##
 
-import gc
-import itertools
-import logging
-import math
 import os
 import os.path
-import pickle
 import random
 import sys
 
 import click
-import h5py
-import numpy as np
 from miv_simulator.env import Env
-from miv_simulator.utils import (
-    config_logging,
-    get_script_logger,
-    list_find,
-    viewitems,
-)
+from miv_simulator.utils import config_logging, get_script_logger, list_find
 from mpi4py import MPI
-from neuroh5.io import append_cell_attributes, read_population_ranges
 
 script_name = os.path.basename(__file__)
 logger = get_script_logger(script_name)

@@ -1,26 +1,21 @@
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 import copy
-import datetime
-import gc
 import importlib
 import itertools
 import logging
 import math
 import numbers
 import os.path
-import pprint
-import string
 import sys
 import time
 from abc import ABC, abstractmethod
-from collections import defaultdict, namedtuple
-from collections.abc import Iterable, MutableMapping
+from collections import namedtuple
+from collections.abc import Iterable
 from io import TextIOWrapper
 
 import click
 import numpy as np
-import scipy
 import yaml
 from mpi4py import MPI
 from numpy import float64, uint32
@@ -497,30 +492,6 @@ def viewattrs(obj):
         return vars(obj)
 
 
-def viewitems(obj, **kwargs):
-    """
-    Function for iterating over dictionary items with the same set-like
-    behaviour on Py2.7 as on Py3.
-
-    Passes kwargs to method."""
-    func = getattr(obj, "viewitems", None)
-    if func is None:
-        func = obj.items
-    return func(**kwargs)
-
-
-def viewkeys(obj, **kwargs):
-    """
-    Function for iterating over dictionary keys with the same set-like
-    behaviour on Py2.7 as on Py3.
-
-    Passes kwargs to method."""
-    func = getattr(obj, "viewkeys", None)
-    if func is None:
-        func = obj.keys
-    return func(**kwargs)
-
-
 def viewvalues(obj, **kwargs):
     """
     Function for iterating over dictionary values with the same set-like
@@ -875,7 +846,7 @@ def finalize_bins(bins, binsize):
         for imin, imax in bin_ranges
     ]
     for i in bins:
-        idx = tuple([int(ii - imin) for ii, (imin, imax) in zip(i, bin_ranges)])
+        idx = tuple(int(ii - imin) for ii, (imin, imax) in zip(i, bin_ranges))
         grid[idx] = bins[i]
     result = tuple([grid] + [np.asarray(edges) for edges in bin_edges])
     return result

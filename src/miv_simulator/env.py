@@ -13,7 +13,6 @@ from miv_simulator.utils import (
     IncludeLoader,
     get_root_logger,
     read_from_yaml,
-    viewitems,
 )
 from mpi4py import MPI
 from mpi4py.MPI import Intracomm
@@ -458,9 +457,9 @@ class Env(AbstractEnv):
                 "Intracellular"
             ][recording_profile]
             self.recording_profile["label"] = recording_profile
-            for recvar, recdict in viewitems(
-                self.recording_profile.get("synaptic quantity", {})
-            ):
+            for recvar, recdict in self.recording_profile.get(
+                "synaptic quantity", {}
+            ).items():
                 filters = {}
                 if "syn types" in recdict:
                     filters["syn_types"] = recdict["syn types"]
@@ -479,9 +478,7 @@ class Env(AbstractEnv):
         # Configuration profile for recording local field potentials
         self.LFP_config = {}
         if "Recording" in self.model_config:
-            for label, config in viewitems(
-                self.model_config["Recording"]["LFP"]
-            ):
+            for label, config in self.model_config["Recording"]["LFP"].items():
                 self.LFP_config[label] = {
                     "position": tuple(config["position"]),
                     "maxEDist": config["maxEDist"],
@@ -802,9 +799,9 @@ class Env(AbstractEnv):
                 )
 
             config_dict = defaultdict(lambda: 0.0)
-            for (key_presyn, conn_config) in viewitems(
-                connection_dict[key_postsyn]
-            ):
+            for (key_presyn, conn_config) in connection_dict[
+                key_postsyn
+            ].items():
                 for (s, l, p) in zip(
                     conn_config.sections,
                     conn_config.layers,

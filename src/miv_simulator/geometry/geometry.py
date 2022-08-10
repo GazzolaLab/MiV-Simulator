@@ -6,24 +6,11 @@ import math
 import numpy as np
 import rbf
 from miv_simulator.geometry.alphavol import alpha_shape
-from miv_simulator.geometry.rbf_surface import RBFSurface
 from miv_simulator.geometry.rbf_volume import RBFVolume
 from mpi4py import MPI
 
 ## This logger will inherit its setting from its root logger
 logger = logging.getLogger(f"{__name__}")
-
-
-def viewitems(obj, **kwargs):
-    """
-    Function for iterating over dictionary items with the same set-like
-    behaviour on Py2.7 as on Py3.
-
-    Passes kwargs to method."""
-    func = getattr(obj, "viewitems", None)
-    if func is None:
-        func = obj.items
-    return func(**kwargs)
 
 
 def rotate2d(theta):

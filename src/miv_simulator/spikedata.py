@@ -10,7 +10,6 @@ from miv_simulator.utils import (
     baks,
     get_module_logger,
     get_trial_time_ranges,
-    viewitems,
 )
 from neuroh5.io import scatter_read_cell_attributes, write_cell_attributes
 from numpy import ndarray, uint32

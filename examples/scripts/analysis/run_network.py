@@ -284,8 +284,6 @@ def main(
     if profile_time:
         import cProfile
 
-        from miv_simulator.network import init, run
-
         cProfile.runctx(
             "init(env)", None, locals(), filename="MiV_profile_init"
         )

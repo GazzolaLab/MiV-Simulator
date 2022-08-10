@@ -4,12 +4,7 @@ from collections import namedtuple
 
 import numpy as np
 from miv_simulator.stgen import get_inhom_poisson_spike_times_by_thinning
-from miv_simulator.utils import (
-    AbstractEnv,
-    Struct,
-    get_module_logger,
-    viewitems,
-)
+from miv_simulator.utils import AbstractEnv, Struct, get_module_logger
 from mpi4py import MPI
 from mpi4py.MPI import Intracomm
 from neuroh5.io import (

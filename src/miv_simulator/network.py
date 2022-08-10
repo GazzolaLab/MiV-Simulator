@@ -29,7 +29,6 @@ from miv_simulator.utils import (
     mkgap,
     profile_memory,
     simtime,
-    viewitems,
     viewkeys,
     zip_longest,
 )
@@ -1113,11 +1112,9 @@ def make_cells(env: Env) -> None:
                 recording_fraction = env.recording_profile.get("fraction", 1.0)
                 recording_limit = env.recording_profile.get("limit", -1)
                 all_pop_biophys_gids = sorted(
-                    [
-                        item
-                        for sublist in pop_biophys_gids_per_rank
-                        for item in sublist
-                    ]
+                    item
+                    for sublist in pop_biophys_gids_per_rank
+                    for item in sublist
                 )
                 for gid in all_pop_biophys_gids:
                     if ranstream_recording.uniform() <= recording_fraction:
@@ -1836,7 +1833,7 @@ def init(env: Env) -> None:
         )
     if rank == 0:
         logger.info(f"*** Connections created in {env.connectcellstime:.02f} s")
-    edge_count = int(sum([env.edge_count[dest] for dest in env.edge_count]))
+    edge_count = int(sum(env.edge_count[dest] for dest in env.edge_count))
     logger.info(f"*** Rank {rank} created {edge_count} connections")
     if env.profile_memory and rank == 0:
         profile_memory(logger)

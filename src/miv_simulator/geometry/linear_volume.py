@@ -1,13 +1,9 @@
 """Implements a parametric volume as a 3-tuple of linear interpolation instances, one each for u, v and l.
 Based on code from bspline_surface.py
 """
-from __future__ import division
 
-import logging
 import math
 import pickle
-import sys
-from collections import namedtuple
 
 import numpy as np
 from past.utils import old_div
@@ -72,7 +68,7 @@ def cartesian_product(arrays, out=None):
     return out
 
 
-class LinearVolume(object):
+class LinearVolume:
     def __init__(self, u, v, l, xyz):
         """Parametric (u,v,l) 3D volume approximation.
 
@@ -403,7 +399,7 @@ class LinearVolume(object):
                 distances.append(cdist)
                 if return_coords:
                     cind = np.lexsort(
-                        tuple([split_pts_coords[0][i] for i in aidx])
+                        tuple(split_pts_coords[0][i] for i in aidx)
                     )
                     coords.append(split_pts_coords[0][cind])
                 for i in range(0, npts - 1):
@@ -411,8 +407,8 @@ class LinearVolume(object):
                     b = split_pts[i]
                     a_coords = split_pts_coords[i + 1]
                     b_coords = split_pts_coords[i]
-                    aind = np.lexsort(tuple([a_coords[:, i] for i in aidx]))
-                    bind = np.lexsort(tuple([b_coords[:, i] for i in aidx]))
+                    aind = np.lexsort(tuple(a_coords[:, i] for i in aidx))
+                    bind = np.lexsort(tuple(b_coords[:, i] for i in aidx))
                     a_sorted = a[aind]
                     b_sorted = b[bind]
                     dist = euclidean_distance(a_sorted, b_sorted).reshape(-1, 1)
@@ -433,8 +429,8 @@ class LinearVolume(object):
                 b = all_pts[:-1, :]
                 a_coords = eval_coords[1:, :]
                 b_coords = eval_coords[:-1, :]
-                aind = np.lexsort(tuple([a_coords[:, i] for i in aidx]))
-                bind = np.lexsort(tuple([b_coords[:, i] for i in aidx]))
+                aind = np.lexsort(tuple(a_coords[:, i] for i in aidx))
+                bind = np.lexsort(tuple(b_coords[:, i] for i in aidx))
                 a_sorted = a[aind]
                 b_sorted = b[bind]
                 dist = euclidean_distance(a_sorted, b_sorted).reshape(-1, 1)
@@ -934,8 +930,8 @@ def test_load():
     vol.save("vol.p", "phs3")
     vol_from_file = LinearVolume.load("vol.p")
 
-    print((vol(0.5, 0.5, 0.5)))
-    print((vol_from_file(0.5, 0.5, 0.5)))
+    print(vol(0.5, 0.5, 0.5))
+    print(vol_from_file(0.5, 0.5, 0.5))
 
 
 if __name__ == "__main__":

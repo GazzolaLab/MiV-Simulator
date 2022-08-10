@@ -1,9 +1,7 @@
 from typing import Any, List, Optional, Union
 
 import gc
-import itertools
 import os
-import pprint
 from collections import defaultdict
 
 import h5py
@@ -15,14 +13,12 @@ from miv_simulator.utils import (
     compose_iter,
     get_module_logger,
     get_trial_time_ranges,
-    viewitems,
 )
 from mpi4py import MPI
 from neuroh5.io import (
     append_cell_attributes,
     append_cell_trees,
     read_cell_attribute_info,
-    read_cell_attributes,
     scatter_read_cell_attribute_selection,
     scatter_read_graph_selection,
     scatter_read_tree_selection,
@@ -122,7 +118,7 @@ def import_celltypes(celltype_path, output_path):
 
     population_dict = {}
 
-    with open(celltype_path, mode="r") as infile:
+    with open(celltype_path) as infile:
 
         reader = csv.DictReader(infile, delimiter="\t")
         for row in reader:

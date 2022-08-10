@@ -1,7 +1,6 @@
 """Alpha Shape implementation."""
 
 import itertools
-import sys
 from collections import namedtuple
 
 import networkx as nx

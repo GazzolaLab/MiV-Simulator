@@ -12,7 +12,6 @@ from miv_simulator.utils import (
     Promise,
     get_module_logger,
     read_from_yaml,
-    viewitems,
     zip_longest,
 )
 from miv_simulator.utils.neuron import (
@@ -259,7 +258,7 @@ def make_section_graph(neurotree_dict):
     return sec_graph
 
 
-class PRneuron(object):
+class PRneuron:
     """
     An implementation of a Pinsky-Rinzel-type reduced biophysical neuron model for simulation in NEURON.
     Conforms to the same API as BiophysCell.
@@ -389,7 +388,7 @@ class PRneuron(object):
         return self.nodes["hillock"]
 
 
-class SCneuron(object):
+class SCneuron:
     """
     Single-compartment biophysical neuron model for simulation in NEURON.
     Conforms to the same API as BiophysCell.
@@ -2116,9 +2115,9 @@ def record_cell(
         if cell is not None:
             label = recording_profile["label"]
             dt = recording_profile.get("dt", None)
-            for reclab, recdict in viewitems(
-                recording_profile.get("section quantity", {})
-            ):
+            for reclab, recdict in recording_profile.get(
+                "section quantity", {}
+            ).items():
                 recvar = recdict.get("variable", reclab)
                 loc = recdict.get("loc", None)
                 swc_types = recdict.get("swc_types", None)
@@ -2159,9 +2158,9 @@ def record_cell(
                         env.recs_dict[pop_name][rec_id].append(rec)
                         env.recs_count += 1
                         visited.add(str(sec))
-            for recvar, recdict in viewitems(
-                recording_profile.get("synaptic quantity", {})
-            ):
+            for recvar, recdict in recording_profile.get(
+                "synaptic quantity", {}
+            ).items():
                 syn_filters = recdict.get("syn_filters", {})
                 syn_sections = recdict.get("sections", None)
                 synapses = syn_attrs.filter_synapses(

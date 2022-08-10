@@ -1,10 +1,7 @@
 from typing import Dict, List, Optional, Tuple, Union
 
-import itertools
 import os
 import os.path
-import pprint
-import random
 import sys
 import uuid
 
@@ -26,7 +23,6 @@ from mpi4py import MPI  # Must come before importing NEURON
 from neuroh5.io import append_cell_attributes
 from neuron import h
 from numpy import ndarray
-from scipy import signal
 from scipy.optimize import curve_fit
 
 # This logger will inherit its settings from the root logger, created in MiV.env
@@ -912,10 +908,18 @@ def measure_psp(
     print(f"measure_psp: amp_v = {amp_v:f} amp_i = {amp_i:f}")
 
     results = {
-        f"{presyn_name} {syn_mech_name} PSP": np.asarray([amp_v], dtype=np.float32),
-        f"{presyn_name} {syn_mech_name} PSP i": np.asarray(vec_i, dtype=np.float32),
-        f"{presyn_name} {syn_mech_name} PSP v": np.asarray(vec_v, dtype=np.float32),
-        f"{presyn_name} {syn_mech_name} PSP t": np.asarray(vec_t, dtype=np.float32),
+        f"{presyn_name} {syn_mech_name} PSP": np.asarray(
+            [amp_v], dtype=np.float32
+        ),
+        f"{presyn_name} {syn_mech_name} PSP i": np.asarray(
+            vec_i, dtype=np.float32
+        ),
+        f"{presyn_name} {syn_mech_name} PSP v": np.asarray(
+            vec_v, dtype=np.float32
+        ),
+        f"{presyn_name} {syn_mech_name} PSP t": np.asarray(
+            vec_t, dtype=np.float32
+        ),
     }
 
     env.synapse_attributes.del_syn_id_attr_dict(gid)

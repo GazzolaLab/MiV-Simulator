@@ -1,12 +1,8 @@
-import gc
 import os
-import pprint
 import sys
-import time
 from collections import defaultdict
 
 import click
-import h5py
 import numpy as np
 import yaml
 from miv_simulator import utils
@@ -209,7 +205,9 @@ def main(
 
     write_selection_file_path = None
     if write_selection:
-        write_selection_file_path = f"{env.results_path}/{env.modelName}_selection.h5"
+        write_selection_file_path = (
+            f"{env.results_path}/{env.modelName}_selection.h5"
+        )
 
     if write_selection_file_path is not None:
         if rank == 0:

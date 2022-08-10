@@ -15,7 +15,6 @@ from miv_simulator.utils import (
     list_find_all,
     random_choice_w_replacement,
     random_clustered_shuffle,
-    viewitems,
 )
 from mpi4py.MPI import Intracomm
 from neuroh5.io import NeuroH5CellAttrGen, append_graph
@@ -656,7 +655,7 @@ def generate_uv_distance_connections(
                     source_gids,
                     distances_u,
                     distances_v,
-                ) in viewitems(projection_prob_dict[source_population]):
+                ) in projection_prob_dict[source_population].items():
                     if len(distances_u) > 0:
                         max_u_distance = np.max(distances_u)
                         min_u_distance = np.min(distances_u)

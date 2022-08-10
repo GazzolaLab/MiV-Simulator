@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import os
 import pathlib
-import sys
 
 import h5py
 

@@ -3,7 +3,6 @@ Based on code from bspline_surface.py
 """
 
 import math
-from collections import namedtuple
 
 import numpy as np
 import rbf
@@ -69,7 +68,7 @@ def cartesian_product(arrays, out=None):
     return out
 
 
-class RBFSurface(object):
+class RBFSurface:
     def __init__(self, u, v, xyz, order=1, basis=rbf.basis.phs2):
         """Parametric (u,v) 3D surface approximation.
 

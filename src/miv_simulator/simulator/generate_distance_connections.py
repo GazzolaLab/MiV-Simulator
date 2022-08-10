@@ -1,9 +1,7 @@
 import gc
-import logging
 import sys
 
 import h5py
-import numpy as np
 from miv_simulator import utils
 from miv_simulator.connections import (
     ConnectionProb,

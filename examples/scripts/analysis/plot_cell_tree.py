@@ -4,7 +4,7 @@ import sys
 
 import click
 from miv_simulator import plottting as plot
-from neuroh5.io import read_population_ranges, read_tree_selection
+from neuroh5.io import read_tree_selection
 
 script_name = os.path.basename(__file__)
 

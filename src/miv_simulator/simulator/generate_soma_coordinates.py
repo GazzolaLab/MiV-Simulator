@@ -1,20 +1,15 @@
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 import gc
-import itertools
 import logging
-import math
 import os
 import os.path
-import pickle
 import random
 import sys
 from collections import defaultdict
 
-import click
 import h5py
 import numpy as np
-import rbf
 from miv_simulator.env import Env
 from miv_simulator.geometry.geometry import (
     get_layer_extents,
@@ -24,7 +19,7 @@ from miv_simulator.geometry.geometry import (
     save_alpha_shape,
     uvl_in_bounds,
 )
-from miv_simulator.utils import config_logging, get_script_logger, viewitems
+from miv_simulator.utils import config_logging, get_script_logger
 from miv_simulator.volume import (
     make_network_volume,
     network_volume,
@@ -34,7 +29,6 @@ from mpi4py import MPI
 from neuroh5.io import append_cell_attributes, read_population_ranges
 from rbf.pde.geometry import contains
 from rbf.pde.nodes import disperse, min_energy_nodes
-from rbf.pde.sampling import rejection_sampling
 from scipy.spatial import cKDTree
 
 script_name = os.path.basename(__file__)

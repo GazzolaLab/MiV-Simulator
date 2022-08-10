@@ -5,7 +5,6 @@ import sys
 import click
 from miv_simulator import plottting as plot
 from miv_simulator import statedata, utils
-from mpi4py import MPI
 
 script_name = os.path.basename(__file__)
 

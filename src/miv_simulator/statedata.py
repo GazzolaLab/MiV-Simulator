@@ -85,7 +85,7 @@ def read_state(
                     0, len(cell_set) - 1, size=int(max_units)
                 )
                 cell_set_lst = list(cell_set)
-                gid_set = set([cell_set_lst[i] for i in sample_inds])
+                gid_set = {cell_set_lst[i] for i in sample_inds}
             else:
                 gid_set = cell_set
         else:

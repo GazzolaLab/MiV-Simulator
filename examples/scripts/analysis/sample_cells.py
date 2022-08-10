@@ -1,14 +1,9 @@
-import gc
 import os
-import pprint
 import sys
-import time
 from collections import defaultdict
 
 import click
-import h5py
 import numpy as np
-import yaml
 from miv_simulator import utils
 from miv_simulator.env import Env
 from miv_simulator.utils import io as io_utils
@@ -211,7 +206,9 @@ def main(
 
     env.comm.barrier()
 
-    write_selection_file_path = f"{env.results_path}/{env.modelName}_selection.h5"
+    write_selection_file_path = (
+        f"{env.results_path}/{env.modelName}_selection.h5"
+    )
 
     if rank == 0:
         io_utils.mkout(env, write_selection_file_path)
