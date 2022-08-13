@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import copy
 import gc
 import math
@@ -7,7 +6,6 @@ import sys
 import time
 from collections import defaultdict
 
-import click
 import h5py
 import numpy as np
 from miv_simulator.env import Env
@@ -15,12 +13,7 @@ from miv_simulator.stimulus import (
     generate_input_features,
     get_2D_arena_spatial_mesh,
 )
-from miv_simulator.utils import (
-    Struct,
-    config_logging,
-    get_script_logger,
-    list_find,
-)
+from miv_simulator.utils import Struct, config_logging, get_script_logger
 from mpi4py import MPI
 from neuroh5.io import (
     NeuroH5CellAttrGen,
@@ -138,49 +131,7 @@ mpi_op_concatenate_ndarray_dict = MPI.Op.Create(
 )
 
 
-@click.command()
-@click.option("--config", required=True, type=str)
-@click.option(
-    "--config-prefix",
-    required=True,
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    default="config",
-)
-@click.option(
-    "--coords-path",
-    required=True,
-    type=click.Path(exists=True, file_okay=True, dir_okay=False),
-)
-@click.option("--distances-namespace", "-n", type=str, default="Arc Distances")
-@click.option(
-    "--output-path",
-    type=click.Path(file_okay=True, dir_okay=False),
-    default=None,
-)
-@click.option("--arena-id", type=str, default="A")
-@click.option("--populations", "-p", type=str, multiple=True)
-@click.option("--io-size", type=int, default=-1)
-@click.option("--chunk-size", type=int, default=1000)
-@click.option("--value-chunk-size", type=int, default=1000)
-@click.option("--cache-size", type=int, default=50)
-@click.option("--write-size", type=int, default=10000)
-@click.option("--verbose", "-v", is_flag=True)
-@click.option("--gather", is_flag=True)
-@click.option("--interactive", is_flag=True)
-@click.option("--debug", is_flag=True)
-@click.option("--debug-count", type=int, default=10)
-@click.option("--plot", is_flag=True)
-@click.option("--show-fig", is_flag=True)
-@click.option("--save-fig", required=False, type=str, default=None)
-@click.option(
-    "--save-fig-dir",
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    default=None,
-)
-@click.option("--font-size", type=float, default=14)
-@click.option("--fig-format", required=False, type=str, default="svg")
-@click.option("--dry-run", is_flag=True)
-def main(
+def generate_input_features(
     config,
     config_prefix,
     coords_path,
@@ -253,7 +204,7 @@ def main(
 
     if plot:
         import matplotlib.pyplot as plt
-        from MiV.plot import (
+        from miv_simulator.plotting import (
             clean_axes,
             close_figure,
             default_fig_options,
@@ -637,18 +588,3 @@ def main(
 
     if interactive and rank == 0:
         context.update(locals())
-
-
-if __name__ == "__main__":
-    main(
-        args=sys.argv[
-            (
-                list_find(
-                    lambda x: os.path.basename(x) == os.path.basename(__file__),
-                    sys.argv,
-                )
-                + 1
-            ) :
-        ],
-        standalone_mode=False,
-    )

@@ -4,6 +4,9 @@ from miv_simulator.simulator.distribute_synapse_locations import (
 from miv_simulator.simulator.generate_distance_connections import (
     generate_distance_connections,
 )
+from miv_simulator.simulator.generate_input_features import (
+    generate_input_features,
+)
 from miv_simulator.simulator.generate_soma_coordinates import (
     generate_soma_coordinates,
 )
