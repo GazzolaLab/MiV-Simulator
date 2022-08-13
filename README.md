@@ -20,18 +20,12 @@ Before the installation, following software/libraries should be installed on the
 
 ### Python Dependencies
 
-Most of the python-dependencies are managed through [`poetry`][link-poetry-website]. We provide important alias in `makefile`.
+The python-dependencies are managed through [`poetry`][link-poetry-website]. We provide important alias in `makefile`.
 
 ```sh
 make poetry-downloads  # Install poetry on the system
 make install           # Install MiV-Simulator
 ```
-
-```sh
-pip instal -I rbf
-```
-
-> **NOTE:** There are some dependency conflict for `RBF` package, hence it must be installed separately after installing rest of the dependencies. User can install using `pip` with `ignore-dependency -I` flag, or directly install using source code. Latest tag we confirmed is [`tag/2019.04.28`][link-rbf-github-with-tag].
 
 ### External Libraries
 
@@ -89,8 +83,6 @@ make install && make check-install
 ```sh
 make poetry-download
 make install
-
-pip instal -I rbf
 ```
 
 ### Building NEURON simulator
@@ -211,6 +203,5 @@ Cell Types:
 [//]: # (Collection of URLs)
 
 [link-poetry-website]: https://python-poetry.org/
-[link-rbf-github-with-tag]: https://github.com/treverhines/RBF/tree/2019.04.28
 
 [source-hdf5]: https://www.hdfgroup.org/downloads/hdf5/
