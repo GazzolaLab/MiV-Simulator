@@ -128,7 +128,6 @@ def generate_soma_coordinates(
     config: str,
     types_path: str,
     output_path: str,
-    config_prefix: str = "config",
     geometry_path: Optional[str] = None,
     output_namespace: str = "Generated Coordinates",
     populations: Tuple[str] = (),
@@ -166,7 +165,7 @@ def generate_soma_coordinates(
             output_file.close()
     comm.barrier()
 
-    env = Env(comm=comm, config_file=config, config_prefix=config_prefix)
+    env = Env(comm=comm, config=config)
 
     random_seed = int(env.model_config["Random Seeds"]["Soma Locations"])
     random.seed(random_seed)

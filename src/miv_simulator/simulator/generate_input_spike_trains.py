@@ -120,7 +120,6 @@ def plot_summed_spike_psth(
 
 def generate_input_spike_trains(
     config,
-    config_prefix,
     selectivity_path,
     selectivity_namespace,
     coords_path,
@@ -150,7 +149,6 @@ def generate_input_spike_trains(
 ):
     """
     :param config: str (.yaml file name)
-    :param config_prefix: str (path to dir)
     :param selectivity_path: str (path to file)
     :param selectivity_namespace: str
     :param arena_id: str
@@ -187,8 +185,7 @@ def generate_input_spike_trains(
 
     env = Env(
         comm=comm,
-        config_file=config,
-        config_prefix=config_prefix,
+        config=config,
         template_paths=None,
     )
     if io_size == -1:
@@ -200,7 +197,7 @@ def generate_input_spike_trains(
         plot = True
 
     if plot:
-        from MiV.plot import default_fig_options
+        from miv_simulator.plotting import default_fig_options
 
         fig_options = copy.copy(default_fig_options)
         fig_options.saveFigDir = save_fig_dir
@@ -245,7 +242,7 @@ def generate_input_spike_trains(
     if arena_id not in env.stimulus_config["Arena"]:
         raise RuntimeError(
             "Arena with ID: %s not specified by configuration at file path: %s"
-            % (arena_id, config_prefix + "/" + config)
+            % (arena_id, config)
         )
     arena = env.stimulus_config["Arena"][arena_id]
 

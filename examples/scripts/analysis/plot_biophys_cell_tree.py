@@ -39,12 +39,6 @@ script_name = os.path.basename(__file__)
     help="path to directory containing required neuroh5 data files",
 )
 @click.option(
-    "--config-prefix",
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    default="config",
-    help="path to directory containing network and cell mechanism config files",
-)
-@click.option(
     "--data-file",
     required=False,
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
@@ -83,7 +77,6 @@ def main(
     gid,
     template_paths,
     dataset_prefix,
-    config_prefix,
     data_file,
     load_synapses,
     syn_types,
@@ -105,6 +98,7 @@ def main(
         )
 
     params = dict(locals())
+    params["config"] = params.pop("config_file")
     env = Env(**params)
     configure_hoc_env(env)
 

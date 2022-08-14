@@ -161,7 +161,6 @@ def check_syns(
 
 def distribute_synapse_locations(
     config,
-    config_prefix,
     template_path,
     output_path,
     forest_path,
@@ -187,8 +186,7 @@ def distribute_synapse_locations(
 
     env = Env(
         comm=comm,
-        config_file=config,
-        config_prefix=config_prefix,
+        config=config,
         template_paths=template_path,
     )
 

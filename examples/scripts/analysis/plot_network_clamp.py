@@ -13,12 +13,6 @@ context = Context()
 
 @click.command()
 @click.option("--config-file", required=False, type=str)
-@click.option(
-    "--config-prefix",
-    required=False,
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    default="config",
-)
 @click.option("--input-path", "-p", required=True, type=click.Path())
 @click.option("--spike-namespace", type=str, default="Spike Events")
 @click.option("--state-namespace", type=str, default="Intracellular soma")
@@ -53,7 +47,6 @@ context = Context()
 @click.option("--verbose", "-v", is_flag=True)
 def main(
     config_file,
-    config_prefix,
     input_path,
     spike_namespace,
     state_namespace,
@@ -101,7 +94,6 @@ def main(
         target_input_features_namespace=target_input_features_namespace,
         target_input_features_arena_id=target_input_features_arena_id,
         target_input_features_trajectory_id=target_input_features_trajectory_id,
-        config_prefix=config_prefix,
         config_file=config_file,
         include=populations,
         include_artificial=include_artificial,

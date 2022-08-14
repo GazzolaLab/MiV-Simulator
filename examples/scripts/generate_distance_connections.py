@@ -14,12 +14,6 @@ from miv_simulator.simulator import generate_distance_connections
 
 @click.command()
 @click.option("--config", required=True, type=str)
-@click.option(
-    "--config-prefix",
-    required=True,
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    default="config",
-)
 @click.option("--include", "-i", type=str, multiple=True)
 @click.option(
     "--forest-path",
@@ -48,7 +42,6 @@ from miv_simulator.simulator import generate_distance_connections
 @click.option("--debug", is_flag=True)
 def main(
     config,
-    config_prefix,
     include,
     forest_path,
     connectivity_path,
@@ -70,7 +63,6 @@ def main(
 ):
     generate_distance_connections(
         config,
-        config_prefix,
         include,
         forest_path,
         connectivity_path,

@@ -153,6 +153,14 @@ optional = false
 python-versions = ">=3.5"
 
 [[package]]
+name = "dict-recursive-update"
+version = "1.0.1"
+description = "A Python module who does recursive update work on 2 dicts."
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "dill"
 version = "0.3.5.1"
 description = "serialize all of python"
@@ -803,7 +811,7 @@ python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,>=2.7"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.11"
-content-hash = "94b9393105863bd6b3386c93b7ef4956ab262cfb2e2fa71a665f1391741a7ef9"
+content-hash = "b1b18cd82995166bc485d820c26de8c3f5d307fd07e58efb8e447d3902f34e12"
 
 [metadata.files]
 appnope = [
@@ -836,6 +844,9 @@ cython = []
 decorator = [
     {file = "decorator-5.1.1-py3-none-any.whl", hash = "sha256:b8c3f85900b9dc423225913c5aace94729fe1fa9763b38939a95226f02d37186"},
     {file = "decorator-5.1.1.tar.gz", hash = "sha256:637996211036b6385ef91435e4fae22989472f9d571faba8927ba8253acbc330"},
+]
+dict-recursive-update = [
+    {file = "dict_recursive_update-1.0.1-py2.py3-none-any.whl", hash = "sha256:24bfdd88ff2bf7bd85870b8c65918002638888a790f7453865bdce6f3b83f8ff"},
 ]
 dill = [
     {file = "dill-0.3.5.1-py2.py3-none-any.whl", hash = "sha256:33501d03270bbe410c72639b350e941882a8b0fd55357580fbc873fba0c59302"},

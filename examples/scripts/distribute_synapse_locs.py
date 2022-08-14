@@ -10,12 +10,6 @@ from miv_simulator.simulator import distribute_synapse_locations
 
 @click.command()
 @click.option("--config", required=True, type=str)
-@click.option(
-    "--config-prefix",
-    required=True,
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    default="config",
-)
 @click.option("--template-path", type=str)
 @click.option(
     "--output-path",
@@ -37,7 +31,6 @@ from miv_simulator.simulator import distribute_synapse_locations
 @click.option("--debug", is_flag=True)
 def main(
     config,
-    config_prefix,
     template_path,
     output_path,
     forest_path,
@@ -53,7 +46,6 @@ def main(
 ):
     distribute_synapse_locations(
         config,
-        config_prefix,
         template_path,
         output_path,
         forest_path,

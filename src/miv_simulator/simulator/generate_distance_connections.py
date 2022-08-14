@@ -1,4 +1,5 @@
 import gc
+import os
 import sys
 
 import h5py
@@ -33,7 +34,6 @@ sys.excepthook = mpi_excepthook
 
 def generate_distance_connections(
     config,
-    config_prefix,
     include,
     forest_path,
     connectivity_path,
@@ -59,7 +59,7 @@ def generate_distance_connections(
     comm = MPI.COMM_WORLD
     rank = comm.rank
 
-    env = Env(comm=comm, config_file=config, config_prefix=config_prefix)
+    env = Env(comm=comm, config=config)
     configure_hoc_env(env)
 
     connection_config = env.connection_config
@@ -142,7 +142,7 @@ def generate_distance_connections(
 
     if len(soma_distances) == 0:
         (origin_ranges, ip_dist_u, ip_dist_v) = make_distance_interpolant(
-            env, resolution=resolution, nsample=nsample
+            env, resolution=resolution, nsample=interp_chunk_size
         )
         ip_dist = (origin_ranges, ip_dist_u, ip_dist_v)
         soma_distances = measure_distances(

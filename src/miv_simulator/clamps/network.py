@@ -920,7 +920,6 @@ def init_state_objfun(
     opt_iter,
     template_paths,
     dataset_prefix,
-    config_prefix,
     results_path,
     spike_events_path,
     spike_events_namespace,
@@ -947,6 +946,7 @@ def init_state_objfun(
 ):
 
     params = dict(locals())
+    params["config"] = params.pop("config_file")
     env = Env(**params)
     env.results_file_path = None
     configure_hoc_env(env, bcast_template=True)
@@ -1089,7 +1089,6 @@ def init_rate_objfun(
     opt_iter,
     template_paths,
     dataset_prefix,
-    config_prefix,
     results_path,
     spike_events_path,
     spike_events_namespace,
@@ -1111,6 +1110,7 @@ def init_rate_objfun(
 ):
 
     params = dict(locals())
+    params["config"] = params.pop("config_file")
     env = Env(**params)
     env.results_file_path = None
     configure_hoc_env(env, bcast_template=True)
@@ -1339,7 +1339,6 @@ def init_rate_dist_objfun(
     opt_iter,
     template_paths,
     dataset_prefix,
-    config_prefix,
     results_path,
     spike_events_path,
     spike_events_namespace,
@@ -1364,6 +1363,7 @@ def init_rate_dist_objfun(
 ):
 
     params = dict(locals())
+    params["config"] = params.pop("config_file")
     env = Env(**params)
     env.results_file_path = None
     configure_hoc_env(env, bcast_template=True)
@@ -1749,6 +1749,7 @@ def dist_run(
 
     global env
     if env is None:
+        init_params["config"] = init_params.pop("config_file", None)
         env = Env(**init_params)
         configure_hoc_env(env, bcast_template=True)
     env.clear()
@@ -1915,13 +1916,6 @@ def cli():
     help="path to directory containing required neuroh5 data files",
 )
 @click.option(
-    "--config-prefix",
-    required=True,
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    default="config",
-    help="path to directory containing network and cell mechanism config files",
-)
-@click.option(
     "--results-path",
     required=True,
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
@@ -1990,7 +1984,6 @@ def show(
     trajectory_id,
     template_paths,
     dataset_prefix,
-    config_prefix,
     results_path,
     spike_events_path,
     spike_events_namespace,
@@ -2017,7 +2010,7 @@ def show(
 
     if rank == 0:
         comm0 = comm.Split(2 if rank == 0 else 1, 0)
-
+        init_params["config"] = init_params.pop("config_file", None)
         env = Env(**init_params, comm=comm0)
         configure_hoc_env(env)
 
@@ -2105,13 +2098,6 @@ def show(
     required=True,
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
     help="path to directory containing required neuroh5 data files",
-)
-@click.option(
-    "--config-prefix",
-    required=True,
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    default="config",
-    help="path to directory containing network and cell mechanism config files",
 )
 @click.option(
     "--spike-events-path",
@@ -2237,7 +2223,6 @@ def go(
     t_min,
     template_paths,
     dataset_prefix,
-    config_prefix,
     spike_events_path,
     spike_events_namespace,
     spike_events_t,
@@ -2343,6 +2328,7 @@ def go(
         comm.barrier()
         comm0 = comm.Split(2 if rank == 0 else 1, 0)
         if rank == 0:
+            init_params["config"] = init_params.pop("config_file", None)
             env = Env(**init_params, comm=comm0)
             attr_info_dict = read_cell_attribute_info(
                 env.data_file_path,
@@ -2381,6 +2367,7 @@ def go(
         else:
             distwq.run(verbose=True, spawn_workers=True, nprocs_per_worker=1)
     else:
+        init_params["config"] = init_params.pop("config_file", None)
         env = Env(**init_params, comm=comm)
         configure_hoc_env(env)
         init(
@@ -2491,13 +2478,6 @@ def go(
     required=True,
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
     help="path to directory containing required neuroh5 data files",
-)
-@click.option(
-    "--config-prefix",
-    required=True,
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    default="config",
-    help="path to directory containing network and cell mechanism config files",
 )
 @click.option(
     "--param-config-name",
@@ -2636,7 +2616,6 @@ def optimize(
     opt_iter,
     template_paths,
     dataset_prefix,
-    config_prefix,
     param_config_name,
     param_type,
     recording_profile,
@@ -2701,6 +2680,7 @@ def optimize(
         comm.barrier()
         comm0 = comm.Split(2 if rank == 0 else 1, 0)
         if rank == 0:
+            init_params["config"] = init_params.pop("config_file", None)
             env = Env(**init_params, comm=comm0)
             attr_info_dict = read_cell_attribute_info(
                 env.data_file_path,
@@ -2727,6 +2707,7 @@ def optimize(
         ("mean_v", (np.float32, (n_trials,))),
     ]
     params = dict(locals())
+    params["config"] = params.pop("config_file", None)
     env = Env(**params)
     if size == 1:
         configure_hoc_env(env)

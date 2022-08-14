@@ -6,6 +6,8 @@ from collections import defaultdict, namedtuple
 
 import numpy as np
 import yaml
+from dict_recursive_update import recursive_update
+from miv_simulator.config import config_path
 from miv_simulator.synapses import SynapseAttributes, get_syn_filter_dict
 from miv_simulator.utils import (
     AbstractEnv,
@@ -63,11 +65,10 @@ class Env(AbstractEnv):
     def __init__(
         self,
         comm: Optional[Intracomm] = None,
-        config_file: Optional[str] = None,
+        config: Optional[str] = None,
         template_paths: str = "templates",
         hoc_lib_path: Optional[str] = None,
         dataset_prefix: Optional[str] = None,
-        config_prefix: Optional[str] = None,
         results_path: Optional[str] = None,
         results_file_id: Optional[str] = None,
         results_namespace_id: None = None,
@@ -109,7 +110,6 @@ class Env(AbstractEnv):
         :param template_paths: str; colon-separated list of paths to directories containing hoc cell templates
         :param hoc_lib_path: str; path to directory containing required hoc libraries
         :param dataset_prefix: str; path to directory containing required neuroh5 data files
-        :param config_prefix: str; path to directory containing network and cell mechanism config files
         :param results_path: str; path to directory to export output files
         :param results_file_id: str; label for neuroh5 files to write spike and voltage trace data
         :param results_namespace_id: str; label for neuroh5 namespaces to write spike and voltage trace data
@@ -253,23 +253,21 @@ class Env(AbstractEnv):
         # cache queries to filter_synapses
         self.cache_queries = cache_queries
 
-        self.config_prefix = config_prefix
-        if config_file is not None:
-            if config_prefix is not None:
-                config_file_path = self.config_prefix + "/" + config_file
-            else:
-                config_file_path = config_file
-            self.model_config = None
-            if rank == 0:
-                if not os.path.isfile(config_file_path):
-                    raise RuntimeError(
-                        f"configuration file {config_file_path} was not found"
-                    )
-                with open(config_file_path) as fp:
+        self.model_config = None
+        if rank == 0:
+            if isinstance(config, str):
+                # load complete configuration from file
+                with open(config) as fp:
                     self.model_config = yaml.load(fp, IncludeLoader)
-            self.model_config = self.comm.bcast(self.model_config, root=0)
-        else:
-            raise RuntimeError("missing configuration file")
+            else:
+                # load default configuration and apply configuration update
+                with open(config_path("default.yaml")) as fp:
+                    default_config = yaml.load(fp, IncludeLoader)
+                self.model_config = recursive_update(
+                    default_config, config or {}
+                )
+
+        self.model_config = self.comm.bcast(self.model_config, root=0)
 
         if "Definitions" in self.model_config:
             self.parse_definitions()
@@ -289,14 +287,14 @@ class Env(AbstractEnv):
         self.geometry = None
         if "Geometry" in self.model_config:
             self.geometry = self.model_config["Geometry"]
-
-        if "Origin" in self.geometry["Parametric Surface"]:
-            self.parse_origin_coords()
+            if "Origin" in self.geometry["Parametric Surface"]:
+                self.parse_origin_coords()
 
         self.celltypes = self.model_config["Cell Types"]
         self.cell_attribute_info = {}
 
         # The name of this model
+        self.modelName = "Unnamed model"
         if "Model Name" in self.model_config:
             self.modelName = self.model_config["Model Name"]
         # The dataset to use for constructing the network
@@ -989,9 +987,9 @@ class Env(AbstractEnv):
                 celltypes[k]["start"] = population_ranges[k][0]
                 celltypes[k]["num"] = population_ranges[k][1]
                 if "mechanism file" in celltypes[k]:
-                    celltypes[k]["mech_file_path"] = "{}/{}".format(
-                        self.config_prefix, celltypes[k]["mechanism file"]
-                    )
+                    celltypes[k]["mech_file_path"] = celltypes[k][
+                        "mechanism file"
+                    ]
                     mech_dict = None
                     if rank == 0:
                         mech_dict = read_from_yaml(

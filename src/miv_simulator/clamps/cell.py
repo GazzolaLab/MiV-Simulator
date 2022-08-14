@@ -84,10 +84,9 @@ def init_biophys_cell(
     :param cell_dict: dict
 
     Environment can be instantiated as:
-    env = Env(config_file, template_paths, dataset_prefix, config_prefix)
+    env = Env(config_file, template_paths, dataset_prefix)
     :param template_paths: str; colon-separated list of paths to directories containing hoc cell templates
     :param dataset_prefix: str; path to directory containing required neuroh5 data files
-    :param config_prefix: str; path to directory containing network and cell mechanism config files
     """
 
     rank = int(env.pc.id())
@@ -937,13 +936,6 @@ def measure_psp(
     type=str,
     help="model configuration file name",
 )
-@click.option(
-    "--config-prefix",
-    required=True,
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    default="config",
-    help="path to directory containing network and cell mechanism config files",
-)
 @click.option("--erev", type=float, help="synaptic reversal potential")
 @click.option(
     "--population",
@@ -1021,7 +1013,6 @@ def measure_psp(
 @click.option("--verbose", "-v", is_flag=True)
 def main(
     config_file,
-    config_prefix,
     erev,
     population,
     presyn_name,
@@ -1054,6 +1045,7 @@ def main(
     comm = MPI.COMM_WORLD
     np.seterr(all="raise")
     params = dict(locals())
+    params["config"] = params.pop("config_file")
     env = Env(**params)
     configure_hoc_env(env)
     io_utils.mkout(env, env.results_file_path)

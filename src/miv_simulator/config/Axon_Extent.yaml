@@ -1,0 +1,17 @@
+# Axonal extent in um [S-T, M-L]
+STIM:
+  default:
+    width: [1000.0, 1000.0]
+    offset: [0,0]
+PYR:
+  default:
+    width: [1000.0, 1000.0]
+    offset: [0,0]
+PVBC: # soma in layer pyramidale, PV+
+  default:
+    width: [1000.0, 1000.0]
+    offset: [0,0]
+OLM: # soma in layer oriens, SOM+
+  default:
+    width: [840.0, 500.0]
+    offset: [0,0]

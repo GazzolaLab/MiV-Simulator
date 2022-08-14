@@ -11,7 +11,7 @@ from matplotlib import gridspec
 from matplotlib.colors import BoundaryNorm
 from matplotlib.offsetbox import AnchoredText
 from matplotlib.ticker import MaxNLocator
-from miv_simulator import cells, spikedata, statedata, synapses
+from miv_simulator import cells, spikedata, statedata, stimulus, synapses
 from miv_simulator.env import Env
 from miv_simulator.utils import (
     Struct,
@@ -410,7 +410,7 @@ def plot_coords_in_volume(
 
     from miv_simulator.geometry.geometry import get_total_extents
 
-    env = Env(config_file=config)
+    env = Env(config=config)
 
     rotate = env.geometry["Parametric Surface"]["Rotation"]
     layer_extents = env.geometry["Parametric Surface"]["Layer Extents"]
@@ -1092,7 +1092,7 @@ def plot_spike_histogram(
 
     env = None
     if config_path is not None:
-        env = Env(config_file=config_path)
+        env = Env(config=config_path)
         if env.analysis_config is not None:
             baks_config.update(env.analysis_config["Firing Rate Inference"])
 
@@ -1329,7 +1329,7 @@ def plot_lfp(
 
     env = None
     if config_path is not None:
-        env = Env(config_file=config_path)
+        env = Env(config=config_path)
 
     nrows = 1
     if env is not None:
@@ -1543,7 +1543,7 @@ def plot_lfp_spectrogram(
 
     env = None
     if config_path is not None:
-        env = Env(config_file=config_path)
+        env = Env(config=config_path)
 
     nrows = 1
     if env is not None:
@@ -2444,7 +2444,6 @@ def plot_network_clamp(
     target_input_features_arena_id=None,
     target_input_features_trajectory_id=None,
     config_file=None,
-    config_prefix="config",
     include="eachPop",
     include_artificial=True,
     time_range=None,
@@ -2584,7 +2583,6 @@ def plot_network_clamp(
             )
         env = Env(
             config_file=config_file,
-            config_prefix=config_prefix,
             arena_id=target_input_features_arena_id,
             trajectory_id=target_input_features_trajectory_id,
         )

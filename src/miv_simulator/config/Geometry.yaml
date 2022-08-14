@@ -1,0 +1,40 @@
+# 80000 neurons
+# 200 um electrode spacing
+# 30 um electrode size
+Parametric Surface:
+  Origin:
+    U: median
+    V: median
+    L: max
+  Layer Extents:
+    SO:  [[0.0,0.0,0.0], [4000.0,4000.0,100.0]] 
+    SP:  [[0.0,0.0,100.0],[4000.0,4000.0,150.0]]
+    SR:  [[0.0,0.0,150.0], [4000.0,4000.0,350.0]]
+    SLM: [[0.0, 0.0,350.0], [4000.0, 4000.0, 450.0]]
+  Rotation: [0.0, 0.0, 0.0]
+Cell Constraints:
+  PC:
+    SP: [100., 120.] # Lee, ..., Soltesz. Neuron 2014
+  PVBC:
+    SR: [150., 200.0] # Booker, Vida. Cell & Tissue Research 2018
+Cell Distribution:
+  STIM:
+    SO:  0
+    SP:  1000
+    SR:  0
+    SLM: 0
+  PYR:
+    SO:  0
+    SP:  80000
+    SR:  0
+    SLM: 0
+  PVBC: #5530
+    SO:  352
+    SP:  1034
+    SR:  88
+    SLM: 0
+  OLM: #1640
+    SO:  438
+    SP:  0
+    SR:  0
+    SLM: 0

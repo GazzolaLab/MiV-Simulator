@@ -133,7 +133,6 @@ mpi_op_concatenate_ndarray_dict = MPI.Op.Create(
 
 def generate_input_features(
     config,
-    config_prefix,
     coords_path,
     distances_namespace,
     output_path,
@@ -160,7 +159,6 @@ def generate_input_features(
     """
 
     :param config: str (.yaml file name)
-    :param config_prefix: str (path to dir)
     :param coords_path: str (path to file)
     :param distances_namespace: str
     :param output_path: str
@@ -190,8 +188,7 @@ def generate_input_features(
 
     env = Env(
         comm=comm,
-        config_file=config,
-        config_prefix=config_prefix,
+        config=config,
         template_paths=None,
     )
     if io_size == -1:
@@ -305,7 +302,7 @@ def generate_input_features(
 
     if arena_id not in env.stimulus_config["Arena"]:
         raise RuntimeError(
-            f"Arena with ID: {arena_id} not specified by configuration at file path: {config_prefix}/{config}"
+            f"Arena with ID: {arena_id} not specified by configuration at file path: {config}"
         )
     arena = env.stimulus_config["Arena"][arena_id]
     arena_x_mesh, arena_y_mesh = None, None

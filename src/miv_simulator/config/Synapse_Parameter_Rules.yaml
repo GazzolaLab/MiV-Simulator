@@ -1,0 +1,33 @@
+Exp2Syn:
+    mech_file: exp2syn.mod
+    mech_params:
+      - tau1
+      - tau2
+      - e
+    netcon_params:
+      weight: 0
+    netcon_state: {}
+LinExp2Syn:
+    mech_file: lin_exp2syn.mod
+    mech_params:
+      - tau_rise
+      - tau_decay
+      - e
+    netcon_params:
+      weight: 0
+      g_unit: 1
+    netcon_state: {}
+LinExp2SynNMDA:
+    mech_file: lin_exp2synNMDA.mod
+    mech_params:
+      - tau_rise
+      - tau_decay
+      - e
+      - mg
+      - Kd
+      - gamma
+      - vshift
+    netcon_params:
+      weight: 0
+      g_unit: 1
+    netcon_state: {}
