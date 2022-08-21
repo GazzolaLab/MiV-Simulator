@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from random.mtrand import RandomState
+from numpy.random.mtrand import RandomState
 
 import numpy as np
 from numpy import float64, ndarray

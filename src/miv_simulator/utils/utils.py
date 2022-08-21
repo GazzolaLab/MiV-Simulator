@@ -22,6 +22,7 @@ from mpi4py import MPI
 from numpy import float64, uint32
 from scipy import signal, sparse
 from yaml.nodes import ScalarNode
+from typing import Mapping, Optional
 
 is_interactive = bool(getattr(sys, "ps1", sys.flags.interactive))
 
@@ -1212,3 +1213,24 @@ def baks(spktimes, time, a=1.5, b=None):
         rate = rate + K
 
     return rate, h
+
+
+def update_dict(d: Mapping, update: Optional[Mapping] = None) -> Mapping:
+    if d is None:
+        d = {}
+    if not isinstance(d, Mapping):
+        raise ValueError(
+            f"Error: Expected mapping but found {type(d).__name__}: {d}"
+        )
+    if not update:
+        return d
+    if not isinstance(update, Mapping):
+        raise ValueError(
+            f"Error: Expected update mapping but found {type(update).__name__}: {update}"
+        )
+    for k, val in update.items():
+        if isinstance(val, Mapping):
+            d[k] = update_dict(d.get(k, {}), val)
+        else:
+            d[k] = val
+    return d

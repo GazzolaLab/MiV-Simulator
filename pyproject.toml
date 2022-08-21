@@ -18,7 +18,6 @@ click = "^8.1.3"
 networkx = "^2.8.4"
 commandlib = "^0.3.5"
 rbf = {git = "https://github.com/frthjf/RBF.git"}
-dict-recursive-update = "^1.0.1"
 neuroh5 = {git = "https://github.com/soltesz-lab/neuroh5.git"}
 
 [tool.poetry.dev-dependencies]
