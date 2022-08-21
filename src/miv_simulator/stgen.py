@@ -1,9 +1,8 @@
 from typing import List, Optional
 
-from numpy.random.mtrand import RandomState
-
 import numpy as np
 from numpy import float64, ndarray
+from numpy.random.mtrand import RandomState
 from scipy.interpolate import Akima1DInterpolator
 
 """

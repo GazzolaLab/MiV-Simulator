@@ -1,4 +1,14 @@
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import copy
 import importlib
@@ -22,7 +32,6 @@ from mpi4py import MPI
 from numpy import float64, uint32
 from scipy import signal, sparse
 from yaml.nodes import ScalarNode
-from typing import Mapping, Optional
 
 is_interactive = bool(getattr(sys, "ps1", sys.flags.interactive))
 
