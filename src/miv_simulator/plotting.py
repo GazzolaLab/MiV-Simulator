@@ -538,6 +538,7 @@ def plot_coords_in_volume(
     else:
         ax.view_init(-90, 0)
         plt.show()
+        return fig
 
 
 def plot_cell_tree(
