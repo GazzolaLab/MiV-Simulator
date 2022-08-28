@@ -19,6 +19,7 @@ networkx = "^2.8.4"
 commandlib = "^0.3.5"
 rbf = {git = "https://github.com/frthjf/RBF.git"}
 neuroh5 = {git = "https://github.com/soltesz-lab/neuroh5.git"}
+sphinx-click = {version = "^4.3.0", extras = ["docs"], optional = true}
 
 [tool.poetry.dev-dependencies]
 black = {extras = ["jupyter"], version = "^22.3.0"}
@@ -32,6 +33,9 @@ pyupgrade = "^2.32.1"
 coverage = "^6.3.3"
 pytest-html = "^3.1.1"
 pytest-cov = "^3.0.0"
+
+[tool.poetry.extras]
+docs = ["sphinx-click"]
 
 [tool.poetry.scripts]
 # Main functions
