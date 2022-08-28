@@ -11,9 +11,9 @@ from collections import defaultdict
 import click
 import h5py
 import numpy as np
-from MiV import io_utils, spikedata, stimulus, synapses
-from MiV.cell_clamp import init_biophys_cell
-from MiV.cells import (
+from miv_simulator import io_utils, spikedata, stimulus, synapses
+from miv_simulator.cell_clamp import init_biophys_cell
+from miv_simulator.cells import (
     h,
     is_cell_registered,
     load_biophys_cell_dicts,
@@ -22,10 +22,10 @@ from MiV.cells import (
     register_cell,
     report_topology,
 )
-from MiV.env import Env
-from MiV.neuron_utils import configure_hoc_env, h
-from MiV.stimulus import oscillation_phase_mod_config, rate_maps_from_features
-from MiV.utils import (
+from miv_simulator.env import Env
+from miv_simulator.neuron_utils import configure_hoc_env, h
+from miv_simulator.stimulus import oscillation_phase_mod_config, rate_maps_from_features
+from miv_simulator.utils import (
     Context,
     config_logging,
     generate_results_file_id,
@@ -45,7 +45,7 @@ from neuroh5.io import (
     scatter_read_cell_attribute_selection,
 )
 
-# This logger will inherit its settings from the root logger, created in MiV.env
+# This logger will inherit its settings from the root logger, created in miv_simulator.env
 logger = get_module_logger(__name__)
 
 context = Context()
@@ -653,7 +653,7 @@ def init(
     gc.collect()
 
     if plot_cell:
-        from MiV.plot import plot_synaptic_attribute_distribution
+        from miv_simulator.plot import plot_synaptic_attribute_distribution
 
         syn_attrs = env.synapse_attributes
         syn_name = "AMPA"
@@ -1614,10 +1614,10 @@ def optimize_run(
         "opt_id": "network_clamp.optimize",
         "problem_ids": problem_ids,
         "obj_fun_init_name": init_objfun,
-        "obj_fun_init_module": "MiV.network_clamp",
+        "obj_fun_init_module": "miv_simulator.network_clamp",
         "obj_fun_init_args": init_params,
         "reduce_fun_name": reduce_fun_name,
-        "reduce_fun_module": "MiV.optimization",
+        "reduce_fun_module": "miv_simulator.optimization",
         "problem_parameters": {},
         "space": hyperprm_space,
         "feature_dtypes": feature_dtypes,
@@ -1632,7 +1632,7 @@ def optimize_run(
 
     if cooperative_init:
         distgfs_params["broker_fun_name"] = "distgfs_broker_init"
-        distgfs_params["broker_module_name"] = "MiV.optimization"
+        distgfs_params["broker_module_name"] = "miv_simulator.optimization"
 
     opt_results = distgfs.run(
         distgfs_params,
@@ -1710,7 +1710,7 @@ def dist_ctrl(
             this_results_file_id = f"{results_file_id}_{params_basename}"
             task_id = controller.submit_call(
                 "dist_run",
-                module_name="MiV.network_clamp",
+                module_name="miv_simulator.network_clamp",
                 args=(
                     init_params,
                     cell_index_set,
@@ -1722,7 +1722,7 @@ def dist_ctrl(
     else:
         task_id = controller.submit_call(
             "dist_run",
-            module_name="MiV.network_clamp",
+            module_name="miv_simulator.network_clamp",
             args=(init_params, cell_index_set, None, None),
         )
         task_ids.append(task_id)
@@ -2352,7 +2352,7 @@ def go(
         if distwq.is_controller:
             distwq.run(
                 fun_name="dist_ctrl",
-                module_name="MiV.network_clamp",
+                module_name="miv_simulator.network_clamp",
                 verbose=True,
                 args=(
                     init_params,

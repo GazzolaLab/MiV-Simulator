@@ -40,7 +40,7 @@ sys.excepthook = mpi_excepthook
 
 
 def debug_callback(context):
-    from MiV.plot import close_figure, plot_2D_rate_map
+    from miv_simulator.plot import close_figure, plot_2D_rate_map
 
     fig_title = "%s %s cell %i" % (
         context.population,

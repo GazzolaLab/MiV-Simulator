@@ -7,7 +7,7 @@ from neuroh5.io import (
     read_cell_attributes,
 )
 
-## This logger will inherit its setting from its root logger, MiV.
+## This logger will inherit its setting from its root logger, miv_simulator.
 ## which is created in module env
 logger = get_module_logger(__name__)
 

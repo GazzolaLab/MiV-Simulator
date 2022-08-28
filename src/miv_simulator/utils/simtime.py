@@ -2,11 +2,11 @@
 
 import time
 
-from hoc import HocObject
-from MiV.utils import get_module_logger
+from neuron.hoc import HocObject
+from miv_simulator.utils import get_module_logger
 from neuron import h
 
-# This logger will inherit its settings from the root logger, created in MiV.env
+# This logger will inherit its settings from the root logger, created in miv_simulator.env
 logger = get_module_logger(__name__)
 
 

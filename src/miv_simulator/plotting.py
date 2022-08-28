@@ -32,7 +32,7 @@ from neuroh5.io import (
 )
 from scipy import interpolate, ndimage, signal
 
-# This logger will inherit its settings from the root logger, created in MiV.env
+# This logger will inherit its settings from the root logger, created in miv_simulator.env
 logger = get_module_logger(__name__)
 
 # Default figure configuration

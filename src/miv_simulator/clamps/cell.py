@@ -7,12 +7,12 @@ import uuid
 
 import click
 import numpy as np
-from MiV import cells, io_utils, neuron_utils, synapses, utils
-from MiV.cells import BiophysCell
-from MiV.env import Env
-from MiV.neuron_utils import configure_hoc_env, h, make_rec, run_iclamp
-from MiV.synapses import get_syn_filter_dict
-from MiV.utils import (
+from miv_simulator import cells, io_utils, neuron_utils, synapses, utils
+from miv_simulator.cells import BiophysCell
+from miv_simulator.env import Env
+from miv_simulator.neuron_utils import configure_hoc_env, h, make_rec, run_iclamp
+from miv_simulator.synapses import get_syn_filter_dict
+from miv_simulator.utils import (
     AbstractEnv,
     Context,
     config_logging,
@@ -25,7 +25,7 @@ from neuron import h
 from numpy import ndarray
 from scipy.optimize import curve_fit
 
-# This logger will inherit its settings from the root logger, created in MiV.env
+# This logger will inherit its settings from the root logger, created in miv_simulator.env
 logger = get_module_logger(__name__)
 
 context = Context()
