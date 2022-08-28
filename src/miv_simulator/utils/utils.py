@@ -566,7 +566,7 @@ def make_geometric_graph(x, y, z, edges):
     of the end nodes.
 
     Parameters
-    -----------
+    ----------
     x: ndarray
         x coordinates of the points
     y: ndarray
@@ -579,11 +579,11 @@ def make_geometric_graph(x, y, z, edges):
         algorithm.
 
     Returns
-    ---------
+    -------
     g: A NetworkX undirected graph
 
     Notes
-    ------
+    -----
     We don't bother putting the coordinates into the NX graph.
     Instead the graph node is an index to the column.
     """

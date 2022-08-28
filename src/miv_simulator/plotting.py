@@ -188,7 +188,7 @@ def plot_graph(
     Shows graph edges using Mayavi
 
     Parameters
-    -----------
+    ----------
         x: ndarray
             x coordinates of the points
         y: ndarray

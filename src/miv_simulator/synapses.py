@@ -550,9 +550,10 @@ def distribute_poisson_synapses(
 class SynapseSource:
     """This class provides information about the presynaptic (source) cell
     connected to a synapse.
-      - gid - gid of source cell (int)
-      - population - population index of source cell (int)
-      - delay - connection delay (float)
+
+    - gid - gid of source cell (int)
+    - population - population index of source cell (int)
+    - delay - connection delay (float)
     """
 
     __slots__ = "gid", "population", "delay"
@@ -1918,18 +1919,18 @@ def config_hoc_cell_syns(
     Configures the given syn_ids, and call config_syn with mechanism and netcon parameters (which must not be empty).
     If syn_ids=None, configures all synapses for the cell with the given gid.
     If insert=True, iterate over sources and call insert_hoc_cell_syns
-       (requires the cell object is given or registered with h.ParallelContext on this rank).
+    (requires the cell object is given or registered with h.ParallelContext on this rank).
 
-    :param env: :class:'Env'
-    :param gid: int
-    :param postsyn_name: str
-    :param syn_ids: array of int
-    :param unique: bool; whether newly inserted synapses should be unique or shared per segment
-    :param insert: bool; whether to insert a synaptic point process if none exists at syn_id
-    :param insert_netcons: bool; whether to build new netcons for newly constructed synapses
-    :param insert_vecstims: bool; whether to build new vecstims for newly constructed netcons
-    :param verbose: bool
-    :param throw_error: bool; whether to require that all encountered syn_ids have inserted synapse
+        :param env: :class:'Env'
+        :param gid: int
+        :param postsyn_name: str
+        :param syn_ids: array of int
+        :param unique: bool; whether newly inserted synapses should be unique or shared per segment
+        :param insert: bool; whether to insert a synaptic point process if none exists at syn_id
+        :param insert_netcons: bool; whether to build new netcons for newly constructed synapses
+        :param insert_vecstims: bool; whether to build new vecstims for newly constructed netcons
+        :param verbose: bool
+        :param throw_error: bool; whether to require that all encountered syn_ids have inserted synapse
     """
     rank = int(env.pc.id())
     syn_attrs = env.synapse_attributes

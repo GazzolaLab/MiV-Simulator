@@ -1,6 +1,9 @@
 Utilities
 =========
 
+.. autosummary:: miv_simulator.utils
+   :toctree: _toctree
+
 .. automodule:: miv_simulator.utils.utils
    :members:
 
