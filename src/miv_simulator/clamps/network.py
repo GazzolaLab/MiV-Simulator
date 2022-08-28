@@ -1,4 +1,4 @@
-"""
+__doc__ = """
 Routines for Network Clamp simulation.
 """
 import gc

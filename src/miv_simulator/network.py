@@ -1,8 +1,6 @@
-"""
+__doc__="""
 Network initialization routines.
 """
-
-__author__ = "See AUTHORS.md"
 
 from typing import Dict, Union
 
