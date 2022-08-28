@@ -5,6 +5,9 @@ API Documentation
    :maxdepth: 2
    :caption: API
 
+   base
+   utils
+
 Indices and tables
 ==================
 

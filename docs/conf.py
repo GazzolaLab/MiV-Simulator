@@ -32,7 +32,6 @@ extensions = [
     "sphinx_copybutton",
     "sphinx.ext.mathjax",
     "numpydoc",
-    # "myst_parser", # Moving onto jupyter-notebook style
     "myst_nb",
 ]
 
@@ -128,4 +127,4 @@ html_static_path = ["_static", "_static/assets"]
 numpydoc_show_class_members = False
 
 # -- Options for myst-nb ---------------------------------------------------
-#nb_execution_mode = "off"
+nb_execution_mode = "off"
