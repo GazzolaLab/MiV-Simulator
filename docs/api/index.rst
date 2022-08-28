@@ -6,6 +6,9 @@ API Documentation
    :caption: API
 
    base
+   simulator
+   geometry
+   clamps
    utils
 
 Indices and tables
