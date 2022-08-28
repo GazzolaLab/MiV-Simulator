@@ -11,7 +11,7 @@ Contribution
    :maxdepth: 2
    :caption: Overview
 
-   overview/index
+   MiV-Shared-Docs/overview/index
    tutorial/index
    guide/index
    api/index
