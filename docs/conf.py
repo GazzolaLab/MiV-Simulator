@@ -83,8 +83,8 @@ master_doc = "index"
 
 
 html_theme = "pydata_sphinx_theme"
-html_logo = "https://raw.githubusercontent.com/skim0119/MiV-OS/assets_logo/docs/_static/assets/logo1.svg"
-html_favicon = "https://raw.githubusercontent.com/skim0119/MiV-OS/assets_logo/docs/_static/assets/logo1.svg"
+html_logo = "MiV-Shared-Docs/_static/assets/logo1.svg"
+html_favicon = html_logo
 html_theme_options = {
     "logo": {
         # "link": "https://mindinvitro.illinois.edu/",
