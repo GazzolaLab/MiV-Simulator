@@ -22,6 +22,10 @@ jobs:
             path: ~\AppData\Local\pip\Cache
     steps:
       - uses: actions/checkout@v2
+      - name: Setup MPI
+        uses: mpi4py/setup-mpi@v1
+        with:
+          mpi: mpich
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2.2.2
         with:
