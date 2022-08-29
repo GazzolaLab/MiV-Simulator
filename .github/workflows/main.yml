@@ -11,7 +11,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: ["3.7"] #, "3.8", "3.9", "3.10"]
+        python-version: ["3.8"] # , "3.9", "3.10"]
         os: [ubuntu-latest] #, macos-latest, windows-latest] # Run macos tests if really required, since they charge 10 times more for macos
         include:
           - os: ubuntu-latest
@@ -38,7 +38,7 @@ jobs:
       - name: Install dependencies
         run: |
           poetry config virtualenvs.in-project true
-          poetry install -E "docs"
+          poetry install
       # Test MiV-OS using pytest
       - name: Run tests
         run: |
