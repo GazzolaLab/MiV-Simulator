@@ -8,11 +8,10 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: ["3.8"]
         os: [ubuntu-latest]
+        python-version: ["3.8"]
         include:
           - os: ubuntu-latest
             path: ~/.cache/pip
@@ -20,6 +19,7 @@ jobs:
             path: ~/Library/Caches/pip
           - os: windows-latest
             path: ~\AppData\Local\pip\Cache
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
       - name: Setup MPI
