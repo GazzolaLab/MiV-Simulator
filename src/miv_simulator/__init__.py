@@ -1,8 +1,5 @@
-__doc__ = (
-    """Python simulation software used in MiV project."""
-)
+__doc__ = """Python simulation software used in MiV project."""
 
-import sys
 from importlib import metadata as importlib_metadata
 
 

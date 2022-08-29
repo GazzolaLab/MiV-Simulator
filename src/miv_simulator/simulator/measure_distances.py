@@ -7,9 +7,9 @@ import h5py
 import numpy as np
 from miv_simulator import utils
 from miv_simulator.env import Env
+from miv_simulator.geometry.geometry import make_distance_interpolant
 from miv_simulator.geometry.geometry import (
-    make_distance_interpolant,
-    measure_distances,
+    measure_distances as geometry_measure_distances,
 )
 from miv_simulator.volume import make_network_volume
 from mpi4py import MPI
@@ -112,7 +112,7 @@ def measure_distances(
     if rank == 0:
         logger.info("Measuring soma distances...")
 
-    soma_distances = measure_distances(
+    soma_distances = geometry_measure_distances(
         env.comm, env.geometry, soma_coords, ip_dist, resolution=resolution
     )
 

@@ -10,9 +10,9 @@ import h5py
 import numpy as np
 from miv_simulator.env import Env
 from miv_simulator.stimulus import (
-    generate_input_features,
-    get_2D_arena_spatial_mesh,
+    generate_input_features as stimulus_generate_input_features,
 )
+from miv_simulator.stimulus import get_2D_arena_spatial_mesh
 from miv_simulator.utils import Struct, config_logging, get_script_logger
 from mpi4py import MPI
 from neuroh5.io import (
@@ -378,7 +378,7 @@ def generate_input_features(
                 (
                     this_selectivity_type_name,
                     this_selectivity_attr_dict,
-                ) = generate_input_features(
+                ) = stimulus_generate_input_features(
                     env,
                     population,
                     arena,

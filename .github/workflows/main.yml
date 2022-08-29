@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  #push: # Add these lines after public release
+  #  branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.8"]
+        include:
+          - os: ubuntu-latest
+            path: ~/.cache/pip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup MPI
+        uses: mpi4py/setup-mpi@v1
+        with:
+          mpi: mpich
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2.2.2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+      - name: Set up cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ matrix.path }}
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - name: Install dependencies
+        run: |
+          sudo apt-get install -y libhdf5-mpi-dev # Install hdf5-mpi
+          poetry config virtualenvs.in-project true
+          poetry install
+      # Test MiV-Simulator using pytest
+      - name: Run tests
+        run: |
+          make test
