@@ -39,28 +39,28 @@ docs = ["sphinx-click"]
 
 [tool.poetry.scripts]
 # Main functions
-make-h5types = "scripts.make_h5types:main"
-measure-distances = "scripts.measure_distances:main"
-generate-distance-connections = "scripts.generate_distance_connections:main"
-generate-input-features = "scripts.generate_input_features:main"
-generate-input-spike-trains = "scripts.generate_input_spike_trains:main"
-generate-soma-coordinates = "scripts.generate_soma_coordinates:main"
-distribute-synapse-locs = "scripts.distribute_synapse_locs:main"
+make-h5types = { callable = "scripts.make_h5types:main", extras = [] }
+measure-distances = { callable = "scripts.measure_distances:main", extras = [] }
+generate-distance-connections = { callable = "scripts.generate_distance_connections:main", extras = [] }
+generate-input-features = { callable = "scripts.generate_input_features:main", extras = [] }
+generate-input-spike-trains = { callable = "scripts.generate_input_spike_trains:main", extras = [] }
+generate-soma-coordinates = { callable = "scripts.generate_soma_coordinates:main", extras = [] }
+distribute-synapse-locs = { callable = "scripts.distribute_synapse_locs:main", extras = [] }
 # Analysis scripts
-check-config = "scripts.analysis.check_config:main"
-cut-slice = "scripts.analysis.cut_slice:main"
-make-data-files = "scripts.analysis.make_data_files:main"
-plot-biophys-cell-tree = "scripts.analysis.plot_biophys_cell_tree:main"
-plot-cell-tree.py = "scripts.analysis.plot_cell_tree:main"
-plot-coords-in-volume = "scripts.analysis.plot_coords_in_volume:main"
-plot-network-clamp = "scripts.analysis.plot_network_clamp:main"
-plot-spike-raster = "scripts.analysis.plot_spike_raster:main"
-plot-state = "scripts.analysis.plot_state:main"
-query-cell-attrs = "scripts.analysis.query_cell_attrs:main"
-read-spikes = "scripts.analysis.read_spikes:main"
-run-network = "scripts.analysis.run_network:main"
-sample-cells = "scripts.analysis.sample_cells:main"
-show-h5types = "scripts.analysis.show_h5types:main"
+check-config = { callable = "scripts.analysis.check_config:main", extras = [] }
+cut-slice = { callable = "scripts.analysis.cut_slice:main", extras = [] }
+make-data-files = { callable = "scripts.analysis.make_data_files:main", extras = [] }
+plot-biophys-cell-tree = { callable = "scripts.analysis.plot_biophys_cell_tree:main", extras = [] }
+plot-cell-tree.py = { callable = "scripts.analysis.plot_cell_tree:main", extras = [] }
+plot-coords-in-volume = { callable = "scripts.analysis.plot_coords_in_volume:main", extras = [] }
+plot-network-clamp = { callable = "scripts.analysis.plot_network_clamp:main", extras = [] }
+plot-spike-raster = { callable = "scripts.analysis.plot_spike_raster:main", extras = [] }
+plot-state = { callable = "scripts.analysis.plot_state:main", extras = [] }
+query-cell-attrs = { callable = "scripts.analysis.query_cell_attrs:main", extras = [] }
+read-spikes = { callable = "scripts.analysis.read_spikes:main", extras = [] }
+run-network = { callable = "scripts.analysis.run_network:main", extras = [] }
+sample-cells = { callable = "scripts.analysis.sample_cells:main", extras = [] }
+show-h5types = { callable = "scripts.analysis.show_h5types:main", extras = [] }
 
 
 [build-system]
