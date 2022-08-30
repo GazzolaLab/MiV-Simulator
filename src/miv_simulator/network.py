@@ -17,19 +17,15 @@ from miv_simulator.env import Env
 from miv_simulator.utils import (
     Promise,
     compose_iter,
-    configure_hoc_env,
-    cx,
     get_module_logger,
-    h,
     imapreduce,
 )
 from miv_simulator.utils import io as io_utils
+from miv_simulator.utils import neuron as neuron_utils
+from miv_simulator.utils.neuron import h
 from miv_simulator.utils import (
-    load_cell_template,
-    mkgap,
     profile_memory,
     simtime,
-    viewkeys,
     zip_longest,
 )
 from mpi4py import MPI
@@ -890,7 +886,7 @@ def connect_gjs(env: Env) -> None:
                                 % (rank, src, srcsec, wgt, ggid, ggid + 1)
                             )
                         cell = env.pc.gid2cell(src)
-                        gj = mkgap(
+                        gj = neuron_utils.mkgap(
                             env, cell, src, srcpos, srcsec, ggid, ggid + 1, wgt
                         )
                     if env.pc.gid_exists(dst):
@@ -901,7 +897,7 @@ def connect_gjs(env: Env) -> None:
                                 % (rank, dst, dstsec, wgt, ggid + 1, ggid)
                             )
                         cell = env.pc.gid2cell(dst)
-                        gj = mkgap(
+                        gj = neuron_utils.mkgap(
                             env, cell, dst, dstpos, dstsec, ggid + 1, ggid, wgt
                         )
                     ggid = ggid + 2
@@ -952,7 +948,7 @@ def make_cells(env: Env) -> None:
 
         template_name_lower = template_name.lower()
         if template_name_lower != "vecstim":
-            load_cell_template(env, pop_name, bcast_template=True)
+            neuron_utils.load_cell_template(env, pop_name, bcast_template=True)
 
         mech_file_path = None
         if "mech_file_path" in env.celltypes[pop_name]:
@@ -1163,7 +1159,7 @@ def make_cell_selection(env):
         template_name = env.celltypes[pop_name]["template"]
         template_name_lower = template_name.lower()
         if template_name_lower != "vecstim":
-            load_cell_template(env, pop_name, bcast_template=True)
+            neuron_utils.load_cell_template(env, pop_name, bcast_template=True)
 
         templateClass = getattr(h, env.celltypes[pop_name]["template"])
 
@@ -1746,9 +1742,7 @@ def init(env: Env) -> None:
 
     :param env: an instance of the `MiV.Env` class
     """
-    from neuron import h
-
-    configure_hoc_env(env)
+    neuron_utils.configure_hoc_env(env)
 
     assert env.data_file_path
     assert env.connectivity_file_path
@@ -1793,8 +1787,8 @@ def init(env: Env) -> None:
     st = time.time()
     if (not env.use_coreneuron) and (len(env.LFP_config) > 0):
         lfp_pop_dict = {
-            pop_name: set(viewkeys(env.cells[pop_name])).difference(
-                set(viewkeys(env.artificial_cells[pop_name]))
+            pop_name: set(env.cells[pop_name].keys()).difference(
+                set(env.artificial_cells[pop_name].keys())
             )
             for pop_name in env.cells.keys()
         }
@@ -1866,7 +1860,7 @@ def init(env: Env) -> None:
     h.v_init = env.v_init
     h.stdinit()
     if env.optldbal or env.optlptbal:
-        cx(env)
+        lpt.cx(env)
         ld_bal(env)
         if env.optlptbal:
             lpt_bal(env)
