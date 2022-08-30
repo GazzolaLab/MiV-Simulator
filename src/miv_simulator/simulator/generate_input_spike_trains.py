@@ -146,6 +146,7 @@ def generate_input_spike_trains(
     fig_format,
     verbose,
     dry_run,
+    config_prefix="",
 ):
     """
     :param config: str (.yaml file name)
@@ -187,6 +188,7 @@ def generate_input_spike_trains(
         comm=comm,
         config=config,
         template_paths=None,
+        config_prefix=config_prefix,
     )
     if io_size == -1:
         io_size = comm.size

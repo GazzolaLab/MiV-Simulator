@@ -52,6 +52,7 @@ def generate_distance_connections(
     verbose,
     dry_run,
     debug,
+    config_prefix="",
 ):
     utils.config_logging(verbose)
     logger = utils.get_script_logger(os.path.basename(__file__))
@@ -59,7 +60,7 @@ def generate_distance_connections(
     comm = MPI.COMM_WORLD
     rank = comm.rank
 
-    env = Env(comm=comm, config=config)
+    env = Env(comm=comm, config=config, config_prefix=config_prefix)
     configure_hoc_env(env)
 
     connection_config = env.connection_config

@@ -15,6 +15,13 @@ from miv_simulator.simulator import measure_distances
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
 )
 @click.option(
+    "--config-prefix",
+    required=True,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default="config",
+    help="path to directory containing network and cell mechanism config files",
+)
+@click.option(
     "--coords-path",
     required=True,
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
@@ -35,6 +42,7 @@ from miv_simulator.simulator import measure_distances
 @click.option("--verbose", "-v", is_flag=True)
 def main(
     config,
+    config_prefix,
     coords_path,
     coords_namespace,
     geometry_path,
@@ -60,6 +68,7 @@ def main(
         value_chunk_size,
         cache_size,
         verbose,
+        config_prefix=config_prefix,
     )
 
 

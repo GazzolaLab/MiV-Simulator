@@ -52,8 +52,14 @@ def random_subset(iterator, K):
 
 @click.command()
 @click.option("--config", required=True, type=str)
+@click.option(
+    "--config-prefix",
+    required=False,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default="config",
+)
 @click.option("--verbose", "-v", type=bool, default=False, is_flag=True)
-def main(config, verbose):
+def main(config, config_prefix, verbose):
 
     config_logging(verbose)
     logger = get_script_logger(script_name)
@@ -62,7 +68,7 @@ def main(config, verbose):
     rank = comm.rank
     size = comm.size
 
-    env = Env(comm=comm, config=config)
+    env = Env(comm=comm, config=config, config_prefix=config_prefix)
 
 
 if __name__ == "__main__":

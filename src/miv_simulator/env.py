@@ -102,6 +102,7 @@ class Env(AbstractEnv):
         use_coreneuron: bool = False,
         transfer_debug: bool = False,
         verbose: bool = False,
+        config_prefix="",
         **kwargs,
     ) -> None:
         """
@@ -257,7 +258,10 @@ class Env(AbstractEnv):
         if rank == 0:
             if isinstance(config, str):
                 # load complete configuration from file
-                with open(config) as fp:
+                p = config
+                if config_prefix != "" and not os.path.isabs(config):
+                    p = os.path.join(config_prefix, config)
+                with open(p) as fp:
                     self.model_config = yaml.load(fp, IncludeLoader)
             else:
                 # load default configuration and apply configuration update

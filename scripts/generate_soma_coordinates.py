@@ -14,6 +14,12 @@ from miv_simulator.utils import list_find
 @click.command()
 @click.option("--config", required=True, type=str)
 @click.option(
+    "--config-prefix",
+    required=False,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default="config",
+)
+@click.option(
     "--types-path",
     required=True,
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
@@ -41,6 +47,7 @@ from miv_simulator.utils import list_find
 @click.option("--verbose", "-v", type=bool, default=False, is_flag=True)
 def main(
     config,
+    config_prefix,
     types_path,
     geometry_path,
     output_path,
@@ -72,6 +79,7 @@ def main(
         chunk_size=chunk_size,
         value_chunk_size=value_chunk_size,
         verbose=verbose,
+        config_prefix=config_prefix,
     )
 
 

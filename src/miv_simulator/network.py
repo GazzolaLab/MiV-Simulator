@@ -22,12 +22,8 @@ from miv_simulator.utils import (
 )
 from miv_simulator.utils import io as io_utils
 from miv_simulator.utils import neuron as neuron_utils
+from miv_simulator.utils import profile_memory, simtime, zip_longest
 from miv_simulator.utils.neuron import h
-from miv_simulator.utils import (
-    profile_memory,
-    simtime,
-    zip_longest,
-)
 from mpi4py import MPI
 from neuroh5.io import (
     NeuroH5CellAttrGen,

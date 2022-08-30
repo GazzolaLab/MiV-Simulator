@@ -406,11 +406,12 @@ def plot_coords_in_volume(
     subvol=False,
     verbose=False,
     mayavi=False,
+    config_prefix="",
 ):
 
     from miv_simulator.geometry.geometry import get_total_extents
 
-    env = Env(config=config)
+    env = Env(config=config, config_prefix=config_prefix)
 
     rotate = env.geometry["Parametric Surface"]["Rotation"]
     layer_extents = env.geometry["Parametric Surface"]["Layer Extents"]
@@ -2445,6 +2446,7 @@ def plot_network_clamp(
     target_input_features_arena_id=None,
     target_input_features_trajectory_id=None,
     config_file=None,
+    config_prefix="",
     include="eachPop",
     include_artificial=True,
     time_range=None,
@@ -2586,6 +2588,7 @@ def plot_network_clamp(
             config_file=config_file,
             arena_id=target_input_features_arena_id,
             trajectory_id=target_input_features_trajectory_id,
+            config_prefix=config_prefix,
         )
 
         if env.analysis_config is not None:

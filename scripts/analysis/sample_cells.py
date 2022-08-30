@@ -38,6 +38,13 @@ sys.excepthook = mpi_excepthook
 )
 @click.option("--config", "-c", required=True, type=str)
 @click.option(
+    "--config-prefix",
+    required=True,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default="config",
+    help="path to directory containing network config files",
+)
+@click.option(
     "--dataset-prefix",
     required=True,
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
@@ -93,6 +100,7 @@ sys.excepthook = mpi_excepthook
 def main(
     arena_id,
     config,
+    config_prefix,
     dataset_prefix,
     distances_namespace,
     spike_input_path,
@@ -126,6 +134,7 @@ def main(
         arena_id=arena_id,
         stimulus_id=stimulus_id,
         io_size=io_size,
+        config_prefix=config_prefix,
     )
 
     selection = []
