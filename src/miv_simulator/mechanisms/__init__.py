@@ -4,9 +4,10 @@ from glob import glob
 
 import commandlib
 import miv_simulator
+from neuron import h
 
 
-def compile():
+def compile() -> str:
     # attempt to automatically compile
     src = os.path.join(os.path.dirname(miv_simulator.__file__), "mechanisms")
     compiled = os.path.join(src, "compiled")
@@ -23,3 +24,12 @@ def compile():
             )
         nrnivmodl = commandlib.Command("nrnivmodl").in_dir(compiled)
         nrnivmodl.run()
+
+    return compiled
+
+
+def compile_and_load():
+    src = compile()
+    h(
+        f"nrn_load_dll(\"{os.path.join(src, 'x86_64', '.libs', 'libnrnmech.so')}\")"
+    )
