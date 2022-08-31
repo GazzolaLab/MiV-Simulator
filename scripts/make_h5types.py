@@ -3,8 +3,8 @@ import os
 import sys
 
 import click
-from MiV import env, io_utils, utils
-from MiV.env import Env
+from miv_simulator import utils
+from miv_simulator.simulator import make_h5types
 
 
 @click.command()
@@ -15,15 +15,22 @@ from MiV.env import Env
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
 )
 @click.option(
+    "--config-prefix",
+    required=True,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default="config",
+    help="path to directory containing network and cell mechanism config files",
+)
+@click.option(
     "--output-path",
     default="MiV_h5types.h5",
     type=click.Path(exists=False, file_okay=True, dir_okay=False),
 )
 @click.option("--gap-junctions", is_flag=True)
-def main(config, output_path, gap_junctions):
-
-    env = Env(config_file=config)
-    io_utils.make_h5types(env, output_path, gap_junctions=gap_junctions)
+def main(config, config_prefix, output_path, gap_junctions):
+    make_h5types(
+        config, output_path, gap_junctions, config_prefix=config_prefix
+    )
 
 
 if __name__ == "__main__":

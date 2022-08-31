@@ -9,9 +9,9 @@ import sys
 
 import click
 import numpy as np
-from MiV import network
-from MiV.env import Env
-from MiV.utils import config_logging, list_find
+from miv_simulator import network
+from miv_simulator.env import Env
+from miv_simulator.utils import config_logging, list_find
 from mpi4py import MPI
 
 
@@ -54,6 +54,13 @@ sys.excepthook = mpi_excepthook
     help="model configuration file name",
 )
 @click.option(
+    "--config-prefix",
+    required=True,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default="config",
+    help="path to directory containing network and cell mechanism config files",
+)
+@click.option(
     "--template-paths",
     type=str,
     default="templates",
@@ -71,13 +78,6 @@ sys.excepthook = mpi_excepthook
     required=True,
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
     help="path to directory containing required neuroh5 data files",
-)
-@click.option(
-    "--config-prefix",
-    required=True,
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    default="config",
-    help="path to directory containing network and cell mechanism config files",
 )
 @click.option(
     "--results-path",
@@ -236,10 +236,10 @@ def main(
     arena_id,
     cell_selection_path,
     config_file,
+    config_prefix,
     template_paths,
     hoc_lib_path,
     dataset_prefix,
-    config_prefix,
     results_path,
     results_id,
     node_rank_file,
@@ -278,13 +278,11 @@ def main(
     comm = MPI.COMM_WORLD
     np.seterr(all="raise")
     params = dict(locals())
-
+    params["config"] = params.pop("config_file")
     env = Env(**params)
 
     if profile_time:
         import cProfile
-
-        from MiV.network import init, run
 
         cProfile.runctx(
             "init(env)", None, locals(), filename="MiV_profile_init"
