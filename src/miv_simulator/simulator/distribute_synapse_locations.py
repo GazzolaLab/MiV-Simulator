@@ -173,6 +173,7 @@ def distribute_synapse_locations(
     verbose,
     dry_run,
     debug,
+    config_prefix="",
 ):
 
     utils.config_logging(verbose)
@@ -188,6 +189,7 @@ def distribute_synapse_locations(
         comm=comm,
         config=config,
         template_paths=template_path,
+        config_prefix=config_prefix,
     )
 
     configure_hoc_env(env)

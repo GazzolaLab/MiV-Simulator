@@ -23,6 +23,12 @@ script_name = os.path.basename(__file__)
     help="model configuration file name",
 )
 @click.option(
+    "--config-prefix",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default="config",
+    help="path to directory containing network and cell mechanism config files",
+)
+@click.option(
     "--population", "-p", required=True, type=str, help="target population"
 )
 @click.option("--gid", "-g", required=True, type=int, help="target cell gid")
@@ -73,6 +79,7 @@ script_name = os.path.basename(__file__)
 @click.option("--verbose", "-v", type=bool, default=False, is_flag=True)
 def main(
     config_file,
+    config_prefix,
     population,
     gid,
     template_paths,

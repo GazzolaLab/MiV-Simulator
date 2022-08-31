@@ -10,6 +10,12 @@ from miv_simulator.utils import list_find
 @click.command()
 @click.option("--config", required=True, type=str)
 @click.option(
+    "--config-prefix",
+    required=True,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default="config",
+)
+@click.option(
     "--coords-path",
     required=True,
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
@@ -45,6 +51,7 @@ from miv_simulator.utils import list_find
 @click.option("--dry-run", is_flag=True)
 def main(
     config,
+    config_prefix,
     coords_path,
     distances_namespace,
     output_path,
@@ -92,6 +99,7 @@ def main(
         font_size,
         fig_format,
         dry_run,
+        config_prefix=config_prefix,
     )
 
 

@@ -54,6 +54,13 @@ sys.excepthook = mpi_excepthook
     help="model configuration file name",
 )
 @click.option(
+    "--config-prefix",
+    required=True,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default="config",
+    help="path to directory containing network and cell mechanism config files",
+)
+@click.option(
     "--template-paths",
     type=str,
     default="templates",
@@ -229,6 +236,7 @@ def main(
     arena_id,
     cell_selection_path,
     config_file,
+    config_prefix,
     template_paths,
     hoc_lib_path,
     dataset_prefix,

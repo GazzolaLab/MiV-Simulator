@@ -155,6 +155,7 @@ def generate_input_features(
     font_size,
     fig_format,
     dry_run,
+    config_prefix="",
 ):
     """
 
@@ -190,6 +191,7 @@ def generate_input_features(
         comm=comm,
         config=config,
         template_paths=None,
+        config_prefix=config_prefix,
     )
     if io_size == -1:
         io_size = comm.size

@@ -140,6 +140,7 @@ def generate_soma_coordinates(
     chunk_size: int = 1000,
     value_chunk_size: int = 1000,
     verbose: bool = False,
+    config_prefix="",
 ):
 
     config_logging(verbose)
@@ -165,7 +166,7 @@ def generate_soma_coordinates(
             output_file.close()
     comm.barrier()
 
-    env = Env(comm=comm, config=config)
+    env = Env(comm=comm, config=config, config_prefix=config_prefix)
 
     random_seed = int(env.model_config["Random Seeds"]["Soma Locations"])
     random.seed(random_seed)

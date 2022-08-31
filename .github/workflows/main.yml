@@ -38,8 +38,9 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get install -y libhdf5-mpi-dev # Install hdf5-mpi
-          poetry config virtualenvs.in-project true
+          poetry config virtualenvs.in-project false
           poetry install
+          poetry run pip install neuron
       # Test MiV-Simulator using pytest
       - name: Run tests
         run: |

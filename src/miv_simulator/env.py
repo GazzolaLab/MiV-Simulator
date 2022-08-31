@@ -102,6 +102,7 @@ class Env(AbstractEnv):
         use_coreneuron: bool = False,
         transfer_debug: bool = False,
         verbose: bool = False,
+        config_prefix="",
         **kwargs,
     ) -> None:
         """
@@ -254,10 +255,14 @@ class Env(AbstractEnv):
         self.cache_queries = cache_queries
 
         self.model_config = None
+        self.config_prefix = config_prefix
         if rank == 0:
             if isinstance(config, str):
                 # load complete configuration from file
-                with open(config) as fp:
+                p = config
+                if config_prefix != "" and not os.path.isabs(config):
+                    p = os.path.join(config_prefix, config)
+                with open(p) as fp:
                     self.model_config = yaml.load(fp, IncludeLoader)
             else:
                 # load default configuration and apply configuration update
@@ -991,9 +996,10 @@ class Env(AbstractEnv):
                     ]
                     mech_dict = None
                     if rank == 0:
-                        mech_dict = read_from_yaml(
-                            celltypes[k]["mech_file_path"]
-                        )
+                        mech_file_path = celltypes[k]["mech_file_path"]
+                        if self.config_prefix is not None:
+                            mech_file_path = os.path.join(self.config_prefix, mech_file_path)
+                        mech_dict = read_from_yaml(mech_file_path)
                     mech_dict = self.comm.bcast(mech_dict, root=0)
                     celltypes[k]["mech_dict"] = mech_dict
                 if "synapses" in celltypes[k]:

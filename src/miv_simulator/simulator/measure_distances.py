@@ -40,6 +40,7 @@ def measure_distances(
     value_chunk_size,
     cache_size,
     verbose,
+    config_prefix="",
 ):
     utils.config_logging(verbose)
     logger = utils.get_script_logger(__file__)
@@ -47,7 +48,7 @@ def measure_distances(
     comm = MPI.COMM_WORLD
     rank = comm.rank
 
-    env = Env(comm=comm, config=config)
+    env = Env(comm=comm, config=config, config_prefix=config_prefix)
     output_path = coords_path
 
     soma_coords = {}
