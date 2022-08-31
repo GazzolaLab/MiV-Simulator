@@ -71,6 +71,7 @@ class LFP:
         dt_lfp: float = 0.5,
         seed: int = 1,
     ) -> None:
+        
         self.label = label
         self.pc = pc
         self.dt_lfp = dt_lfp
