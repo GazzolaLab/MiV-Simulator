@@ -12,7 +12,7 @@ import click
 import h5py
 import numpy as np
 from miv_simulator import io_utils, spikedata, stimulus, synapses
-from miv_simulator.cell_clamp import init_biophys_cell
+from miv_simulator.clamps.cell import init_biophys_cell
 from miv_simulator.cells import (
     h,
     is_cell_registered,
@@ -23,7 +23,7 @@ from miv_simulator.cells import (
     report_topology,
 )
 from miv_simulator.env import Env
-from miv_simulator.neuron_utils import configure_hoc_env, h
+from miv_simulator.utils.neuron import configure_hoc_env, h
 from miv_simulator.stimulus import oscillation_phase_mod_config, rate_maps_from_features
 from miv_simulator.utils import (
     Context,
@@ -653,7 +653,7 @@ def init(
     gc.collect()
 
     if plot_cell:
-        from miv_simulator.plot import plot_synaptic_attribute_distribution
+        from miv_simulator.plotting import plot_synaptic_attribute_distribution
 
         syn_attrs = env.synapse_attributes
         syn_name = "AMPA"

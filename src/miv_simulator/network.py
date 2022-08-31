@@ -4,6 +4,8 @@ Network initialization routines.
 
 from typing import Dict, Union
 
+from typing import Dict, Union
+
 import gc
 import os
 import pprint
