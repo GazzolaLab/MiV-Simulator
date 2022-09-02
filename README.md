@@ -1,12 +1,14 @@
 <div align='center'>
 <h1>MiV - Simulator</h1>
+
+[![Documentation Status][badge-documentation]][link-documentation]
 </div>
 
 Bio-physical neural network simulator for Mind-in-Vitro in context of processing and computation.
 
 ## Documentation
 
-Documentation available [here][link-documentation]
+The installation guideline and detailed documentation is available [here][link-documentation].
 
 ## Running the main network simulation script
 
@@ -30,7 +32,7 @@ mpirun python ./scripts/main.py \ # Main network simulation script
     --v-init=-75 \
     --checkpoint-interval=10 \ # Simuation time interval for saving simulation outputs
     --checkpoint-clear-data \ # Clear data from memory after saving
-    --max-walltime-hours=1 \ # Maximum walltime allotted 
+    --max-walltime-hours=1 \ # Maximum walltime allotted
     --verbose
 ```
 
@@ -71,6 +73,8 @@ Cell Types:
 [//]: # (Collection of URLs)
 
 [link-poetry-website]: https://python-poetry.org/
-[link-documentation]:
+[link-documentation]: https://miv-simulator.readthedocs.io/en/latest/?badge=latest
+
+[badge-documentation]: https://readthedocs.org/projects/miv-simulator/badge/?version=latest
 
 [source-hdf5]: https://www.hdfgroup.org/downloads/hdf5/
