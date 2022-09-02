@@ -1,4 +1,4 @@
-# Generic installation
+# Generic Installation
 
 The installation consist two part: python-dependencies and external libraries.
 
@@ -21,11 +21,21 @@ make poetry-downloads  # Install poetry on the system
 make install           # Install MiV-Simulator
 ```
 
+> **Note**: If any issues are encoutered, please make a report to [GitHub-Issue](https://github.com/GazzolaLab/MiV-Simulator/issues).
+
+> The installation using `pip` is not yet supported due to the dependency compilation.
+
 ## External Libraries
 
 1. Building and installing NEURON
 
+```sh
+pip install neuron
 ```
+
+<details>
+  <summary>How to install from the source</summary>
+```sh
 git clone https://github.com/neuronsimulator/nrn.git
 cd nrn
 mkdir build
@@ -33,12 +43,13 @@ cd build
 cmake .. -DNRN_ENABLE_INTERVIEWS=OFF -DNRN_ENABLE_MPI=ON -DNRN_ENABLE_RX3D=ON -DNRN_ENABLE_CORENEURON=ON -DNRN_ENABLE_PYTHON=ON -DPYTHON_EXECUTABLE=$(which python3) -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx
 make install
 ```
+</details>
 
 2. Building and installing NeuroH5
 
 The NeuroH5 build system requires cmake.
 
-```
+```sh
 git clone https://github.com/soltesz-lab/neuroh5.git
 cd neuroh5
 CMAKE_BUILD_PARALLEL_LEVEL=8 pip install .
@@ -51,6 +62,8 @@ For architecture-level optimization, some of the core libraries should be built 
 > **NOTE:** Make sure to run on a worker node, not the login-node!
 
 ### Necessary Modules
+
+Following modules (or equivalent modules) are necessary before starting the installation.
 
 ```sh
 module load python/3
@@ -96,12 +109,12 @@ export PYTHONPATH=<Installation path>/lib/python:$PYTHONPATH
 
 <details>
   <summary>Possible Issues</summary>
-  
+
 - `Readline` cannot be found:
     - Try to install `Readline` using `apt` or `yum`. It can also be installed using `conda`.
     - `Readline` might already exist on the system. Search in `/usr/lib` or `/usr/lib64`.
     - Pass environment variable directly: `cmake -DReadline_INCLUDE_DIR=/usr/lib64 -DReadline_LIBRARY=/usr/lib64/libreadline.so.7 ....`
-  
+
 </details>
 <br/>
 
