@@ -8,14 +8,22 @@ submodules:
 build:
   os: ubuntu-20.04
   tools: {python: "3.10"}
+  apt_packages:
+    - mpich
+    - cmake
+    - libhdf5-mpi-dev
   jobs:
-    pre_create_environment:
-      - asdf plugin add poetry
-      - asdf install poetry latest
-      - asdf global poetry latest
-      - poetry config virtualenvs.create false  # Key
     post_install:
-      - poetry install -E "docs" # Later after poetry 1.2, replace with flag --all-extras (https://github.com/python-poetry/poetry/issues/3413)
+      - pip install --upgrade pip
+      - pip install neuron
+
+python:
+  install:
+    - method: pip
+      path: .
+      extra_requirements:
+        - docs
+  system_packages: true
 
 # Build documentation in the docs/ directory with Sphinx
 sphinx:
