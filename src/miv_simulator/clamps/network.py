@@ -11,7 +11,7 @@ from collections import defaultdict
 import click
 import h5py
 import numpy as np
-from miv_simulator import io_utils, spikedata, stimulus, synapses
+from miv_simulator import spikedata, stimulus, synapses
 from miv_simulator.clamps.cell import init_biophys_cell
 from miv_simulator.cells import (
     h,
@@ -38,6 +38,7 @@ from miv_simulator.utils import (
     read_from_yaml,
     write_to_yaml,
 )
+from miv_simulator.utils import io as io_utils
 from mpi4py import MPI
 from neuroh5.io import (
     bcast_cell_attributes,

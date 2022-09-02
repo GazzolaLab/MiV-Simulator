@@ -5,6 +5,7 @@ examples/datasets
 __pycache__/
 *.py[cod]
 *$py.class
+.DS_Store
 
 # C extensions
 *.so
@@ -86,6 +87,9 @@ ipython_config.py
 
 # pyenv
 .python-version
+
+# vim/linux
+*.swp
 
 # pipenv
 #   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.

@@ -1,3 +1,4 @@
+from typing import List, Optional, Any, Tuple
 import copy
 import sys
 import time
@@ -1057,35 +1058,55 @@ def plot_spike_raster(
 
 
 def plot_spike_histogram(
-    input_path,
+    input_path:str,
     namespace_id,
-    config_path=None,
-    include=["eachPop"],
-    time_variable="t",
-    time_range=None,
-    pop_rates=False,
-    bin_size=5.0,
-    smooth=0,
-    quantity="rate",
-    include_artificial=True,
-    progress=False,
-    overlay=True,
-    graph_type="bar",
+    config_path:Optional[str]=None,
+    include:List[str]=["eachPop"], # TODO: Probably not safe
+    time_variable:str="t",
+    time_range:Optional[Tuple[int,int]]=None,
+    pop_rates:bool=False,
+    bin_size:int=5,
+    smooth:float=0,
+    quantity:str="rate",
+    include_artificial:bool=True,
+    progress:bool=False,
+    overlay:bool=True,
+    graph_type:str="bar",
     **kwargs,
 ):
     """
     Plots spike histogram. Returns figure handle.
 
-        - input_path: file with spike data
-        - namespace_id: attribute namespace for spike events
-        - include (['eachPop'|<population name>]): List of data series to include.
-            (default: ['eachPop'] - expands to the name of each population)
-        - time_variable: Name of variable containing spike times (default: 't')
-        - time_range ([start:stop]): Time range of spikes shown; if None shows all (default: None)
-        - bin_size (int): Size in ms of each bin (default: 5)
-        - overlay (True|False): Whether to overlay the data lines or plot in separate subplots (default: True)
-        - graph_type ('line'|'bar'): Type of graph to use (line graph or bar plot) (default: 'line')
-        - quantity ('rate'|'count'): Quantity of y axis (firing rate in Hz, or spike count) (default: 'rate')
+    Parameters
+    ----------
+    input_path : str
+        file with spike data
+    namespace_id :
+        attribute namespace for spike events
+    config_path : Optional[str]
+        config_path
+    include : List[str] (["eachPop", <population name>])
+        List of data series to include. (default: ["eachPop"] expands to the name of each population)
+    time_variable : str
+        Name of variable containing spike times (default: "t")
+    time_range : Optional[Tuple[int,int]] ([start:stop])
+        Time range of spikes shown. If None shows all. (default: None)
+    pop_rates : bool
+        pop_rates
+    bin_size : int
+        Size in ms of each bin (default: 5)
+    smooth : float
+        smooth
+    quantity : str ("rate", "count")
+        Quantity of y axis (firing rate in Hz, or spike count) (default: "rate")
+    include_artificial : bool
+        include_artificial
+    progress : bool
+        progress
+    overlay : bool
+        Whether to overlay the data lines or plot in separate subplots (default: True)
+    graph_type : str ("line", "bar")
+        Type of graph to use (line graph or bar plot) (default: "line")
     """
     fig_options = copy.copy(default_fig_options)
     fig_options.update(kwargs)

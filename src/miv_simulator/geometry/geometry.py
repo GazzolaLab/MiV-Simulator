@@ -438,17 +438,17 @@ def interp_soma_distances(
     ip_dist_v : RBFInterpolant
         Interpolation function for computing arc distances along the second dimension of the volume.
     soma_coords : { population_name : coords_dict }
-        A dictionary that maps each cell population name to a dictionary of coordinates. The dictionary of coordinates must have the following type:
-          coords_dict : { gid : (u, v, l) }
-          where:
-          - gid: cell identifier
-          - u, v, l: floating point coordinates
+        | A dictionary that maps each cell population name to a dictionary of coordinates. The dictionary of coordinates must have the following type:
+        | coords_dict : { gid : (u, v, l) }
+        | where:
+        |    - gid: cell identifier
+        |    - u, v, l: floating point coordinates
     population_layers: { population_name : layers }
-        A dictionary of population count per layer
-        Argument layers has the following type:
-         { layer_name: count }
+        | A dictionary of population count per layer
+        | Argument layers has the following type: { layer_name: count }
     allgather: boolean (default: False)
-       if True, the results are gathered from all ranks and combined
+        if True, the results are gathered from all ranks and combined
+
     Returns
     -------
     A dictionary of the form:

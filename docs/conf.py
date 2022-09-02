@@ -57,7 +57,7 @@ exclude_patterns = [
 ]
 
 autodoc_default_options = {
-    # "members": False,
+    "members": True,
     "member-order": "bysource",
     "special-members": "",
     "exclude-members": "__weakref__",
@@ -65,7 +65,7 @@ autodoc_default_options = {
 }
 autosectionlabel_prefix_document = True
 autosummary_generate = True
-autosummary_generate_overwrite = False
+autosummary_generate_overwrite = True
 
 source_parsers: Dict[str, str] = {}
 source_suffix = {
@@ -129,3 +129,4 @@ numpydoc_show_class_members = False
 
 # -- Options for myst-nb ---------------------------------------------------
 nb_execution_mode = "off"
+
