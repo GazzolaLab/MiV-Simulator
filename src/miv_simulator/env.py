@@ -998,7 +998,9 @@ class Env(AbstractEnv):
                     if rank == 0:
                         mech_file_path = celltypes[k]["mech_file_path"]
                         if self.config_prefix is not None:
-                            mech_file_path = os.path.join(self.config_prefix, mech_file_path)
+                            mech_file_path = os.path.join(
+                                self.config_prefix, mech_file_path
+                            )
                         mech_dict = read_from_yaml(mech_file_path)
                     mech_dict = self.comm.bcast(mech_dict, root=0)
                     celltypes[k]["mech_dict"] = mech_dict

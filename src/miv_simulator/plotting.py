@@ -1058,20 +1058,20 @@ def plot_spike_raster(
 
 
 def plot_spike_histogram(
-    input_path:str,
+    input_path: str,
     namespace_id,
-    config_path:Optional[str]=None,
-    include:List[str]=["eachPop"], # TODO: Probably not safe
-    time_variable:str="t",
-    time_range:Optional[Tuple[int,int]]=None,
-    pop_rates:bool=False,
-    bin_size:int=5,
-    smooth:float=0,
-    quantity:str="rate",
-    include_artificial:bool=True,
-    progress:bool=False,
-    overlay:bool=True,
-    graph_type:str="bar",
+    config_path: Optional[str] = None,
+    include: List[str] = ["eachPop"],  # TODO: Probably not safe
+    time_variable: str = "t",
+    time_range: Optional[Tuple[int, int]] = None,
+    pop_rates: bool = False,
+    bin_size: int = 5,
+    smooth: float = 0,
+    quantity: str = "rate",
+    include_artificial: bool = True,
+    progress: bool = False,
+    overlay: bool = True,
+    graph_type: str = "bar",
     **kwargs,
 ):
     """

@@ -129,4 +129,3 @@ numpydoc_show_class_members = False
 
 # -- Options for myst-nb ---------------------------------------------------
 nb_execution_mode = "off"
-

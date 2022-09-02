@@ -24,7 +24,10 @@ from miv_simulator.cells import (
 )
 from miv_simulator.env import Env
 from miv_simulator.utils.neuron import configure_hoc_env, h
-from miv_simulator.stimulus import oscillation_phase_mod_config, rate_maps_from_features
+from miv_simulator.stimulus import (
+    oscillation_phase_mod_config,
+    rate_maps_from_features,
+)
 from miv_simulator.utils import (
     Context,
     config_logging,
