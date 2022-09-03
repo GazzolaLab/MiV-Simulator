@@ -20,7 +20,7 @@ from scipy import interpolate
 if TYPE_CHECKING:
     from neuron.hoc import HocObject
 
-# This logger will inherit its settings from the root logger, created in MiV.env
+# This logger will inherit its settings from the root logger, created in miv_simulator.env
 logger = get_module_logger(__name__)
 
 

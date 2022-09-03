@@ -348,7 +348,7 @@ def config_logging(verbose: bool) -> None:
 
 
 def get_root_logger() -> logging.Logger:
-    logger = logging.getLogger("MiV")
+    logger = logging.getLogger("miv_simulator")
     return logger
 
 
@@ -358,11 +358,11 @@ def get_module_logger(name: str) -> logging.Logger:
 
 
 def get_script_logger(name):
-    logger = logging.getLogger(f"MiV.{name}")
+    logger = logging.getLogger(f"miv_simulator.{name}")
     return logger
 
 
-# This logger will inherit its settings from the root logger, created in MiV.env
+# This logger will inherit its settings from the root logger, created in miv_simulator.env
 logger = get_module_logger(__name__)
 
 
@@ -566,7 +566,7 @@ def make_geometric_graph(x, y, z, edges):
     of the end nodes.
 
     Parameters
-    -----------
+    ----------
     x: ndarray
         x coordinates of the points
     y: ndarray
@@ -579,11 +579,11 @@ def make_geometric_graph(x, y, z, edges):
         algorithm.
 
     Returns
-    ---------
+    -------
     g: A NetworkX undirected graph
 
     Notes
-    ------
+    -----
     We don't bother putting the coordinates into the NX graph.
     Instead the graph node is an index to the column.
     """

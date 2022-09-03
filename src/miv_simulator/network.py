@@ -1,8 +1,8 @@
-"""
+__doc__ = """
 Network initialization routines.
 """
 
-__author__ = "See AUTHORS.md"
+from typing import Dict, Union
 
 from typing import Dict, Union
 
@@ -38,7 +38,7 @@ from neuroh5.io import (
 )
 from numpy import ndarray
 
-# This logger will inherit its settings from the root logger, created in MiV.env
+# This logger will inherit its settings from the root logger, created in miv_simulator.env
 logger = get_module_logger(__name__)
 
 
@@ -53,7 +53,7 @@ def ld_bal(env):
     """
     For given cxvec on each rank, calculates the fractional load balance.
 
-    :param env: an instance of the `MiV.Env` class.
+    :param env: an instance of the `miv_simulator.Env` class.
     """
     rank = int(env.pc.id())
     nhosts = int(env.pc.nhost())
@@ -73,7 +73,7 @@ def lpt_bal(env):
     Each rank has gidvec, cxvec: gather everything to rank 0, do lpt
     algorithm and write to a balance file.
 
-    :param env: an instance of the `MiV.Env` class.
+    :param env: an instance of the `miv_simulator.Env` class.
     """
     rank = int(env.pc.id())
     nhosts = int(env.pc.nhost())
@@ -104,7 +104,7 @@ def connect_cells(env: Env) -> None:
     Loads NeuroH5 connectivity file, instantiates the corresponding
     synapse and network connection mechanisms for each postsynaptic cell.
 
-    :param env: an instance of the `MiV.Env` class
+    :param env: an instance of the `miv_simulator.Env` class
     """
     connectivity_file_path = env.connectivity_file_path
     forest_file_path = env.forest_file_path
@@ -540,7 +540,7 @@ def connect_cell_selection(env):
     Loads NeuroH5 connectivity file, instantiates the corresponding
     synapse and network connection mechanisms for the selected postsynaptic cells.
 
-    :param env: an instance of the `MiV.Env` class
+    :param env: an instance of the `miv_simulator.Env` class
     """
     connectivity_file_path = env.connectivity_file_path
     forest_file_path = env.forest_file_path
@@ -821,7 +821,7 @@ def connect_gjs(env: Env) -> None:
     Loads NeuroH5 connectivity file, instantiates the corresponding
     half-gap mechanisms on the pre- and post-junction cells.
 
-    :param env: an instance of the `MiV.Env` class
+    :param env: an instance of the `miv_simulator.Env` class
 
     """
     rank = int(env.pc.id())
@@ -915,7 +915,7 @@ def make_cells(env: Env) -> None:
     """
     Instantiates cell templates according to population ranges and NeuroH5 morphology if present.
 
-    :param env: an instance of the `MiV.Env` class
+    :param env: an instance of the `miv_simulator.Env` class
     """
     rank = int(env.pc.id())
     nhosts = int(env.pc.nhost())
@@ -1135,7 +1135,7 @@ def make_cell_selection(env):
     Instantiates cell templates for the selected cells according to
     population ranges and NeuroH5 morphology if present.
 
-    :param env: an instance of the `MiV.Env` class
+    :param env: an instance of the `miv_simulator.Env` class
     """
 
     rank = int(env.pc.id())
@@ -1307,7 +1307,7 @@ def make_input_cell_selection(env):
     """
     Creates cells with predefined spike patterns when only a subset of the network is instantiated.
 
-    :param env: an instance of the `MiV.Env` class
+    :param env: an instance of the `miv_simulator.Env` class
     """
     rank = int(env.pc.id())
     nhosts = int(env.pc.nhost())
@@ -1410,7 +1410,7 @@ def init_input_cells(env: Env) -> None:
     """
     Initializes cells with predefined spike patterns.
 
-    :param env: an instance of the `MiV.Env` class
+    :param env: an instance of the `miv_simulator.Env` class
     """
 
     rank = int(env.pc.id())
@@ -1736,7 +1736,7 @@ def init(env: Env) -> None:
     Initializes the network by calling make_cells, init_input_cells, connect_cells, connect_gjs.
     If env.optldbal or env.optlptbal are specified, performs load balancing.
 
-    :param env: an instance of the `MiV.Env` class
+    :param env: an instance of the `miv_simulator.Env` class
     """
     neuron_utils.configure_hoc_env(env)
 
@@ -1875,7 +1875,7 @@ def run(
     called with the network configuration provided by the `env`
     argument.
 
-    :param env: an instance of the `MiV.Env` class
+    :param env: an instance of the `miv_simulator.Env` class
     :param output: if True, output spike and cell voltage trace data
     :param output_syn_spike_count: if True, output spike counts per pre-synaptic source for each gid
     """
