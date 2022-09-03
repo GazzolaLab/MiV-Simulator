@@ -11,6 +11,12 @@ API Documentation
    clamps
    utils
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Executables
+
+   cli
+
 Indices and tables
 ==================
 
