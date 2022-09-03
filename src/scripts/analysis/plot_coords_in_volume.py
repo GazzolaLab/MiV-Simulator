@@ -2,7 +2,7 @@
 import sys
 
 import click
-from miv_simulator import plottting as plot
+from miv_simulator import plotting as plot
 from miv_simulator import utils
 
 
