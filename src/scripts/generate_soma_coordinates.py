@@ -17,7 +17,6 @@ from miv_simulator.utils import list_find
     "--config-prefix",
     required=False,
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    default="config",
 )
 @click.option(
     "--types-path",

@@ -1,90 +1,103 @@
 ---
-jupytext:
-  text_representation:
-    extension: .md
-    format_name: myst
-    format_version: 0.13
-    jupytext_version: 1.14.1
-kernelspec:
-  display_name: Python 3 (ipykernel)
-  language: python
-  name: python3
-file_format: mystnb
+jupyter:
+  jupytext:
+    text_representation:
+      extension: .md
+      format_name: markdown
+      format_version: '1.3'
+      jupytext_version: 1.14.1
+  kernelspec:
+    display_name: Python 3
+    language: python
+    name: python3
 ---
 
 # Creating H5Types definitions
 
-```sh
-python ../scripts/make_h5types.py -c ../config/Microcircuit_Small.yaml --output-path datasets/MiV_Small_h5types.h5
+```python
+import os
+import matplotlib.pyplot as plt
+
+datapath = "datasets"
+os.makedirs(datapath, exist_ok=True)
 ```
 
-```sh
-h5ls -r ./datasets/MiV_Small_h5types.h5
+```python
+#!make-h5types --output-path datasets/MiV_Small_h5types.h5  # If config path is not specified, use default.
+!make-h5types --config-prefix config -c Microcircuit_Small.yaml --output-path datasets/MiV_Small_h5types.h5
 ```
 
-```sh
-h5dump -d /H5Types/Populations ./datasets/MiV_Small_h5types.h5
+```python
+!h5ls -r ./datasets/MiV_Small_h5types.h5
+```
+
+```python
+!h5dump -d /H5Types/Populations ./datasets/MiV_Small_h5types.h5
 ```
 
 # Copying and compiling NMODL mechanisms
 
-```sh
-cp ../mechanisms/*.mod .
-```
-
-```sh
-~/bin/nrnpython3/bin/nrnivmodl .
+```python
+!nrnivmodl .
 ```
 
 # Generating soma coordinates and measuring distances
 
-```sh
-python3 ../scripts/generate_soma_coordinates.py -v \
+```python
+!generate-soma-coordinates -v \
     --config=Microcircuit_Small.yaml \
-    --types-path=./datasets/MiV_Small_h5types.h5 \
-    --output-path=./datasets/Microcircuit_Small_coords.h5 \
-    --output-namespace='Generated Coordinates' 
+    --config-prefix=config \
+    --types-path=datasets/MiV_Small_h5types.h5 \
+    --output-path=datasets/Microcircuit_Small_coords.h5 \
+    --output-namespace='Generated Coordinates'
 ```
 
-```sh
-mpirun.mpich -n 8 python3 ../scripts/measure_distances.py -v \
+```python
+!mpiexec -n 1 measure-distances -v \
              -i PYR -i PVBC -i OLM -i STIM \
-             --config=../config/Microcircuit_Small.yaml \
-             --coords-path=./datasets/Microcircuit_Small_coords.h5 
+             --config=Microcircuit_Small.yaml \
+             --config-prefix=config \
+             --coords-path=datasets/Microcircuit_Small_coords.h5
 ```
 
-```sh
-python ../scripts/plot_coords_in_volume.py \
---config ../config/Microcircuit_Small.yaml \
---coords-path datasets/Microcircuit_Small_coords.h5 \
--i PYR -i PVBC -i OLM
+```python
+%matplotlib inline
 ```
 
-```sh
-python ../scripts/plot_coords_in_volume.py \
---config ../config/Microcircuit_Small.yaml \
---coords-path datasets/Microcircuit_Small_coords.h5 \
--i STIM
+```python
+!plot-coords-in-volume \
+    --config config/Microcircuit_Small.yaml \
+    --coords-path datasets/Microcircuit_Small_coords.h5 \
+    -i PYR -i PVBC -i OLM
+```
+
+```python
+!plot-coords-in-volume \
+    --config config/Microcircuit_Small.yaml \
+    --coords-path datasets/Microcircuit_Small_coords.h5 \
+    -i STIM
+
+
 ```
 
 # Distributing synapses along dendritic trees
 
-```sh
-~/src/neuroh5/bin/neurotrees_copy --fill --output datasets/PYR_forest_Small.h5 datasets/PYR_tree.h5 PYR 10
+```python
+!~/github/neuroh5/bin/neurotrees_copy --fill --output datasets/PYR_forest_Small.h5 datasets/PYR_tree.h5 PYR 10
 ```
 
-```sh
-~/src/neuroh5/bin/neurotrees_copy --fill --output datasets/PVBC_forest_Small.h5 datasets/PVBC_tree.h5 PVBC 90
+```python
+!~/github/neuroh5/bin/neurotrees_copy --fill --output datasets/PVBC_forest_Small.h5 datasets/PVBC_tree.h5 PVBC 90
 ```
 
-```sh
-~/src/neuroh5/bin/neurotrees_copy --fill --output datasets/OLM_forest_Small.h5 datasets/OLM_tree.h5 OLM 143
+```python
+!~/github/neuroh5/bin/neurotrees_copy --fill --output datasets/OLM_forest_Small.h5 datasets/OLM_tree.h5 OLM 143
 ```
 
-```sh
-mpirun.mpich -n 1 python3 ../scripts/distribute_synapse_locs.py \
-             --template-path ../templates \
-              --config=Microcircuit.yaml \
+```python
+!mpiexec -n 1 distribute-synapse-locs \
+              --template-path ../templates \
+              --config=config/Microcircuit_Small.yaml \
               --populations PYR \
               --forest-path=./datasets/PYR_forest_Small.h5 \
               --output-path=./datasets/PYR_forest_Small.h5 \
@@ -92,10 +105,10 @@ mpirun.mpich -n 1 python3 ../scripts/distribute_synapse_locs.py \
               --io-size=1 --write-size=0 -v
 ```
 
-```sh
-mpirun.mpich -n 1 python3 ../scripts/distribute_synapse_locs.py \
+```python
+!mpiexec -n 1 distribute-synapse-locs \
              --template-path ../templates \
-              --config=Microcircuit.yaml \
+              --config=config/Microcircuit_Small.yaml \
               --populations PVBC \
               --forest-path=./datasets/PVBC_forest_Small.h5 \
               --output-path=./datasets/PVBC_forest_Small.h5 \
@@ -103,10 +116,10 @@ mpirun.mpich -n 1 python3 ../scripts/distribute_synapse_locs.py \
               --io-size=1 --write-size=0 -v
 ```
 
-```sh
-mpirun.mpich -n 1 python3 ../scripts/distribute_synapse_locs.py \
+```python
+!mpiexec -n 1 distribute-synapse-locs \
              --template-path ../templates \
-              --config=Microcircuit.yaml \
+              --config=config/Microcircuit_Small.yaml \
               --populations OLM \
               --forest-path=./datasets/OLM_forest_Small.h5 \
               --output-path=./datasets/OLM_forest_Small.h5 \
@@ -116,9 +129,9 @@ mpirun.mpich -n 1 python3 ../scripts/distribute_synapse_locs.py \
 
 # Generating connections
 
-```sh
-mpirun.mpich -n 8 python3 ../scripts/generate_distance_connections.py \
-    --config=Microcircuit_Small.yaml \
+```python
+!mpiexec -n 8 generate-distance-connections \
+    --config=config/Microcircuit_Small.yaml \
     --forest-path=datasets/PYR_forest_Small.h5 \
     --connectivity-path=datasets/Microcircuit_Small_connections.h5 \
     --connectivity-namespace=Connections \
@@ -127,9 +140,9 @@ mpirun.mpich -n 8 python3 ../scripts/generate_distance_connections.py \
     --io-size=1 --cache-size=20 --write-size=100 -v
 ```
 
-```sh
-mpirun.mpich -n 8 python3 ../scripts/generate_distance_connections.py \
-    --config=Microcircuit_Small.yaml \
+```python
+!mpiexec -n 8 generate-distance-connections \
+    --config=config/Microcircuit_Small.yaml \
     --forest-path=datasets/PVBC_forest_Small.h5 \
     --connectivity-path=datasets/Microcircuit_Small_connections.h5 \
     --connectivity-namespace=Connections \
@@ -138,13 +151,9 @@ mpirun.mpich -n 8 python3 ../scripts/generate_distance_connections.py \
     --io-size=1 --cache-size=20 --write-size=100 -v
 ```
 
-```sh
-
-```
-
-```sh
-mpirun.mpich -n 8 python3 ../scripts/generate_distance_connections.py \
-    --config=Microcircuit_Small.yaml \
+```python
+!mpiexec -n 8 generate-distance-connections \
+    --config=config/Microcircuit_Small.yaml \
     --forest-path=datasets/OLM_forest_Small.h5 \
     --connectivity-path=datasets/Microcircuit_Small_connections.h5 \
     --connectivity-namespace=Connections \
@@ -155,18 +164,18 @@ mpirun.mpich -n 8 python3 ../scripts/generate_distance_connections.py \
 
 # Creating input features and spike trains
 
-```sh
-mpirun.mpich -n 1 python3 ../scripts/generate_input_features.py \
+```python
+!mpiexec -n 1 generate-input-features \
         -p STIM \
-        --config=Microcircuit_Small.yaml \
+        --config=config/Microcircuit_Small.yaml \
         --coords-path=datasets/Microcircuit_Small_coords.h5 \
         --output-path=datasets/Microcircuit_Small_input_features.h5 \
         -v
 ```
 
-```sh
-mpirun.mpich -np 2 python3 ../scripts/generate_input_spike_trains.py \
-             --config=Microcircuit_Small.yaml \
+```python
+!mpiexec -np 2 generate-input-spike-trains \
+             --config=config/Microcircuit_Small.yaml \
              --selectivity-path=datasets/Microcircuit_Small_input_features.h5 \
              --output-path=datasets/Microcircuit_Small_input_spikes.h5 \
              --n-trials=3 -p STIM -v
@@ -174,7 +183,7 @@ mpirun.mpich -np 2 python3 ../scripts/generate_input_spike_trains.py \
 
 # Creating data files
 
-```{code-cell} ipython3
+```python
 import os, sys
 import h5py, pathlib
 
@@ -209,7 +218,7 @@ MiV_PVBC_connectivity_file = "Microcircuit_Small_connections.h5"
 MiV_OLM_connectivity_file = "Microcircuit_Small_connections.h5"
 ```
 
-```{code-cell} ipython3
+```python
 connectivity_files = {
     "PYR": MiV_PYR_connectivity_file,
     "PVBC": MiV_PVBC_connectivity_file,
@@ -256,11 +265,11 @@ vecstim_dict = {
 }
 ```
 
-```{code-cell} ipython3
+```python
 %cd datasets
 ```
 
-```{code-cell} ipython3
+```python
 ## Creates H5Types entries
 with h5py.File(MiV_cells_file, "w") as f:
     input_file = h5py.File(h5types_file, "r")
@@ -268,7 +277,7 @@ with h5py.File(MiV_cells_file, "w") as f:
     input_file.close()
 ```
 
-```{code-cell} ipython3
+```python
 ## Creates coordinates entries
 with h5py.File(MiV_cells_file, "a") as f_dst:
 
@@ -288,7 +297,7 @@ with h5py.File(MiV_cells_file, "a") as f_dst:
             h5_copy_dataset(f_src, f_dst, distances_dset_path)
 ```
 
-```{code-cell} ipython3
+```python
 ## Creates forest entries and synapse attributes
 for p in MiV_populations:
     if p in forest_files:
@@ -310,7 +319,7 @@ for p in MiV_populations:
         os.system(cmd)
 ```
 
-```{code-cell} ipython3
+```python
 ## Creates vector stimulus entries
 for (vecstim_ns, vecstim_file) in vecstim_dict.items():
     for p in MiV_EXT_populations:
@@ -323,7 +332,7 @@ for (vecstim_ns, vecstim_file) in vecstim_dict.items():
         os.system(cmd)
 ```
 
-```{code-cell} ipython3
+```python
 with h5py.File(MiV_connections_file, "w") as f:
     input_file = h5py.File(h5types_file, "r")
     h5_copy_dataset(input_file, f, "/H5Types")
@@ -342,10 +351,10 @@ for p in MiV_populations:
         os.system(cmd)
 ```
 
-```{code-cell} ipython3
+```python
 %cd ..
 ```
 
-```{code-cell} ipython3
+```python
 
 ```

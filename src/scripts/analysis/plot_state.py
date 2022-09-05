@@ -3,7 +3,7 @@ import re
 import sys
 
 import click
-from miv_simulator import plottting as plot
+from miv_simulator import plotting as plot
 from miv_simulator import statedata, utils
 
 script_name = os.path.basename(__file__)

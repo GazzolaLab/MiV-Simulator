@@ -12,13 +12,12 @@ from miv_simulator.simulator import measure_distances
 @click.option(
     "--config",
     required=True,
-    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+    type=click.Path(file_okay=True, dir_okay=False),
 )
 @click.option(
     "--config-prefix",
     required=True,
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    default="config",
     help="path to directory containing network and cell mechanism config files",
 )
 @click.option(
