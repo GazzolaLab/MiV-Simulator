@@ -32,6 +32,7 @@ extensions = [
     "sphinx_copybutton",
     "sphinx.ext.mathjax",
     "sphinxcontrib.mermaid",
+    "sphinx_click",
     "numpydoc",
     "myst_nb",
 ]

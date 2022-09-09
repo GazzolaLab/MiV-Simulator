@@ -474,13 +474,16 @@ def generate_soma_coordinates(
         coords_count = 0
         coords_count = np.sum(np.asarray(comm.allgather(len(coords))))
 
-        mean_xyz_error = np.asarray(
-            [
-                (total_xyz_error[0] / coords_count),
-                (total_xyz_error[1] / coords_count),
-                (total_xyz_error[2] / coords_count),
-            ]
-        )
+        if coords_count == 0:
+            mean_xyz_error = np.asarray([0.0, 0.0, 0.0])
+        else:
+            mean_xyz_error = np.asarray(
+                [
+                    (total_xyz_error[0] / coords_count),
+                    (total_xyz_error[1] / coords_count),
+                    (total_xyz_error[2] / coords_count),
+                ]
+            )
 
         pop_coords_dict[population] = coords
         coords_offset += gen_coords_count

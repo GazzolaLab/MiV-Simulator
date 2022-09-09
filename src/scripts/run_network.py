@@ -1,8 +1,6 @@
-#!/usr/bin/env python
-"""
+__doc__ = """
 Network model simulation script.
 """
-__author__ = "See AUTHORS.md"
 
 import os
 import sys
