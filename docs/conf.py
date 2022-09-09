@@ -72,7 +72,7 @@ source_suffix = {
     ".rst": "restructuredtext",
     ".md": "myst-nb",
     ".myst": "myst-nb",
-    ".ipynb": "myst-nb",
+    # ".ipynb": "myst-nb",  # Try to convert any notebook file to md file using jupytext.
 }
 
 master_doc = "index"

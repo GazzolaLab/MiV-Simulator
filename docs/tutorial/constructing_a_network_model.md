@@ -12,7 +12,12 @@ kernelspec:
 file_format: mystnb
 ---
 
-# Creating H5Types definitions
+# First Simulation Example
+
+First, download following configuration files: [here](https://uofi.box.com/shared/static/a88dy7muglte90hklryw0xskv7ne13j0.zip).
+The detail description and configurability of each file is included [here]()
+
+## Creating H5Types definitions
 
 ```sh
 python ../scripts/make_h5types.py -c ../config/Microcircuit_Small.yaml --output-path datasets/MiV_Small_h5types.h5
@@ -43,14 +48,14 @@ python3 ../scripts/generate_soma_coordinates.py -v \
     --config=Microcircuit_Small.yaml \
     --types-path=./datasets/MiV_Small_h5types.h5 \
     --output-path=./datasets/Microcircuit_Small_coords.h5 \
-    --output-namespace='Generated Coordinates' 
+    --output-namespace='Generated Coordinates'
 ```
 
 ```sh
 mpirun.mpich -n 8 python3 ../scripts/measure_distances.py -v \
              -i PYR -i PVBC -i OLM -i STIM \
              --config=../config/Microcircuit_Small.yaml \
-             --coords-path=./datasets/Microcircuit_Small_coords.h5 
+             --coords-path=./datasets/Microcircuit_Small_coords.h5
 ```
 
 ```sh
