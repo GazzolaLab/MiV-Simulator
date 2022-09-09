@@ -12,10 +12,17 @@ kernelspec:
 file_format: mystnb
 ---
 
-# First Simulation Example
+# Simulation Notebook
 
-First, download following configuration files: [here](https://uofi.box.com/shared/static/a88dy7muglte90hklryw0xskv7ne13j0.zip).
-The detail description and configurability of each file is included [here]()
+```{mermaid}
+graph LR
+D(Design</br>Experiment) -->|yaml| C(Construct</br>Simulation) -->|h5| R(Run) -->|h5| P(Post Process)
+```
+
+To run the first example simulation, first download the configuration files for this experiment:
+- Download: [link](https://uofi.box.com/shared/static/a88dy7muglte90hklryw0xskv7ne13j0.zip).
+
+> The detail description and configurability of each file is included [here](basic_configuration_yaml.md).
 
 ## Creating H5Types definitions
 

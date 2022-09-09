@@ -1,0 +1,94 @@
+## Recording configuration for field potentials and intracellular quantities
+Intracellular:
+  Network default:
+    fraction: 0.2
+    dt: 0.1
+    section quantity:
+      v:
+        swc types:
+          - soma
+  Network clamp default:
+    dt: 0.025
+    section quantity:
+      v:
+        swc types:
+          - soma
+          - ais
+          - apical
+          - basal
+  Network clamp axial current:
+    dt: 0.025
+    section quantity:
+      start.v:
+        variable: v
+        loc:
+          - 1e-3
+          - 1e-3
+        swc types:
+          - apical
+          - basal
+      mid.v:
+        variable: v
+        loc:
+          - 0.5
+          - 0.5
+          - 0.5
+        swc types:
+          - soma
+          - apical
+          - basal
+  Network clamp inh synaptic:
+    dt: 0.1
+    reduce: True
+    section quantity:
+      v:
+        swc types:
+          - soma
+          - hillock
+          - apical
+          - basal
+    synaptic quantity:
+      i:
+        syn types:
+          - inhibitory
+  Network clamp exc synaptic:
+    dt: 0.1
+    reduce: True
+    section quantity:
+      v:
+        swc types:
+          - soma
+          - hillock
+          - apical
+          - basal
+    synaptic quantity:
+      i:
+        syn types:
+          - excitatory
+  Network clamp all synaptic:
+    dt: 0.5
+    reduce: True
+    section quantity:
+      v:
+        swc types:
+          - soma
+          - ais
+          - hillock
+          - apical
+          - basal
+    synaptic quantity:
+      i: {}
+LFP:
+  # Configuration for virtual local field potential recordings
+  Electrode 0:
+    rho: 333.0
+    position: [-1205.5, 2700.3, -211.7]
+    maxEDist: 100.
+    fraction: .1
+    dt: 0.1
+  Electrode 1:
+    rho: 333.0
+    position: [-1205.5, 2700.3, -411.7]
+    maxEDist: 100.
+    fraction: .1
+    dt: 0.1
