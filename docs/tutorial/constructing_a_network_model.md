@@ -92,6 +92,22 @@ os.makedirs(datapath, exist_ok=True)
 
 ```
 
+# Creating dendritic trees in NeuroH5 format
+
+`*.swc` file contains 3D point structure of the cell model. The tree model `*_tree.h5` can be created using `neurotree_import` feature from `neuroh5`.
+
+```python
+!~/github/neuroh5/bin/neurotrees_import PVBC datasets/PVBC_tree.h5 datasets/PVBC.swc
+
+!~/github/neuroh5/bin/neurotrees_import PYR datasets/PYR_tree.h5 datasets/PYR.swc
+
+!~/github/neuroh5/bin/neurotrees_import OLM datasets/OLM_tree.h5 datasets/OLM.swc
+
+!h5copy -p -s '/H5Types' -d '/H5Types' -i datasets/MiV_Small_h5types.h5 -o datasets/PVBC_tree.h5
+!h5copy -p -s '/H5Types' -d '/H5Types' -i datasets/MiV_Small_h5types.h5 -o datasets/PYR_tree.h5
+!h5copy -p -s '/H5Types' -d '/H5Types' -i datasets/MiV_Small_h5types.h5 -o datasets/OLM_tree.h5
+```
+
 # Distributing synapses along dendritic trees
 
 ```python
