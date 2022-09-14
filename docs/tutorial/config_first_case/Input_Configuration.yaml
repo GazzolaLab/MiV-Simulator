@@ -1,0 +1,62 @@
+
+Spatial Resolution: 3.0  # cm
+Temporal Resolution: 1.0  # ms
+Equilibration Duration: 250. # ms
+
+Selectivity Type Probabilities:
+  STIM:
+    constant: 1.0
+  PYR:
+    constant: 1.0
+  PVBC:
+    constant: 1.0
+  OLM:
+    constant: 1.0
+
+
+Peak Rate:
+  STIM:
+    constant: 80.0
+  PYR:
+    constant: 20.0
+  PVBC:
+    constant: 21.0
+  OLM:
+    constant: 10.0
+
+
+
+Global Oscillation:
+  frequency: 5.0 # oscillation frequency
+  Phase Distribution:  # parameters of phase distribution along septotemporal axis
+    slope: 16.5
+    offset: 0.0
+  Phase Modulation: # cell type-specific modulation
+    PYR:
+      phase range: [0, 150]
+      depth: 0.5
+    PVBC:
+      phase range: [180, 540]
+      depth: 0.8
+    OLM:
+      phase range: [200, 560]
+      depth: 0.8
+
+Arena:
+  A:
+    Domain:
+      vertices: [[-100, -100], [-100, 100], [100, 100], [100, -100]]
+      simplices: [[0,1], [1,2], [2,3], [3,0]]
+
+    Trajectory:
+      Diag:
+        path: [[-100, -100], [100, 100]]
+        run velocity: 30.  # cm/s
+
+
+    default run velocity: 30.  # cm/s
+
+  Calibration:
+    Domain:
+      vertices: [[-32.5, -32.5], [-32.5, 32.5], [32.5, 32.5], [32.5, -32.5]]
+      simplices: [[0,1], [1,2], [2,3], [3,0]]

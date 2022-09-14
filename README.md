@@ -21,7 +21,7 @@ export results_path
 mkdir -p $results_path
 
 cd MiV
-mpirun python ./scripts/main.py \ # Main network simulation script
+mpirun python ./scripts/run_network.py \ # Main network simulation script
     --config-file=Test_Slice_10um.yaml  \ # Configuration file
     --arena-id=A --trajectory-id=Diag \ # Arena and trajectory identifier for simulated spatial input
     --template-paths=../dgc/Mateos-Aparicio2014:templates \ # Must include directory with DGC template
@@ -34,40 +34,6 @@ mpirun python ./scripts/main.py \ # Main network simulation script
     --checkpoint-clear-data \ # Clear data from memory after saving
     --max-walltime-hours=1 \ # Maximum walltime allotted
     --verbose
-```
-
-## Example Configuration
-
-### File Test_Microcircuit.yaml
-
-```YAML
-## Sample Model configuration of MiV network
-Model Name: MiV
-Dataset Name: Microcircuit
-Definitions: !include Definitions.yaml
-Global Parameters: !include Global.yaml
-Geometry: !include Geometry.yaml
-Random Seeds: !include Random.yaml
-Cell Data: Test_Microcircuit.h5
-Connection Data: Test_Microcircuit.h5
-Connection Generator: !include Microcircuit_Connections.yaml
-Stimulus: !include Input_Configuration.yaml
-## Cell types for MiV model
-Cell Types:
-Cell Types:
-  PYR:
-    template: PoolosPyramidalCell
-    synapses:
-      density: !include PYR_synapse_density.yaml
-  OLM:
-    template: OLMCell
-    synapses:
-      density: !include OLM_synapse_density.yaml
-  PVBC:
-    template: PVBasketCell
-    synapses:
-      density: !include PVBC_synapse_density.yaml
-
 ```
 
 [//]: # (Collection of URLs)

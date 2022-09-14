@@ -1,0 +1,12 @@
+Firing Rate Inference:
+  Temporal Resolution: 1.  # ms
+  BAKS Alpha: 4.7725100028345535
+  BAKS Beta: 0.41969058927343522
+  Pad Duration: 1000.  # ms
+
+Mutual Information:
+  Spatial Resolution: 5.  # cm
+
+Place Fields:
+  Minimum Width: 10.
+  Minimum Rate: 1.
