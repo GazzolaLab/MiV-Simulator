@@ -14,6 +14,8 @@ jupyter:
 
 # Simulation Notebook
 
+> This tool extensively use NeuroH5 for simulation data structure. It is recommended to check this [discussion](../discussion/neuroh5.rst).
+
 ```{mermaid}
 graph LR
 D(Design</br>Experiment) -->|yaml| C(Construct</br>Simulation) -->|h5| R(Run) -->|h5| P(Post Process)
