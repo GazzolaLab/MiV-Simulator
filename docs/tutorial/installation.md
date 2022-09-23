@@ -85,6 +85,12 @@ make && make check
 make install && make check-install
 ```
 
+### H5PY
+
+```sh
+CC="mpicc" HDF5_MPI="ON" HDF5_DIR=/Users/skim0119/github/hdf5-1.12.1/build pip install --no-binary=h5py h5py
+```
+
 ### Install/Build Python Dependencies
 
 ```sh
