@@ -80,9 +80,15 @@ Download the source from [here][source-hdf5].
 wget https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.12/hdf5-1.12.1/src/hdf5-1.12.1.tar.gz
 tar -xzf hdf5-1.12.1.tar.gz
 cd hdf5-1.12.1
-CC=mpicc ./configure --prefix=$PWD/build --enable-parallel
+CC=mpicc ./configure --prefix=$PWD/build --enable-parallel --enable-shared
 make && make check
 make install && make check-install
+```
+
+### H5PY
+
+```sh
+CC="mpicc" HDF5_MPI="ON" HDF5_DIR=/Users/skim0119/github/hdf5-1.12.1/build pip install --no-binary=h5py h5py
 ```
 
 ### Install/Build Python Dependencies
@@ -141,8 +147,12 @@ cd neuroh5
 export HDF5_SOURCE=<HDF5 installation directory>
 export PATH=$PATH:$HDF5_SOURCE/build
 
-(make sure the node has enough RAM and cores, otherwise the compilation will fail)
+# (make sure the node has enough RAM and cores, otherwise the compilation will fail)
 CMAKE_BUILD_PARALLEL_LEVEL=8 pip install .
+```
 
+```sh
+cmake .
+make -j4
 export PATH=<NeuroH5 installation path>/bin:$PATH
 ```
