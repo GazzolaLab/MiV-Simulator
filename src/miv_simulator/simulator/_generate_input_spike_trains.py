@@ -11,7 +11,7 @@ import h5py
 import numpy as np
 from miv_simulator.env import Env
 from miv_simulator.stimulus import (
-    generate_input_spike_trains,
+    generate_stimulus_from_spike_trains,
     generate_linear_trajectory,
     get_equilibration,
     oscillation_phase_mod_config,
@@ -403,7 +403,9 @@ def generate_input_spike_trains(
                         phase_mod_config = None
                         if phase_mod_config_dict is not None:
                             phase_mod_config = phase_mod_config_dict[gid]
-                        spikes_attr_dict[gid] = generate_input_spike_trains(
+                        spikes_attr_dict[
+                            gid
+                        ] = generate_stimulus_from_spike_trains(
                             env,
                             population,
                             selectivity_type_names,
