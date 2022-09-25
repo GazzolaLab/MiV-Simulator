@@ -41,6 +41,13 @@ os.makedirs(datapath, exist_ok=True)
 !make-h5types --config-prefix config -c Microcircuit_Small.yaml --output-path datasets/MiV_Small_h5types.h5
 ```
 
+You can use HDF5 utilities `h5ls` and `h5dump` to examine the contents of an HDF5 file as we build the case study.
+
+- h5ls: List each objects of an HDF5 file name and objects within the file. Apply method recursively with `-r` flag.
+- h5dump: Display h5 contents in dictionary format, in human readable form.
+
+For more detail, checkout [this page](https://www.asc.ohio-state.edu/wilkins.5/computing/HDF/hdf5tutorial/util.html).
+
 ```python
 !h5ls -r ./datasets/MiV_Small_h5types.h5
 ```
@@ -51,11 +58,15 @@ os.makedirs(datapath, exist_ok=True)
 
 # Copying and compiling NMODL mechanisms
 
+For more detail of NEURON NMODL, checkout [this page](http://web.mit.edu/neuron_v7.4/nrntuthtml/tutorial/tutD.html)
+
 ```python
 !nrnivmodl .
 ```
 
 # Generating soma coordinates and measuring distances
+
+Here, we create `Microcircuit_Small_coords.h5` file that stores soma coordinate information. To see the contents in the file, try to use `h5dump` like above.
 
 ```python
 !generate-soma-coordinates -v \
@@ -73,6 +84,8 @@ os.makedirs(datapath, exist_ok=True)
              --config-prefix=config \
              --coords-path=datasets/Microcircuit_Small_coords.h5
 ```
+
+## Visualize
 
 ```python
 %matplotlib inline
@@ -158,6 +171,10 @@ os.makedirs(datapath, exist_ok=True)
 ```
 
 # Generating connections
+
+Here, we generate distance connection network and store it in `Microcircuit_Small_connections.h5` file.
+
+> The schematic of the data structure can be found [here](../discussion/neuroh5.rst).
 
 ```python
 !mpiexec -n 8 generate-distance-connections \
