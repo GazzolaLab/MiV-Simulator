@@ -304,7 +304,7 @@ forest_syns_files = {
 }
 
 
-vecstim_file_dict = {"A Diag": "MiV_input_spikes.h5"}
+vecstim_file_dict = {"A Diag": "Microcircuit_Small_input_spikes.h5"}
 
 vecstim_dict = {
     f"Input Spikes {stim_id}": stim_file
@@ -402,6 +402,23 @@ for p in MiV_populations:
 %cd ..
 ```
 
-```python
+# Run Network
 
+```python
+!mpirun --use-hwthread-cpus -n 8 run-network \
+    --config-file=Microcircuit_Small.yaml  \
+    --config-prefix=config_first_case \
+    --arena-id=A \
+    --stimulus-id=Diag \
+    --template-paths=templates \
+    --dataset-prefix="./datasets" \
+    --results-path=results \
+    --io-size=1 \
+    --tstop=500 \
+    --v-init=-75 \
+    --results-write-time=60 \
+    --stimulus-onset=0.0 \
+    --max-walltime-hours=0.49 \
+    --dt 0.025 \
+    --verbose
 ```
