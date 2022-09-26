@@ -75,7 +75,7 @@ RUN which h5copy \
     && which neurotrees_import
 
 # Neuron (nrn)
-RUN pip install --no-cache-dir neuron
+RUN pip install --no-cache-dir neuron==8.2.1
 
 # MiV Packages
 RUN mkdir -p /home/shared
@@ -83,9 +83,7 @@ WORKDIR /home/shared
 
 RUN git clone https://github.com/GazzolaLab/MiV-Simulator \
     && cd MiV-Simulator \
-    && poetry lock -n; poetry install
-
-RUN pip install MiV-OS
+    && poetry install
 
 #a Other Utilities
 RUN apt-get install -y --no-install-recommends vim

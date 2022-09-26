@@ -6,7 +6,7 @@ We provide `Dockerfile` to quick-install docker image. The image contains necess
 
 ```bash
 cd MiV-Simulator                         # Change directory to repository
-docker build --tag miv_env:0.1 .         # Build image
+docker build . --tag miv_env:0.1         # Build image
 docker run -p 8888:8888 -it miv_env:0.1  # Launch jupyter-lab
 ```
 
