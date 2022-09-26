@@ -66,6 +66,7 @@ RUN pip install --no-cache-dir mpi4py
 
 # NeuroH5
 RUN git clone https://github.com/iraikov/neuroh5.git
+RUN pip install numpy
 RUN pip install ./neuroh5
 RUN cd neuroh5 \
     && cmake . && make -j4
