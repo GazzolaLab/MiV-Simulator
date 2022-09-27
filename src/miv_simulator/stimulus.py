@@ -356,7 +356,7 @@ def generate_linear_trajectory(
     return t, interp_x, interp_y, interp_distance
 
 
-def generate_stimulus_from_spike_trains(
+def generate_input_spike_trains(
     env: AbstractEnv,
     population: str,
     selectivity_type_names: Dict[int, str],
