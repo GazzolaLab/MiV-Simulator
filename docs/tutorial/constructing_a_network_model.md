@@ -7,10 +7,13 @@ jupyter:
       format_version: '1.3'
       jupytext_version: 1.14.1
   kernelspec:
-    display_name: Python 3
+    display_name: Python 3 (ipykernel)
     language: python
     name: python3
 ---
+
+> Add the option `--use-hwthread-cpus` for `mpirun` to use thread-wise MPI instead of core.
+
 
 # Simulation Notebook
 
@@ -78,33 +81,43 @@ Here, we create `Microcircuit_Small_coords.h5` file that stores soma coordinate 
 ```
 
 ```python
-!mpiexec -n 1 measure-distances -v \
+!mpirun -np 1 measure-distances -v \
              -i PYR -i PVBC -i OLM -i STIM \
              --config=Microcircuit_Small.yaml \
              --config-prefix=config \
              --coords-path=datasets/Microcircuit_Small_coords.h5
 ```
 
-## Visualize
+## Visualize (Soma Location)
 
 ```python
+from miv_simulator import plotting as plot
+from miv_simulator import utils
+import matplotlib.pyplot as plt
+
 %matplotlib inline
 ```
 
 ```python
-!plot-coords-in-volume \
-    --config config/Microcircuit_Small.yaml \
-    --coords-path datasets/Microcircuit_Small_coords.h5 \
-    -i PYR -i PVBC -i OLM
+utils.config_logging(True)
+fig = plot.plot_coords_in_volume(
+    populations=("PYR", "PVBC", "OLM"),
+    coords_path="datasets/Microcircuit_Small_coords.h5",
+    config="config_first_case/Microcircuit_Small.yaml",
+    coords_namespace="Generated Coordinates",
+    scale=25.0,
+)
 ```
 
 ```python
-!plot-coords-in-volume \
-    --config config/Microcircuit_Small.yaml \
-    --coords-path datasets/Microcircuit_Small_coords.h5 \
-    -i STIM
-
-
+utils.config_logging(True)
+fig = plot.plot_coords_in_volume(
+    populations=("STIM",),
+    coords_path="datasets/Microcircuit_Small_coords.h5",
+    config="config_first_case/Microcircuit_Small.yaml",
+    coords_namespace="Generated Coordinates",
+    scale=25.0,
+)
 ```
 
 # Creating dendritic trees in NeuroH5 format
@@ -138,9 +151,10 @@ Here, we create `Microcircuit_Small_coords.h5` file that stores soma coordinate 
 ```
 
 ```python
-!mpiexec -n 1 distribute-synapse-locs \
+!mpirun -np 1 distribute-synapse-locs \
               --template-path ../templates \
-              --config=config/Microcircuit_Small.yaml \
+              --config=Microcircuit_Small.yaml \
+              --config-prefix=config_first_case \
               --populations PYR \
               --forest-path=./datasets/PYR_forest_Small.h5 \
               --output-path=./datasets/PYR_forest_Small.h5 \
@@ -149,9 +163,10 @@ Here, we create `Microcircuit_Small_coords.h5` file that stores soma coordinate 
 ```
 
 ```python
-!mpiexec -n 1 distribute-synapse-locs \
-             --template-path ../templates \
-              --config=config/Microcircuit_Small.yaml \
+!mpirun -np 1 distribute-synapse-locs \
+              --template-path ../templates \
+              --config=Microcircuit_Small.yaml \
+              --config-prefix=config_first_case \
               --populations PVBC \
               --forest-path=./datasets/PVBC_forest_Small.h5 \
               --output-path=./datasets/PVBC_forest_Small.h5 \
@@ -160,9 +175,10 @@ Here, we create `Microcircuit_Small_coords.h5` file that stores soma coordinate 
 ```
 
 ```python
-!mpiexec -n 1 distribute-synapse-locs \
+!mpirun -np 1 distribute-synapse-locs \
              --template-path ../templates \
-              --config=config/Microcircuit_Small.yaml \
+              --config=Microcircuit_Small.yaml \
+              --config-prefix=config_first_case \
               --populations OLM \
               --forest-path=./datasets/OLM_forest_Small.h5 \
               --output-path=./datasets/OLM_forest_Small.h5 \
@@ -177,8 +193,9 @@ Here, we generate distance connection network and store it in `Microcircuit_Smal
 > The schematic of the data structure can be found [here](../discussion/neuroh5.rst).
 
 ```python
-!mpiexec -n 8 generate-distance-connections \
-    --config=config/Microcircuit_Small.yaml \
+!mpirun -np 8 generate-distance-connections \
+    --config=Microcircuit_Small.yaml \
+    --config-prefix=config_first_case \
     --forest-path=datasets/PYR_forest_Small.h5 \
     --connectivity-path=datasets/Microcircuit_Small_connections.h5 \
     --connectivity-namespace=Connections \
@@ -188,8 +205,9 @@ Here, we generate distance connection network and store it in `Microcircuit_Smal
 ```
 
 ```python
-!mpiexec -n 8 generate-distance-connections \
-    --config=config/Microcircuit_Small.yaml \
+!mpirun -np 8 generate-distance-connections \
+    --config=Microcircuit_Small.yaml \
+    --config-prefix=config_first_case \
     --forest-path=datasets/PVBC_forest_Small.h5 \
     --connectivity-path=datasets/Microcircuit_Small_connections.h5 \
     --connectivity-namespace=Connections \
@@ -199,8 +217,9 @@ Here, we generate distance connection network and store it in `Microcircuit_Smal
 ```
 
 ```python
-!mpiexec -n 8 generate-distance-connections \
-    --config=config/Microcircuit_Small.yaml \
+!mpirun -np 8 generate-distance-connections \
+    --config=Microcircuit_Small.yaml \
+    --config-prefix=config_first_case \
     --forest-path=datasets/OLM_forest_Small.h5 \
     --connectivity-path=datasets/Microcircuit_Small_connections.h5 \
     --connectivity-namespace=Connections \
@@ -212,17 +231,19 @@ Here, we generate distance connection network and store it in `Microcircuit_Smal
 # Creating input features and spike trains
 
 ```python
-!mpiexec -n 1 generate-input-features \
+!mpirun -np 1 generate-input-features \
         -p STIM \
-        --config=config/Microcircuit_Small.yaml \
+        --config=Microcircuit_Small.yaml \
+        --config-prefix=config_first_case \
         --coords-path=datasets/Microcircuit_Small_coords.h5 \
         --output-path=datasets/Microcircuit_Small_input_features.h5 \
         -v
 ```
 
 ```python
-!mpiexec -np 2 generate-input-spike-trains \
-             --config=config/Microcircuit_Small.yaml \
+!mpirun -np 2 generate-input-spike-trains \
+             --config=Microcircuit_Small.yaml \
+             --config-prefix=config_first_case \
              --selectivity-path=datasets/Microcircuit_Small_input_features.h5 \
              --output-path=datasets/Microcircuit_Small_input_spikes.h5 \
              --n-trials=3 -p STIM -v
@@ -377,6 +398,12 @@ for (vecstim_ns, vecstim_file) in vecstim_dict.items():
         )
         print(cmd)
         os.system(cmd)
+
+## Copy coordinates for STIM cells
+p = "STIM"
+cmd = f"h5copy -p -s '/Populations/{p}/Generated Coordinates' -d '/Populations/{p}/Coordinates' -i {MiV_cells_file} -o {MiV_cells_file}"
+print(cmd)
+os.system(cmd)
 ```
 
 ```python
@@ -405,7 +432,7 @@ for p in MiV_populations:
 # Run Network
 
 ```python
-!mpirun --use-hwthread-cpus -n 8 run-network \
+!mpirun -np 8 run-network \
     --config-file=Microcircuit_Small.yaml  \
     --config-prefix=config_first_case \
     --arena-id=A \
