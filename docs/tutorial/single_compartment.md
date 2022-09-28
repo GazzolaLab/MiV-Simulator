@@ -27,4 +27,6 @@ The general workflow is to use a complete dendritic morphology to create the syn
 
 ## Replace cell types to use `SC_nrn` template
 
+`SC_nrn.mod` file is located within `mechanisms` directory.
+
 ## Run simulation

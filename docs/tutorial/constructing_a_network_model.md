@@ -26,9 +26,8 @@ The experiment is designed within `YAML` configurations. To run the first exampl
 
 - Download: [link](https://uofi.box.com/shared/static/a88dy7muglte90hklryw0xskv7ne13j0.zip).
   1. __config__: configuration YAML files to construct simulation
-  2. __mechanisms__: collection of NEURON mechanism files (.mod files)
-  3. __templates__: collection of cell parameters (.hoc files)
-  4. __datasets__: directory to construct simulation in h5 format. It also contains (.swc) files.
+  2. __templates__: collection of cell parameters (.hoc files)
+  3. __datasets__: directory to construct simulation in h5 format. It also contains (.swc) files.
 
 In the remaining, we demonstrate how to construct the simulation and how to run the simulation.
 
@@ -50,6 +49,7 @@ The configuration of the simuulation environment (soma coordinate, dendrite conn
 
 ```{code-cell} python
 :tags: [hide-cell]
+
 !rm -rf datasets/*.h5
 ```
 
