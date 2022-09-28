@@ -1,0 +1,38 @@
+# Common definitions used in model configuration of neuron and network models
+SWC Types:
+  soma:   1
+  axon:   2
+  basal:  3
+  apical: 4
+  trunk:  5
+  tuft:   6
+  ais:    7
+  hillock: 8
+Synapse Types:
+  excitatory:    0
+  inhibitory:    1
+  modulatory:    2
+Synapse Mechanisms:
+  AMPA:    0
+  GABA_A:  1
+  GABA_B:  2
+  NMDA:    30
+Layers:
+  Hilus: 0
+  GCL:   1  ## Granule cell
+  IML:   2  ## Inner molecular
+  MML:   3  ## Middle molecular
+  OML:   4  ## Outer molecular
+  SO:    5  ## Oriens
+  SP:    6  ## Pyramidale
+  SL:    7  ## Lucidum
+  SR:    8  ## Radiatum
+  SLM:   9  ## Lacunosum-moleculare
+Populations:
+  STIM: 0
+  PYR:  100
+  PVBC:  101
+  OLM:  102
+Input Selectivity Types:
+  random: 0
+  constant: 1
