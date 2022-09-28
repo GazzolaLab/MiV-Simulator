@@ -54,6 +54,10 @@ Synapse / Dentrites Configuration
    :language: yaml
    :caption:
 
+.. literalinclude:: config_first_case/PYR_SoldadoMagraner.yaml
+   :linenos:
+   :language: yaml
+   :caption:
 
 .. literalinclude:: config_first_case/Synapse_Parameter_Rules.yaml
    :linenos:
