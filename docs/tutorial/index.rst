@@ -6,6 +6,7 @@ Tutorial
    :caption: How-To
 
    installation
+   docker
 
 .. toctree::
    :maxdepth: 2
