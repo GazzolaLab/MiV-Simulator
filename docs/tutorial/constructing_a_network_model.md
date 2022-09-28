@@ -25,6 +25,10 @@ D(Design</br>Experiment) -->|yaml| C(Construct</br>Simulation) -->|h5| R(Run) --
 The experiment is designed within `YAML` configurations. To run the first example simulation, we provide the set of configuration files below:
 
 - Download: [link](https://uofi.box.com/shared/static/a88dy7muglte90hklryw0xskv7ne13j0.zip).
+  1. __config__: configuration YAML files to construct simulation
+  2. __mechanisms__: collection of NEURON mechanism files (.mod files)
+  3. __templates__: collection of cell parameters (.hoc files)
+  4. __datasets__: directory to construct simulation in h5 format. It also contains (.swc) files.
 
 In the remaining, we demonstrate how to construct the simulation and how to run the simulation.
 
