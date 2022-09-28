@@ -9,7 +9,7 @@ cd MiV-Simulator                         # Change directory to repository
 docker build . --tag miv_env:0.1         # Build image
 ```
 
-By default, the image runs the `jupyter-lab` binds to the port `8888`. User can alther the destination port by setting `8888:<destination port>`.
+By default, the image runs the `jupyter-lab` binds to the port `8888`. User can alther the destination port by setting `<destination port>:8888`.
 
 ```bash
 docker run -p 8888:8888 -it miv_env:0.1  # Launch jupyter-lab
