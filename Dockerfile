@@ -83,11 +83,26 @@ RUN mkdir -p /home/shared
 WORKDIR /home/shared
 
 RUN git clone https://github.com/GazzolaLab/MiV-Simulator \
-    && cd MiV-Simulator \
-    && poetry install
+    && pip install -e ./MiV-Simulator
 
-#a Other Utilities
-RUN apt-get install -y --no-install-recommends vim
-RUN pip install jupyter jupyterlab
+# Other Utilities
+RUN apt-get install -y --no-install-recommends vim unzip
+RUN apt-get install -y --no-install-recommends python-is-python3
+RUN pip install jupyter jupyterlab jupytext
+RUN pip install miv-os
 
+# Prepare example cases
+## TODO: Later, replace to example repository.
+ARG DIRNAME=sample_case_1
+RUN mkdir -p $DIRNAME
+WORKDIR /home/shared/$DIRNAME
+RUN wget https://uofi.box.com/shared/static/a88dy7muglte90hklryw0xskv7ne13j0.zip -O files.zip \
+    && unzip files.zip \
+    && rm files.zip
+COPY docs/tutorial/constructing_a_network_model.md .
+RUN jupytext constructing_a_network_model.md --to ipynb \
+    && rm constructing_a_network_model.md
+
+# Launch jupyter lab
+WORKDIR /home/shared
 CMD ["jupyter", "lab", "--app_dir=/home/shared", "--port=8888", "--allow-root", "--ip", "0.0.0.0"]
