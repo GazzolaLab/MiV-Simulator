@@ -27,6 +27,6 @@ The general workflow is to use a complete dendritic morphology to create the syn
 
 ## Replace cell types to use `SC_nrn` template
 
-`SC_nrn.mod` file is located within `mechanisms` directory.
+`SC_nrn.mod` file is located within `mechanisms` directory. Neuron mechanism files (*.mod) provides a way to configure hoc templates via yaml.
 
 ## Run simulation
