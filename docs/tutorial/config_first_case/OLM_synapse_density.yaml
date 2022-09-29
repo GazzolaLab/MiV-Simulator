@@ -1,0 +1,14 @@
+## OLM cell synapse density configuration
+# number of inhibitory and excitatory connections from conndata_403.data
+# total dendritic length of 2000 um estimated from https://onlinelibrary.wiley.com/doi/full/10.1111/ejn.14549
+# Assumed synapses distributed evenly across layers
+
+basal:
+  excitatory:
+    SO:
+      mean: 3.60
+      variance: 0.1
+  inhibitory:
+    SO:
+      mean: 1.06
+      variance: 0.1

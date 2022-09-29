@@ -53,6 +53,10 @@ lint: test check-codestyle mypy check-safety
 update-dev-deps:
 	poetry add -D "isort[colors]@latest" mypy@latest pre-commit@latest pydocstyle@latest pylint@latest pytest@latest pyupgrade@latest coverage@latest pytest-html@latest pytest-cov@latest black@latest
 
+.PHONY: update-submodules
+update-submodules:
+	git submodule update --remote --merge
+
 #* Cleaning
 .PHONY: pycache-remove
 pycache-remove:

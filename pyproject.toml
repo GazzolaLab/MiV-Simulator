@@ -5,6 +5,11 @@ description = "Mind-in-Vitro simulator"
 readme = "README.md"
 authors = []
 
+packages = [
+    { include = "miv_simulator", from = "src" },
+    { include = "scripts", from = "src" },
+]
+
 [tool.poetry.dependencies]
 python = ">=3.8,<3.11"
 numpy = "^1.22.4"
@@ -17,8 +22,8 @@ sympy = "^1.10.1"
 click = "^8.1.3"
 networkx = "^2.8.4"
 commandlib = "^0.3.5"
-rbf = {git = "https://github.com/frthjf/RBF.git"}
-neuroh5 = {git = "https://github.com/soltesz-lab/neuroh5.git"}
+rbf = {git = "https://github.com/frthjf/RBF.git", rev = "master"}
+neuroh5 = {git = "https://github.com/iraikov/neuroh5.git"}
 Sphinx = {version = "^4.5.0", optional = true, extras = ["docs"]}
 pydata-sphinx-theme = {version = "0.9.0", optional = true, extras = ["docs"]}
 readthedocs-sphinx-search = {version = "^0.1.2", optional = true, extras = ["docs"]}
@@ -28,8 +33,10 @@ numpydoc = {version = "^1.3.1", optional = true, extras = ["docs"]}
 sphinx-togglebutton = {version = "^0.3.1", optional = true, extras = ["docs"]}
 sphinx-copybutton = {version = "^0.5.0", optional = true, extras = ["docs"]}
 myst-nb = {version = "^0.15.0", optional = true, extras = ["docs"]}
-sphinx-click = {version = "^4.3.0", optional = true}
+sphinx-click = {version = "^4.3.0", optional = true, extras = ["docs"]}
 sphinxcontrib-mermaid = {version = "^0.7.1", optional = true, extras = ["docs"]}
+future = "^0.18.2"
+matplotlib = "^3.6.0"
 
 [tool.poetry.dev-dependencies]
 black = {extras = ["jupyter"], version = "^22.3.0"}
@@ -68,10 +75,10 @@ generate-input-features = "scripts.generate_input_features:main"
 generate-input-spike-trains = "scripts.generate_input_spike_trains:main"
 generate-soma-coordinates = "scripts.generate_soma_coordinates:main"
 distribute-synapse-locs = "scripts.distribute_synapse_locs:main"
+run-network = "scripts.run_network:main"
 # Analysis scripts
 check-config = "scripts.analysis.check_config:main"
 cut-slice = "scripts.analysis.cut_slice:main"
-make-data-files = "scripts.analysis.make_data_files:main"
 plot-biophys-cell-tree = "scripts.analysis.plot_biophys_cell_tree:main"
 plot-cell-tree = "scripts.analysis.plot_cell_tree:main"
 plot-coords-in-volume = "scripts.analysis.plot_coords_in_volume:main"
@@ -79,8 +86,6 @@ plot-network-clamp = "scripts.analysis.plot_network_clamp:main"
 plot-spike-raster = "scripts.analysis.plot_spike_raster:main"
 plot-state = "scripts.analysis.plot_state:main"
 query-cell-attrs = "scripts.analysis.query_cell_attrs:main"
-read-spikes = "scripts.analysis.read_spikes:main"
-run-network = "scripts.analysis.run_network:main"
 sample-cells = "scripts.analysis.sample_cells:main"
 show-h5types = "scripts.analysis.show_h5types:main"
 
@@ -125,4 +130,3 @@ line_length = 80
 
 [tool.pylint.'MESSAGES CONTROL']
 disable = "protected-access, import-outside-toplevel, too-few-public-methods"
-

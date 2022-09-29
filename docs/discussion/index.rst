@@ -5,6 +5,8 @@ Discussion
    :maxdepth: 2
    :caption: Advanced/Discussion
 
+   neuroh5
+
 Indices and tables
 ==================
 

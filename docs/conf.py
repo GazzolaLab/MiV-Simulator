@@ -32,6 +32,7 @@ extensions = [
     "sphinx_copybutton",
     "sphinx.ext.mathjax",
     "sphinxcontrib.mermaid",
+    "sphinx_click",
     "numpydoc",
     "myst_nb",
 ]
@@ -45,6 +46,7 @@ myst_enable_extensions = [
     "html_admonition",
     "html_image",
 ]
+myst_url_schemes = ("http", "https", "mailto")
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -72,7 +74,7 @@ source_suffix = {
     ".rst": "restructuredtext",
     ".md": "myst-nb",
     ".myst": "myst-nb",
-    ".ipynb": "myst-nb",
+    # ".ipynb": "myst-nb",  # Try to convert any notebook file to md file using jupytext.
 }
 
 master_doc = "index"

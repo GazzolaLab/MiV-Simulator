@@ -1,9 +1,8 @@
-#!/usr/bin/env python3
 import os
 import sys
 
 import click
-from miv_simulator import plottting as plot
+from miv_simulator import plotting as plot
 from neuroh5.io import read_tree_selection
 
 script_name = os.path.basename(__file__)

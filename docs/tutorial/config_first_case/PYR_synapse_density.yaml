@@ -1,0 +1,43 @@
+## PYR synapse density configuration.
+## https://www.sciencedirect.com/science/article/pii/S0306452200004966?via%3Dihub
+
+apical:
+  excitatory:
+    SLM:
+      mean: 0.90
+      variance: 0.1
+    SR:
+      mean: 3.52
+      variance: 0.1
+
+  inhibitory:
+    SLM:
+      mean: 0.15
+      variance: 0.1
+    SR:
+      mean: 0.11
+      variance: 0.1
+basal:
+  excitatory:
+    SO:
+      mean: 3.08
+      variance: 0.1
+  inhibitory:
+    SO:
+      mean: 0.11
+      variance: 0.1
+soma:
+  inhibitory:
+    default:
+      mean: 0.20
+      variance: 0.1
+  excitatory:
+    default:
+      mean: 0.0
+      variance: 0.1
+
+ais:
+  inhibitory: # Inhibitory https://www.ncbi.nlm.nih.gov/pubmed/20034063
+    default: # layer
+      mean: 0.68
+      variance: 0.01

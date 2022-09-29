@@ -10,12 +10,7 @@ import click
 import h5py
 import numpy as np
 from miv_simulator.env import Env
-from miv_simulator.stimulus import (
-    generate_input_spike_trains,
-    generate_linear_trajectory,
-    get_equilibration,
-    oscillation_phase_mod_config,
-)
+from miv_simulator import stimulus
 from miv_simulator.utils import (
     Struct,
     config_logging,
@@ -287,14 +282,14 @@ def generate_input_spike_trains(
         val: key for (key, val) in env.selectivity_types.items()
     }
 
-    equilibrate = get_equilibration(env)
+    equilibrate = stimulus.get_equilibration(env)
 
     logger.info(f"trajectories: {arena.trajectories}")
     for trajectory_id in sorted(arena.trajectories.keys()):
         trajectory = arena.trajectories[trajectory_id]
         t, x, y, d = None, None, None, None
         if rank == 0:
-            t, x, y, d = generate_linear_trajectory(
+            t, x, y, d = stimulus.generate_linear_trajectory(
                 trajectory,
                 temporal_resolution=env.stimulus_config["Temporal Resolution"],
                 equilibration_duration=env.stimulus_config[
@@ -360,7 +355,7 @@ def generate_input_spike_trains(
 
             phase_mod_config_dict = None
             if phase_mod:
-                phase_mod_config_dict = oscillation_phase_mod_config(
+                phase_mod_config_dict = stimulus.oscillation_phase_mod_config(
                     env, population, soma_positions_dict[population]
                 )
 
@@ -403,7 +398,9 @@ def generate_input_spike_trains(
                         phase_mod_config = None
                         if phase_mod_config_dict is not None:
                             phase_mod_config = phase_mod_config_dict[gid]
-                        spikes_attr_dict[gid] = generate_input_spike_trains(
+                        spikes_attr_dict[
+                            gid
+                        ] = stimulus.generate_input_spike_trains(
                             env,
                             population,
                             selectivity_type_names,
