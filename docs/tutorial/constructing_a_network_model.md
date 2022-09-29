@@ -1,28 +1,57 @@
 ---
-jupyter:
-  jupytext:
-    text_representation:
-      extension: .md
-      format_name: markdown
-      format_version: '1.3'
-      jupytext_version: 1.14.1
-  kernelspec:
-    display_name: Python 3
-    language: python
-    name: python3
+file_format: mystnb
+kernelspec:
+  name: python3
+  display_name: python3
+jupytext:
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: '0.13'
+    jupytext_version: 1.13.8
 ---
 
-# Simulation Notebook
+# 1. Constructing Simulation
+
+:::{note}
+> This tool extensively use NeuroH5 for simulation data structure. It is recommended to check this [discussion](../discussion/neuroh5.rst).
+:::
 
 ```{mermaid}
 graph LR
 D(Design</br>Experiment) -->|yaml| C(Construct</br>Simulation) -->|h5| R(Run) -->|h5| P(Post Process)
 ```
 
-To run the first example simulation, first download the configuration files for this experiment:
-- Download: [link](https://uofi.box.com/shared/static/a88dy7muglte90hklryw0xskv7ne13j0.zip).
+The experiment is designed within `YAML` configurations. To run the first example simulation, we provide the set of configuration files below:
 
-> The detail description and configurability of each file is included [here](basic_configuration_yaml.md).
+- Download: [link](https://uofi.box.com/shared/static/a88dy7muglte90hklryw0xskv7ne13j0.zip).
+  1. __config__: configuration YAML files to construct simulation
+  2. __templates__: collection of cell parameters (.hoc files)
+  3. __datasets__: directory to construct simulation in h5 format. It also contains (.swc) files.
+
+In the remaining, we demonstrate how to construct the simulation and how to run the simulation.
+
+:::{note}
+The detail description and configurability of each file is included [here](basic_configuration_yaml.md).
+:::
+
+:::{note}
+> Add the option `--use-hwthread-cpus` for `mpirun` to use thread-wise MPI instead of core.
+:::
+
+:::{note}
+> Run each cells only once.
+:::
+
+## Reset
+
+The configuration of the simuulation environment (soma coordinate, dendrite connection, cell parameters, etc.) are built in NeuroH5 format in `datasets` directory. To reset the configuration steps in this tutorial, simply remove all `*.h5` files inside the directory.
+
+```sh
+:tags: [hide-cell]
+
+!rm -rf datasets/*.h5
+```
 
 ## Creating H5Types definitions
 
@@ -34,28 +63,41 @@ datapath = "datasets"
 os.makedirs(datapath, exist_ok=True)
 ```
 
-```python
+```sh
 #!make-h5types --output-path datasets/MiV_Small_h5types.h5  # If config path is not specified, use default.
 !make-h5types --config-prefix config -c Microcircuit_Small.yaml --output-path datasets/MiV_Small_h5types.h5
 ```
 
-```python
+You can use HDF5 utilities `h5ls` and `h5dump` to examine the contents of an HDF5 file as we build the case study.
+
+- h5ls: List each objects of an HDF5 file name and objects within the file. Apply method recursively with `-r` flag.
+- h5dump: Display h5 contents in dictionary format, in human readable form.
+
+For more detail, checkout [this page](https://www.asc.ohio-state.edu/wilkins.5/computing/HDF/hdf5tutorial/util.html).
+
+```sh
 !h5ls -r ./datasets/MiV_Small_h5types.h5
 ```
 
-```python
+```sh
 !h5dump -d /H5Types/Populations ./datasets/MiV_Small_h5types.h5
 ```
 
-# Copying and compiling NMODL mechanisms
+## Copying and compiling NMODL mechanisms
 
-```python
-!nrnivmodl .
+:::{note}
+`nrnivmodl` is a command to compile NEURON NMODL scripts. For more detail of NEURON NMODL, checkout [this page](http://web.mit.edu/neuron_v7.4/nrntuthtml/tutorial/tutD.html)
+:::
+
+```sh
+!nrnivmodl mechanisms/**/*.mod .
 ```
 
-# Generating soma coordinates and measuring distances
+## Generating soma coordinates and measuring distances
 
-```python
+Here, we create `Microcircuit_Small_coords.h5` file that stores soma coordinate information. To see the contents in the file, try to use `h5dump` like above.
+
+```sh
 !generate-soma-coordinates -v \
     --config=Microcircuit_Small.yaml \
     --config-prefix=config \
@@ -64,52 +106,83 @@ os.makedirs(datapath, exist_ok=True)
     --output-namespace='Generated Coordinates'
 ```
 
-```python
-!mpiexec -n 1 measure-distances -v \
+```sh
+!mpirun -np 1 measure-distances -v \
              -i PYR -i PVBC -i OLM -i STIM \
              --config=Microcircuit_Small.yaml \
              --config-prefix=config \
              --coords-path=datasets/Microcircuit_Small_coords.h5
 ```
 
+### Visualize (Soma Location)
+
 ```python
+from miv_simulator import plotting as plot
+from miv_simulator import utils
+import matplotlib.pyplot as plt
+
 %matplotlib inline
 ```
 
 ```python
-!plot-coords-in-volume \
-    --config config/Microcircuit_Small.yaml \
-    --coords-path datasets/Microcircuit_Small_coords.h5 \
-    -i PYR -i PVBC -i OLM
+utils.config_logging(True)
+fig = plot.plot_coords_in_volume(
+    populations=("PYR", "PVBC", "OLM"),
+    coords_path="datasets/Microcircuit_Small_coords.h5",
+    config="config_first_case/Microcircuit_Small.yaml",
+    coords_namespace="Generated Coordinates",
+    scale=25.0,
+)
 ```
 
 ```python
-!plot-coords-in-volume \
-    --config config/Microcircuit_Small.yaml \
-    --coords-path datasets/Microcircuit_Small_coords.h5 \
-    -i STIM
-
-
+utils.config_logging(True)
+fig = plot.plot_coords_in_volume(
+    populations=("STIM",),
+    coords_path="datasets/Microcircuit_Small_coords.h5",
+    config="config_first_case/Microcircuit_Small.yaml",
+    coords_namespace="Generated Coordinates",
+    scale=25.0,
+)
 ```
 
-# Distributing synapses along dendritic trees
+## Creating dendritic trees in NeuroH5 format
 
-```python
-!~/github/neuroh5/bin/neurotrees_copy --fill --output datasets/PYR_forest_Small.h5 datasets/PYR_tree.h5 PYR 10
+`*.swc` file contains 3D point structure of the cell model. The tree model `*_tree.h5` can be created using `neurotree_import` feature from `neuroh5`.
+
+```sh
+!neurotrees_import PVBC datasets/PVBC_tree.h5 datasets/PVBC.swc
+!neurotrees_import PYR datasets/PYR_tree.h5 datasets/PYR.swc
+!neurotrees_import OLM datasets/OLM_tree.h5 datasets/OLM.swc
+
+!h5copy -p -s '/H5Types' -d '/H5Types' -i datasets/MiV_Small_h5types.h5 -o datasets/PVBC_tree.h5
+!h5copy -p -s '/H5Types' -d '/H5Types' -i datasets/MiV_Small_h5types.h5 -o datasets/PYR_tree.h5
+!h5copy -p -s '/H5Types' -d '/H5Types' -i datasets/MiV_Small_h5types.h5 -o datasets/OLM_tree.h5
 ```
 
-```python
-!~/github/neuroh5/bin/neurotrees_copy --fill --output datasets/PVBC_forest_Small.h5 datasets/PVBC_tree.h5 PVBC 90
+## Distributing synapses along dendritic trees
+
+:::{note}
+`neurotrees_copy` is a CLI command for NeuroH5.
+:::
+
+```sh
+!neurotrees_copy --fill --output datasets/PYR_forest_Small.h5 datasets/PYR_tree.h5 PYR 10
 ```
 
-```python
-!~/github/neuroh5/bin/neurotrees_copy --fill --output datasets/OLM_forest_Small.h5 datasets/OLM_tree.h5 OLM 143
+```sh
+!neurotrees_copy --fill --output datasets/PVBC_forest_Small.h5 datasets/PVBC_tree.h5 PVBC 90
 ```
 
-```python
-!mpiexec -n 1 distribute-synapse-locs \
+```sh
+!neurotrees_copy --fill --output datasets/OLM_forest_Small.h5 datasets/OLM_tree.h5 OLM 143
+```
+
+```sh
+!mpirun -np 1 distribute-synapse-locs \
               --template-path ../templates \
-              --config=config/Microcircuit_Small.yaml \
+              --config=Microcircuit_Small.yaml \
+              --config-prefix=config_first_case \
               --populations PYR \
               --forest-path=./datasets/PYR_forest_Small.h5 \
               --output-path=./datasets/PYR_forest_Small.h5 \
@@ -117,10 +190,11 @@ os.makedirs(datapath, exist_ok=True)
               --io-size=1 --write-size=0 -v
 ```
 
-```python
-!mpiexec -n 1 distribute-synapse-locs \
-             --template-path ../templates \
-              --config=config/Microcircuit_Small.yaml \
+```sh
+!mpirun -np 1 distribute-synapse-locs \
+              --template-path ../templates \
+              --config=Microcircuit_Small.yaml \
+              --config-prefix=config_first_case \
               --populations PVBC \
               --forest-path=./datasets/PVBC_forest_Small.h5 \
               --output-path=./datasets/PVBC_forest_Small.h5 \
@@ -128,10 +202,11 @@ os.makedirs(datapath, exist_ok=True)
               --io-size=1 --write-size=0 -v
 ```
 
-```python
-!mpiexec -n 1 distribute-synapse-locs \
+```sh
+!mpirun -np 1 distribute-synapse-locs \
              --template-path ../templates \
-              --config=config/Microcircuit_Small.yaml \
+              --config=Microcircuit_Small.yaml \
+              --config-prefix=config_first_case \
               --populations OLM \
               --forest-path=./datasets/OLM_forest_Small.h5 \
               --output-path=./datasets/OLM_forest_Small.h5 \
@@ -139,11 +214,16 @@ os.makedirs(datapath, exist_ok=True)
               --io-size=1 --write-size=0 -v
 ```
 
-# Generating connections
+## Generating connections
 
-```python
-!mpiexec -n 8 generate-distance-connections \
-    --config=config/Microcircuit_Small.yaml \
+Here, we generate distance connection network and store it in `Microcircuit_Small_connections.h5` file.
+
+> The schematic of the data structure can be found [here](../discussion/neuroh5.rst).
+
+```sh
+!mpirun -np 8 generate-distance-connections \
+    --config=Microcircuit_Small.yaml \
+    --config-prefix=config_first_case \
     --forest-path=datasets/PYR_forest_Small.h5 \
     --connectivity-path=datasets/Microcircuit_Small_connections.h5 \
     --connectivity-namespace=Connections \
@@ -152,9 +232,10 @@ os.makedirs(datapath, exist_ok=True)
     --io-size=1 --cache-size=20 --write-size=100 -v
 ```
 
-```python
-!mpiexec -n 8 generate-distance-connections \
-    --config=config/Microcircuit_Small.yaml \
+```sh
+!mpirun -np 8 generate-distance-connections \
+    --config=Microcircuit_Small.yaml \
+    --config-prefix=config_first_case \
     --forest-path=datasets/PVBC_forest_Small.h5 \
     --connectivity-path=datasets/Microcircuit_Small_connections.h5 \
     --connectivity-namespace=Connections \
@@ -163,9 +244,10 @@ os.makedirs(datapath, exist_ok=True)
     --io-size=1 --cache-size=20 --write-size=100 -v
 ```
 
-```python
-!mpiexec -n 8 generate-distance-connections \
-    --config=config/Microcircuit_Small.yaml \
+```sh
+!mpirun -np 8 generate-distance-connections \
+    --config=Microcircuit_Small.yaml \
+    --config-prefix=config_first_case \
     --forest-path=datasets/OLM_forest_Small.h5 \
     --connectivity-path=datasets/Microcircuit_Small_connections.h5 \
     --connectivity-namespace=Connections \
@@ -174,26 +256,32 @@ os.makedirs(datapath, exist_ok=True)
     --io-size=1 --cache-size=20 --write-size=100 -v
 ```
 
-# Creating input features and spike trains
+## Creating input features and spike trains
 
-```python
-!mpiexec -n 1 generate-input-features \
+```sh
+!mpirun -np 1 generate-input-features \
         -p STIM \
-        --config=config/Microcircuit_Small.yaml \
+        --config=Microcircuit_Small.yaml \
+        --config-prefix=config_first_case \
         --coords-path=datasets/Microcircuit_Small_coords.h5 \
         --output-path=datasets/Microcircuit_Small_input_features.h5 \
         -v
 ```
 
-```python
-!mpiexec -np 2 generate-input-spike-trains \
-             --config=config/Microcircuit_Small.yaml \
+```sh
+!mpirun -np 2 generate-input-spike-trains \
+             --config=Microcircuit_Small.yaml \
+             --config-prefix=config_first_case \
              --selectivity-path=datasets/Microcircuit_Small_input_features.h5 \
              --output-path=datasets/Microcircuit_Small_input_spikes.h5 \
              --n-trials=3 -p STIM -v
 ```
 
-# Creating data files
+# Finalizing
+
+In the following steps, we collapse all H5 files into two files: __cell__ configuration, and __connectivity__ configuration. The simulator takes these two files to run the experiment.
+
+## Define path and variable names
 
 ```python
 import os, sys
@@ -269,7 +357,7 @@ forest_syns_files = {
 }
 
 
-vecstim_file_dict = {"A Diag": "MiV_input_spikes.h5"}
+vecstim_file_dict = {"A Diag": "Microcircuit_Small_input_spikes.h5"}
 
 vecstim_dict = {
     f"Input Spikes {stim_id}": stim_file
@@ -277,7 +365,9 @@ vecstim_dict = {
 }
 ```
 
-```python
+## Collapse files
+
+```sh
 %cd datasets
 ```
 
@@ -342,6 +432,12 @@ for (vecstim_ns, vecstim_file) in vecstim_dict.items():
         )
         print(cmd)
         os.system(cmd)
+
+## Copy coordinates for STIM cells
+p = "STIM"
+cmd = f"h5copy -p -s '/Populations/{p}/Generated Coordinates' -d '/Populations/{p}/Coordinates' -i {MiV_cells_file} -o {MiV_cells_file}"
+print(cmd)
+os.system(cmd)
 ```
 
 ```python
@@ -363,10 +459,33 @@ for p in MiV_populations:
         os.system(cmd)
 ```
 
-```python
+```sh
 %cd ..
 ```
 
-```python
+# Run Network
 
+```sh
+!mpirun -np 8 run-network \
+    --config-file=Microcircuit_Small.yaml  \
+    --config-prefix=config_first_case \
+    --arena-id=A \
+    --stimulus-id=Diag \
+    --template-paths=templates \
+    --dataset-prefix="./datasets" \
+    --results-path=results \
+    --io-size=1 \
+    --tstop=500 \
+    --v-init=-75 \
+    --results-write-time=60 \
+    --stimulus-onset=0.0 \
+    --max-walltime-hours=0.49 \
+    --dt 0.025 \
+    --verbose
+```
+
+```python
+a = 5
+b = 6
+print(a,b)
 ```

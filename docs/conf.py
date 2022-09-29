@@ -46,6 +46,7 @@ myst_enable_extensions = [
     "html_admonition",
     "html_image",
 ]
+myst_url_schemes = ("http", "https", "mailto")
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]

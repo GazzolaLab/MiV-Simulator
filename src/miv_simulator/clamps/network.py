@@ -337,7 +337,9 @@ def init_inputs_from_features(
                 if phase_mod_config_dict is not None:
                     phase_mod_config = phase_mod_config_dict[gid]
 
-                spikes_attr_dict[gid] = stimulus.generate_input_spike_trains(
+                spikes_attr_dict[
+                    gid
+                ] = stimulus.generate_stimulus_from_spike_trains(
                     env,
                     population,
                     selectivity_type_names,
