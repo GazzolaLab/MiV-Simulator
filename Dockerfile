@@ -83,7 +83,7 @@ RUN mkdir -p /home/shared
 WORKDIR /home/shared
 
 RUN git clone https://github.com/GazzolaLab/MiV-Simulator \
-    && pip install -e ./MiV-Simulator
+    && pip install ./MiV-Simulator
 
 # Other Utilities
 RUN apt-get install -y --no-install-recommends vim unzip
