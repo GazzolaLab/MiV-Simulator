@@ -6,15 +6,14 @@ Global Parameters: !include Global.yaml
 Geometry: !include Geometry_Small.yaml
 Random Seeds: !include Random.yaml
 Connection Generator: !include Microcircuit_Connections.yaml
-Cell Data: Microcircuit_Small/MiV_Cells_Microcircuit_Small_20220410.h5
-Connection Data: Microcircuit_Small/MiV_Connections_Microcircuit_Small_20220410.h5
+Cell Data: MiV_Cells_Microcircuit_Small_20220410.h5
+Connection Data: MiV_Connections_Microcircuit_Small_20220410.h5
 Recording: !include Recording.yaml
 Stimulus: !include Input_Configuration.yaml
 Analysis: !include Analysis_Configuration.yaml
 Cell Types:
   PYR:
-    template: SC_nrn
-    mechanism file: PYR_SoldadoMagraner.yaml
+    template: PoolosPyramidalCell
     synapses:
       density: !include PYR_synapse_density.yaml
   OLM:
