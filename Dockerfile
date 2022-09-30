@@ -76,15 +76,9 @@ RUN pip install --no-cache-dir jupyter jupyterlab jupytext miv-os
 
 # Prepare example cases
 ## TODO: Later, replace to example repository.
-ARG DIRNAME=sample_case_1
-RUN mkdir -p $DIRNAME
-WORKDIR /home/shared/$DIRNAME
-RUN wget https://uofi.box.com/shared/static/a88dy7muglte90hklryw0xskv7ne13j0.zip -O files.zip \
-    && unzip files.zip \
-    && rm files.zip
-COPY docs/tutorial/constructing_a_network_model.md .
-RUN jupytext constructing_a_network_model.md --to ipynb \
-    && rm constructing_a_network_model.md
+RUN git clone https://github.com/GazzolaLab/MiV-Simulator-Cases
+WORKDIR /home/shared/MiV-Simulator-Cases
+RUN rm -rf .git  # Remove git connection
 
 # Clean up
 RUN pip cache purge
