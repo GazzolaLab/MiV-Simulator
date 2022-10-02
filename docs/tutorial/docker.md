@@ -16,17 +16,17 @@ Below, we provide basic set of docker instructions on how to build container and
 The detail instructions and standard practice can be found in the [`docker` documentation](https://docs.docker.com/get-started://docs.docker.com/get-started/).
 :::
 
-```mermaid
-graph LR
-DF[Dockerfile]
-CI[(Image)]
-C1(Container)
-C2(Container)
-C3(Container)
+```{mermaid}
+flowchart LR
+    DF[Dockerfile]
+    CI[(Image)]
+    C1(Container)
+    C2(Container)
+    C3(Container)
 
-DF -->|build| CI --> C1
-CI --> C2
-CI --> C3
+    DF -->|build| CI --> C1
+    CI --> C2
+    CI --> C3
 ```
 - Basic Terminology
   - Dockerfile: Instruction set to create image.
