@@ -4,18 +4,14 @@ from collections import defaultdict
 
 import click
 import numpy as np
+import yaml
+
 from miv_simulator import utils
 from miv_simulator.env import Env
 from miv_simulator.utils import io as io_utils
-from mpi4py import MPI
-from neuroh5.io import (
-    append_cell_attributes,
-    read_cell_attribute_selection,
-    read_cell_attributes,
-    read_population_ranges,
-)
 
-sys_excepthook = sys.excepthook
+from mpi4py import MPI
+from neuroh5.io import read_cell_attributes, read_population_ranges
 
 
 def mpi_excepthook(type, value, traceback):
@@ -26,6 +22,7 @@ def mpi_excepthook(type, value, traceback):
         MPI.COMM_WORLD.Abort(1)
 
 
+sys_excepthook = sys.excepthook
 sys.excepthook = mpi_excepthook
 
 
@@ -39,10 +36,9 @@ sys.excepthook = mpi_excepthook
 @click.option("--config", "-c", required=True, type=str)
 @click.option(
     "--config-prefix",
-    required=True,
+    required=False,
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
     default="config",
-    help="path to directory containing network config files",
 )
 @click.option(
     "--dataset-prefix",
@@ -51,40 +47,24 @@ sys.excepthook = mpi_excepthook
     help="path to directory containing required neuroh5 data files",
 )
 @click.option("--distances-namespace", "-n", type=str, default="Arc Distances")
+@click.option("--distance-limits", type=(float, float))
 @click.option(
     "--spike-input-path",
     required=False,
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
-    help="path to file for input spikes",
+    help="path to file for input spikes when cell selection is specified",
 )
 @click.option(
     "--spike-input-namespace",
     required=False,
     type=str,
-    help="namespace for input spikes",
+    help="namespace for input spikes when cell selection is specified",
 )
 @click.option(
     "--spike-input-attr",
     required=False,
     type=str,
-    help="attribute name for input spikes",
-)
-@click.option(
-    "--input-features-path",
-    required=False,
-    type=click.Path(exists=True, file_okay=True, dir_okay=False),
-)
-@click.option(
-    "--input-features-namespaces",
-    type=str,
-    required=False,
-    multiple=True,
-    default=[],
-)
-@click.option(
-    "--selection-path",
-    required=True,
-    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+    help="attribute name for input spikes when cell selection is specified",
 )
 @click.option(
     "--output-path",
@@ -94,8 +74,12 @@ sys.excepthook = mpi_excepthook
 )
 @click.option("--io-size", type=int, default=-1)
 @click.option(
-    "--stimulus-id", required=True, type=str, help="name of stimulus used"
+    "--trajectory-id",
+    required=True,
+    type=str,
+    help="name of trajectory used for spatial stimulus",
 )
+@click.option("--write-selection", is_flag=True)
 @click.option("--verbose", "-v", is_flag=True)
 def main(
     arena_id,
@@ -103,17 +87,19 @@ def main(
     config_prefix,
     dataset_prefix,
     distances_namespace,
+    distance_limits,
     spike_input_path,
     spike_input_namespace,
     spike_input_attr,
-    input_features_namespaces,
-    input_features_path,
-    selection_path,
     output_path,
     io_size,
-    stimulus_id,
+    trajectory_id,
+    write_selection,
     verbose,
 ):
+    """
+    cut_slice
+    """
 
     utils.config_logging(verbose)
     logger = utils.get_script_logger(os.path.basename(__file__))
@@ -132,17 +118,13 @@ def main(
         spike_input_namespace=spike_input_namespace,
         spike_input_attr=spike_input_attr,
         arena_id=arena_id,
-        stimulus_id=stimulus_id,
+        trajectory_id=trajectory_id,
         io_size=io_size,
         config_prefix=config_prefix,
     )
 
-    selection = []
-    f = open(selection_path)
-    for line in f.readlines():
-        selection.append(int(line))
-    f.close()
-    selection = set(selection)
+    if rank == 0:
+        logger.info("%i ranks have been allocated" % comm.size)
 
     pop_ranges, pop_size = read_population_ranges(
         env.connectivity_file_path, comm=comm
@@ -172,6 +154,9 @@ def main(
             del distances
 
             numitems = len(list(soma_distances.keys()))
+            logger.info(
+                "read %s distances (%i elements)" % (population, numitems)
+            )
 
             if numitems == 0:
                 continue
@@ -199,67 +184,41 @@ def main(
 
             min_dist = U_min
             max_dist = U_max
+            if distance_limits:
+                min_dist = distance_limits[0]
+                max_dist = distance_limits[1]
 
             selection_dict[population] = {
-                k for k in distance_U if k in selection
+                k
+                for k in distance_U
+                if (distance_U[k] >= min_dist) and (distance_U[k] <= max_dist)
             }
 
+        yaml_output_dict = {}
+        for k, v in utils.viewitems(selection_dict):
+            yaml_output_dict[k] = list(v)
+
+        yaml_output_path = f"{output_path}/DG_slice.yaml"
+        with open(yaml_output_path, "w") as outfile:
+            yaml.dump(yaml_output_dict, outfile)
+
+        del yaml_output_dict
+
     env.comm.barrier()
 
-    write_selection_file_path = (
-        f"{env.results_path}/{env.modelName}_selection.h5"
-    )
-
-    if rank == 0:
-        io_utils.mkout(env, write_selection_file_path)
-    env.comm.barrier()
-    selection_dict = env.comm.bcast(dict(selection_dict), root=0)
-    env.cell_selection = selection_dict
-    io_utils.write_cell_selection(env, write_selection_file_path)
-    input_selection = io_utils.write_connection_selection(
-        env, write_selection_file_path
-    )
-    if spike_input_path:
+    if write_selection:
+        write_selection_file_path = (
+            f"{env.results_path}/{env.modelName}_selection.h5"
+        )
+        if rank == 0:
+            io_utils.mkout(env, write_selection_file_path)
+        env.comm.barrier()
+        selection_dict = env.comm.bcast(dict(selection_dict), root=0)
+        env.cell_selection = selection_dict
+        io_utils.write_cell_selection(env, write_selection_file_path)
+        input_selection = io_utils.write_connection_selection(
+            env, write_selection_file_path
+        )
         io_utils.write_input_cell_selection(
             env, input_selection, write_selection_file_path
         )
-    if input_features_path:
-        for this_input_features_namespace in sorted(input_features_namespaces):
-            for population in sorted(input_selection):
-                logger.info(
-                    f"Extracting input features {this_input_features_namespace} for population {population}..."
-                )
-                it = read_cell_attribute_selection(
-                    input_features_path,
-                    population,
-                    namespace=f"{this_input_features_namespace} {arena_id}",
-                    selection=input_selection[population],
-                    comm=env.comm,
-                )
-                output_features_dict = {
-                    cell_gid: cell_features_dict
-                    for cell_gid, cell_features_dict in it
-                }
-                append_cell_attributes(
-                    write_selection_file_path,
-                    population,
-                    output_features_dict,
-                    namespace=f"{this_input_features_namespace} {arena_id}",
-                    io_size=io_size,
-                    comm=env.comm,
-                )
-    env.comm.barrier()
-
-
-if __name__ == "__main__":
-    main(
-        args=sys.argv[
-            (
-                utils.list_find(
-                    lambda x: os.path.basename(x) == os.path.basename(__file__),
-                    sys.argv,
-                )
-                + 1
-            ) :
-        ]
-    )
