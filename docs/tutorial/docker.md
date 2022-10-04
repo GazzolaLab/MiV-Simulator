@@ -27,10 +27,22 @@ By default, the image runs `jupyter-lab` on port `8888`. You may alter the desti
 
 ```bash
 # run the image with the examples and tutorial cases (recommended for beginners)
-docker run -p 8888:8888 -v ./MiV-Simulator-Cases:/home/user/workspace -it miv_env:0.1
+docker run -p 8888:8888 -v "$(pwd)"/MiV-Simulator-Cases:/home/user/workspace/MiV-Simulator-Cases -it miv_env:0.1
 
 # just run the environment to run your own code (advanced)
 docker run -p 8888:8888 -it miv_env:0.1
 ```
 
-To develop the MiV-Simulator source code, you may mount the repository via `-v ./MiV-Simulator:/home/user` so that changes are persistet when your container stops running.
+### Developing the simulator
+
+To develop the MiV-Simulator source code, you can mount a local MiV-Simulator repository so that changes are persistet when your container stops running.
+```
+docker run -p 8888:8888 -v "$(pwd)"/MiV-Simulator-Cases:/home/user/workspace/MiV-Simulator-Cases -v "$(pwd)"/MiV-Simulator:/home/user/MiV-Simulator -it miv_env:0.1
+```
+
+Note that in order for your environment to use the local package source code, you have to update the `miv_simulator` package installation inside the container (e.g. via Jupyter lab):
+
+```
+import sys
+!{sys.executable} -m pip install --no-cache-dir --no-deps -e /home/user/MiV-Simulator
+```
