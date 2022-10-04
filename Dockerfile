@@ -7,7 +7,7 @@ SHELL ["/bin/bash", "-c"]
 ENV SHELL /bin/bash
 
 # File Maintainer
-MAINTAINER skim0119
+LABEL org.opencontainers.image.authors="skim0119@gmail.com"
 
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
@@ -93,11 +93,6 @@ RUN git clone https://github.com/GazzolaLab/MiV-Simulator \
 # Other Utilities
 RUN pip install --no-cache-dir jupyter jupyterlab jupytext miv-os
 
-# Prepare example cases
-RUN git clone https://github.com/GazzolaLab/MiV-Simulator-Cases
-WORKDIR /home/user/MiV-Simulator-Cases
-RUN rm -rf .git  # Remove git connection
-
 # Clean up
 RUN pip cache purge
 
@@ -109,10 +104,10 @@ RUN echo "export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM='1'" >> ~/.bashrc
 ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM 1
 
 # Launch jupyter lab
-WORKDIR /home/user/MiV-Simulator-Cases
+RUN mkdir /home/user/workspace
+WORKDIR /home/user/workspace
 
-
-CMD ["jupyter", "lab", "--app_dir=/home/user/MiV-Simulator-Cases", "--port=8888", "--allow-root", "--ip", "0.0.0.0"]
+CMD ["jupyter", "lab", "--app_dir=/home/user/workspace", "--port=8888", "--allow-root", "--ip", "0.0.0.0"]
 
 # HDF5 test:
 # NPROCS=4 make check-p
