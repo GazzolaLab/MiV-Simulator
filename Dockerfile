@@ -16,6 +16,8 @@ ENV TZ=Etc/UTC
 RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential python3 python3-pip python3-dev python-is-python3 \
     && apt-get install -y --no-install-recommends ssh wget curl vim unzip git-all cmake apt-utils sudo \
+    && apt-get install -y --no-install-recommends libgl1-mesa-glx \
+    && apt-get install -y --no-install-recommends ffmpeg libsm6 libxext6 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 #&& apt-get update
@@ -111,7 +113,9 @@ ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM 1
 WORKDIR /home/user/MiV-Simulator-Cases
 
 
-CMD ["jupyter", "lab", "--app_dir=/home/user/MiV-Simulator-Cases", "--port=8888", "--allow-root", "--ip", "0.0.0.0"]
+CMD ["jupyter", "lab", "--app_dir=/home/user/MiV-Simulator-Cases", \
+        "--port=8888", "--allow-root", "--ip", "0.0.0.0", \
+        "--NotebookApp.token=''", "--NotebookApp.password=''"]
 
 # HDF5 test:
 # NPROCS=4 make check-p
