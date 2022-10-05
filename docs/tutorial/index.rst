@@ -8,22 +8,12 @@ Tutorial
    installation
    docker
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Sample Cases
-
-   constructing_a_network_model
-   single_compartment
+.. include:: MiV-Simulator-Cases/toctree.rstlib
 
 .. toctree::
    :maxdepth: 2
    :caption: Case Study
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Configuration
-
-   basic_configuration_yaml
 
 Indices and tables
 ==================
