@@ -13,7 +13,7 @@ We provide `Dockerfile` to quick-install docker image. The image is based on Ubu
 Below, we provide basic set of docker instructions on how to build container and open the `jupyter-lab` environment.
 
 :::{note}
-The detail instructions and standard practice can be found in the [`docker` documentation](https://docs.docker.com/get-started://docs.docker.com/get-started/).
+The detail instructions and standard practice can be found in the [`docker` documentation][url-docker-docs].
 :::
 
 ```{mermaid}
@@ -70,15 +70,24 @@ docker stop <container name>
 ### Mount Local Directory
 
 The docker container is isolated computation environment, which means the external folder/directory structure is natively inaccessible.
-To mount the external volume, pass `-v` or `--volume` to bind extral volume driver for the container.
+To mount the external volume, pass `-v` or `--volume` to bind extra volume driver for the container.
 The string to pass is in the form `<local directory>:<container directory>`.
-For examples, the command below will mount a local working repository `$(pwd)/workspace/repo` to container directory `/home/user/workspace/repo`.
+For examples, the command below will mount a local workspace directory `$(pwd)/workspace` to container directory `/home/user/workspace`.
 
 ```bash
-docker run -p 8888:8888 -v "$(pwd)/workspace/repo:/home/user/workspace/repo" -it miv_env:0.1
+docker run -p 8888:8888 -v "$(pwd)/workspace:/home/user/workspace" -it miv_env:0.1
 ```
 
 The argument `-v, --volume` can also take multiple volumes if one wants to mount multiple volumes.
+
+```bash
+docker run -p 8888:8888 \
+    -v "$(pwd)/workspace-A:/home/user/workspace-A" \
+    -v "$(pwd)/workspace-B:/home/user/workspace-B" \
+    -v "$(pwd)/workspace-C:/home/user/workspace-C" \
+    -it miv_env:0.1
+```
+
 :::{note}
 It is typically recommanded to save simulation results outside the docker-container to keep the container size small.
 :::
@@ -88,7 +97,10 @@ It is typically recommanded to save simulation results outside the docker-contai
 We provide a [starter-repository][url-repo-cases] that includes notebooks in [tutorials][url-tutorial].
 
 
+<!-- Links -->
+
 [url-tutorial]: https://miv-simulator.readthedocs.io/en/latest/tutorial/index.html
+[url-docker-docs]: https://docs.docker.com/get-started://docs.docker.com/get-started/
 
 [url-repo-cases]: https://github.com/GazzolaLab/MiV-Simulator-Cases
 [url-mivsim-dockerfile]: https://github.com/GazzolaLab/MiV-Simulator/blob/main/Dockerfile
