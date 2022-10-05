@@ -1,48 +1,94 @@
 # Installation: Docker Image
 
-> Note: The docker image is not optimized for high-performance computing. The image file only provides necessary installation for users to quickly try-run small model.
+:::{note}
+The docker image is not optimized for high-performance computing. The image file only provides necessary installation for users to quickly try-run a simple model.
+:::
 
-We provide `Dockerfile` to quick-install docker image. The image contains necessary dependencies to run the simulation. We use `juypter-lab` as an recommended-interface.
+We provide `Dockerfile` to quick-install docker image. The image is based on Ubuntu, and it contains necessary dependencies and libraries to run the simulation. We use `juypter-lab` as a recommended interface.
 
-## Building the image
+> _Docker image is not yet uploaded to docker-hub._
 
-> The docker image is not yet uploaded to docker-hub, so you need to build it locally
+## How To Use
+
+Below, we provide basic set of docker instructions on how to build container and open the `jupyter-lab` environment.
+
+:::{note}
+The detail instructions and standard practice can be found in the [`docker` documentation](https://docs.docker.com/get-started://docs.docker.com/get-started/).
+:::
+
+```{mermaid}
+flowchart LR
+    DF[Dockerfile]
+    CI[(Image)]
+    C1(Container)
+    C2(Container)
+    C3(Container)
+    J{Jupyter-Lab}
+    U((User))
+
+    DF -->|build| CI --> C1
+    CI --> C2
+    CI --> C3
+    C1 --> J
+    U --> J
+    J --> U
+```
+- Basic Terminology
+  - Dockerfile: Instruction set to create image.
+  - Image: _Template_ by which a container will be initialized at runtime.  To create image, use the command `docker build`.
+  - Container: Isolated computing environment. Each container can be created from image by the command `docker run`.
+
+### Build Image
+
+The command below builds `image` tagged `miv_env:01`, based on the instruction set provided in [Dockerfile][url-mivsim-dockerfile]. To see the available images, run `docker images`.
 
 ```bash
 cd MiV-Simulator                         # Change directory to repository
 docker build . --tag miv_env:0.1         # Build image
 ```
 
-## Tutorial Cases
+### Create Container From Image
 
-To get started quickly, we provide an optional [starter-repository](https://github.com/GazzolaLab/MiV-Simulator-Cases) that provides examples and tutorial cases.
-
-```
-git clone https://github.com/GazzolaLab/MiV-Simulator-Cases.git
-```
-
-## Running the image
-
-By default, the image runs `jupyter-lab` on port `8888`. You may alter the destination port by setting `<destination port>:8888`.
+The command below both _initialize_ a container `miv_env:0.1` and _launch_ that container. By default, the container will run the `jupyter-lab` in the background on the port `8888`. User can alther the destination port by setting `<destination port>:8888`.
 
 ```bash
-# run the image with the examples and tutorial cases (recommended for beginners)
-docker run -p 8888:8888 -v "$(pwd)"/MiV-Simulator-Cases:/home/user/workspace/MiV-Simulator-Cases -it miv_env:0.1
-
-# just run the environment to run your own code (advanced)
 docker run -p 8888:8888 -it miv_env:0.1
 ```
 
-### Developing the simulator
+To see the running containers, run `docker ps` or `docker container ls`. Too show all containers including the one stopped, pass `-a` or `-all`.
 
-To develop the MiV-Simulator source code, you can mount a local MiV-Simulator repository so that changes are persistet when your container stops running.
-```
-docker run -p 8888:8888 -v "$(pwd)"/MiV-Simulator-Cases:/home/user/workspace/MiV-Simulator-Cases -v "$(pwd)"/MiV-Simulator:/home/user/MiV-Simulator -it miv_env:0.1
+### Re-start and Stop
+
+Once the container is created, try to run `docker ps --all` to check which name is assigned to the container.
+Later on, the container can be restarted and stopped using
+
+```bash
+docker start <container name>
+docker stop <container name>
 ```
 
-Note that in order for your environment to use the local package source code, you have to update the `miv_simulator` package installation inside the container (e.g. via Jupyter lab):
+### Mount Local Directory
 
+The docker container is isolated computation environment, which means the external folder/directory structure is natively inaccessible.
+To mount the external volume, pass `-v` or `--volume` to bind extral volume driver for the container.
+The string to pass is in the form `<local directory>:<container directory>`.
+For examples, the command below will mount a local working repository `$(pwd)/workspace/repo` to container directory `/home/user/workspace/repo`.
+
+```bash
+docker run -p 8888:8888 -v "$(pwd)/workspace/repo:/home/user/workspace/repo" -it miv_env:0.1
 ```
-import sys
-!{sys.executable} -m pip install --no-cache-dir --no-deps -e /home/user/MiV-Simulator
-```
+
+The argument `-v, --volume` can also take multiple volumes if one wants to mount multiple volumes.
+:::{note}
+It is typically recommanded to save simulation results outside the docker-container to keep the container size small.
+:::
+
+## Tutorial Cases
+
+We provide a [starter-repository][url-repo-cases] that includes notebooks in [tutorials][url-tutorial].
+
+
+[url-tutorial]: https://miv-simulator.readthedocs.io/en/latest/tutorial/index.html
+
+[url-repo-cases]: https://github.com/GazzolaLab/MiV-Simulator-Cases
+[url-mivsim-dockerfile]: https://github.com/GazzolaLab/MiV-Simulator/blob/main/Dockerfile

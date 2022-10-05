@@ -1,5 +1,11 @@
-CLI Tools
-=========
+CLI Commands
+============
+
+For key routines, we also provides CLI-executable commands, such that one can manipulate
+the simulation from the shell.
+
+Simulation Builder
+------------------
 
 .. click:: scripts.make_h5types:main
    :prog: make-h5types
@@ -29,20 +35,15 @@ CLI Tools
    :prog: distribute-synapse-locs
    :nested: full
 
+Simulation Runner
+-----------------
+
 .. click:: scripts.run_network:main
    :prog: run-network
    :nested: full
 
 Analysis scripts
 ----------------
-
-.. click:: scripts.analysis.check_config:main
-   :prog: check-config
-   :nested: full
-
-.. click:: scripts.analysis.cut_slice:main
-   :prog: cut-slice
-   :nested: full
 
 .. click:: scripts.analysis.plot_biophys_cell_tree:main
    :prog: plot-biophys-cell-tree
@@ -68,14 +69,25 @@ Analysis scripts
    :prog: plot-state
    :nested: full
 
-.. click:: scripts.analysis.query_cell_attrs:main
+Tools
+-----
+
+.. click:: scripts.tools.show_h5types:main
+   :prog: show-h5types
+   :nested: full
+
+.. click:: scripts.tools.query_cell_attrs:main
    :prog: query-cell-attrs
    :nested: full
 
-.. click:: scripts.analysis.sample_cells:main
-   :prog: sample-cells
+.. click:: scripts.tools.check_config:main
+   :prog: check-config
    :nested: full
 
-.. click:: scripts.analysis.show_h5types:main
-   :prog: show-h5types
+.. click:: scripts.tools.cut_slice:main
+   :prog: cut-slice
+   :nested: full
+
+.. click:: scripts.tools.sample_cells:main
+   :prog: sample-cells
    :nested: full

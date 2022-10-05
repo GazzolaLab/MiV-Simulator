@@ -1,4 +1,4 @@
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional, Union, Callable
 
 import gc
 import os
@@ -91,7 +91,18 @@ def h5_concat_dataset(dset, data):
     return dset
 
 
-def show_celltypes(input_path, output=print):
+def show_celltypes(input_path: str, output=print):
+    """
+    Given the H5 file, output the table of cell types, starting id, and counts..
+    The CLI command is provided as :option:`'show-h5types' <show-h5types>`.
+
+    Parameters
+    ----------
+    input_path : str
+        Input h5 file path
+    output : Callable
+        output stream (default=print)
+    """
 
     with h5py.File(input_path, "r") as h5:
 
