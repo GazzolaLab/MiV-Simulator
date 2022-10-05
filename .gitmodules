@@ -1,3 +1,6 @@
 [submodule "docs/MiV-Shared-Docs"]
 	path = docs/MiV-Shared-Docs
 	url = https://github.com/GazzolaLab/MiV-Shared-Docs
+[submodule "docs/tutorial/MiV-Simulator-Cases"]
+	path = docs/tutorial/MiV-Simulator-Cases
+	url = https://github.com/GazzolaLab/MiV-Simulator-Cases
