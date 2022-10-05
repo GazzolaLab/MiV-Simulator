@@ -57,16 +57,16 @@ Analysis scripts
    :prog: plot-coords-in-volume
    :nested: full
 
-.. click:: scripts.analysis.plot_network_clamp:main
-   :prog: plot-network-clamp
-   :nested: full
-
 .. click:: scripts.analysis.plot_spike_raster:main
    :prog: plot-spike-raster
    :nested: full
 
 .. click:: scripts.analysis.plot_state:main
    :prog: plot-state
+   :nested: full
+
+.. click:: scripts.analysis.plot_network_clamp:main
+   :prog: plot-network-clamp
    :nested: full
 
 Tools
