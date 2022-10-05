@@ -204,7 +204,7 @@ def generate_input_spike_trains(
 
     population_ranges = read_population_ranges(selectivity_path, comm)[0]
 
-    if len(populations) == 0:
+    if not populations:
         populations = sorted(population_ranges.keys())
 
     soma_positions_dict = None

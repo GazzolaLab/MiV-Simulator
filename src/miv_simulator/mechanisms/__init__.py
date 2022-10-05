@@ -6,16 +6,23 @@ import commandlib
 import miv_simulator
 from neuron import h
 
+from typing import Optional
 
-def compile() -> str:
+
+def compile(source_directory: Optional[str] = None) -> str:
     # attempt to automatically compile
-    src = os.path.join(os.path.dirname(miv_simulator.__file__), "mechanisms")
-    compiled = os.path.join(src, "compiled")
+    if source_directory is None:
+        source_directory = os.path.join(
+            os.path.dirname(miv_simulator.__file__), "mechanisms"
+        )
+    compiled = os.path.join(source_directory, "compiled")
     if not os.path.isdir(compiled):
         print("Attempting to compile *.mod files via nrnivmodl")
         # move into compiled directory
         os.makedirs(compiled)
-        for m in glob(os.path.join(src, "**/*.mod"), recursive=True):
+        for m in glob(
+            os.path.join(source_directory, "**/*.mod"), recursive=True
+        ):
             shutil.copyfile(m, os.path.join(compiled, os.path.basename(m)))
         # compile
         if not shutil.which("nrnivmodl"):

@@ -248,7 +248,7 @@ def generate_soma_coordinates(
 
     comm.barrier()
     population_ranges = read_population_ranges(output_path, comm)[0]
-    if len(populations) == 0:
+    if not populations:
         populations = sorted(population_ranges.keys())
 
     total_count = 0
