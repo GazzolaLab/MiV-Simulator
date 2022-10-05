@@ -49,13 +49,16 @@ docker build . --tag miv_env:0.1         # Build image
 
 ### Create Container From Image
 
-The command below both _initialize_ a container `miv_env:0.1` and _launch_ that container. By default, the container will run the `jupyter-lab` in the background on the port `8888`. User can alther the destination port by setting `<destination port>:8888`.
+The command below both _initialize_ a container `miv_env:0.1` and _launch_ that container.
 
 ```bash
-docker run -p 8888:8888 -it miv_env:0.1
+# -p: <local port>:<container port>
+docker run -p 18888:8888 -it miv_env:0.1  # access with localhost:18888
 ```
 
+:::{note}
 To see the running containers, run `docker ps` or `docker container ls`. Too show all containers including the one stopped, pass `-a` or `-all`.
+:::
 
 ### Re-start and Stop
 
@@ -67,10 +70,12 @@ docker start <container name>
 docker stop <container name>
 ```
 
+## Advanced Capability
+
 ### Mount Local Directory
 
 The docker container is isolated computation environment, which means the external folder/directory structure is natively inaccessible.
-To mount the external volume, pass `-v` or `--volume` to bind extra volume driver for the container.
+To mount the external volume, pass `-v` or `--volume` to bind extra volume driver inside the container.
 The string to pass is in the form `<local directory>:<container directory>`.
 For examples, the command below will mount a local workspace directory `$(pwd)/workspace` to container directory `/home/user/workspace`.
 
@@ -88,9 +93,17 @@ docker run -p 8888:8888 \
     -it miv_env:0.1
 ```
 
+Notice, mounting the volume is only possible when the container is initialized.
+
+To organize and manage the local volumes for multiple docker-containers, one can assign `Docker Volumes`: [here][url-docker-docs-volume]
+
 :::{note}
 It is typically recommanded to save simulation results outside the docker-container to keep the container size small.
 :::
+
+### Transfer Files from/to Container
+
+To copy files between container and local directory, one can use `docker cp` command: [doc][url-docker-docs-copy].
 
 ## Tutorial Cases
 
@@ -101,6 +114,8 @@ We provide a [starter-repository][url-repo-cases] that includes notebooks in [tu
 
 [url-tutorial]: https://miv-simulator.readthedocs.io/en/latest/tutorial/index.html
 [url-docker-docs]: https://docs.docker.com/get-started://docs.docker.com/get-started/
+[url-docker-docs-volume]: https://docs.docker.com/storage/volumes/#create-and-manage-volumes
+[url-docker-docs-copy]: https://docs.docker.com/engine/reference/commandline/cp/
 
 [url-repo-cases]: https://github.com/GazzolaLab/MiV-Simulator-Cases
 [url-mivsim-dockerfile]: https://github.com/GazzolaLab/MiV-Simulator/blob/main/Dockerfile
