@@ -16,6 +16,7 @@ Contribution
    guide/index
    api/index
    discussion/index
+   resources/index
 
 Indices and tables
 ==================
