@@ -11,7 +11,7 @@ import pytest
 
 
 def test_run_with_Gfluct3():
-    compile_and_load()
+    compile_and_load(force=True)
 
     soma = h.Section(name="soma")
     soma.L = soma.diam = 12.6157  # Makes a soma of 500 microns squared.
