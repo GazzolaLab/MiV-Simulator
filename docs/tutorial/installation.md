@@ -59,7 +59,9 @@ CMAKE_BUILD_PARALLEL_LEVEL=8 pip install .
 
 For architecture-level optimization, some of the core libraries should be built within the worker node.
 
-> **NOTE:** Make sure to run on a worker node, not the login-node!
+:::{note}
+Make sure to run on a worker node, not the login-node!
+:::
 
 ### Necessary Modules
 
@@ -146,3 +148,8 @@ cmake .
 make -j4
 export PATH=<NeuroH5 installation path>/bin:$PATH
 ```
+
+## Tools and scripts to aid cluster usage
+
+- [How to install and configure as module](https://github.com/GazzolaLab/MiV-Simulator/tree/latest/support/cluster)
+- [Machinable: A modular system to manage research code](https://machinable.org://machinable.org/)
