@@ -152,4 +152,4 @@ export PATH=<NeuroH5 installation path>/bin:$PATH
 ## Tools and scripts to aid cluster usage
 
 - [How to install and configure as module](https://github.com/GazzolaLab/MiV-Simulator/tree/latest/support/cluster)
-- [Machinable: A modular system to manage research code](https://machinable.org://machinable.org/)
+- [Machinable: A modular system to manage research code](https://machinable.org)
