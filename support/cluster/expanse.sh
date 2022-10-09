@@ -3,7 +3,7 @@
 read -rd '' globalhelp <<-EOF
     how to use setup.sh
     -------------------
-    ./miv_setup.sh <options>
+    ./expanse.sh <options>
 
     options and explanations
     ---------------------------
@@ -181,9 +181,9 @@ proc ModulesHelp { } {
     puts stdout "We recommend to make a clone environment to protect original environment setup."
 }
 
-module-whatis "Require C/C++ libraries and Python modules for MiV-Simulator."
-module-whatis "The module includes phdf5-$HDF5_VER, NEURON-$NEURON_VER, and NeuroH5"
-module-whatis "Loading this module will additionally load openmpi, cmake, and anaconda."
+module-whatis "Necessary C/C++ libraries and Python modules for MiV-Simulator."
+module-whatis "The module includes phdf5-$HDF5_VER, NEURON-$NEURON_VER, NeuroH5, and miv-simulator."
+module-whatis "Loading this module will additionally load openmpi."
 
 module load $MPI_LIBRARY
 
