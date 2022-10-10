@@ -18,7 +18,7 @@ from miv_simulator.utils import (
     Struct,
     get_module_logger,
 )
-from miv_simulator.opsin.core import PyRhOobject, modelParams, rhoType
+from miv_simulator.opsin.core import PyRhOobject, modelParams, rho_type
 
 logger = get_module_logger(__name__)
 
@@ -50,11 +50,11 @@ class RhodopsinModel(PyRhOobject):
     # TODO: Revise to be stateless and store date in PhotoCurrent objects
     phi = 0.0  # Instantaneous Light flux [photons * mm^-2 * s^-1]
 
-    def __init__(self, params=None, rhoType=rhoType):
+    def __init__(self, params=None, rho_type=rho_type):
 
         if params is None:
             params = modelParams[str(self.nStates)]
-        self.rhoType = rhoType  # E.g. 'ChR2' or 'ArchT'
+        self.rho_type = rho_type  # E.g. 'ChR2' or 'ArchT'
 
         self.setParams(params)
 
@@ -67,16 +67,15 @@ class RhodopsinModel(PyRhOobject):
         self.initStates(phi=self.phi_0, s0=self.s_0)
         # self.transRates = {r: getattr(self, r) for r in itertools.chain(self.photoRates, self.constRates)}
 
-        logger.info("PyRhO {}-state {} model initialised!".format(self.nStates, self.rhoType))
+        logger.info("PyRhO {}-state {} model initialised!".format(self.nStates, self.rho_type))
 
         self.printParams()
 
     def __str__(self):
-        return "{}-state {}".format(self.nStates, self.rhoType)  # self.__name__+
-        # return self.brian_phi_t
+        return "{}-state {}".format(self.nStates, self.rho_type)  # self.__name__+
 
     def __repr__(self):
-        return "<PyRhO {}-state {} Model object>".format(self.nStates, self.rhoType)
+        return "<PyRhO {}-state {} Model object>".format(self.nStates, self.rho_type)
 
     def __call__(self):
         """When a rhodopsin is called, return its internal state at that instant."""
@@ -256,52 +255,6 @@ class RhO_3states(RhodopsinModel):
     eqIss = r"""$I_{SS} = \bar{g_0} \cdot \frac{G_a \cdot G_r}{G_d \cdot (G_r + G_a) + G_a \cdot G_r} \cdot (v-E)
     = \bar{g_0} \cdot \frac{\tau_d}{\tau_d + \tau_r + \tau_\phi} \cdot (v-E)$"""
 
-    brianStateVars = ['C', 'O', 'D']
-
-    brian = '''
-            dC/dt = Gr*D - Ga*C                     : 1
-            dO/dt = Ga*C - Gd*O                     : 1
-            dD/dt = Gd*O - Gr*D                     : 1
-            Ga = Theta*k_a*((phi**p)/(phi**p + phi_m**p))             : second**-1
-            Gr = Theta*k_r*((phi(t)**q)/(phi(t)**q + phi_m**q)) + Gr0 : second**-1
-            f_phi = O                               : 1
-            f_v = (1-exp(-(v-E)/v0))/((v-E)/v1)     : 1
-            I = g0*f_phi*f_v*(v-E)                  : amp
-            phi                                     : metre**-2*second**-1 (shared)
-            Theta = int(phi > 0*phi)                : 1 (shared)
-            '''
-    #S_D = 1 - S_C - S_O : 1 #
-    #int(phi>0)
-    #Ga = stimulus*k*((phi**p)/(phi**p+phi_m**p)) : second**-1
-    #H = stimulus*((phi**p)/(phi**p+phi_m**p)) : 1
-    #Ga = k * H : second**-1
-    #stimulus = int(ceil(clip(phi(t), 0, 1)))
-
-    brian_phi_t = '''
-            dC/dt = Gr*D - Ga*C                                       : 1
-            dO/dt = Ga*C - Gd*O                                       : 1
-            dD/dt = Gd*O - Gr*D                                       : 1
-            Ga = Theta*k_a*((phi(t)**p)/(phi(t)**p + phi_m**p))       : second**-1
-            Gr = Theta*k_r*((phi(t)**q)/(phi(t)**q + phi_m**q)) + Gr0 : second**-1
-            f_phi = O                                                 : 1
-            f_v = (1-exp(-(v-E)/v0))/((v-E)/v1)                       : 1
-            I = g0*f_phi*f_v*(v-E)                                    : amp
-            Theta = int(phi(t) > 0*phi(t))                            : 1 (shared)
-            '''
-
-    """
-    @property
-    def Ga(self):
-        return self._calcGa(self.phi)
-
-    @Ga.setter
-    def Ga(self, value):
-        return
-
-    @property
-    def Gr(self):
-        return self._calcGr(self.phi)
-    """
 
     def _calcGa(self, phi):
         return self.k_a * phi**self.p/(phi**self.p + self.phi_m**self.p)
@@ -313,9 +266,6 @@ class RhO_3states(RhodopsinModel):
         #return self.Gr_dark + self.Gr_light * np.log(1 + phi/self.phi0) # self.Gr0 + self.Gr1
         # return 1/(taur_dark*exp(-log(1+phi/phi0))+taur_min) # Fig 6 Nikolic et al. 2009
         ### return Gr_dark + kr*(1-exp(-phi/phi0)) # a = Gr_max - Gr_dark
-
-    #def set_Gd(self, phi):
-    #    return 1/(taud_dark - a*log(1+phi/phi0)) # Fig 6 Nikolic et al. 2009
 
     def setLight(self, phi):
         """Set transition rates according to the instantaneous photon flux density"""
@@ -472,41 +422,6 @@ class RhO_4states(RhodopsinModel):
                 $$ I_{\phi} = g_0 \cdot f_{\phi}(\phi) \cdot f_v(v) \cdot (v-E) $$
                 """
 
-    brianStateVars = ['C_1', 'O_1', 'O_2', 'C_2']
-
-    brian = '''
-            dC_1/dt = Gd1*O_1 + Gr0*C_2 - Ga1*C_1     : 1
-            dO_1/dt = Ga1*C_1 + Gb*O_2 - (Gd1+Gf)*O_1 : 1
-            dO_2/dt = Ga2*C_2 + Gf*O_1 - (Gd2+Gb)*O_2 : 1
-            C_2 = 1 - C_1 - O_1 - O_2                 : 1
-            H_p = Theta*((phi**p)/(phi**p+phi_m**p))  : 1
-            H_q = Theta*((phi**q)/(phi**q+phi_m**q))  : 1
-            Ga1 = k1*H_p                              : second**-1
-            Ga2 = k2*H_p                              : second**-1
-            Gf  = k_f*H_q + Gf0                       : second**-1
-            Gb  = k_b*H_q + Gb0                       : second**-1
-            f_v   = (1-exp(-(v-E)/v0))/((v-E)/v1)     : 1
-            f_phi = O_1+gam*O_2                       : 1
-            I     = g0*f_phi*f_v*(v-E)                : amp
-            phi                                       : metre**-2*second**-1 (shared)
-            Theta = int(phi > 0*phi)                  : 1 (shared)
-            '''
-
-    brian_phi_t = '''
-            dC_1/dt = Gd1*O_1 + Gr0*C_2 - Ga1*C_1                  : 1
-            dO_1/dt = Ga1*C_1 + Gb*O_2 - (Gd1+Gf)*O_1              : 1
-            dO_2/dt = Ga2*C_2 + Gf*O_1 - (Gd2+Gb)*O_2              : 1
-            C_2 = 1 - C_1 - O_1 - O_2                              : 1
-            Theta = int(phi(t) > 0*phi(t))                         : 1 (shared)
-            Ga1   = Theta*k1*phi(t)**p/(phi(t)**p+phi_m**p)        : second**-1
-            Ga2   = Theta*k2*phi(t)**p/(phi(t)**p+phi_m**p)        : second**-1
-            Gf    = Theta*k_f*phi(t)**q/(phi(t)**q+phi_m**q) + Gf0 : second**-1
-            Gb    = Theta*k_b*phi(t)**q/(phi(t)**q+phi_m**q) + Gb0 : second**-1
-            f_v   = (1-exp(-(v-E)/v0))/((v-E)/v1)                  : 1
-            f_phi = O_1+gam*O_2                                    : 1
-            I     = g0*f_phi*f_v*(v-E)                             : amp
-            '''
-
     def _calcGa1(self, phi):
         # N.B. making Ga a function of time (as in Appendix 1) results in the Six-state model
         # Gai = ei * F * f(t,tChR) See App 1
@@ -656,46 +571,6 @@ class RhO_6states(RhodopsinModel):
                 $$ I_{\phi} = g_0 \cdot f_{\phi}(\phi) \cdot f_v(v) \cdot (v-E) $$
                 """
 
-    brianStateVars = ['C_1', 'I_1', 'O_1', 'O_2', 'I_2', 'C_2']
-
-    brian = '''
-            dC_1/dt = Gd1*O_1 + Gr0*C_2 - Ga1*C_1     : 1
-            dI_1/dt = Ga1*C_1 - Go1*I_1               : 1
-            dO_1/dt = Go1*I_1 + Gb*O_2 - (Gd1+Gf)*O_1 : 1
-            dO_2/dt = Go2*I_2 + Gf*O_1 - (Gd2+Gb)*O_2 : 1
-            dI_2/dt = Ga2*C_2 - Go2*I_2               : 1
-            C_2 = 1 - C_1 - I_1 - O_1 - O_2 - I_2     : 1
-            H_p = Theta*((phi**p)/(phi**p+phi_m**p))  : 1
-            H_q = Theta*((phi**q)/(phi**q+phi_m**q))  : 1
-            Ga1 = k1*H_p                              : second**-1
-            Ga2 = k2*H_p                              : second**-1
-            Gf = k_f*H_q + Gf0                        : second**-1
-            Gb = k_b*H_q + Gb0                        : second**-1
-            f_v = (1-exp(-(v-E)/v0))/((v-E)/v1)       : 1
-            f_phi = O_1+gam*O_2                       : 1
-            I = g0*f_phi*f_v*(v-E)                    : amp
-            phi                                       : metre**-2*second**-1 (shared)
-            Theta = int(phi > 0*phi)                  : 1 (shared)
-            '''
-
-    brian_phi_t = '''
-            dC_1/dt = Gd1*O_1 + Gr0*C_2 - Ga1*C_1            : 1
-            dI_1/dt = Ga1*C_1 - Go1*I_1                      : 1
-            dO_1/dt = Go1*I_1 + Gb*O_2 - (Gd1+Gf)*O_1        : 1
-            dO_2/dt = Go2*I_2 + Gf*O_1 - (Gd2+Gb)*O_2        : 1
-            dI_2/dt = Ga2*C_2 - Go2*I_2                      : 1
-            C_2 = 1 - C_1 - I_1 - O_1 - O_2 - I_2            : 1
-            Theta = int(phi(t) > 0*phi(t))                   : 1 (shared)
-            H_p   = Theta*((phi(t)**p)/(phi(t)**p+phi_m**p)) : 1
-            H_q   = Theta*((phi(t)**q)/(phi(t)**q+phi_m**q)) : 1
-            Ga1   = k1*H_p                                   : second**-1
-            Ga2   = k2*H_p                                   : second**-1
-            Gf    = k_f*H_q + Gf0                            : second**-1
-            Gb    = k_b*H_q + Gb0                            : second**-1
-            f_v   = (1-exp(-(v-E)/v0))/((v-E)/v1)            : 1
-            f_phi = O_1+gam*O_2                              : 1
-            I     = g0*f_phi*f_v*(v-E)                       : amp
-            '''
 
     def _calcGa1(self, phi):
         #return self.a10*(phi/self.phi0)
@@ -792,18 +667,18 @@ class RhO_6states(RhodopsinModel):
         raise NotImplementedError(self.nStates)
 
 
-models = OrderedDict([('3', RhO_3states), (3, RhO_3states),
-                      ('4', RhO_4states), (4, RhO_4states),
-                      ('6', RhO_6states), (6, RhO_6states)])
+models = OrderedDict([(3, RhO_3states),
+                      (4, RhO_4states),
+                      (6, RhO_6states)])
 
 
 def select_model(nStates):
     """Model selection function"""
     if int(nStates) == 3 or nStates == 'three':
-        return RhO_3states()
+        return models[3]
     elif int(nStates) == 4 or nStates == 'four':
-        return RhO_4states()
+        return models[4]
     elif int(nStates) == 6 or nStates == 'six':
-        return RhO_6states()
+        return models[6]
     else:
         raise NotImplementedError(nStates)

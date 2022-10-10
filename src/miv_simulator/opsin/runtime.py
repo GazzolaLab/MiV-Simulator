@@ -4,6 +4,7 @@ https://github.com/ProjectPyRhO/PyRhO.git
 """
 
 from typing import TYPE_CHECKING, Dict, Set, Tuple
+from collections import defaultdict
 import copy
 import logging
 import math
@@ -26,92 +27,143 @@ class Opsin:
 
     mechanisms = {3: 'RhO3c', 4: 'RhO4c', 6: 'RhO6c'}
 
-    def __init__(self, nstates: int,
-                 protocol, rhoParams,
-                 rec_index: int = 0,
+    def __init__(self,
+                 pc: "HocObject",
+                 pop_gid_dict: Dict[str, Set[int]],
+                 nstates: int,
+                 protocol,
+                 rho_params,
+                 max_gid_rec_count: int = 1,
+                 sec_rec_count: int = 1,
                  seed: int = 1, ):
 
-        self.rng = np.random.RandomState()
-        
+        self.rng = np.random.RandomState(seed)
+
+        self.max_gid_rec_count = max_gid_rec_count
+        self.sec_rec_count = sec_rec_count
+        self.pc = pc
         self.protocol = protocol
-        self.rhoParams = copy.deepcopy(rhoParams)
+        self.rho_params = copy.deepcopy(rho_params)
         self.model = select_model(nstates)
+        self.pop_gid_dict = pop_gid_dict
         
-        # Selects the appropriate mechanism for insertion
-        self.rho_list = []
-        self.sec_list = []
+        self.pop_rec_dict = defaultdict(lambda: defaultdict(lambda: list))
+        self.pop_rho_dict = defaultdict(lambda: defaultdict(lambda: list))
+        self.pop_sec_dict = defaultdict(lambda: defaultdict(lambda: list))
+
+        self.protocol.prepare()
         self.init_mechanisms()
-        self.set_opsin_params()
 
-        self.rhoRec = None
-        self.Iphi = h.Vector()
-        self.rho_tvec = h.Vector()
+        self.rho_tvec = None
         self.init_recording()
-
+        
         self.dt = None
         self.init_dt()
+
+        self.phiVec = None
+        self.tvec = None
+
+        ## TODO: support for multiple runs 
+        run = 0
+        cycles, Dt_delay = self.protocol.getRunCycles(run)
+        phi_ts = self.protocol.phi_ts[run][phiInd][:]
+        self.setup_stim(phi_ts, Dt_delay, cycles)
+
         
     def init_dt(self):
         
         """Function to prepare the simulator according to the protocol and rhodopsin"""
 
-        self.dt = get_shortest_period(self.protocol)
+        self.dt = self.protocol.getShortestPeriod()
         if self.dt < h.dt:
             h.dt = self.dt
-
-        return
+            logger.info(f"Time step reduced to {h.dt} by optogenetic protocol")
 
     def init_mechanisms(self):
 
-        self.sec_list = h.List()
-        self.rho_list = h.List()
-        mech = getattr(h, self.mechanisms[self.model.nStates])
+        for pop_name in self.pop_gid_dict:
+
+            gid_set = self.pop_gid_dict[pop_name]
+            sec_dict = self.pop_sec_dict[pop_name]
+            rho_dict = self.pop_rho_dict[pop_name]
+            mech = getattr(h, self.mechanisms[self.model.nStates])
         
-        # TODO: manage list of cells
-        expProb = self.rhoParams.expProb
-        for sec in self.cell.all:
-            self.sec_list.append(sec)
-            if (expProb >= 1) or (self.rng.random() <= expProb):  # Insert a rhodopsin and append it to rho_list
-                rho = mech(sec(0.5))
-                self.rho_list.append(rho)
+            expProb = self.rho_params.expProb
 
-    def set_opsin_params(self, rho_list, params):
-        for rho in rho_list:
-            for p in params:
-                setattr(rho, p, params[p])
+            for gid in gid_set:
+                
+                if not self.pc.gid_exists(gid):
+                    continue
+                
+                cell = self.pc.gid2cell(gid)
+                
+                is_art = False
+                if hasattr(cell, "is_art"):
+                    is_art = cell.is_art() > 0
+                if is_art:
+                    continue
 
-    def get_opsin_params(self):
-        # TODO
-        pass
+                sec_list = sec_dict[gid]
+                rho_list = rho_dict[gid]
+                for sec in cell.all:
+                    if (expProb >= 1) or (self.rng.random() <= expProb):
+                        # Insert a rhodopsin mechanism and append it to rho_list for that cell
+                        rho = mech(sec(0.5))
+                        for p in self.params:
+                            setattr(rho, p, params[p])
 
-    def set_phi(self, phiOn, Dt_delay, Dt_on, Dt_off, nPulses):
-        for rho in self.rho_list:
-            rho.phiOn = phiOn
-            rho.Dt_delay = Dt_delay
-            rho.Dt_on = Dt_on
-            rho.Dt_off = Dt_off
-            rho.nPulses = nPulses
+                        rho_list.append(rho)
+                        sec_list.append(sec)
+                    
 
     def init_recording(self):
 
-        self.rhoRec = self.rho_list[rec_index]
-
-        self.Iphi = h.Vector()
-        self.rho_tvec = h.Vector()
         # Record time points
+        self.rho_tvec = h.Vector()
         self.rho_tvec.record(h._ref_t)  
-        # Record photocurrent
-        self.Iphi.record(rhoRec._ref_i)
 
-        # Save state variables according to RhO model
-        for s in self.model.stateVars:
-            h(f'objref {s}Vec')
-            h.rho = rhoRec
-            h(f'{s}Vec = new Vector()')
-            h(f'{s}Vec.record(&rho.{s})')
+        for pop_name in self.pop_gid_dict:
+
+            gid_set = self.pop_gid_dict[pop_name]
+            sec_dict = self.pop_sec_dict[pop_name]
+            rho_dict = self.pop_rho_dict[pop_name]
+            rec_dict = self.pop_rec_dict[pop_name]
+            this_gid_rec_count = 0
             
+            for gid in gid_set:
+                
+                if not self.pc.gid_exists(gid):
+                    continue
 
-    def setup_pulses(self, RhO, phi_ts, Dt_delay, cycles, dt):
+                if gid not in sec_dict:
+                    continue
+                
+                sec_list = sec_dict[gid]
+                rho_list = rho_dict[gid]
+                
+                rec_rho_list = [{ 'section': sec } for sec in rho_list[:self.sec_rec_count] ]
+                rec_dict[gid] = rec_rho_list
+
+                for rec in rec_rho_list:
+
+                    sec = rec['section']
+                    
+                    # Record photocurrent
+                    Iphi = h.Vector()
+                    Iphi.record(sec._ref_i)
+                    rec['Iphi'] = Iphi
+                    
+                    # Record state variables according to RhO model
+                    for s in self.model.stateVars:
+                        state_vec = h.Vector()
+                        state_vec.record(getattr(sec, f'_ref_{s}'))
+                        rec[s] = state_vec
+
+                this_gid_rec_count += 1
+                if self.max_gid_rec_count < this_gid_rec_count:
+                    break
+                        
+    def setup_stim(self, phi_ts, Dt_delay, cycles):
         """Main routine for simulating a pulse train."""
         
         # TODO: Rename RhOnc.mod to RhOn.mod and RhOn.mod to RhOnD.mod (discrete) and similar for runTrialPhi_t
@@ -133,7 +185,7 @@ class Opsin:
         logger.info(info)
 
         # Set simulation run time
-        h.tstop = Dt_total  # Dt_delay + np.sum(cycles) #nPulses*(Dt_on+Dt_off) + padD
+        h.Dt_total = Dt_total  # Dt_delay + np.sum(cycles) #nPulses*(Dt_on+Dt_off) + padD
 
         ### Delay phase (to allow the system to settle)
         phi = 0
@@ -143,7 +195,7 @@ class Opsin:
         logger.info(f"Trial initial conditions:{self.model.s0}")
 
         start, end = self.model.t[0], self.model.t[0]+Dt_delay  # start, end = 0.00, Dt_delay
-        nSteps = int(round(((end-start)/dt)+1))
+        nSteps = int(round(((end-start)/self.dt)+1))
         t = np.linspace(start, end, nSteps, endpoint=True)
         phi_tV = np.zeros_like(t)
 
@@ -159,7 +211,7 @@ class Opsin:
             discontinuities = np.r_[discontinuities, len(tPulse) - 1]
 
             onInd = len(t) - 1  # Start of on-phase
-            offInd = onInd + int(round(Dt_on/dt))
+            offInd = onInd + int(round(Dt_on/self.dt))
             self.model.pulseInd = np.vstack((self.model.pulseInd, [onInd, offInd]))
 
             t = np.r_[t, tPulse[1:]]
@@ -167,41 +219,63 @@ class Opsin:
 
             self.model.ssInf.append(self.model.calcSteadyState(phi_t(end-Dt_off)))
 
-        tvec = h.Vector(t)
-        tvec.label('Time [ms]')
+        self.tvec = h.Vector(t)
+        self.tvec.label('Time [ms]')
         phi_tV[np.ma.where(phi_tV < 0)] = 0  # Safeguard for negative phi values
-        phiVec = h.Vector(phi_tV)
-        phiVec.label('phi [ph./mm^2/s]')
-        phiVec.play(self.rhoRec._ref_phi, tvec, 1, discontinuities)
+        self.phiVec = h.Vector(phi_tV)
+        self.phiVec.label('phi [ph./mm^2/s]')
+
+        # Iterate over all opsin mechanisms and initialize instantaneous fluxes
+        for pop_name in self.pop_gid_dict:
+
+            gid_set = self.pop_gid_dict[pop_name]
+            rho_dict = self.pop_rho_dict[pop_name]
+
+            for gid in gid_set:
+                
+                if gid not in rho_dict:
+                    continue
+                
+                rho_list = rho_dict[gid]
+                for rho in rho_list:
+                    self.phiVec.play(rho._ref_phi, self.tvec, 1, discontinuities)
 
         
     def sample(self):
         
-        I_RhO = np.array(h.Iphi.to_python(), copy=True)
-        t = np.array(h.rho_tvec.to_python(), copy=True)
-        self.t = t
+        t_rec = np.array(self.rho_tvec.to_python(), copy=True)
 
-        # Get solution variables N.B. NEURON changes the sampling rate
-        soln = np.zeros((len(t), self.model.nStates))
-        for sInd, s in enumerate(self.model.stateVars):
-            h('objref tmpVec')
-            h('tmpVec = {}Vec'.format(s))
-            soln[:, sInd] = np.array(h.tmpVec.to_python(), copy=True)
-            h('{}Vec.clear()'.format(s))
-            h('{}Vec.resize(0)'.format(s))
+        pop_result_dict = defaultdict(lambda: {})
 
-        # Reset vectors
-        h.rho_tvec.clear()
-        h.rho_tvec.resize(0)
-        h.Iphi.clear()
-        h.Iphi.resize(0)
+        stored = False
+        
+        for pop_name in self.pop_gid_dict:
 
-        self.model.storeStates(soln[1:], t[1:])
+            gid_set = self.pop_gid_dict[pop_name]
+            rec_dict = self.pop_rec_dict[pop_name]
+        
+            for gid in gid_set:
+                
+                if not self.pc.gid_exists(gid):
+                    continue
 
-        self.dt = h.dt
-        self.protocol.dt = h.dt
+                if gid not in rec_dict:
+                    continue
+                
+                rec = rec_dict[gid]
+                
+                Iphi = np.array(rec['Iphi'].to_python(), copy=True)
 
-        ### Calculate photocurrent
-        states, t = self.model.getStates()
+                # Get solution variables
+                soln = np.zeros((len(t), self.model.nStates))
+                for sInd, s in enumerate(self.model.stateVars):
+                    soln[:, sInd] = np.array(rec[s].to_python())
 
-        return I_RhO, t, soln
+                if not stored:
+                    self.model.storeStates(soln[1:], t_rec[1:])
+                    stored = True
+
+                pop_result_dict[pop_name][gid] = {'Iphi': Iphi,
+                                                  'states': soln}
+
+        return t_rec, pop_result_dict

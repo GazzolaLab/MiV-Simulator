@@ -58,10 +58,10 @@ def cycles2times(cycles, Dt_delay):
     return (times, Dt_total)
 
 
-modelParams = OrderedDict([('3', Struct()), ('4', Struct()), ('6', Struct())])    
+modelParams = OrderedDict([(3, Struct()), (4, Struct()), (6, Struct())])    
 
-defaultOpsinType = 'ChR2'
-rhoType = defaultOpsinType  # Set this when selecting
+default_opsin_type = 'ChR2'
+rho_type = default_opsin_type
 
 
 ### Move somewhere else e.g. base.py
