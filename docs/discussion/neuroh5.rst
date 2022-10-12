@@ -74,9 +74,11 @@ Sample Structure
 Commonly Used Functions
 =======================
 
-- bcast_cell_attributes: query cell attribute and broadcast
+- neuroh5.io.bcast_cell_attributes: query cell attribute and broadcast
 
 .. code-block:: python
+
+   from neuroh5.io import bcast_call_cell_attributes
 
     coords = bcast_cell_attributes(
         "coords.h5",                       # file_name
@@ -94,6 +96,11 @@ Commonly Used Functions
         )
         for (k, v) in coords
     }
+
+Commonly Used CLI Tools
+=======================
+
+- neurotrees_import: Read SWC morphology files and convert as trees in h5 format.
 
 
 References
