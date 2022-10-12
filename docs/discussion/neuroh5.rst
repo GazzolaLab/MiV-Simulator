@@ -71,6 +71,31 @@ Sample Structure
    :width: 800
    :alt: Sample Structure
 
+Commonly Used Functions
+=======================
+
+- bcast_cell_attributes: query cell attribute and broadcast
+
+.. code-block:: python
+
+    coords = bcast_cell_attributes(
+        "coords.h5",                       # file_name
+        "PYR",                             # pop_name
+        0,                                 # root
+        namespace="Generated Coordinates", # namespace
+        comm=comm                          # comm
+                                           # mask
+    )
+    soma_coords = {
+        k: (
+            v["U Coordinate"][0],
+            v["V Coordinate"][0],
+            v["L Coordinate"][0],
+        )
+        for (k, v) in coords
+    }
+
+
 References
 ==========
 
