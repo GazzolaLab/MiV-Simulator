@@ -555,7 +555,6 @@ def plot_cell_tree(
     mayavi=False,
     **kwargs,
 ):
-
     import networkx as nx
 
     fig_options = copy.copy(default_fig_options)
@@ -616,8 +615,8 @@ def plot_cell_tree(
     start_idx = edge_array[0, :]
     end_idx = edge_array[1, :]
 
-    start_idx = start_idx.astype(np.int)
-    end_idx = end_idx.astype(np.int)
+    start_idx = start_idx.astype(np.int_)
+    end_idx = end_idx.astype(np.int_)
     if color_edge_scalars:
         edge_scalars = z[start_idx]
         edge_color = None
@@ -669,16 +668,14 @@ def plot_cell_tree(
             mlab.show()
 
     else:
-        from mpl_toolkits.mplot3d import Axes3D
-
         fig = plt.figure(figsize=fig_options.figSize)
-        ax = Axes3D(fig)
+        ax = fig.add_subplot(projection="3d")
 
         layer_set = set(layer)
         sct = ax.scatter(
             x,
             y,
-            z,
+            zs=z,
             c=layer,
             alpha=0.7,
         )
@@ -707,11 +704,12 @@ def plot_cell_tree(
                     f"{population}_{gid}_cell_tree.{fig_options.figFormat}"
                 )
             plt.savefig(filename)
+            print(f"Save figure: {filename}")
 
         if fig_options.showFig:
             show_figure()
 
-    return fig
+    # return fig
 
 
 ## Plot spike raster
@@ -1838,10 +1836,8 @@ def plot_biophys_cell_tree(
         fig = mlab.gcf()
 
     elif plot_method == "matplotlib":
-        from mpl_toolkits.mplot3d import Axes3D
-
         fig = plt.figure(figsize=fig_options.figSize)
-        ax = Axes3D(fig)
+        ax = fig.add_subplot(projection="3d")
 
         xcoords = np.asarray(
             [x for (i, x) in morph_graph.nodes.data("x")], dtype=np.float32
@@ -1901,17 +1897,18 @@ def plot_biophys_cell_tree(
         ax.view_init(30)
         ax.set_axis_off
 
-        if fig_options.saveFig:
-            if isinstance(fig_options.saveFig, str):
-                filename = fig_options.saveFig
-            else:
-                filename = (
-                    f"{population}_{gid}_cell_tree.{fig_options.figFormat}"
-                )
-            plt.savefig(filename)
+        # if fig_options.saveFig:
+        #    if isinstance(fig_options.saveFig, str):
+        #        filename = fig_options.saveFig
+        #    else:
+        #        filename = (
+        #            f"{population}_{gid}_cell_tree.{fig_options.figFormat}"
+        #        )
+        #    plt.savefig(filename)
 
         if fig_options.showFig:
-            show_figure()
+            # show_figure()
+            plt.show()
     else:
         sl = h.SectionList([sec for sec in biophys_cell.hoc_cell.all])
         for sec in sl:
@@ -1924,7 +1921,7 @@ def plot_biophys_cell_tree(
         ax = ps.plot(plt)
         plt.show()
 
-    return fig
+    # return fig
 
 
 # =============================================================================

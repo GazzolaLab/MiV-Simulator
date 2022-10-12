@@ -97,6 +97,17 @@ def get_layer_extents(layer_extents, layer):
 
 
 def get_total_extents(layer_extents):
+    """
+    Return total range of extent in tuple.
+
+    Parameters
+    ----------
+    layer_extents
+
+    Returns
+    -------
+    Tuple : ((min_u, max_u), (min_v, max_v), (min_l, max_l))
+    """
 
     min_u = float("inf")
     max_u = 0.0
@@ -413,7 +424,7 @@ def get_volume_distances(
     distances_v = np.asarray(ldists_v, dtype=np.float32)
     obs_uvl = np.asarray(np.vstack(obs_uvls), dtype=np.float32)
 
-    return (origin_ranges, obs_uvl, distances_u, distances_v)
+    return origin_ranges, obs_uvl, distances_u, distances_v
 
 
 def interp_soma_distances(
@@ -574,10 +585,9 @@ def make_distance_interpolant(
     if rank == 0:
         logger.info("Computing reference distances...")
 
-    vol_dist = get_volume_distances(
+    origin_ranges, obs_uvl, dist_u, dist_v = get_volume_distances(
         ip_volume, origin_spec=origin, nsample=nsample, comm=comm
     )
-    (origin_ranges, obs_uvl, dist_u, dist_v) = vol_dist
 
     if rank == 0:
         logger.info("Done computing reference distances...")
@@ -640,9 +650,22 @@ def measure_distances(
     soma_coords,
     ip_dist,
     resolution=[30, 30, 10],
-    interp_chunk_size=1000,
+    interp_chunk_size: int = 1000,
     allgather=False,
 ):
+    """
+    Measure soma distances.
+
+    Parameters
+    ----------
+    comm : MPI_COMM
+    geometry_config :
+    soma_coords :
+    ip_dist :
+    resolution :
+    interp_chunk_size :
+    allgather :
+    """
 
     rank = comm.rank
 
