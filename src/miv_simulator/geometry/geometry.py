@@ -2,7 +2,6 @@
 
 import logging
 import math
-
 import numpy as np
 import rbf
 from miv_simulator.geometry.alphavol import alpha_shape
@@ -696,7 +695,7 @@ def measure_distances(
     return soma_distances
 
 
-def measure_distance_extents(comm, geometry_config, volume):
+def measure_distance_extents(geometry_config, volume):
 
     layer_extents = geometry_config["Parametric Surface"]["Layer Extents"]
 
@@ -895,105 +894,6 @@ def icp_transform(
     return soma_coords_dict
 
 
-def test_nodes():
-    from mayavi import mlab
-    from miv_simulator.geometry.alphavol import alpha_shape
-    from rbf.pde.geometry import contains
-    from rbf.pde.nodes import min_energy_nodes
-
-    obs_u = np.linspace(-0.016 * np.pi, 1.01 * np.pi, 25)
-    obs_v = np.linspace(-0.23 * np.pi, 1.425 * np.pi, 25)
-    obs_l = np.linspace(-1.0, 1.0, num=10)
-
-    u, v, l = np.meshgrid(obs_u, obs_v, obs_l, indexing="ij")
-    xyz = DG_volume(u, v, l, rotate=[-35.0, 0.0, 0.0])
-
-    print("Constructing volume...")
-    vol = RBFVolume(obs_u, obs_v, obs_l, xyz, order=2)
-
-    print("Constructing volume triangulation...")
-    tri = vol.create_triangulation()
-
-    print("Constructing alpha shape...")
-    alpha = alpha_shape([], 120.0, tri=tri)
-
-    # Define the problem domain
-    vert = alpha.points
-    smp = np.asarray(alpha.bounds, dtype=np.int64)
-
-    N = 10000  # total number of nodes
-
-    # create N quasi-uniformly distributed nodes
-    print("Generating nodes...")
-    rbf_logger = logging.Logger.manager.loggerDict["rbf.pde.nodes"]
-    rbf_logger.setLevel(logging.DEBUG)
-    out = min_energy_nodes(N, (vert, smp), iterations=10, build_rtree=True)
-
-    nodes = out[0]
-
-    # remove nodes outside of the domain
-    in_nodes = nodes[contains(nodes, vert, smp)]
-
-    print(f"Generated {len(in_nodes)} interior nodes")
-
-    vol.mplot_surface(color=(0, 1, 0), opacity=0.33, ures=10, vres=10)
-    mlab.points3d(*in_nodes.T, color=(1, 1, 0), scale_factor=15.0)
-
-    mlab.show()
-
-    return in_nodes, vol.inverse(in_nodes)
-
-
-def test_alphavol():
-    from dentate.alphavol import alpha_shape
-    from mayavi import mlab
-
-    obs_u = np.linspace(-0.016 * np.pi, 1.01 * np.pi, 20)
-    obs_v = np.linspace(-0.23 * np.pi, 1.425 * np.pi, 20)
-    obs_l = np.linspace(-3.95, 3.2, num=10)
-
-    u, v, l = np.meshgrid(obs_u, obs_v, obs_l, indexing="ij")
-    xyz = DG_volume(u, v, l, rotate=[-35.0, 0.0, 0.0])
-
-    print("Constructing volume...")
-    vol = RBFVolume(obs_u, obs_v, obs_l, xyz, order=2)
-
-    print("Constructing volume triangulation...")
-    tri = vol.create_triangulation()
-
-    print("Constructing alpha shape...")
-    alpha = alpha_shape([], 120.0, tri=tri)
-
-    vert = alpha.points
-    smp = np.asarray(alpha.bounds, dtype=np.int64)
-
-    edges = np.vstack(
-        [
-            np.column_stack([smp[:, 0], smp[:, 1]]),
-            np.column_stack([smp[:, 1], smp[:, 2]]),
-        ]
-    )
-
-    x = vert[:, 0]
-    y = vert[:, 1]
-    z = vert[:, 2]
-
-    start_idx = edges[:, 0]
-    end_idx = edges[:, 1]
-
-    vol.mplot_surface(color=(0, 1, 0), opacity=0.33, ures=10, vres=10)
-    mlab.quiver3d(
-        x[start_idx],
-        y[start_idx],
-        z[start_idx],
-        x[end_idx] - x[start_idx],
-        y[end_idx] - y[start_idx],
-        z[end_idx] - z[start_idx],
-        mode="2ddash",
-        scale_factor=1,
-    )
-
-    mlab.show()
 
 
 if __name__ == "__main__":

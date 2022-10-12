@@ -3,7 +3,7 @@ import copy
 import sys
 import time
 from collections import defaultdict
-
+from mpi4py import MPI
 import matplotlib as mpl
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
@@ -13,6 +13,7 @@ from matplotlib.colors import BoundaryNorm
 from matplotlib.offsetbox import AnchoredText
 from matplotlib.ticker import MaxNLocator
 from miv_simulator import cells, spikedata, statedata, stimulus, synapses
+from miv_simulator.volume import network_volume
 from miv_simulator.env import Env
 from miv_simulator.utils import (
     Struct,
@@ -23,6 +24,9 @@ from miv_simulator.utils import (
     signal_power_spectrogram,
     signal_psd,
     zip_longest,
+    add_bins,
+    update_bins,
+    finalize_bins,
 )
 from miv_simulator.utils.neuron import h, interplocs
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -30,6 +34,8 @@ from neuroh5.io import (
     read_cell_attributes,
     read_population_names,
     read_population_ranges,
+    NeuroH5ProjectionGen,
+    bcast_cell_attributes,
 )
 from scipy import interpolate, ndimage, signal
 
@@ -2976,3 +2982,202 @@ def plot_network_clamp(
         show_figure()
 
     return fig
+
+
+def plot_single_vertex_dist(
+    env,
+    connectivity_path,
+    coords_path,
+    distances_namespace,
+    target_gid,
+    destination,
+    source,
+    extent_type="local",
+    direction="in",
+    bin_size=20.0,
+    normed=False,
+    comm=None,
+    **kwargs,
+):
+    """
+    Plot vertex distribution with respect to arc distance for a single postsynaptic cell.
+
+    :param env:
+    :param connectivity_path:
+    :param coords_path:
+    :param distances_namespace:
+    :param target_gid:
+    :param destination:
+    :param source:
+
+    """
+
+    from miv_simulator.geometry.geometry import measure_distance_extents
+
+    fig_options = copy.copy(default_fig_options)
+    fig_options.update(kwargs)
+
+    (population_ranges, _) = read_population_ranges(coords_path)
+
+    destination_start = population_ranges[destination][0]
+    destination_count = population_ranges[destination][1]
+
+    if comm is None:
+        comm = MPI.COMM_WORLD
+
+    rank = comm.Get_rank()
+
+    source_soma_distances = bcast_cell_attributes(
+        coords_path, source, namespace=distances_namespace, comm=comm, root=0
+    )
+    destination_soma_distances = bcast_cell_attributes(
+        coords_path,
+        destination,
+        namespace=distances_namespace,
+        comm=comm,
+        root=0,
+    )
+
+    (
+        (total_x_min, total_x_max),
+        (total_y_min, total_y_max),
+    ) = measure_distance_extents(env.geometry, volume=network_volume)
+
+    source_soma_distance_U = {}
+    source_soma_distance_V = {}
+    destination_soma_distance_U = {}
+    destination_soma_distance_V = {}
+    for k, v in source_soma_distances:
+        source_soma_distance_U[k] = v["U Distance"][0]
+        source_soma_distance_V[k] = v["V Distance"][0]
+    for k, v in destination_soma_distances:
+        destination_soma_distance_U[k] = v["U Distance"][0]
+        destination_soma_distance_V[k] = v["V Distance"][0]
+
+    del source_soma_distances
+    del destination_soma_distances
+
+    g = NeuroH5ProjectionGen(
+        connectivity_path, source, destination, comm=comm, cache_size=20
+    )
+
+    dist_bins = {}
+
+    if direction == "in":
+        for (destination_gid, rest) in g:
+            if destination_gid == target_gid:
+                (source_indexes, attr_dict) = rest
+                for source_gid in source_indexes:
+                    dist_u = source_soma_distance_U[source_gid]
+                    dist_v = source_soma_distance_V[source_gid]
+                    update_bins(dist_bins, bin_size, dist_u, dist_v)
+                break
+    elif direction == "out":
+        for (destination_gid, rest) in g:
+            if rest is not None:
+                (source_indexes, attr_dict) = rest
+                for source_gid in source_indexes:
+                    if source_gid == target_gid:
+                        dist_u = destination_soma_distance_U[destination_gid]
+                        dist_v = destination_soma_distance_V[destination_gid]
+                        update_bins(dist_bins, bin_size, dist_u, dist_v)
+    else:
+        raise RuntimeError(f"Unknown direction type {direction}")
+
+    add_bins_op = MPI.Op.Create(add_bins, commute=True)
+    dist_bins = comm.reduce(dist_bins, op=add_bins_op)
+
+    if rank == 0:
+
+        dist_hist_vals, dist_u_bin_edges, dist_v_bin_edges = finalize_bins(
+            dist_bins, bin_size
+        )
+
+        dist_x_min = dist_u_bin_edges[0]
+        dist_x_max = dist_u_bin_edges[-1]
+        dist_y_min = dist_v_bin_edges[0]
+        dist_y_max = dist_v_bin_edges[-1]
+
+        if extent_type == "local":
+            x_min = dist_x_min
+            x_max = dist_x_max
+            y_min = dist_y_min
+            y_max = dist_y_max
+        elif extent_type == "global":
+            x_min = total_x_min
+            x_max = total_x_max
+            y_min = total_y_min
+            y_max = total_y_max
+        else:
+            raise RuntimeError(f"Unknown extent type {extent_type}")
+
+        X, Y = np.meshgrid(dist_u_bin_edges, dist_v_bin_edges)
+
+        fig = plt.figure(figsize=fig_options.figSize)
+
+        ax = plt.gca()
+        ax.axis([x_min, x_max, y_min, y_max])
+
+        if direction == "in":
+            ax.plot(
+                destination_soma_distance_U[target_gid],
+                destination_soma_distance_V[target_gid],
+                "r+",
+                markersize=12,
+                mew=3,
+            )
+        elif direction == "out":
+            ax.plot(
+                source_soma_distance_U[target_gid],
+                source_soma_distance_V[target_gid],
+                "r+",
+                markersize=12,
+                mew=3,
+            )
+        else:
+            raise RuntimeError(f"Unknown direction type {direction}")
+
+        H = np.array(dist_hist_vals.todense())
+        if normed:
+            H = np.divide(H.astype(float), float(np.max(H)))
+        pcm_boundaries = np.arange(0, np.max(H), 0.1)
+        cmap_pls = plt.cm.get_cmap(fig_options.colormap, len(pcm_boundaries))
+        pcm_colors = list(cmap_pls(np.arange(len(pcm_boundaries))))
+        pcm_cmap = mpl.colors.ListedColormap(pcm_colors[:-1], "")
+        pcm_cmap.set_under(pcm_colors[0], alpha=0.0)
+        pcm = ax.pcolormesh(X, Y, H.T, cmap=pcm_cmap)
+
+        clb_label = (
+            "Normalized number of connections"
+            if normed
+            else "Number of connections"
+        )
+        clb = fig.colorbar(pcm, ax=ax, shrink=0.5, label=clb_label)
+        clb.ax.tick_params(labelsize=fig_options.fontSize)
+
+        ax.set_aspect("equal")
+        ax.set_facecolor(pcm_colors[0])
+        ax.tick_params(labelsize=fig_options.fontSize)
+        ax.set_xlabel(
+            "Longitudinal position (um)", fontsize=fig_options.fontSize
+        )
+        ax.set_ylabel(
+            "Transverse position (um)", fontsize=fig_options.fontSize
+        )
+        ax.set_title(
+            f"Connectivity distribution ({direction}) of "
+            f"{source} to {destination} for gid {target_gid}",
+            fontsize=fig_options.fontSize,
+        )
+
+        if fig_options.showFig:
+            show_figure()
+
+        if fig_options.saveFig:
+            if isinstance(fig_options.saveFig, str):
+                filename = fig_options.saveFig
+            else:
+                filename = f"Connection distance {direction} {source} to {destination} gid {target_gid}.{fig_options.figFormat}"
+                plt.savefig(filename)
+
+    comm.barrier()
