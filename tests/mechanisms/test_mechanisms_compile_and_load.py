@@ -3,6 +3,7 @@ import os
 import commandlib
 
 from miv_simulator.mechanisms import compile, compile_and_load
+from neuron import h
 
 
 def test_compile():
@@ -27,3 +28,9 @@ def test_compile_and_load():
         compile_and_load()
     compile_and_load(force=True)
     assert os.path.exists(dll_path)
+
+
+def test_compile_and_load_mechanism_check():
+    compile_and_load()
+    assert hasattr(h, "cai0_ca_ion")
+    assert hasattr(h, "o_cagk")
