@@ -149,16 +149,3 @@ def main(
         config_prefix=config_prefix,
     )
 
-
-if __name__ == "__main__":
-    main(
-        args=sys.argv[
-            (
-                utils.list_find(
-                    lambda x: os.path.basename(x) == os.path.basename(__file__),
-                    sys.argv,
-                )
-                + 1
-            ) :
-        ]
-    )
