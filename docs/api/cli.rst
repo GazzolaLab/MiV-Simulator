@@ -69,6 +69,10 @@ Analysis scripts
    :prog: plot-network-clamp
    :nested: full
 
+.. click:: scripts.analysis.plot_single_vertex_dist:main
+   :prog: plot-single-vertex-dist
+   :nested: full
+
 Tools
 -----
 
