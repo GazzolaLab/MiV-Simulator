@@ -28,7 +28,7 @@ class MeasureDistances(HandlesYAMLConfig, Experiment):
     def on_execute(self):
         logging.basicConfig(level=logging.INFO)
         measure_distances(
-            config=self.config.network,
+            config=self.config.blueprint,
             coords_path=self.config.coordinates,
             coords_namespace=self.config.output_namespace,
             geometry_path=self.config.geometry,

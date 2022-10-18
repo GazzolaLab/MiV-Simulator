@@ -18,7 +18,7 @@ def _bin_check(bin: str) -> None:
         raise FileNotFoundError(f"{bin} not found. Did you add it to the PATH?")
 
 
-class MakeH5types(HandlesYAMLConfig, Experiment):
+class MakeNetwork(HandlesYAMLConfig, Experiment):
     @dataclass
     class Config(FromYAMLConfig):
         gap_junctions: bool = False
@@ -26,7 +26,9 @@ class MakeH5types(HandlesYAMLConfig, Experiment):
     def on_execute(self) -> None:
         logging.basicConfig(level=logging.INFO)
         make_h5types(
-            self.config.network, self.output_filepath, self.config.gap_junctions
+            self.config.blueprint,
+            self.output_filepath,
+            self.config.gap_junctions,
         )
 
     @property
@@ -38,7 +40,7 @@ class MakeH5types(HandlesYAMLConfig, Experiment):
             "miv_simulator.experiment.soma_coordinates",
             [
                 {
-                    "network": self.config.network,
+                    "blueprint": self.config.blueprint,
                     "h5types": self.output_filepath,
                 }
             ]
@@ -48,7 +50,7 @@ class MakeH5types(HandlesYAMLConfig, Experiment):
     def dentric_trees(self, population: str) -> str:
         if not self.is_finished():
             raise RuntimeError(
-                "You need to execute h5type generation before creating the dendric trees"
+                "You need to execute network generation before creating the dendric trees"
             )
         if population not in ["OLM", "PVBC", "PYR"]:
             raise ValueError("Invalid population")

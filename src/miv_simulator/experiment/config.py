@@ -8,7 +8,7 @@ from miv_simulator.utils import IncludeLoader
 
 @dataclass
 class FromYAMLConfig:
-    network: Optional[Dict] = None
+    blueprint: Optional[Dict] = None
 
 
 class HandlesYAMLConfig:
@@ -17,4 +17,4 @@ class HandlesYAMLConfig:
         with open(config_path("default.yaml")) as fp:
             config = yaml.load(fp, IncludeLoader)
 
-        self.save_data("network_config.json", config)
+        self.save_data("default_blueprint.json", config)

@@ -8,7 +8,7 @@ from miv_simulator.simulator import generate_input_spike_trains
 from miv_simulator.experiment.config import FromYAMLConfig, HandlesYAMLConfig
 
 
-class InputSpikeTrains(HandlesYAMLConfig, Experiment):
+class DeriveSpikeTrains(HandlesYAMLConfig, Experiment):
     @dataclass
     class Config(FromYAMLConfig):
         input_features: str = Field("???")
@@ -28,7 +28,7 @@ class InputSpikeTrains(HandlesYAMLConfig, Experiment):
 
     def on_execute(self):
         generate_input_spike_trains(
-            config=self.config.network,
+            config=self.config.blueprint,
             selectivity_path=self.config.input_features,
             selectivity_namespace="Selectivity",
             coords_path=self.config.coordinates,

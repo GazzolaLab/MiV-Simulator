@@ -39,7 +39,7 @@ class SomaCoordinates(HandlesYAMLConfig, Experiment):
         logging.basicConfig(level=logging.INFO)
         self.local_directory("data", create=True)
         generate_soma_coordinates(
-            config=self.config.network,
+            config=self.config.blueprint,
             types_path=self.config.h5types,
             output_path=self.output_filepath,
             geometry_path=self.config.geometry,
@@ -68,7 +68,7 @@ class SomaCoordinates(HandlesYAMLConfig, Experiment):
             populations=populations,
             coords_path=self.output_filepath,
             coords_namespace=self.config.output_namespace,
-            config=self.config.network,
+            config=self.config.blueprint,
             scale=scale,
             subpopulation=subpopulation,
             subvol=subvol,
@@ -80,7 +80,7 @@ class SomaCoordinates(HandlesYAMLConfig, Experiment):
             "miv_simulator.experiment.measure_distances",
             [
                 {
-                    "network": self.config.network,
+                    "blueprint": self.config.blueprint,
                     "coordinates": self.output_filepath,
                     "output_namespace": self.config.output_namespace,
                 }
@@ -93,7 +93,7 @@ class SomaCoordinates(HandlesYAMLConfig, Experiment):
             "miv_simulator.experiment.synapse_locations",
             [
                 {
-                    "network": self.config.network,
+                    "blueprint": self.config.blueprint,
                     "coordinates": self.output_filepath,
                 }
             ]
@@ -105,7 +105,7 @@ class SomaCoordinates(HandlesYAMLConfig, Experiment):
             "miv_simulator.experiment.distance_connections",
             [
                 {
-                    "network": self.config.network,
+                    "blueprint": self.config.blueprint,
                     "coordinates": self.output_filepath,
                 }
             ]
@@ -117,7 +117,7 @@ class SomaCoordinates(HandlesYAMLConfig, Experiment):
             "miv_simulator.experiment.input_features",
             [
                 {
-                    "network": self.config.network,
+                    "blueprint": self.config.blueprint,
                     "coordinates": self.output_filepath,
                 }
             ]

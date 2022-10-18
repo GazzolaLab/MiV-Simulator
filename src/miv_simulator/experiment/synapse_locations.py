@@ -6,7 +6,6 @@ from typing import List, Optional
 import miv_simulator
 from machinable import Experiment
 from machinable.config import Field
-from miv_simulator.mechanisms import compile_and_load
 from miv_simulator.simulator import distribute_synapse_locations
 
 from miv_simulator.experiment.config import FromYAMLConfig, HandlesYAMLConfig
@@ -31,15 +30,9 @@ class SynapseLocations(HandlesYAMLConfig, Experiment):
 
     def on_execute(self):
         logging.basicConfig(level=logging.INFO)
-        templates = self.config.templates
-        if templates is None:
-            templates = os.path.join(
-                os.path.dirname(miv_simulator.__file__), "templates"
-            )
-        compile_and_load()
         distribute_synapse_locations(
-            config=self.config.network,
-            template_path=templates,
+            config=self.config.blueprint,
+            template_path=self.config.templates,
             output_path=self.output_filepath,
             forest_path=self.config.forest,
             populations=[self.config.population],

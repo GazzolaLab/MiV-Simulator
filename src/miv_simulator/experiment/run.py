@@ -2,17 +2,18 @@ import os
 import pathlib
 import sys
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Dict
 
 import commandlib
 import h5py
 import numpy as np
 from machinable import Experiment
 from machinable.config import Field
-from miv_simulator import network
+import miv_simulator.network
 from miv_simulator.env import Env
 from miv_simulator.utils import config_logging
 from mpi4py import MPI
+from neuroh5.io import read_population_names
 
 from miv_simulator.experiment.config import FromYAMLConfig, HandlesYAMLConfig
 
@@ -46,12 +47,27 @@ class RunNetwork(Experiment):
         dt: float = 0.025
 
     def output_filepath(self, path: str = "cells") -> str:
-        return self.local_directory(f"data/{path}.h5")
+        return self.local_directory(f"data/simulation/{path}.h5")
 
     def dataset(self, kind: str) -> Optional["Experiment"]:
-        return self.elements.filter(
-            lambda x: x.__model__.module == kind
-        ).first()
+        return self.elements.filter(lambda x: x.module == kind).first()
+
+    def distance_connections_datasets(self) -> Dict:
+        datasets = {}
+        for e in self.elements.filter(
+            lambda x: x.module
+            == "miv_simulator.experiment.distance_connections"
+        ):
+            populations = read_population_names(e.config.forest)
+            for p in populations:
+                if p in datasets:
+                    # check for duplicates
+                    raise ValueError(
+                        f"Redundant distance connection specification for population {p}"
+                        f"Found duplicate in {e.config.forest}, while already defined in {datasets[p].config.forest}"
+                    )
+                datasets[p] = e
+        return datasets
 
     def on_execute(self):
         # consolidate generated data files into unified H5
@@ -64,18 +80,24 @@ class RunNetwork(Experiment):
 
         np.seterr(all="raise")
 
-        h5types = self.dataset("miv_simulator.experiment.make_h5types")
-        input_spike_trains = self.dataset(
-            "miv_simulator.experiment.input_spike_trains"
+        network = self.dataset("miv_simulator.experiment.make_network")
+        spike_trains = self.dataset(
+            "miv_simulator.experiment.derive_spike_trains"
         )
 
+        data_configuration = {
+            "Model Name": "simulation",
+            "Dataset Name": "simulation",
+            "Cell Data": "cells.h5",
+            "Connection Data": "connections.h5",
+        }
         env = Env(
             comm=MPI.COMM_WORLD,
-            config=h5types.config.network,
+            config={**network.config.blueprint, **data_configuration},
             template_paths="templates",
             hoc_lib_path=None,
             dataset_prefix=self.local_directory("data"),
-            results_path=self.local_directory("data/results", create=True),
+            results_path=self.local_directory("data"),
             results_file_id=None,
             results_namespace_id=None,
             node_rank_file=None,
@@ -99,7 +121,7 @@ class RunNetwork(Experiment):
             lptbal=False,
             cell_selection_path=None,
             microcircuit_inputs=False,
-            spike_input_path=input_spike_trains.output_filepath,
+            spike_input_path=spike_trains.output_filepath,
             spike_input_namespace=None,
             spike_input_attr=None,
             cleanup=True,
@@ -110,32 +132,32 @@ class RunNetwork(Experiment):
             verbose=False,
         )
 
-        network.init(env)
-        network.run(
+        miv_simulator.network.init(env)
+        miv_simulator.network.run(
             env, output_syn_spike_count=self.config.record_syn_spike_count
         )
 
     def prepare_data(self):
         # todo: cache dataset generation across run configurations
-        self.local_directory("data", create=True)
+        self.local_directory("data/simulation", create=True)
 
-        h5types = self.dataset("miv_simulator.experiment.make_h5types")
+        network = self.dataset("miv_simulator.experiment.make_network")
         soma_coordinates = self.dataset(
             "miv_simulator.experiment.soma_coordinates"
         )
-        input_spike_trains = self.dataset(
-            "miv_simulator.experiment.input_spike_trains"
+        spike_trains = self.dataset(
+            "miv_simulator.experiment.derive_spike_trains"
         )
 
         # todo: this should not be hardcoded but inferred from the
-        # config, e.g. h5types.config.network...
+        # config, e.g. network.config.blueprint...
         MiV_populations = ["PYR", "OLM", "PVBC", "STIM"]
         MiV_IN_populations = ["OLM", "PVBC"]
         MiV_EXT_populations = ["STIM"]
 
         print("Import H5Types")
         with h5py.File(self.output_filepath("cells"), "w") as f:
-            input_file = h5py.File(h5types.output_filepath, "r")
+            input_file = h5py.File(network.output_filepath, "r")
             h5_copy_dataset(input_file, f, "/H5Types")
             input_file.close()
 
@@ -160,17 +182,13 @@ class RunNetwork(Experiment):
         def _run(commands):
             cmd = " ".join(commands)
             print(cmd)
-            try:
-                commandlib.Command(*commands).run()
-            except commandlib.exceptions.CommandError as _ex:
-                print(f"Error for {p}")
-                raise _ex
+            print(commandlib.Command(*commands).output())
 
         for p in MiV_populations:
             if p not in ["OLM", "PVBC", "PYR"]:
                 continue
-            forest_file = h5types.synapse_forest(p)
-            forest_syns_file = h5types.synapse_forest(p)
+            forest_file = network.synapse_forest(p)
+            forest_syns_file = network.synapse_forest(p)
             forest_dset_path = f"/Populations/{p}/Trees"
             forest_syns_dset_path = f"/Populations/{p}/Synapse Attributes"
 
@@ -178,18 +196,18 @@ class RunNetwork(Experiment):
                 "h5copy",
                 "-p",
                 "-s",
-                f'"{forest_dset_path}"',
+                forest_dset_path,
                 "-d",
-                f'"{forest_dset_path}"',
+                forest_dset_path,
                 "-i",
-                f'"{forest_file}"',
+                forest_file,
                 "-o",
-                f'"{self.output_filepath()}"',
+                self.output_filepath(),
             ]
             _run(cmd)
 
         print("Create vector stimulus entries")
-        vecstim_file_dict = {"A Diag": input_spike_trains.output_filepath}
+        vecstim_file_dict = {"A Diag": spike_trains.output_filepath}
 
         vecstim_dict = {
             f"Input Spikes {stim_id}": stim_file
@@ -202,36 +220,49 @@ class RunNetwork(Experiment):
                     "h5copy",
                     "-p",
                     "-s",
-                    f'"{vecstim_dset_path}"',
+                    vecstim_dset_path,
                     "-d",
-                    f'"{vecstim_dset_path}"',
+                    vecstim_dset_path,
                     "-i",
-                    f'"{vecstim_file}"',
+                    vecstim_file,
                     "-o",
-                    f'"{self.output_filepath()}"',
+                    self.output_filepath(),
                 ]
                 _run(cmd)
 
+        print("Copy coordinates for STIM cells")
+        cmd = [
+            "h5copy",
+            "-p",
+            "-s",
+            "/Populations/STIM/Generated Coordinates",
+            "-d",
+            "/Populations/STIM/Coordinates",
+            "-i",
+            self.output_filepath(),
+            "-o",
+            self.output_filepath(),
+        ]
+        _run(cmd)
+
         with h5py.File(self.output_filepath("connections"), "w") as f:
-            input_file = h5py.File(h5types.output_filepath, "r")
+            input_file = h5py.File(network.output_filepath, "r")
             h5_copy_dataset(input_file, f, "/H5Types")
             input_file.close()
 
         print("Create connectivity entries")
-        for p in MiV_populations:
-            if p in ["PYR", "PVBC", "OLM", "STIM"]:
-                connectivity_file = soma_coordinates.output_filepath
-                projection_dset_path = f"/Projections/{p}"
-                cmd = [
-                    "h5copy",
-                    "-p",
-                    "-s",
-                    f'"{projection_dset_path}"',
-                    "-d",
-                    f'"{projection_dset_path}"',
-                    "-i",
-                    f'"{connectivity_file}"',
-                    "-o",
-                    self.output_filepath("connections"),
-                ]
-                _run(cmd)
+        for p, e in self.distance_connections_datasets().items():
+            connectivity_file = e.config.forest
+            cmd = [
+                "h5copy",
+                "-p",
+                "-s",
+                f"/Populations/{p}",
+                "-d",
+                f"/Projections/{p}",
+                "-i",
+                connectivity_file,
+                "-o",
+                self.output_filepath("connections"),
+            ]
+            _run(cmd)

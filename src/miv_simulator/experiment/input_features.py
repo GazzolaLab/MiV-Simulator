@@ -29,7 +29,7 @@ class InputFeatures(HandlesYAMLConfig, Experiment):
 
     def on_execute(self):
         generate_input_features(
-            config=self.config.network,
+            config=self.config.blueprint,
             coords_path=self.config.coordinates,
             distances_namespace=self.config.distances_namespace,
             output_path=self.output_filepath,
@@ -58,12 +58,12 @@ class InputFeatures(HandlesYAMLConfig, Experiment):
     def output_filepath(self):
         return self.local_directory("data/network_input_features.h5")
 
-    def spike_trains(self, version: VersionType = None):
+    def derive_spike_trains(self, version: VersionType = None):
         return self.derive_singleton(
-            "miv_simulator.experiment.input_spike_trains",
+            "miv_simulator.experiment.derive_spike_trains",
             [
                 {
-                    "network": self.config.network,
+                    "blueprint": self.config.blueprint,
                     "coordinates": self.config.coordinates,
                     "input_features": self.output_filepath,
                 }

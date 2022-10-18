@@ -35,7 +35,7 @@ class DistanceConnections(HandlesYAMLConfig, Experiment):
         logging.basicConfig(level=logging.INFO)
 
         generate_distance_connections(
-            config=self.config.network,
+            config=self.config.blueprint,
             include=self.config.include,
             forest_path=self.config.forest,
             connectivity_path=self.output_filepath,
