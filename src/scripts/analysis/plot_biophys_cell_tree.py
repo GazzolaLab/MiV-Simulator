@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import os
 import sys
 
@@ -16,7 +15,7 @@ script_name = os.path.basename(__file__)
 
 @click.command()
 @click.option(
-    "--config-file",
+    "--config",
     "-c",
     required=True,
     type=str,
@@ -78,7 +77,7 @@ script_name = os.path.basename(__file__)
 )
 @click.option("--verbose", "-v", type=bool, default=False, is_flag=True)
 def main(
-    config_file,
+    config,
     config_prefix,
     population,
     gid,
@@ -95,6 +94,9 @@ def main(
     plot_method,
     verbose,
 ):
+    """
+    Plot bio-physical cell trees.
+    """
 
     utils.config_logging(verbose)
     logger = utils.get_script_logger(script_name)
@@ -105,7 +107,6 @@ def main(
         )
 
     params = dict(locals())
-    params["config"] = params.pop("config_file")
     env = Env(**params)
     configure_hoc_env(env)
 
@@ -162,17 +163,4 @@ def main(
         bgcolor=bgcolor,
         colormap=colormap,
         plot_method=plot_method,
-    )
-
-
-if __name__ == "__main__":
-    main(
-        args=sys.argv[
-            (
-                utils.list_find(
-                    lambda x: os.path.basename(x) == script_name, sys.argv
-                )
-                + 1
-            ) :
-        ]
     )

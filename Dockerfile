@@ -7,15 +7,30 @@ SHELL ["/bin/bash", "-c"]
 ENV SHELL /bin/bash
 
 # File Maintainer
-MAINTAINER skim0119
+LABEL org.opencontainers.image.authors="skim0119@gmail.com"
 
 ARG DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=${DEBIAN_FRONTEND}
+
+# Configuration
 ENV TZ=Etc/UTC
+ENV OPENMPI_MAJOR_VER 4
+ENV OPENMPI_MINOR_VER 1
+ENV OPENMPI_PATCH_VER 4
+ENV OPENMPI_VER=${OPENMPI_MAJOR_VER}.${OPENMPI_MINOR_VER}.${OPENMPI_PATCH_VER}
+ENV HDF5_MAJOR_VER 1
+ENV HDF5_MINOR_VER 12
+ENV HDF5_PATCH_VER 1
+ENV HDF5_VER=${HDF5_MAJOR_VER}.${HDF5_MINOR_VER}.${HDF5_PATCH_VER}
+ENV NEURON_VER 8.2.1
+
 
 # Install base utilities   #libopenmpi-dev
 RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential python3 python3-pip python3-dev python-is-python3 \
     && apt-get install -y --no-install-recommends ssh wget curl vim unzip git-all cmake apt-utils sudo \
+    && apt-get install -y --no-install-recommends libgl1-mesa-glx \
+    && apt-get install -y --no-install-recommends ffmpeg libsm6 libxext6 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 #&& apt-get update
@@ -41,23 +56,23 @@ RUN mkdir -p /opt
 WORKDIR /opt
 
 # Install Openmpi
-RUN wget https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-4.1.4.tar.bz2 \
-    && tar xf openmpi-4.1.4.tar.bz2 \
-    && cd openmpi-4.1.4 \
+RUN wget https://download.open-mpi.org/release/open-mpi/v${OPENMPI_MAJOR_VER}.${OPENMPI_MINOR_VER}/openmpi-${OPENMPI_VER}.tar.bz2 \
+    && tar xf openmpi-${OPENMPI_VER}.tar.bz2 \
+    && cd openmpi-${OPENMPI_VER} \
     && ./configure --prefix=$PWD/build 2>&1 | tee openmpi_config.out \
     && make all 2>&1 | tee openmpi_make.out \
     && make install 2>&1 | tee openmpi_install.out
-ENV MPICC_SOURCE /opt/openmpi-4.1.4
+ENV MPICC_SOURCE /opt/openmpi-${OPENMPI_VER}
 RUN echo "export PATH=\$PATH:$MPICC_SOURCE/build/bin" >> ~/.bashrc
 ENV PATH $PATH:$MPICC_SOURCE/build/bin
 
 # Parallel HDF5 (long)
-RUN wget https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.12/hdf5-1.12.1/src/hdf5-1.12.1.tar.gz \
-    && tar -xzf hdf5-1.12.1.tar.gz \
-    && cd hdf5-1.12.1 \
+RUN wget https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-${HDF5_MAJOR_VER}.${HDF5_MINOR_VER}/hdf5-${HDF5_VER}/src/hdf5-${HDF5_VER}.tar.gz \
+    && tar -xzf hdf5-${HDF5_VER}.tar.gz \
+    && cd hdf5-${HDF5_VER} \
     && CC=mpicc ./configure --prefix=$PWD/build --enable-parallel --enable-shared \
     && make && make install
-ENV HDF5_SOURCE /opt/hdf5-1.12.1
+ENV HDF5_SOURCE /opt/hdf5-${HDF5_VER}
 RUN echo "export PATH=\$PATH:$HDF5_SOURCE/build:$HDF5_SOURCE/build/bin" >> ~/.bashrc
 ENV PATH $PATH:$HDF5_SOURCE/build:$HDF5_SOURCE/build/bin
 
@@ -66,7 +81,7 @@ RUN env MPICC="mpicc --shared" pip install --no-cache-dir mpi4py
 RUN pip install --no-cache-dir numpy
 
 # h5py
-RUN CC="mpicc" HDF5_MPI="ON" HDF5_DIR=/opt/hdf5-1.12.1/build pip install --no-binary=h5py --no-deps h5py
+RUN CC="mpicc" HDF5_MPI="ON" HDF5_DIR=/opt/hdf5-${HDF5_VER}/build pip install --no-binary=h5py --no-deps h5py
 
 # NeuroH5
 RUN git clone https://github.com/iraikov/neuroh5.git
@@ -79,7 +94,11 @@ RUN which h5copy \
     && which neurotrees_import
 
 # Neuron (nrn)
-RUN pip install --no-cache-dir neuron==8.2.1
+RUN pip install --no-cache-dir neuron==${NEURON_VER}
+
+# MiV Simulator
+RUN git clone https://github.com/GazzolaLab/MiV-Simulator \
+    && pip install --no-cache-dir ./MiV-Simulator
 
 # MiV Packages
 #RUN useradd --create-home --shell /bin/bash --no-log-init --gid root -G sudo user
@@ -87,16 +106,11 @@ RUN pip install --no-cache-dir neuron==8.2.1
 RUN mkdir -p /home/user
 WORKDIR /home/user
 
-RUN git clone https://github.com/GazzolaLab/MiV-Simulator \
-    && pip install --no-cache-dir ./MiV-Simulator
-
 # Other Utilities
 RUN pip install --no-cache-dir jupyter jupyterlab jupytext miv-os
 
 # Prepare example cases
-RUN git clone https://github.com/GazzolaLab/MiV-Simulator-Cases
-WORKDIR /home/user/MiV-Simulator-Cases
-RUN rm -rf .git  # Remove git connection
+RUN git clone https://github.com/GazzolaLab/MiV-Simulator-Cases Tutorial
 
 # Clean up
 RUN pip cache purge
@@ -109,10 +123,9 @@ RUN echo "export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM='1'" >> ~/.bashrc
 ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM 1
 
 # Launch jupyter lab
-WORKDIR /home/user/MiV-Simulator-Cases
-
-
-CMD ["jupyter", "lab", "--app_dir=/home/user/MiV-Simulator-Cases", "--port=8888", "--allow-root", "--ip", "0.0.0.0"]
+CMD ["jupyter", "lab", "--app_dir=/home/user", \
+        "--port=8888", "--allow-root", "--ip", "0.0.0.0", \
+        "--NotebookApp.token=''", "--NotebookApp.password=''"]
 
 # HDF5 test:
 # NPROCS=4 make check-p

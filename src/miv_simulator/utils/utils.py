@@ -467,10 +467,15 @@ def list_index(element, lst):
 
 def list_find(f: Callable, lst: List[str]) -> int:
     """
+    Find the index of the first element in the list that returns
+    "true" value from the function f.
 
-    :param f:
-    :param lst:
-    :return:
+    :param f: Callable
+        Function to evaluate
+    :param lst: List[str]
+        List of elements
+    :return: int
+        Index that satisfies f(x) where x is elements in lst.
     """
     i = 0
     for x in lst:
@@ -483,10 +488,15 @@ def list_find(f: Callable, lst: List[str]) -> int:
 
 def list_find_all(f, lst):
     """
+    Find the index of all elements in the list that returns
+    "true" value from the function f.
 
-    :param f:
-    :param lst:
-    :return:
+    :param f: Callable
+        Function to evaluate
+    :param lst: List[str]
+        List of elements
+    :return: List[int]
+        List of indices that satisfies f(x) where x is elements in lst.
     """
     i = 0
     res = []

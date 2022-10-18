@@ -1,12 +1,8 @@
-#!/usr/bin/env python3
-##
-## Load configuration and instantiate env.
-##
-
 import os
 import os.path
 import random
 import sys
+import logging
 
 import click
 from miv_simulator.env import Env
@@ -18,13 +14,6 @@ logger = get_script_logger(script_name)
 
 
 def mpi_excepthook(type, value, traceback):
-    """
-
-    :param type:
-    :param value:
-    :param traceback:
-    :return:
-    """
     sys_excepthook(type, value, traceback)
     if MPI.COMM_WORLD.size > 1:
         MPI.COMM_WORLD.Abort(1)
@@ -32,22 +21,6 @@ def mpi_excepthook(type, value, traceback):
 
 sys_excepthook = sys.excepthook
 sys.excepthook = mpi_excepthook
-
-
-def random_subset(iterator, K):
-    result = []
-    N = 0
-
-    for item in iterator:
-        N += 1
-        if len(result) < K:
-            result.append(item)
-        else:
-            s = int(random.random() * N)
-            if s < K:
-                result[s] = item
-
-    return result
 
 
 @click.command()
@@ -60,6 +33,15 @@ def random_subset(iterator, K):
 )
 @click.option("--verbose", "-v", type=bool, default=False, is_flag=True)
 def main(config, config_prefix, verbose):
+    """
+    Check configuration by loading and instantiate env.
+
+    .. code-block:: bash
+
+       % check-config --config=Microcircuit_Small.yaml --config-prefix=config
+
+    If the simulation configuration is initialized successfully,the code runs without raising any error.
+    """
 
     config_logging(verbose)
     logger = get_script_logger(script_name)
@@ -69,17 +51,6 @@ def main(config, config_prefix, verbose):
     size = comm.size
 
     env = Env(comm=comm, config=config, config_prefix=config_prefix)
-
-
-if __name__ == "__main__":
-    main(
-        args=sys.argv[
-            (
-                list_find(
-                    lambda x: os.path.basename(x) == os.path.basename(__file__),
-                    sys.argv,
-                )
-                + 1
-            ) :
-        ]
+    logging.debug(
+        f"The environment is loaded successfully from the configuration {config=}, {config_prefix=}."
     )

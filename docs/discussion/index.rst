@@ -7,6 +7,14 @@ Discussion
 
    neuroh5
 
+.. toctree::
+   :maxdepth: 2
+   :caption: QnA / Common Issues
+
+   qna
+   troubleshooting
+
+
 Indices and tables
 ==================
 

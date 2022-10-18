@@ -77,17 +77,19 @@ generate-soma-coordinates = "scripts.generate_soma_coordinates:main"
 distribute-synapse-locs = "scripts.distribute_synapse_locs:main"
 run-network = "scripts.run_network:main"
 # Analysis scripts
-check-config = "scripts.analysis.check_config:main"
-cut-slice = "scripts.analysis.cut_slice:main"
 plot-biophys-cell-tree = "scripts.analysis.plot_biophys_cell_tree:main"
 plot-cell-tree = "scripts.analysis.plot_cell_tree:main"
 plot-coords-in-volume = "scripts.analysis.plot_coords_in_volume:main"
 plot-network-clamp = "scripts.analysis.plot_network_clamp:main"
 plot-spike-raster = "scripts.analysis.plot_spike_raster:main"
 plot-state = "scripts.analysis.plot_state:main"
-query-cell-attrs = "scripts.analysis.query_cell_attrs:main"
-sample-cells = "scripts.analysis.sample_cells:main"
-show-h5types = "scripts.analysis.show_h5types:main"
+plot-single-vertex-dist = "scripts.analysis.plot_single_vertex_dist:main"
+#Tools
+show-h5types = "scripts.tools.show_h5types:main"
+query-cell-attrs = "scripts.tools.query_cell_attrs:main"
+check-config = "scripts.tools.check_config:main"
+cut-slice = "scripts.tools.cut_slice:main"
+sample-cells = "scripts.tools.sample_cells:main"
 
 
 [build-system]
