@@ -15,7 +15,7 @@ class MeasureDistances(HandlesYAMLConfig, Experiment):
         coordinates: str = Field("???")
         geometry: Optional[str] = None
         output_namespace: str = "Generated Coordinates"
-        populations: Tuple[str] = ("PYR", "PVBC", "OLM", "STIM")
+        populations: Tuple[str, ...] = ("PYR", "PVBC", "OLM", "STIM")
         interp_chunk_size: int = 1000
         alpha_radius: float = 120.0
         resolution: Tuple[int, int, int] = (30, 30, 10)

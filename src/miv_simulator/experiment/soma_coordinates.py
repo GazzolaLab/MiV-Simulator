@@ -21,7 +21,7 @@ class SomaCoordinates(HandlesYAMLConfig, Experiment):
         h5types: str = Field("???")
         geometry: Optional[str] = None
         output_namespace: str = "Generated Coordinates"
-        populations: Tuple[str] = None
+        populations: Tuple[str, ...] = ()
         resolution: Tuple[int, int, int] = (3, 3, 3)
         alpha_radius: float = 2500.0
         nodeiter: int = 10
@@ -58,7 +58,7 @@ class SomaCoordinates(HandlesYAMLConfig, Experiment):
 
     def plot_in_volume(
         self,
-        populations: Tuple[str],
+        populations: Tuple[str, ...],
         scale: float = 25.0,
         subpopulation: int = -1,
         subvol: bool = False,

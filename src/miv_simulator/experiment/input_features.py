@@ -19,7 +19,7 @@ class InputFeatures(HandlesYAMLConfig, Experiment):
         coordinates: str = Field("???")
         distances_namespace: str = "Arc Distances"
         arena_id: str = "A"
-        populations: Tuple[str] = None
+        populations: Tuple[str, ...] = ()
         io_size: int = -1
         chunk_size: int = 1000
         value_chunk_size: int = 1000

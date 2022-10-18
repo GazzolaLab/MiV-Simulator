@@ -15,7 +15,7 @@ class InputSpikeTrains(HandlesYAMLConfig, Experiment):
         coordinates: Optional[str] = None
         distances_namespace: str = "Arc Distances"
         arena_id: str = "A"
-        populations: Tuple[str] = None
+        populations: Tuple[str, ...] = ()
         n_trials: int = 1
         io_size: int = -1
         chunk_size: int = 1000
