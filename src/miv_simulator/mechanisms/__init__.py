@@ -8,6 +8,7 @@ from neuron import h
 
 from typing import Optional
 
+
 def compile(force: bool = False) -> str:
     """
     Compile NEURON NMODL files
@@ -33,9 +34,7 @@ def compile(force: bool = False) -> str:
         print("Attempting to compile *.mod files via nrnivmodl")
         # move into compiled directory
         os.makedirs(compiled)
-        for m in glob(
-            os.path.join(source_directory, "**/*.mod"), recursive=True
-        ):
+        for m in glob(os.path.join(src, "**/*.mod"), recursive=True):
             shutil.copyfile(m, os.path.join(compiled, os.path.basename(m)))
         # compile
         if not shutil.which("nrnivmodl"):

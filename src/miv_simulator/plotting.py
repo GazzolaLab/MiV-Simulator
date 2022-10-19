@@ -3158,9 +3158,7 @@ def plot_single_vertex_dist(
         ax.set_xlabel(
             "Longitudinal position (um)", fontsize=fig_options.fontSize
         )
-        ax.set_ylabel(
-            "Transverse position (um)", fontsize=fig_options.fontSize
-        )
+        ax.set_ylabel("Transverse position (um)", fontsize=fig_options.fontSize)
         ax.set_title(
             f"Connectivity distribution ({direction}) of "
             f"{source} to {destination} for gid {target_gid}",

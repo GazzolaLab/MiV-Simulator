@@ -9,6 +9,7 @@ from miv_simulator.simulator._generate_input_features import (
 )
 from miv_simulator.simulator._generate_input_spike_trains import (
     generate_input_spike_trains,
+    import_input_spike_train,
 )
 from miv_simulator.simulator._generate_soma_coordinates import (
     generate_soma_coordinates,

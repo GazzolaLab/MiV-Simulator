@@ -5,6 +5,7 @@ import os
 import sys
 import time
 from collections import defaultdict
+from typing import Optional, Union, List
 
 import click
 import h5py
@@ -527,3 +528,40 @@ def generate_input_spike_trains(
 
     if is_interactive and rank == 0:
         context.update(locals())
+
+
+def import_input_spike_train(
+    raw: Union[List, np.ndarray],
+    t_stop: float,
+    output_filepath: str,
+    namespace: str = "Custom",
+    attr_name: str = "Spike Train",
+    population: str = "STIM",
+) -> None:
+    data = np.array(raw)
+
+    if len(raw.shape) == 1:
+        # add trial dimension
+        data = np.expand_dims(data, axis=0)
+
+    spike_attr_dict = defaultdict(list)
+
+    for trial in range(data.shape[0]):
+        for gid in data[trial]:
+            spiketrain = data[trial][gid] * 1000.0 + trial * t_stop
+            if len(spiketrain) > 0:
+                spike_attr_dict[gid].append(spiketrain)
+
+    output_spike_attr_dict = dict(
+        {
+            k: {attr_name: np.concatenate(spike_attr_dict[k], dtype=np.float32)}
+            for k in spike_attr_dict
+        }
+    )
+
+    append_cell_attributes(
+        output_filepath,
+        population,
+        output_spike_attr_dict,
+        namespace=namespace,
+    )

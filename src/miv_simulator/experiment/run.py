@@ -84,6 +84,7 @@ class RunNetwork(Experiment):
         spike_trains = self.dataset(
             "miv_simulator.experiment.derive_spike_trains"
         )
+        custom_spike_train_meta = spike_trains.custom_spike_train_meta
 
         data_configuration = {
             "Model Name": "simulation",
@@ -122,8 +123,10 @@ class RunNetwork(Experiment):
             cell_selection_path=None,
             microcircuit_inputs=False,
             spike_input_path=spike_trains.output_filepath,
-            spike_input_namespace=None,
-            spike_input_attr=None,
+            spike_input_namespace=custom_spike_train_meta[
+                "custom_spike_train_meta"
+            ],
+            spike_input_attr=custom_spike_train_meta["spike_input_attr"],
             cleanup=True,
             cache_queries=False,
             profile_memory=False,

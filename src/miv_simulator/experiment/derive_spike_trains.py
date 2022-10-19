@@ -1,9 +1,15 @@
 from dataclasses import dataclass
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Union, List, Dict
+from collections import defaultdict
+
+import numpy as np
 
 from machinable import Experiment
 from machinable.config import Field
-from miv_simulator.simulator import generate_input_spike_trains
+from miv_simulator.simulator import (
+    generate_input_spike_trains,
+    import_input_spike_train,
+)
 
 from miv_simulator.experiment.config import FromYAMLConfig, HandlesYAMLConfig
 
@@ -55,6 +61,47 @@ class DeriveSpikeTrains(HandlesYAMLConfig, Experiment):
             fig_format="svg",
             verbose=True,
             dry_run=False,
+        )
+
+    def from_numpy(
+        self,
+        spike_train: Union[List, np.ndarray],
+        namespace: str = "Custom",
+        attr_name: str = "Spike Train",
+    ) -> "DeriveSpikeTrains":
+        self.save_data("spike_train_data.npy", np.array(spike_train))
+        self.set_custom(namespace, attr_name)
+
+        import_input_spike_train(
+            spike_train,
+            namespace=namespace,
+            attr_name=attr_name,
+            output_filepath=self.output_filepath,
+        )
+
+        return self
+
+    def set_custom(
+        self,
+        namespace: str = "Custom",
+        attr_name: str = "Spike Train",
+    ):
+        self.save_data(
+            "spike_train_meta.json",
+            {
+                "spike_train_namespace": namespace,
+                "spike_train_attr_name": attr_name,
+            },
+        )
+
+    @property
+    def custom_spike_train_data(self) -> Optional[np.ndarray]:
+        return self.load_data("spike_train_data.npy", None)
+
+    @property
+    def custom_spike_train_meta(self) -> Optional[Dict]:
+        return self.load_data(
+            "spike_train_meta.json", defaultdict(lambda: None)
         )
 
     @property

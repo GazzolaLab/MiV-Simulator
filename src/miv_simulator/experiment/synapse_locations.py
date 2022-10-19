@@ -10,7 +10,6 @@ from miv_simulator.simulator import distribute_synapse_locations
 from miv_simulator.mechanisms import compile_and_load
 
 
-
 from miv_simulator.experiment.config import FromYAMLConfig, HandlesYAMLConfig
 
 
@@ -20,7 +19,7 @@ class SynapseLocations(HandlesYAMLConfig, Experiment):
         population: str = Field("???")
         coordinates: str = Field("???")
         forest: str = Field("???")
-        templates: str = 'templates'
+        templates: str = "templates"
         distribution: str = "uniform"
         io_size: int = -1
         chunk_size: int = 1000
@@ -33,7 +32,7 @@ class SynapseLocations(HandlesYAMLConfig, Experiment):
         distribute_synapse_locations(
             config=self.config.blueprint,
             template_path=self.config.templates,
-            output_path=self.config.forest, # modify in-place
+            output_path=self.config.forest,  # modify in-place
             forest_path=self.config.forest,
             populations=[self.config.population],
             distribution=self.config.distribution,
