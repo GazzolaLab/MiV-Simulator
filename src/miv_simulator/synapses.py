@@ -810,7 +810,6 @@ class SynapseAttributes:
 
         if delays is None:
             delays = [2.0 * h.dt] * len(edge_syn_ids)
-
         syn_id_dict = self.syn_id_attr_dict[gid]
 
         for edge_syn_id, presyn_gid, delay in zip_longest(

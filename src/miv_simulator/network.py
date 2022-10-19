@@ -393,7 +393,6 @@ def connect_cells(env: Env) -> None:
                 ] = presyn_input_sources
             else:
                 syn_edge_iter = edge_iter
-
             syn_attrs.init_edge_attrs_from_iter(
                 postsyn_name, presyn_name, a, syn_edge_iter
             )

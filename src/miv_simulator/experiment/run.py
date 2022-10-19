@@ -206,6 +206,20 @@ class RunNetwork(Experiment):
             ]
             _run(cmd)
 
+            cmd = [
+                "h5copy",
+                "-p",
+                "-s",
+                forest_syns_dset_path,
+                "-d",
+                forest_syns_dset_path,
+                "-i",
+                forest_file,
+                "-o",
+                self.output_filepath(),
+            ]
+            _run(cmd)
+
         print("Create vector stimulus entries")
         vecstim_file_dict = {"A Diag": spike_trains.output_filepath}
 
@@ -252,14 +266,16 @@ class RunNetwork(Experiment):
 
         print("Create connectivity entries")
         for p, e in self.distance_connections_datasets().items():
-            connectivity_file = e.config.forest
+            connectivity_file = e.output_filepath
+            print(connectivity_file)
+            projection_dset_path = f"/Projections/{p}"
             cmd = [
                 "h5copy",
                 "-p",
                 "-s",
-                f"/Populations/{p}",
+                projection_dset_path,
                 "-d",
-                f"/Projections/{p}",
+                projection_dset_path,
                 "-i",
                 connectivity_file,
                 "-o",

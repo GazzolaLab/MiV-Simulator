@@ -7,6 +7,9 @@ import miv_simulator
 from machinable import Experiment
 from machinable.config import Field
 from miv_simulator.simulator import distribute_synapse_locations
+from miv_simulator.mechanisms import compile_and_load
+
+
 
 from miv_simulator.experiment.config import FromYAMLConfig, HandlesYAMLConfig
 
@@ -17,23 +20,20 @@ class SynapseLocations(HandlesYAMLConfig, Experiment):
         population: str = Field("???")
         coordinates: str = Field("???")
         forest: str = Field("???")
-        templates: Optional[str] = None
+        templates: str = 'templates'
         distribution: str = "uniform"
         io_size: int = -1
         chunk_size: int = 1000
         value_chunk_size: int = 1000
         write_size: int = 1
 
-    @property
-    def output_filepath(self):
-        return self.local_directory(f"data/forest_{self.config.population}.h5")
-
     def on_execute(self):
+        compile_and_load()
         logging.basicConfig(level=logging.INFO)
         distribute_synapse_locations(
             config=self.config.blueprint,
             template_path=self.config.templates,
-            output_path=self.output_filepath,
+            output_path=self.config.forest, # modify in-place
             forest_path=self.config.forest,
             populations=[self.config.population],
             distribution=self.config.distribution,
