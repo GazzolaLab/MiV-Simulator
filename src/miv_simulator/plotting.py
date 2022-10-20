@@ -23,6 +23,7 @@ from miv_simulator.utils import (
     signal_power_spectrogram,
     signal_psd,
     zip_longest,
+    get_low_pass_filtered_trace,
 )
 from miv_simulator.utils.neuron import h, interplocs
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -2585,7 +2586,7 @@ def plot_network_clamp(
         time_range = [tmin, tmax]
 
     if (
-        time_range[0] == time_range[1]
+        time_range[0] > time_range[1]
         or time_range[0] == float("inf")
         or time_range[1] == float("inf")
     ):
@@ -2657,8 +2658,6 @@ def plot_network_clamp(
             spkpoplst, spkindlst, spktlst
         )
     }
-    N = pop_num_cells[pop_name]
-    S = pop_start_inds[pop_name]
 
     n_plots = len(spkpoplst) + 2
     plot_height_ratios = [1] * len(spkpoplst)
@@ -2731,7 +2730,8 @@ def plot_network_clamp(
             alpha=0.5,
             label=pop_name,
         )
-        axes[i].set_ylim(0.0, np.ceil(np.max(sphist_y)))
+        if len(sphist_y) > 0:
+            axes[i].set_ylim(0.0, np.ceil(np.max(sphist_y)))
         stplots.append(sph)
 
         if i == 0:
@@ -2891,7 +2891,6 @@ def plot_network_clamp(
 
     states = indata["states"]
     stvplots = []
-    from dentate.utils import get_low_pass_filtered_trace
 
     for (pop_name, pop_states) in states.items():
         for (gid, cell_states) in pop_states.items():
@@ -2953,7 +2952,9 @@ def plot_network_clamp(
                 prop=dict(size=fig_options.fontSize),
             )
             axes[i].add_artist(at)
-        max_label_len = max(len(l) for l in lgd_labels)
+        max_label_len = 0
+        if len(lgd_labels) > 0:
+            max_label_len = max(len(l) for l in lgd_labels)
 
     else:
         raise RuntimeError(f"plot_network_clamp: unknown label type {labels}")

@@ -634,6 +634,8 @@ def init(
     for presyn_name in presyn_names:
         presyn_gids = presyn_sources[presyn_name]
         presyn_id = int(env.Populations[presyn_name])
+        if presyn_id not in input_source_dict:
+            continue
         for presyn_gid in presyn_gids:
             ## Load presynaptic spike times into the VecStim for stimulus gid;
             ## if spike_generator_dict contains an entry for the respective presynaptic population,
