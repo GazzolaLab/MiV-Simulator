@@ -294,16 +294,3 @@ def main(
         if not dry_run:
             network.run(env, output_syn_spike_count=output_syn_spike_count)
 
-
-if __name__ == "__main__":
-    main(
-        args=sys.argv[
-            (
-                list_find(
-                    lambda x: os.path.basename(x) == os.path.basename(__file__),
-                    sys.argv,
-                )
-                + 1
-            ) :
-        ]
-    )
