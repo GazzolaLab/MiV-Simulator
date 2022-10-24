@@ -107,7 +107,7 @@ class Env(AbstractEnv):
     ) -> None:
         """
         :param comm: :class:'MPI.COMM_WORLD'
-        :param config_file: str; model configuration file name
+        :param config: str; model configuration file name
         :param template_paths: str; colon-separated list of paths to directories containing hoc cell templates
         :param hoc_lib_path: str; path to directory containing required hoc libraries
         :param dataset_prefix: str; path to directory containing required neuroh5 data files
