@@ -111,7 +111,6 @@ RUN pip install --no-cache-dir jupyter jupyterlab jupytext miv-os
 
 # Prepare example cases
 RUN git clone https://github.com/GazzolaLab/MiV-Simulator-Cases Tutorial
-WORKDIR /home/shared/MiV-Simulator-Cases
 
 # Clean up
 RUN pip cache purge

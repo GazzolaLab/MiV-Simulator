@@ -34,8 +34,8 @@ def get_env_spike_dict(
     )
     n_trials = env.n_trials
 
-    t_vec = np.array(env.t_vec, dtype=np.float32)
-    id_vec = np.array(env.id_vec, dtype=np.uint32)
+    t_vec = np.array(env.t_vec.to_python(), dtype=np.float32)
+    id_vec = np.array(env.id_vec.to_python(), dtype=np.uint32)
 
     trial_time_ranges = get_trial_time_ranges(
         env.t_rec.to_python(), env.n_trials
@@ -280,6 +280,11 @@ def read_spike_events(
             f" Read {this_num_cell_spks} spikes and {n_trials} trials for population {pop_name}"
         )
 
+    if tmin == float("inf"):
+        tmin = 0.0
+    if tmax == float("inf"):
+        tmax = 0.0
+        
     return {
         "spkpoplst": spkpoplst,
         "spktlst": spktlst,
