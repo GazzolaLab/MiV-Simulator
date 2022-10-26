@@ -6,13 +6,17 @@ import commandlib
 import miv_simulator
 from neuron import h
 
+from typing import Optional
 
-def compile(force: bool = False) -> str:
+
+def compile(directory: Optional[str] = None, force: bool = False) -> str:
     """
     Compile NEURON NMODL files
 
     Parameters
     ----------
+    directory:
+        Optional directory of the source files. If None, package default machanism will be used
     force : bool
         Force recompile
 
@@ -20,9 +24,16 @@ def compile(force: bool = False) -> str:
     -------
     str: compilation path
     """
+    # infer compilation source
+    default_directory = os.path.join(
+        os.path.dirname(miv_simulator.__file__), "mechanisms"
+    )
+    if directory is None:
+        src = default_directory
+    else:
+        src = os.path.abspath(directory)
 
     # attempt to automatically compile
-    src = os.path.join(os.path.dirname(miv_simulator.__file__), "mechanisms")
     compiled = os.path.join(src, "compiled")
     if force:
         # remove compiled directory
@@ -45,9 +56,11 @@ def compile(force: bool = False) -> str:
     return compiled
 
 
-def compile_and_load(force: bool = False):
+def compile_and_load(
+    directory: Optional[str] = None, force: bool = False
+) -> str:
     """Compile and load dll file into NEURON"""
-    src = compile(force)
+    src = compile(directory, force)
     dll_path = os.path.join(src, "x86_64", ".libs", "libnrnmech.so")
     assert os.path.exists(dll_path), "libnrnmech.so file is not found properly."
     h(f'nrn_load_dll("{dll_path}")')
