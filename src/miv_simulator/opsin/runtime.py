@@ -13,7 +13,9 @@ from neuron import h
 from miv_simulator.utils import (
     get_module_logger,
 )
+from miv_simulator.opsin.core import cycles2times
 from miv_simulator.opsin.models import select_model
+from miv_simulator.opsin.protocols import select_protocol
 
 if TYPE_CHECKING:
     from neuron.hoc import HocObject
@@ -31,7 +33,7 @@ class Opsin:
                  pc: "HocObject",
                  pop_gid_dict: Dict[str, Set[int]],
                  nstates: int,
-                 protocol,
+                 protocol: str,
                  rho_params,
                  max_gid_rec_count: int = 1,
                  sec_rec_count: int = 1,
@@ -42,14 +44,14 @@ class Opsin:
         self.max_gid_rec_count = max_gid_rec_count
         self.sec_rec_count = sec_rec_count
         self.pc = pc
-        self.protocol = protocol
+        self.protocol = select_protocol(protocol)
         self.rho_params = copy.deepcopy(rho_params)
-        self.model = select_model(nstates)
+        self.model = select_model(nstates)()
         self.pop_gid_dict = pop_gid_dict
         
-        self.pop_rec_dict = defaultdict(lambda: defaultdict(lambda: list))
-        self.pop_rho_dict = defaultdict(lambda: defaultdict(lambda: list))
-        self.pop_sec_dict = defaultdict(lambda: defaultdict(lambda: list))
+        self.pop_rec_dict = defaultdict(lambda: defaultdict(list))
+        self.pop_rho_dict = defaultdict(lambda: defaultdict(list))
+        self.pop_sec_dict = defaultdict(lambda: defaultdict(list))
 
         self.protocol.prepare()
         self.init_mechanisms()
@@ -66,13 +68,15 @@ class Opsin:
         ## TODO: support for multiple runs 
         run = 0
         cycles, Dt_delay = self.protocol.getRunCycles(run)
-        phi_ts = self.protocol.phi_ts[run][phiInd][:]
+        ## TODO: support for multiple phi indices
+        phi_index = 0
+        phi_ts = self.protocol.phi_ts[run][phi_index][:]
         self.setup_stim(phi_ts, Dt_delay, cycles)
 
         
     def init_dt(self):
         
-        """Function to prepare the simulator according to the protocol and rhodopsin"""
+        """Function to set the time step according to the protocol and rhodopsin"""
 
         self.dt = self.protocol.getShortestPeriod()
         if self.dt < h.dt:
@@ -185,14 +189,14 @@ class Opsin:
         logger.info(info)
 
         # Set simulation run time
-        h.Dt_total = Dt_total  # Dt_delay + np.sum(cycles) #nPulses*(Dt_on+Dt_off) + padD
+        logger.info(f"Total optogenetic stimulus time is {Dt_total} ms")
 
         ### Delay phase (to allow the system to settle)
         phi = 0
-        self.model.initStates(phi)  # Reset state and time arrays from previous runs
+        self.model.initStates(phi=phi)  # Reset state and time arrays from previous runs
         self.model.s0 = self.model.states[-1, :]   # Store initial state used
 
-        logger.info(f"Trial initial conditions:{self.model.s0}")
+        logger.info(f"Optogenetic initial conditions: {self.model.s0}")
 
         start, end = self.model.t[0], self.model.t[0]+Dt_delay  # start, end = 0.00, Dt_delay
         nSteps = int(round(((end-start)/self.dt)+1))

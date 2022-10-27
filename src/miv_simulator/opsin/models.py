@@ -18,7 +18,7 @@ from miv_simulator.utils import (
     Struct,
     get_module_logger,
 )
-from miv_simulator.opsin.core import PyRhOobject, modelParams, rho_type
+from miv_simulator.opsin.core import rho_type
 
 logger = get_module_logger(__name__)
 
@@ -43,7 +43,9 @@ def calcV1(E, v0):
     # return (-70-E)/(1-np.exp(-(-70-E)/v0))
 
 
-class RhodopsinModel(PyRhOobject):
+model_params = OrderedDict([(3, {}), (4, {}), (6, {})])    
+
+class RhodopsinModel(Struct):
     """Common base class for all models."""
     # This an abstract base class since it is never directly instantiated
     __metaclass__ = abc.ABCMeta
@@ -53,10 +55,10 @@ class RhodopsinModel(PyRhOobject):
     def __init__(self, params=None, rho_type=rho_type):
 
         if params is None:
-            params = modelParams[str(self.nStates)]
+            params = model_params[self.nStates]
         self.rho_type = rho_type  # E.g. 'ChR2' or 'ArchT'
 
-        self.setParams(params)
+        self.update(params)
 
         # Ensure v1 is scaled correctly so that f(V=-70) = 1
         v1 = calcV1(self.E, self.v0)
@@ -670,7 +672,6 @@ class RhO_6states(RhodopsinModel):
 models = OrderedDict([(3, RhO_3states),
                       (4, RhO_4states),
                       (6, RhO_6states)])
-
 
 def select_model(nStates):
     """Model selection function"""

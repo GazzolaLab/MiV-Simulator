@@ -14,16 +14,19 @@ import os
 import abc
 from collections import OrderedDict
 import numpy as np
+import quantities as pq
 from scipy.interpolate import InterpolatedUnivariateSpline as spline
 from miv_simulator.utils import (
+    Struct,
     get_module_logger,
 )
-from miv_simulator.opsin.core import PyRhOobject
+from miv_simulator.opsin.core import cycles2times
+
 
 logger = get_module_logger(__name__)
 
 
-class Protocol(PyRhOobject):
+class Protocol(Struct):
     """Common base class for all protocols."""
 
     __metaclass__ = abc.ABCMeta
@@ -38,8 +41,8 @@ class Protocol(PyRhOobject):
 
     def __init__(self, params=None):
         if params is None:
-            params = protParams[self.protocol]
-        self.setParams(params)
+            params = default_protocol_parameters[self.protocol]
+        self.update(params)
         self.prepare()
         self.t_start, self.t_end = 0, self.Dt_total
         self.phi_ts = None
@@ -169,7 +172,7 @@ class Protocol(PyRhOobject):
 
 
 
-class protCustom(Protocol):
+class ProtCustom(Protocol):
     """Present a time-varying stimulus defined by a spline function."""
     # Class attributes
     protocol = 'custom'
@@ -190,7 +193,7 @@ class protCustom(Protocol):
             self.genPulseSet(self.phi_ft)
 
 
-class protSinusoid(Protocol):
+class ProtSinusoid(Protocol):
     """Present oscillating stimuli over a range of frequencies to find the
     resonant frequency.
     """
@@ -243,7 +246,22 @@ class protSinusoid(Protocol):
 
 
 
-class protRamp(Protocol):
+class ProtStep(Protocol):
+    """Present a step (Heaviside) pulse."""
+    protocol = 'step'
+    squarePulse = True
+    nRuns = 1
+
+    def extraPrep(self):
+        """Function to set-up additional variables and make parameters
+        consistent after any changes.
+        """
+        self.nRuns = 1
+        self.phi_ts = self.genPulseSet()
+
+    
+
+class ProtRamp(Protocol):
     """Linearly increasing pulse."""
     protocol = 'ramp'
     squarePulse = False
@@ -267,7 +285,7 @@ class protRamp(Protocol):
         return phi_t
 
 
-class protDelta(Protocol):
+class ProtDelta(Protocol):
     # One very short, saturation intensity pulse e.g. 10 ns @ 100 mW*mm^-2 for wild type ChR
     # Used to calculate gbar, assuming that O(1)-->1 as Dt_on-->0 and phi-->inf
     protocol = 'delta'
@@ -304,7 +322,7 @@ class protDelta(Protocol):
         self.phi_ts = self.genPulseSet()
 
         
-class protShortPulse(Protocol):
+class ProtShortPulse(Protocol):
     # Vary pulse length - See Nikolic et al. 2009, Fig. 2 & 9
     protocol = 'shortPulse'
     squarePulse = True
@@ -330,7 +348,7 @@ class protShortPulse(Protocol):
                 self.Dt_delays[run])
 
 
-class protRecovery(Protocol):
+class ProtRecovery(Protocol):
     '''Two pulse stimulation protocol with varying inter-pulse interval to
     determine the dark recovery rate.
     '''
@@ -389,64 +407,80 @@ class protRecovery(Protocol):
 
 
 
-protocols = OrderedDict([('step', protStep),
-                         ('delta', protDelta),
-                         ('sinusoid', protSinusoid),
-                         ('ramp', protRamp),
-                         ('recovery', protRecovery),
-                         ('shortPulse', protShortPulse),
-                         ('custom', protCustom)])
+protocols = OrderedDict([('step', ProtStep),
+                         ('delta', ProtDelta),
+                         ('sinusoid', ProtSinusoid),
+                         ('ramp', ProtRamp),
+                         ('recovery', ProtRecovery),
+                         ('shortPulse', ProtShortPulse),
+                         ('custom', ProtCustom)])
 
+default_protocol_parameters = OrderedDict([])
 
-protParams['custom'].add_many(('phis',  [1e16,1e17],        0,      None,   mole*mm**-2*second**-1, '\mathbf{\phi}', 'List of flux values'), #'photons/s/mm^2'
-                            ('Dt_delay',25,                 0,      1e9,    ms, '\Delta t_{delay}', 'Delay duration before the first pulse'), #'ms'
-                            ('cycles',  [[150.,50.]],       0,      None,   ms, 'cycles',           'List of [on, off] durations for each pulse'))#, #'ms'#,
+def make_param_dict(*xs):
+    result = {}
+    for param in xs:
+        result[param[0]] = param[1]
+    return result
 
-protParams['step'].add_many(('phis',    [1e16,1e17],        0,      None,   mole*mm**-2*second**-1, '\mathbf{\phi}', 'List of flux values'), #'photons/s/mm^2'
-                            ('Dt_delay',25,                 0,      1e9,    ms, '\Delta t_{delay}', 'Delay duration before the first pulse'), #'ms'
-                            ('cycles',  [[150.,100.]],      0,      None,   ms, 'cycles',           'List of [on, off] durations for each pulse')) #'ms'
+default_protocol_parameters['custom'] = make_param_dict(
+    ('phis',  [1e16,1e17],        0,      None,   pq.mole*pq.mm**-2*pq.second**-1, '\mathbf{\phi}', 'List of flux values'), #'photons/s/mm^2'
+    ('Dt_delay',25,                 0,      1e9,    pq.ms, '\Delta t_{delay}', 'Delay duration before the first pulse'), #'ms'
+    ('cycles',  [[150.,50.]],       0,      None,   pq.ms, 'cycles',           'List of [on, off] durations for each pulse'))#, #'ms'#,
 
-protParams['sinusoid'].add_many(('phis',[1e12],             0,      None,   mole*mm**-2*second**-1, '\mathbf{\phi}', 'List of flux values'), #'photons/s/mm^2'
-                            ('phi0',    [0],                None,   None,   mole*mm**-2*second**-1, '\phi_0',        'Constant offset for flux'), #'photons/s/mm^2'
-                            ('startOn', True,               False,  True,   1,  '\phi_{t=0}>0',         'Start at maximum flux (else minimum)'),
-                            ('fs',      [0.1,0.5,1,5,10],   0,      None,   Hz, '\mathbf{f}',           'List of modulation frequencies'), #'Hz' #50, 100, 500, 1000
-                            ('Dt_delay',25,                 0,      1e9,    ms, '\Delta t_{delay}',     'Delay duration before the first pulse'), #'ms'
-                            ('cycles',  [[10000.,50.]],     0,      None,   ms, 'cycles',               'List of [on, off] durations for each pulse')) #'ms'
+default_protocol_parameters['step'] = make_param_dict(
+    ('phis',    [1e16,1e17],        0,      None,   pq.mole*pq.mm**-2*pq.second**-1, '\mathbf{\phi}', 'List of flux values'), #'photons/s/mm^2'
+    ('Dt_delay',25,                 0,      1e9,    pq.ms, '\Delta t_{delay}', 'Delay duration before the first pulse'), #'ms'
+    ('cycles',  [[150.,100.]],      0,      None,   pq.ms, 'cycles',           'List of [on, off] durations for each pulse')) #'ms'
 
-protParams['chirp'].add_many(('phis',   [1e12],             None,   None,   mole*mm**-2*second**-1, '\mathbf{\phi}', 'List of flux values'), # 'photons/s/mm^2'
-                            ('phi0',    [0],                None,   None,   mole*mm**-2*second**-1, '\phi_0',        'Constant offset for flux'), # 'photons/s/mm^2'
-                            ('linear',  True,               False,  True,   1,  'linear',           'Linear frequency sweep (else exponential)'), # False := exponential
-                            ('startOn', False,              False,  True,   1,  '\phi_{t=0}>0',     'Start at maximum flux (else minimum)'),
-                            ('Dt_delay',100,                0,      1e9,    ms, '\Delta t_{delay}', 'Delay duration before the first pulse'), # 'ms'
-                            ('cycles',  [[10000.,100.]],    0,      None,   ms, 'cycles',           'List of [on, off] durations for each pulse'), # 'ms'
-                            ('f0',      0.1,                0,      None,   Hz, 'f_0',              'Starting frequency'), # 'Hz'
-                            ('fT',      1000,               0,      None,   Hz, 'f_T',              'Ending frequency')) # 'Hz'
+default_protocol_parameters['sinusoid'] = make_param_dict(
+    ('phis',[1e12],             0,      None,   pq.mole*pq.mm**-2*pq.second**-1, '\mathbf{\phi}', 'List of flux values'), #'photons/s/mm^2'
+    ('phi0',    [0],                None,   None,   pq.mole*pq.mm**-2*pq.second**-1, '\phi_0',        'Constant offset for flux'), #'photons/s/mm^2'
+    ('startOn', True,               False,  True,   1,  '\phi_{t=0}>0',         'Start at maximum flux (else minimum)'),
+    ('fs',      [0.1,0.5,1,5,10],   0,      None,   pq.Hz, '\mathbf{f}',           'List of modulation frequencies'), #'pq.Hz' #50, 100, 500, 1000
+    ('Dt_delay',25,                 0,      1e9,    pq.ms, '\Delta t_{delay}',     'Delay duration before the first pulse'), #'ms'
+    ('cycles',  [[10000.,50.]],     0,      None,   pq.ms, 'cycles',               'List of [on, off] durations for each pulse')) #'ms'
 
-protParams['ramp'].add_many(('phis',    [1e16,1e17,1e18],   None,   None,   mole*mm**-2*second**-1, '\mathbf{\phi}', 'List of flux values'), # 'photons/s/mm^2' #1e12,1e13,1e14,1e15,
-                            ('phi0',    0,                  None,   None,   mole*mm**-2*second**-1, '\phi_0',        'Constant offset for flux'), # 'photons/s/mm^2'
-                            ('Dt_delay',25,                 0,      1e9,    ms, '\Delta t_{delay}', 'Delay duration before the first pulse'), # 'ms'
-                            ('cycles',  [[250.,25.]],       0,      None,   ms, 'cycles',           'List of [on, off] durations for each pulse')) # 'ms'#,
+default_protocol_parameters['chirp'] = make_param_dict(
+    ('phis',   [1e12],             None,   None,   pq.mole*pq.mm**-2*pq.second**-1, '\mathbf{\phi}', 'List of flux values'), # 'photons/s/mm^2'
+    ('phi0',    [0],                None,   None,   pq.mole*pq.mm**-2*pq.second**-1, '\phi_0',        'Constant offset for flux'), # 'photons/s/mm^2'
+    ('linear',  True,               False,  True,   1,  'linear',           'Linear frequency sweep (else exponential)'), # False := exponential
+    ('startOn', False,              False,  True,   1,  '\phi_{t=0}>0',     'Start at maximum flux (else minimum)'),
+    ('Dt_delay',100,                0,      1e9,    pq.ms, '\Delta t_{delay}', 'Delay duration before the first pulse'), # 'ms'
+    ('cycles',  [[10000.,100.]],    0,      None,   pq.ms, 'cycles',           'List of [on, off] durations for each pulse'), # 'ms'
+    ('f0',      0.1,                0,      None,   pq.Hz, 'f_0',              'Starting frequency'), # 'pq.Hz'
+    ('fT',      1000,               0,      None,   pq.Hz, 'f_T',              'Ending frequency')) # 'pq.Hz'
 
-protParams['delta'].add_many(('phis',   [1e20],             None,   None,   mole*mm**-2*second**-1, '\mathbf{\phi}', 'List of flux values'), # 'photons/s/mm^2'
-                            ('Dt_delay',5,                  0,      1e9,    ms, '\Delta t_{delay}', 'Delay duration before the first pulse'), # 'ms'
-                            ('Dt_on',   1e-3,               0,      1e9,    ms, '\Delta t_{on}',    'On-phase duration'), # 'ms'
-                            ('Dt_total',25.,                0,      None,   ms, 'T_{total}',        'Total simulation duration')) # 'ms'
+default_protocol_parameters['ramp'] = make_param_dict(
+    ('phis',    [1e16,1e17,1e18],   None,   None,   pq.mole*pq.mm**-2*pq.second**-1, '\mathbf{\phi}', 'List of flux values'), # 'photons/s/mm^2' #1e12,1e13,1e14,1e15,
+    ('phi0',    0,                  None,   None,   pq.mole*pq.mm**-2*pq.second**-1, '\phi_0',        'Constant offset for flux'), # 'photons/s/mm^2'
+    ('Dt_delay',25,                 0,      1e9,    pq.ms, '\Delta t_{delay}', 'Delay duration before the first pulse'), # 'ms'
+    ('cycles',  [[250.,25.]],       0,      None,   pq.ms, 'cycles',           'List of [on, off] durations for each pulse')) # 'ms'#,
 
-protParams['rectifier'].add_many(('phis',[1e16],            None,   None,   mole*mm**-2*second**-1, '\mathbf{\phi}', 'List of flux values'), # 'photons/s/mm^2' # Change to 1e17?
-                            ('Dt_delay',50,                 0,      1e9,    ms, '\Delta t_{delay}', 'Delay duration before the first pulse'), # 'ms'
-                            ('cycles',  [[250.,100.]],      None,   None,   ms, 'cycles',           'List of [on, off] durations for each pulse')) # 'ms' #,
+default_protocol_parameters['delta'] = make_param_dict(
+    ('phis',   [1e20],             None,   None,   pq.mole*pq.mm**-2*pq.second**-1, '\mathbf{\phi}', 'List of flux values'), # 'photons/s/mm^2'
+    ('Dt_delay',5,                  0,      1e9,    pq.ms, '\Delta t_{delay}', 'Delay duration before the first pulse'), # 'ms'
+    ('Dt_on',   1e-3,               0,      1e9,    pq.ms, '\Delta t_{on}',    'On-phase duration'), # 'ms'
+    ('Dt_total',25.,                0,      None,   pq.ms, 'T_{total}',        'Total simulation duration')) # 'ms'
 
-protParams['shortPulse'].add_many(('phis',[1.5e15],         None,   None,   mole*mm**-2*second**-1, '\mathbf{\phi}', 'List of flux values'), # 'photons/s/mm^2' #1e12
-                            ('Dt_delay',25,                 0,      None,   ms, '\Delta t_{delay}', 'Delay duration before the first pulse'), # 'ms'
-                            ('pDs',     [1,2,3,5,8,10,20],  0,      None,   ms, '\mathbf{\Delta t_{on}}',   'List of pulse on-phase durations'), # 'ms' # [0.1, 0.2, 0.5, 1, 2, 5, 10]
-                            ('Dt_total',100.,               0,      None,   ms, 'T_{total}',        'Total simulation duration')) # 'ms'
+default_protocol_parameters['rectifier'] = make_param_dict(
+    ('phis',[1e16],            None,   None,   pq.mole*pq.mm**-2*pq.second**-1, '\mathbf{\phi}', 'List of flux values'), # 'photons/s/mm^2' # Change to 1e17?
+    ('Dt_delay',50,                 0,      1e9,    pq.ms, '\Delta t_{delay}', 'Delay duration before the first pulse'), # 'ms'
+    ('cycles',  [[250.,100.]],      None,   None,   pq.ms, 'cycles',           'List of [on, off] durations for each pulse')) # 'ms' #,
 
-protParams['recovery'].add_many(('phis',[1e17],             None,   None,   mole*mm**-2*second**-1, '\mathbf{\phi}', 'List of flux values'), # 'photons/s/mm^2'
-                            ('Dt_delay',100,                0,      None,   ms, '\Delta t_{delay}', 'Delay duration before the first pulse'), # 'ms'
-                            ('Dt_on',   100,                0,      None,   ms, '\Delta t_{on}',    'On-phase duration'), # 'ms'
-                            ('Dt_IPIs',[500,1000,1500,2500,5000,7500,10000],None,None,ms,  '\mathbf{\Delta t_{off}}', 'List of pulse off-phase durations'), # 'ms'
-                            #('Dt_IPIs',[0.5,1,1.5,2.5,5,7.5,10],None,None,seconds), # 'ms'
-                            ('Dt_total',12000,              0,      None,   ms, 'T_{total}',        'Total simulation duration')) # 'ms'
+default_protocol_parameters['shortPulse'] = make_param_dict(
+    ('phis',[1.5e15],         None,   None,   pq.mole*pq.mm**-2*pq.second**-1, '\mathbf{\phi}', 'List of flux values'), # 'photons/s/mm^2' #1e12
+    ('Dt_delay',25,                 0,      None,   pq.ms, '\Delta t_{delay}', 'Delay duration before the first pulse'), # 'ms'
+    ('pDs',     [1,2,3,5,8,10,20],  0,      None,   pq.ms, '\mathbf{\Delta t_{on}}',   'List of pulse on-phase durations'), # 'ms' # [0.1, 0.2, 0.5, 1, 2, 5, 10]
+    ('Dt_total',100.,               0,      None,   pq.ms, 'T_{total}',        'Total simulation duration')) # 'ms'
+
+default_protocol_parameters['recovery'] = make_param_dict(
+    ('phis',[1e17],             None,   None,   pq.mole*pq.mm**-2*pq.second**-1, '\mathbf{\phi}', 'List of flux values'), # 'photons/s/mm^2'
+    ('Dt_delay',100,                0,      None,   pq.ms, '\Delta t_{delay}', 'Delay duration before the first pulse'), # 'ms'
+    ('Dt_on',   100,                0,      None,   pq.ms, '\Delta t_{on}',    'On-phase duration'), # 'ms'
+    ('Dt_IPIs',[500,1000,1500,2500,5000,7500,10000],None,None, pq.ms,  '\mathbf{\Delta t_{off}}', 'List of pulse off-phase durations'), # 'ms'
+    #('Dt_IPIs',[0.5,1,1.5,2.5,5,7.5,10],None,None,seconds), # 'ms'
+    ('Dt_total',12000,              0,      None,   pq.ms, 'T_{total}',        'Total simulation duration')) # 'ms'
 
 
 # E.g.
@@ -459,12 +493,12 @@ protParams['recovery'].add_many(('phis',[1e17],             None,   None,   mole
 # smallSignalAnalysis = {'sinusoid': True, 'step': True, 'delta': True}
 
 
-def selectProtocol(protocol, params=None):
+def select_protocol(protocol, params=None):
     """Protocol selection function"""
-    if protocol in protList:
+    if protocol in protocols:
         if params:
             return protocols[protocol](params)
         else:
-            return protocols[protocol](params=protParams[protocol])
+            return protocols[protocol](params=default_protocol_parameters[protocol])
     else:
         raise NotImplementedError(protocol)

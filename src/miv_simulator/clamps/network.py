@@ -12,6 +12,7 @@ import click
 import h5py
 import numpy as np
 from miv_simulator import spikedata, stimulus, synapses
+from miv_simulator.opsin import runtime as opsin_runtime
 from miv_simulator.clamps.cell import init_biophys_cell
 from miv_simulator.cells import (
     h,
@@ -29,6 +30,7 @@ from miv_simulator.stimulus import (
     rate_maps_from_features,
 )
 from miv_simulator.utils import (
+    Struct,
     Context,
     config_logging,
     generate_results_file_id,
@@ -549,6 +551,31 @@ def init(
             soma_positions_dict[population] = abs_positions
             del distances
 
+
+    if env.opsin_config is not None:
+        opsin_pop_dict = {
+            pop_name: set(env.cells[pop_name].keys()).difference(
+                set(env.artificial_cells[pop_name].keys())
+            )
+            for pop_name in env.cells.keys()
+        }
+        rho_params_dict = env.opsin_config["parameters"]
+        rho_params = Struct()
+        rho_params.update(rho_params_dict)
+        env.opsin = opsin_runtime.Opsin(
+            env.pc,
+            opsin_pop_dict,
+            nstates=env.opsin_config["nstates"],
+            protocol=env.opsin_config["protocol"],
+            rho_params=rho_params,
+            seed=int(
+                env.model_config["Random Seeds"]["Opsin"]
+            ),
+        )
+        if rank == 0:
+            logger.info("*** Opsin configuration instantiated")
+
+            
     input_source_dict = None
     if (worker is not None) and cooperative_init:
         if worker.worker_id == 1:

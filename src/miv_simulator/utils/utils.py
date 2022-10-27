@@ -54,6 +54,7 @@ class Struct:
         self.__dict__.update(items)
 
     def update(self, items):
+        print(items)
         self.__dict__.update(items)
 
     def __call__(self):
