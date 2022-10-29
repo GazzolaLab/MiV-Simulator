@@ -983,7 +983,7 @@ def init_spike_detector(
 
 
 def update_biophysics_by_sec_type(
-    cell: SCneuron,
+    cell: BiophysCell,
     sec_type: str,
     reset_cable: bool = False,
     verbose: bool = False,
@@ -1019,7 +1019,7 @@ def update_biophysics_by_sec_type(
 
 
 def update_mechanism_by_node(
-    cell: SCneuron,
+    cell: BiophysCell,
     node: SectionNode,
     mech_name: str,
     mech_content: Optional[
@@ -1037,27 +1037,20 @@ def update_mechanism_by_node(
     :param verbose: bool
     """
     if mech_content is not None:
-        # process either a dict, or a list of dicts specifying rules for a single parameter
+        # process either a dict specifying rules for a single parameter
         if isinstance(mech_content, dict):
+            point_process_loc=mech_content.get('loc', None)
             for param_name in mech_content:
-                apply_mech_rules(
-                    cell,
-                    node,
-                    mech_name,
-                    param_name,
-                    mech_content[param_name],
-                    verbose=verbose,
-                )
-        elif isinstance(mech_content, list):
-            for mech_content_entry in mech_content[param_name]:
-                apply_mech_rules(
-                    cell,
-                    node,
-                    mech_name,
-                    param_name,
-                    mech_content_entry,
-                    verbose=verbose,
-                )
+                if param_name != "loc":
+                    apply_mech_rules(
+                        cell,
+                        node,
+                        mech_name,
+                        param_name,
+                        mech_content[param_name],
+                        point_process_loc=point_process_loc,
+                        verbose=verbose,
+                    )
         else:
             raise RuntimeError(
                 "update_mechanism_by_node: unknown mechanism rule structure"
@@ -1068,11 +1061,12 @@ def update_mechanism_by_node(
 
 
 def apply_mech_rules(
-    cell: SCneuron,
+    cell: BiophysCell,
     node: SectionNode,
     mech_name: str,
     param_name: str,
     rules: Dict[str, Union[int, float]],
+    point_process_loc: Optional[float] = None,
     verbose: bool = True,
 ) -> None:
     """
@@ -1084,25 +1078,27 @@ def apply_mech_rules(
     :param mech_name: str
     :param param_name: str
     :param rules: dict
+    :param point_process_loc: location in section if mechanism is a point process
     :param verbose: bool
     """
     baseline = rules.get("value", None)
-
     if mech_name == "cable":
         setattr(node.sec, param_name, baseline)
         init_nseg(node.section, verbose=verbose)
         reinit_diam(node.section, node.diam_bounds)
     else:
-        set_mech_param(cell, node, mech_name, param_name, baseline, rules)
+        set_mech_param(cell, node, mech_name, param_name, baseline, rules,
+                       point_process_loc=point_process_loc)
 
 
 def set_mech_param(
-    cell: SCneuron,
+    cell: BiophysCell,
     node: SectionNode,
     mech_name: str,
     param_name: str,
     baseline: Union[int, float],
     rules: Dict[str, Union[int, float]],
+    point_process_loc: Optional[float] = None,
 ) -> None:
     """
 
@@ -1112,14 +1108,25 @@ def set_mech_param(
     :param baseline: float
     :param rules: dict
     """
-    try:
-        node.sec.insert(mech_name)
-    except Exception:
-        raise RuntimeError(
-            f"set_mech_param: unable to insert mechanism: {mech_name} cell: {cell} "
-            f"in sec_type: {node.section_type}"
-        )
-    setattr(node.sec, f"{param_name}_{mech_name}", baseline)
+    if point_process_loc is not None:
+        pp_dict = node.content.get(mech_name, None)
+        if pp_dict is None:
+            pp_dict = {}
+            node.content[mech_name] = pp_dict
+        pp = pp_dict.get(point_process_loc, None)
+        if pp is None:
+            pp = getattr(h, mech_name)(node.sec(point_process_loc))
+            pp_dict[point_process_loc] = pp
+        setattr(pp, param_name, baseline)
+    else:
+        try:
+            node.sec.insert(mech_name)
+        except Exception:
+            raise RuntimeError(
+                f"set_mech_param: unable to insert mechanism: {mech_name} cell: {cell} "
+                f"in sec_type: {node.section_type}"
+            )
+        setattr(node.sec, f"{param_name}_{mech_name}", baseline)
 
 
 def filter_nodes(

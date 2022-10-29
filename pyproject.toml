@@ -76,6 +76,7 @@ generate-input-spike-trains = "scripts.generate_input_spike_trains:main"
 generate-soma-coordinates = "scripts.generate_soma_coordinates:main"
 distribute-synapse-locs = "scripts.distribute_synapse_locs:main"
 run-network = "scripts.run_network:main"
+network-clamp = "scripts.analysis.network_clamp:main_cli"
 # Analysis scripts
 plot-biophys-cell-tree = "scripts.analysis.plot_biophys_cell_tree:main"
 plot-cell-tree = "scripts.analysis.plot_cell_tree:main"
