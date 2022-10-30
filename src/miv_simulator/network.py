@@ -19,6 +19,7 @@ from miv_simulator.utils import (
     compose_iter,
     get_module_logger,
     imapreduce,
+    mpi_op_set_union,
 )
 from miv_simulator.utils import io as io_utils
 from miv_simulator.utils import neuron as neuron_utils
@@ -41,12 +42,6 @@ from numpy import ndarray
 # This logger will inherit its settings from the root logger, created in miv_simulator.env
 logger = get_module_logger(__name__)
 
-
-def set_union(a, b, datatype):
-    return a.union(b)
-
-
-mpi_op_set_union = MPI.Op.Create(set_union, commute=True)
 
 def staggered_wait(env):
     """

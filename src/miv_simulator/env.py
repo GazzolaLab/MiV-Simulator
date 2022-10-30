@@ -165,11 +165,16 @@ class Env(AbstractEnv):
         ## comm0 includes only rank 0
         comm0 = self.comm.Split(color, 0)
 
+        ## Create communicators based on the host on which each process is located
         self.host_comm = None
-        host = MPI.Get_processor_name()
-        color = host
+        host_name = [MPI.Get_processor_name()]
+        host_name_list = self.comm.gather(host_name, root=0)
+        host_name_colors = { n: i for i, n in enumerate(set(host_name_list)) }
+        host_name_colors = self.comm.bcast(host_name_colors, root=0)
+        color = host_name_colors[host_name]
         self.host_comm = self.comm.Split(color, rank)
 
+        ## Whether to use CoreNEURON
         self.use_coreneuron = use_coreneuron
 
         # If true, the biophysical cells and synapses dictionary will be freed
