@@ -293,9 +293,7 @@ def choose_synapse_projection(
         candidate_projections = np.asarray(projection_lst)
         candidate_probs = np.asarray(projection_prob_lst)
         if log:
-            logger.info(
-                f"candidate_projections: {candidate_projections} candidate_probs: {candidate_probs}"
-            )
+            logger.info(f"{candidate_projections=} {candidate_probs=}")
         projection = ranstream_syn.choice(
             candidate_projections, 1, p=candidate_probs
         )[0]
@@ -400,12 +398,15 @@ def generate_synaptic_connections(
             )
             if log_flag:
                 logger.info(
-                    f"generate_synaptic_connections: gid {gid}: "
-                    f"syn_id = {syn_id} syn_type = {syn_type} swc_type = {swc_type} "
-                    f"syn_layer = {syn_layer} source = {projection}"
+                    f"generate_synaptic_connections: {gid=}: "
+                    f"{syn_id=} {syn_type=} {swc_type=} "
+                    f"{syn_layer=} {projection=}"
+                    f"{ranstream_syn=}"
                 )
             log_flag = False
-            assert projection is not None
+            assert (
+                projection is not None
+            ), f"generate_synaptic_connections: {gid=}: {syn_id=} {syn_type=} {swc_type=} {syn_layer=} {projection=} {ranstream_syn=} {population_dict=} {projection_synapse_dict=}\n{synapse_dict['syn_types']=}"
             synapse_prj_counts[prj_pop_index[projection]] += 1
             synapse_prj_partition[projection][syn_layer].append(syn_id)
         it += 1
@@ -525,6 +526,9 @@ def generate_synaptic_connections(
             logger.warning(
                 f"Rank {rank}: source gid list is empty for gid: {destination_gid} source: {projection}"
             )
+        assert (
+            len(prj_source_vertices_array) > 0
+        ), f"Rank {rank}: source gid list is empty. The cell density might be too small."
         count += len(prj_source_vertices_array)
         gid_dict[destination_gid] = (
             prj_source_vertices_array,
