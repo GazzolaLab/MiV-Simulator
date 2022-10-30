@@ -48,6 +48,27 @@ def set_union(a, b, datatype):
 
 mpi_op_set_union = MPI.Op.Create(set_union, commute=True)
 
+def staggered_wait(env):
+    """
+    Waits for previous rank in a staggered sequence.
+    """
+    host_size = env.host_comm.Get_size()
+    host_rank = env.host_comm.Get_rank()
+    if host_rank > 0:
+        buf = bytearray(32)
+        req = env.host_comm.irecv(buf, source=host_rank-1, tag=0)
+        req.Wait()
+    
+
+def staggered_ready(env):
+    """
+    Sends ready message to next rank in staggered sequence.
+    """
+    host_size = env.host_comm.Get_size()
+    host_rank = env.host_comm.Get_rank()
+    if host_rank < host_size-1:
+        req = comm.isend("ready", dest=host_rank+1, tag=0)
+        req.Wait()
 
 def ld_bal(env):
     """
@@ -403,6 +424,9 @@ def connect_cells(env: Env) -> None:
                 )
                 del graph[postsyn_name][presyn_name]
 
+        if env.staggered_init:
+            staggered_wait(env)
+            
         first_gid = None
         if postsyn_name in env.biophys_cells:
             for gid in env.biophys_cells[postsyn_name]:
@@ -425,6 +449,9 @@ def connect_cells(env: Env) -> None:
                     raise KeyError(
                         f"*** connect_cells: population: {postsyn_name}; gid: {gid}; could not initialize biophysics"
                     )
+                
+        if env.staggered_init:
+            staggered_ready(env)
 
     gc.collect()
 
@@ -445,6 +472,9 @@ def connect_cells(env: Env) -> None:
 
     gids = list(syn_attrs.gids())
     comm0 = env.comm.Split(2 if len(gids) > 0 else 0, 0)
+
+    if env.staggered_init:
+        staggered_wait(env)
 
     for gid in gids:
         if first_gid is None:
@@ -491,6 +521,9 @@ def connect_cells(env: Env) -> None:
 
     comm0.Free()
     gc.collect()
+
+    if env.staggered_init:
+        staggered_ready(env)
 
     if rank == 0:
         logger.info(

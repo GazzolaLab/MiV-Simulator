@@ -76,6 +76,7 @@ class Env(AbstractEnv):
         node_allocation: None = None,
         io_size: int = 0,
         use_cell_attr_gen: bool = False,
+        staggered_init: bool = False,
         cell_attr_gen_cache_size: int = 10,
         recording_profile: Optional[str] = None,
         tstart: float = 0.0,
@@ -164,6 +165,11 @@ class Env(AbstractEnv):
         ## comm0 includes only rank 0
         comm0 = self.comm.Split(color, 0)
 
+        self.host_comm = None
+        host = MPI.Get_processor_name()
+        color = host
+        self.host_comm = self.comm.Split(color, rank)
+
         self.use_coreneuron = use_coreneuron
 
         # If true, the biophysical cells and synapses dictionary will be freed
@@ -219,6 +225,9 @@ class Env(AbstractEnv):
         # and number of cache (readahead) items
         self.use_cell_attr_gen = use_cell_attr_gen
         self.cell_attr_gen_cache_size = cell_attr_gen_cache_size
+
+        # Perform staggered initialization to reduce peak memory footprint
+        self.staggered_init = staggered_init
 
         # Initialization voltage
         self.v_init = float(v_init)
