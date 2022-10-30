@@ -24,7 +24,9 @@ from miv_simulator.utils import (
     signal_power_spectrogram,
     signal_psd,
     zip_longest,
-    get_low_pass_filtered_trace,
+    add_bins,
+    update_bins,
+    finalize_bins,
 )
 from miv_simulator.utils.neuron import h, interplocs
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -559,7 +561,6 @@ def plot_cell_tree(
     mayavi=False,
     **kwargs,
 ):
-
     import networkx as nx
 
     fig_options = copy.copy(default_fig_options)
@@ -620,8 +621,8 @@ def plot_cell_tree(
     start_idx = edge_array[0, :]
     end_idx = edge_array[1, :]
 
-    start_idx = start_idx.astype(np.int)
-    end_idx = end_idx.astype(np.int)
+    start_idx = start_idx.astype(np.int_)
+    end_idx = end_idx.astype(np.int_)
     if color_edge_scalars:
         edge_scalars = z[start_idx]
         edge_color = None
@@ -673,16 +674,14 @@ def plot_cell_tree(
             mlab.show()
 
     else:
-        from mpl_toolkits.mplot3d import Axes3D
-
         fig = plt.figure(figsize=fig_options.figSize)
-        ax = Axes3D(fig)
+        ax = fig.add_subplot(projection="3d")
 
         layer_set = set(layer)
         sct = ax.scatter(
             x,
             y,
-            z,
+            zs=z,
             c=layer,
             alpha=0.7,
         )
@@ -711,11 +710,12 @@ def plot_cell_tree(
                     f"{population}_{gid}_cell_tree.{fig_options.figFormat}"
                 )
             plt.savefig(filename)
+            print(f"Save figure: {filename}")
 
         if fig_options.showFig:
             show_figure()
 
-    return fig
+    # return fig
 
 
 ## Plot spike raster
@@ -1468,6 +1468,8 @@ def plot_lfp(
             if time_range is None:
                 t = infile[namespace_id]["t"]
                 v = infile[namespace_id]["v"]
+                t = np.asarray(t)
+                v = np.asarray(v)
             else:
                 tlst = []
                 vlst = []
@@ -1842,10 +1844,8 @@ def plot_biophys_cell_tree(
         fig = mlab.gcf()
 
     elif plot_method == "matplotlib":
-        from mpl_toolkits.mplot3d import Axes3D
-
         fig = plt.figure(figsize=fig_options.figSize)
-        ax = Axes3D(fig)
+        ax = fig.add_subplot(projection="3d")
 
         xcoords = np.asarray(
             [x for (i, x) in morph_graph.nodes.data("x")], dtype=np.float32
@@ -1905,17 +1905,18 @@ def plot_biophys_cell_tree(
         ax.view_init(30)
         ax.set_axis_off
 
-        if fig_options.saveFig:
-            if isinstance(fig_options.saveFig, str):
-                filename = fig_options.saveFig
-            else:
-                filename = (
-                    f"{population}_{gid}_cell_tree.{fig_options.figFormat}"
-                )
-            plt.savefig(filename)
+        # if fig_options.saveFig:
+        #    if isinstance(fig_options.saveFig, str):
+        #        filename = fig_options.saveFig
+        #    else:
+        #        filename = (
+        #            f"{population}_{gid}_cell_tree.{fig_options.figFormat}"
+        #        )
+        #    plt.savefig(filename)
 
         if fig_options.showFig:
-            show_figure()
+            # show_figure()
+            plt.show()
     else:
         sl = h.SectionList([sec for sec in biophys_cell.hoc_cell.all])
         for sec in sl:
@@ -1928,7 +1929,7 @@ def plot_biophys_cell_tree(
         ax = ps.plot(plt)
         plt.show()
 
-    return fig
+    # return fig
 
 
 # =============================================================================
@@ -2589,7 +2590,7 @@ def plot_network_clamp(
         time_range = [tmin, tmax]
 
     if (
-        time_range[0] > time_range[1]
+        time_range[0] == time_range[1]
         or time_range[0] == float("inf")
         or time_range[1] == float("inf")
     ):
@@ -2661,6 +2662,8 @@ def plot_network_clamp(
             spkpoplst, spkindlst, spktlst
         )
     }
+    N = pop_num_cells[pop_name]
+    S = pop_start_inds[pop_name]
 
     n_plots = len(spkpoplst) + 2
     plot_height_ratios = [1] * len(spkpoplst)
@@ -2733,8 +2736,7 @@ def plot_network_clamp(
             alpha=0.5,
             label=pop_name,
         )
-        if len(sphist_y) > 0:
-            axes[i].set_ylim(0.0, np.ceil(np.max(sphist_y)))
+        axes[i].set_ylim(0.0, np.ceil(np.max(sphist_y)))
         stplots.append(sph)
 
         if i == 0:
@@ -2894,6 +2896,7 @@ def plot_network_clamp(
 
     states = indata["states"]
     stvplots = []
+    from dentate.utils import get_low_pass_filtered_trace
 
     for (pop_name, pop_states) in states.items():
         for (gid, cell_states) in pop_states.items():
@@ -2955,9 +2958,7 @@ def plot_network_clamp(
                 prop=dict(size=fig_options.fontSize),
             )
             axes[i].add_artist(at)
-        max_label_len = 0
-        if len(lgd_labels) > 0:
-            max_label_len = max(len(l) for l in lgd_labels)
+        max_label_len = max(len(l) for l in lgd_labels)
 
     else:
         raise RuntimeError(f"plot_network_clamp: unknown label type {labels}")
