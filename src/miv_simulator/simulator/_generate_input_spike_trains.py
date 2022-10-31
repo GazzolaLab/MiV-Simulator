@@ -5,6 +5,7 @@ import os
 import sys
 import time
 from collections import defaultdict
+from typing import Dict, Union, List
 
 import click
 import h5py
@@ -204,7 +205,7 @@ def generate_input_spike_trains(
 
     population_ranges = read_population_ranges(selectivity_path, comm)[0]
 
-    if len(populations) == 0:
+    if not populations:
         populations = sorted(population_ranges.keys())
 
     soma_positions_dict = None
@@ -527,3 +528,45 @@ def generate_input_spike_trains(
 
     if is_interactive and rank == 0:
         context.update(locals())
+
+
+def import_input_spike_train(
+    data: Dict[int, Union[List, np.ndarray]],
+    output_filepath: str,
+    namespace: str = "Custom",
+    attr_name: str = "Input Spikes",
+    population: str = "STIM",
+) -> None:
+    """Takes data representing spike trains and writes it to a input spike HD5 output file
+
+    :param data: A dictionary where keys represent the global ID of input neurons and value are array-likes with spike times in seconds
+    :param output_filepath: Output HD5 file path
+    :param namespace: HD5 target namespace
+    :param attr_name: HD5 attribute name
+    :param population: Neuron population
+    """
+
+    def _validate_key(_key):
+        try:
+            return int(_key)
+        except Exception as _e:
+            raise ValueError(
+                f"Spike train data contains invalid neuron GID. Expected int key but found '{_key}'"
+            ) from _e
+
+    output_spike_attr_dict = dict(
+        {
+            _validate_key(k): {
+                attr_name: np.array(v, dtype=np.float32)
+                * 1000  # to miliseconds
+            }
+            for k, v in data.items()
+        }
+    )
+
+    append_cell_attributes(
+        output_filepath,
+        population,
+        output_spike_attr_dict,
+        namespace=namespace,
+    )
