@@ -293,4 +293,3 @@ def main(
         network.init(env)
         if not dry_run:
             network.run(env, output_syn_spike_count=output_syn_spike_count)
-

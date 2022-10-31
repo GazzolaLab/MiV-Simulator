@@ -61,7 +61,7 @@ class MakeNetwork(HandlesYAMLConfig, Experiment):
             # generate file
             src = os.path.join(
                 os.path.dirname(miv_simulator.__file__),
-                "datasets",
+                "morphology",
                 f"{population}.swc",
             )
             commandlib.Command("neurotrees_import", population, h5, src).run()
