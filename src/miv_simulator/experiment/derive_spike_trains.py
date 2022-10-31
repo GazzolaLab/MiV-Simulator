@@ -55,7 +55,7 @@ class DeriveSpikeTrains(HandlesYAMLConfig, Experiment):
             debug=False,
             plot=False,
             show_fig=False,
-            save_fig=False,
+            save_fig=None,
             save_fig_dir=".",
             font_size=14.0,
             fig_format="svg",
@@ -67,9 +67,8 @@ class DeriveSpikeTrains(HandlesYAMLConfig, Experiment):
         self,
         spike_train: Union[List, np.ndarray],
         namespace: str = "Custom",
-        attr_name: str = "Spike Train",
+        attr_name: str = "Input Spikes",
     ) -> "DeriveSpikeTrains":
-        self.save_data("spike_train_data.npy", np.array(spike_train))
         self.set_custom(namespace, attr_name)
 
         import_input_spike_train(
@@ -84,24 +83,20 @@ class DeriveSpikeTrains(HandlesYAMLConfig, Experiment):
     def set_custom(
         self,
         namespace: str = "Custom",
-        attr_name: str = "Spike Train",
+        attr_name: str = "Input Spikes",
     ):
         self.save_data(
-            "spike_train_meta.json",
+            "custom_spike_train_meta.json",
             {
-                "spike_train_namespace": namespace,
-                "spike_train_attr_name": attr_name,
+                "namespace": namespace,
+                "attr_name": attr_name,
             },
         )
 
     @property
-    def custom_spike_train_data(self) -> Optional[np.ndarray]:
-        return self.load_data("spike_train_data.npy", None)
-
-    @property
     def custom_spike_train_meta(self) -> Optional[Dict]:
         return self.load_data(
-            "spike_train_meta.json", defaultdict(lambda: None)
+            "custom_spike_train_meta.json", defaultdict(lambda: None)
         )
 
     @property

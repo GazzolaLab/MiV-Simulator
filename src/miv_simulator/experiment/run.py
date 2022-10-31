@@ -123,10 +123,8 @@ class RunNetwork(Experiment):
             cell_selection_path=None,
             microcircuit_inputs=False,
             spike_input_path=spike_trains.output_filepath,
-            spike_input_namespace=custom_spike_train_meta[
-                "custom_spike_train_meta"
-            ],
-            spike_input_attr=custom_spike_train_meta["spike_input_attr"],
+            spike_input_namespace=custom_spike_train_meta["namespace"],
+            spike_input_attr=custom_spike_train_meta["attr_name"],
             cleanup=True,
             cache_queries=False,
             profile_memory=False,
