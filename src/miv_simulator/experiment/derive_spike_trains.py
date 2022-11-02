@@ -31,6 +31,8 @@ class DeriveSpikeTrains(HandlesYAMLConfig, Experiment):
         gather: bool = True
         spikes_namespace: str = "Input Spikes"
         spike_train_attr_name: str = "Spike Train"
+        # resources
+        ranks_: int = 1
 
     def on_execute(self):
         generate_input_spike_trains(

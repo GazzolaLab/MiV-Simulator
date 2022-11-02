@@ -90,7 +90,7 @@ class SomaCoordinates(HandlesYAMLConfig, Experiment):
 
     def distribute_synapses(self, version: VersionType = None):
         return self.derive_singleton(
-            "miv_simulator.experiment.synapse_locations",
+            "miv_simulator.experiment.distribute_synapses",
             [
                 {
                     "blueprint": self.config.blueprint,

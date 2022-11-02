@@ -26,6 +26,8 @@ class InputFeatures(HandlesYAMLConfig, Experiment):
         cache_size: int = 50
         write_size: int = 10000
         gather: bool = True
+        # resources
+        ranks_: int = 1
 
     def on_execute(self):
         generate_input_features(

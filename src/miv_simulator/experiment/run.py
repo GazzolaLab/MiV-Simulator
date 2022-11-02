@@ -15,8 +15,6 @@ from miv_simulator.utils import config_logging
 from mpi4py import MPI
 from neuroh5.io import read_population_names
 
-from miv_simulator.experiment.config import FromYAMLConfig, HandlesYAMLConfig
-
 
 def h5_copy_dataset(f_src, f_dst, dset_path):
     print(f"Copying {dset_path} from {f_src} to {f_dst} ...")

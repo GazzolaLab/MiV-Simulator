@@ -22,6 +22,30 @@ class MakeNetwork(HandlesYAMLConfig, Experiment):
     @dataclass
     class Config(FromYAMLConfig):
         gap_junctions: bool = False
+        # resources
+        ranks_: int = 1
+
+    def version_microcircuit(self):
+        return {
+            "blueprint": {
+                "Geometry": {
+                    "Parametric Surface": {
+                        "Layer Extents": {
+                            "SO": [[0.0, 0.0, 0.0], [1000.0, 1000.0, 100.0]],
+                            "SP": [[0.0, 0.0, 100.0], [1000.0, 1000.0, 150.0]],
+                            "SR": [[0.0, 0.0, 150.0], [1000.0, 1000.0, 350.0]],
+                            "SLM": [[0.0, 0.0, 350.0], [1000.0, 1000.0, 450.0]],
+                        }
+                    },
+                    "Cell Distribution": {
+                        "STIM": {"SO": 0, "SP": 10, "SR": 0, "SLM": 0},
+                        "PYR": {"SO": 0, "SP": 80, "SR": 0, "SLM": 0},
+                        "PVBC": {"SO": 35, "SP": 10, "SR": 8, "SLM": 0},
+                        "OLM": {"SO": 44, "SP": 0, "SR": 0, "SLM": 0},
+                    },
+                }
+            }
+        }
 
     def on_execute(self) -> None:
         logging.basicConfig(level=logging.INFO)
@@ -95,3 +119,6 @@ class MakeNetwork(HandlesYAMLConfig, Experiment):
             ).run()
 
         return h5
+
+    def default_resources(self, execution):
+        return {"mpi": {"-n": 1}, "slurm": {"--mem": "8G"}, "io_size": 1}

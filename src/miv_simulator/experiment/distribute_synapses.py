@@ -1,9 +1,6 @@
 import logging
-import os
 from dataclasses import dataclass
-from typing import List, Optional
 
-import miv_simulator
 from machinable import Experiment
 from machinable.config import Field
 from miv_simulator.simulator import distribute_synapse_locations
@@ -13,7 +10,7 @@ from miv_simulator.mechanisms import compile_and_load
 from miv_simulator.experiment.config import FromYAMLConfig, HandlesYAMLConfig
 
 
-class SynapseLocations(HandlesYAMLConfig, Experiment):
+class DistributeSynapseLocations(HandlesYAMLConfig, Experiment):
     @dataclass
     class Config(FromYAMLConfig):
         population: str = Field("???")
@@ -25,6 +22,8 @@ class SynapseLocations(HandlesYAMLConfig, Experiment):
         chunk_size: int = 1000
         value_chunk_size: int = 1000
         write_size: int = 1
+        # resources
+        ranks_: int = 8
 
     def on_execute(self):
         compile_and_load()

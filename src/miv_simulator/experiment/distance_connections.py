@@ -26,6 +26,8 @@ class DistanceConnections(HandlesYAMLConfig, Experiment):
         value_chunk_size: int = 1000
         write_size: int = 1
         cache_size: int = 1
+        # resources
+        ranks_: int = 8
 
     @property
     def output_filepath(self):

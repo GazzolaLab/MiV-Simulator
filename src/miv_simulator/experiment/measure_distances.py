@@ -24,6 +24,8 @@ class MeasureDistances(HandlesYAMLConfig, Experiment):
         chunk_size: int = 1000
         value_chunk_size: int = 1000
         cache_size: int = 50
+        # resources
+        ranks_: int = 8
 
     def on_execute(self):
         logging.basicConfig(level=logging.INFO)
