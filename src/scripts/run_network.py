@@ -4,7 +4,6 @@ Network model simulation script.
 
 import os
 import sys
-
 import click
 import numpy as np
 from miv_simulator import network
@@ -192,6 +191,11 @@ sys.excepthook = mpi_excepthook
     type=str,
     help="attribute name for input spikes when cell selection is specified",
 )
+@click.option(
+    "--staggered-init",
+    is_flag=True,
+    help="use staggered initialization strategy",
+)
 @click.option("--dt", type=float, default=0.025, help="")
 @click.option(
     "--ldbal",
@@ -259,6 +263,7 @@ def main(
     spike_input_path,
     spike_input_namespace,
     spike_input_attr,
+    staggered_init,
     dt,
     ldbal,
     lptbal,

@@ -3,14 +3,10 @@ Network initialization routines.
 """
 
 from typing import Dict, Union
-
-from typing import Dict, Union
-
 import gc
 import os
 import pprint
 import time
-
 import numpy as np
 from miv_simulator import cells, lfp, lpt, synapses
 from miv_simulator.env import Env
@@ -25,6 +21,7 @@ from miv_simulator.utils import io as io_utils
 from miv_simulator.utils import neuron as neuron_utils
 from miv_simulator.utils import profile_memory, simtime, zip_longest
 from miv_simulator.utils.neuron import h
+from numpy import ndarray
 from mpi4py import MPI
 from neuroh5.io import (
     NeuroH5CellAttrGen,
@@ -37,7 +34,6 @@ from neuroh5.io import (
     scatter_read_graph,
     scatter_read_trees,
 )
-from numpy import ndarray
 
 # This logger will inherit its settings from the root logger, created in miv_simulator.env
 logger = get_module_logger(__name__)
@@ -62,7 +58,7 @@ def staggered_ready(env):
     host_size = env.host_comm.Get_size()
     host_rank = env.host_comm.Get_rank()
     if host_rank < host_size-1:
-        req = comm.isend("ready", dest=host_rank+1, tag=0)
+        req = env.host_comm.isend("ready", dest=host_rank+1, tag=0)
         req.Wait()
 
 def ld_bal(env):
@@ -519,6 +515,8 @@ def connect_cells(env: Env) -> None:
 
     if env.staggered_init:
         staggered_ready(env)
+
+    env.comm.barrier()
 
     if rank == 0:
         logger.info(
@@ -1841,6 +1839,7 @@ def init(env: Env) -> None:
         connect_cells(env)
     else:
         connect_cell_selection(env)
+
     env.pc.set_maxstep(10.0)
 
     env.connectcellstime = time.time() - st

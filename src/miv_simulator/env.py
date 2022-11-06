@@ -3,7 +3,6 @@ from typing import Dict, Optional, Union
 import logging
 import os
 from collections import defaultdict, namedtuple
-
 import numpy as np
 import yaml
 from miv_simulator.config import config_path
@@ -167,9 +166,11 @@ class Env(AbstractEnv):
 
         ## Create communicators based on the host on which each process is located
         self.host_comm = None
-        host_name = [MPI.Get_processor_name()]
+        host_name = MPI.Get_processor_name()
         host_name_list = self.comm.gather(host_name, root=0)
-        host_name_colors = { n: i for i, n in enumerate(set(host_name_list)) }
+        host_name_colors = None
+        if rank == 0:
+            host_name_colors = { n: i for i, n in enumerate(set(host_name_list)) }
         host_name_colors = self.comm.bcast(host_name_colors, root=0)
         color = host_name_colors[host_name]
         self.host_comm = self.comm.Split(color, rank)
