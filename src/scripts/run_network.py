@@ -8,6 +8,7 @@ import sys
 import click
 import numpy as np
 from miv_simulator import network
+from miv_simulator.mechanisms import compile_and_load
 from miv_simulator.env import Env
 from miv_simulator.utils import config_logging, list_find
 from mpi4py import MPI
@@ -76,6 +77,12 @@ sys.excepthook = mpi_excepthook
     required=True,
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
     help="path to directory containing required neuroh5 data files",
+)
+@click.option(
+    "--mechanisms-path",
+    "-m",
+    required=False,
+    type=click.Path(exists=True, dir_okay=True, file_okay=False),
 )
 @click.option(
     "--results-path",
@@ -238,6 +245,7 @@ def main(
     template_paths,
     hoc_lib_path,
     dataset_prefix,
+    mechanisms_path,
     results_path,
     results_id,
     node_rank_file,
@@ -278,6 +286,8 @@ def main(
     params = dict(locals())
     params["config"] = params.pop("config_file")
     env = Env(**params)
+
+    compile_and_load(directory=mechanisms_path)
 
     if profile_time:
         import cProfile

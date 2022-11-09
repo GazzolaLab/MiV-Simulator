@@ -26,6 +26,12 @@ from miv_simulator.simulator import distribute_synapse_locations
     required=True,
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
 )
+@click.option(
+    "--mechanisms-path",
+    "-m",
+    required=False,
+    type=click.Path(exists=True, dir_okay=True, file_okay=False),
+)
 @click.option("--populations", "-i", required=True, multiple=True, type=str)
 @click.option("--distribution", type=str, default="uniform")
 @click.option("--io-size", type=int, default=-1)
@@ -41,6 +47,7 @@ def main(
     template_path,
     output_path,
     forest_path,
+    mechanisms_path,
     populations,
     distribution,
     io_size,
@@ -66,18 +73,5 @@ def main(
         dry_run,
         debug,
         config_prefix=config_prefix,
-    )
-
-
-if __name__ == "__main__":
-    main(
-        args=sys.argv[
-            (
-                utils.list_find(
-                    lambda x: os.path.basename(x) == os.path.basename(__file__),
-                    sys.argv,
-                )
-                + 1
-            ) :
-        ]
+        mechanisms_path=mechanisms_path,
     )
