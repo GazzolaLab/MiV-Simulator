@@ -2,14 +2,16 @@ import os
 import pathlib
 import sys
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List
 
 import numpy as np
 from machinable import Experiment
+from machinable.config import Field
 import miv_simulator.network
 from miv_simulator.env import Env
 from miv_simulator.utils import config_logging
 from mpi4py import MPI
+from miv_simulator.mechanisms import compile_and_load
 
 
 def h5_copy_dataset(f_src, f_dst, dset_path):
@@ -33,34 +35,41 @@ sys.excepthook = mpi_excepthook
 class RunNetwork(Experiment):
     @dataclass
     class Config:
+        using: List[str] = Field(default_factory=lambda: [])
         record_syn_spike_count: bool = False
         t_stop: int = 1
         v_init: float = -75.0
         stimulus_onset: float = 1.0
         results_write_time: float = 360.0
         dt: float = 0.025
+        ranks_: int = 8
+
+    def on_create(self):
+        compile_and_load()
+
+        self.using = []
+        for use in self.config.using:
+            experiment = Experiment.find(use)
+            if not experiment:
+                raise ValueError(f"Invalid use: {use}")
+            self.using.append(experiment)
 
     def dependencies(self, kind: Optional[str] = None):
-        if kind is None:
-            return self.elements
-        return self.elements.filter(lambda x: x.module == kind)
+        return list(filter(lambda x: x.module == kind, self.using))
 
     def on_execute(self):
         self.local_directory("data", create=True)
         config_logging(True)
         np.seterr(all="raise")
 
-        network = self.dependencies(
-            "miv_simulator.experiment.make_network"
-        ).first()
+        network = self.dependencies("miv_simulator.experiment.make_network")[0]
         spike_trains = self.dependencies(
             "miv_simulator.experiment.derive_spike_trains"
-        ).first()
+        )[0]
         custom_spike_train_meta = spike_trains.custom_spike_train_meta
-
         data = Experiment.singleton(
             "miv_simulator.experiment.prepare_data",
-            {"using": list(self.dependencies().map(lambda e: e.experiment_id))},
+            {"using": self.config.using},
         ).execute()
 
         if data.is_finished():
@@ -118,5 +127,7 @@ class RunNetwork(Experiment):
 
         miv_simulator.network.init(env)
         miv_simulator.network.run(
-            env, output_syn_spike_count=self.config.record_syn_spike_count
+            env,
+            output_syn_spike_count=self.config.record_syn_spike_count,
+            output=False,
         )

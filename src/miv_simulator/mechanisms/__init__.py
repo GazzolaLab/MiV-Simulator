@@ -57,12 +57,19 @@ def compile(directory: Optional[str] = None, force: bool = False) -> str:
     return compiled
 
 
+_compiled_and_loaded = {}
+
+
 def compile_and_load(
     directory: Optional[str] = None, force: bool = False
 ) -> str:
     """
     Compile mechanism file on the processor 0, and load the output DLL file into NEURON.
     """
+    if not force and directory in _compiled_and_loaded:
+        # already loaded
+        return _compiled_and_loaded[directory]
+
     comm = MPI.COMM_WORLD
     rank = comm.rank
     if rank == 0:
@@ -73,9 +80,12 @@ def compile_and_load(
     src = comm.bcast(src, root=0)
 
     dll_path = os.path.join(src, "x86_64", ".libs", "libnrnmech.so")
+
     assert os.path.exists(
         dll_path
     ), f"libnrnmech.so file is not found properly. {dll_path}"
     h(f'nrn_load_dll("{dll_path}")')
+
+    _compiled_and_loaded[directory] = dll_path
 
     return dll_path
