@@ -26,7 +26,7 @@ class DistributeSynapseLocations(HandlesYAMLConfig, Experiment):
         ranks_: int = 8
 
     def on_execute(self):
-        compile_and_load()
+        # compile_and_load()
         logging.basicConfig(level=logging.INFO)
         distribute_synapse_locations(
             config=self.config.blueprint,

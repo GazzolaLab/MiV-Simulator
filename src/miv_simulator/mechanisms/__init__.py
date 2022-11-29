@@ -73,7 +73,9 @@ def compile_and_load(
     src = comm.bcast(src, root=0)
 
     dll_path = os.path.join(src, "x86_64", ".libs", "libnrnmech.so")
-    assert os.path.exists(dll_path), f"libnrnmech.so file is not found properly. {dll_path}"
+    assert os.path.exists(
+        dll_path
+    ), f"libnrnmech.so file is not found properly. {dll_path}"
     h(f'nrn_load_dll("{dll_path}")')
 
     return dll_path
