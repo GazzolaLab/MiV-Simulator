@@ -84,7 +84,7 @@ class RunNetwork(Experiment):
             "Connection Data": "connections.h5",
         }
 
-        env = Env(
+        self.env = env = Env(
             comm=MPI.COMM_WORLD,
             config={**network.config.blueprint, **data_configuration},
             template_paths="templates",
@@ -126,8 +126,14 @@ class RunNetwork(Experiment):
         )
 
         miv_simulator.network.init(env)
-        miv_simulator.network.run(
+
+        summary = miv_simulator.network.run(
             env,
             output_syn_spike_count=self.config.record_syn_spike_count,
             output=False,
         )
+
+        self.save_data(f"timing_summary_rank{int(env.pc.id())}.json", summary)
+
+    def on_after_dispatch(self):
+        return miv_simulator.network.shutdown(self.env)
