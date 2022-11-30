@@ -110,7 +110,9 @@ class MakeNetwork(HandlesYAMLConfig, Experiment):
             # determine population ranges
             with h5py.File(self.output_filepath, "r") as f:
                 idx = list(
-                    f["H5Types"]["Population labels"].dtype.metadata["enum"]
+                    reversed(
+                        f["H5Types"]["Population labels"].dtype.metadata["enum"]
+                    )
                 ).index(population)
                 offset = f["H5Types"]["Populations"][idx][0]
 
