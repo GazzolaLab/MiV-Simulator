@@ -9,7 +9,7 @@ from machinable import Experiment
 from machinable.element import normversion
 from machinable.types import VersionType
 from miv_simulator.simulator import make_h5types
-
+import h5py
 from miv_simulator.experiment.config import FromYAMLConfig, HandlesYAMLConfig
 
 
@@ -107,6 +107,13 @@ class MakeNetwork(HandlesYAMLConfig, Experiment):
         tree = self.dentric_trees(population)
         h5 = self.local_directory(f"data/forest_{population}.h5")
         if not os.path.isfile(h5):
+            # determine population ranges
+            with h5py.File(self.output_filepath, "r") as f:
+                idx = list(
+                    f["H5Types"]["Population labels"].dtype.metadata["enum"]
+                ).index(population)
+                offset = f["H5Types"]["Populations"][idx][0]
+
             _bin_check("neurotrees_copy")
             commandlib.Command(
                 "neurotrees_copy",
@@ -115,10 +122,7 @@ class MakeNetwork(HandlesYAMLConfig, Experiment):
                 h5,
                 tree,
                 population,
-                {"PYR": 10, "PVBC": 90, "OLM": 143}[population],
+                offset,
             ).run()
 
         return h5
-
-    def default_resources(self, execution):
-        return {"mpi": {"-n": 1}, "slurm": {"--mem": "8G"}, "io_size": 1}
