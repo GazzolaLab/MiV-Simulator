@@ -23,7 +23,5 @@ def test_mechanisms_compile_and_load():
     remove_cmd = commandlib.Command("rm", "-f")
     remove_cmd(dll_path).run()
     assert not os.path.exists(dll_path)
-    with pytest.raises(AssertionError):
-        compile_and_load()
     compile_and_load(force=True)
     assert os.path.exists(dll_path)
