@@ -31,7 +31,6 @@ def mpi_excepthook(type, value, traceback):
 sys_excepthook = sys.excepthook
 sys.excepthook = mpi_excepthook
 
-
 class RunNetwork(Experiment):
     @dataclass
     class Config:
@@ -43,6 +42,7 @@ class RunNetwork(Experiment):
         results_write_time: float = 360.0
         dt: float = 0.025
         ranks_: int = 8
+        nodes_: int = 1
 
     def on_create(self):
         compile_and_load()
