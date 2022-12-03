@@ -38,6 +38,8 @@ from neuroh5.io import (
     bcast_cell_attributes,
 )
 from scipy import interpolate, ndimage, signal
+if hasattr(h, "nrnmpi_init"):
+    h.nrnmpi_init()
 
 # This logger will inherit its settings from the root logger, created in miv_simulator.env
 logger = get_module_logger(__name__)
