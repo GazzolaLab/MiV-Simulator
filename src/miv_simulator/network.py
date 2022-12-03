@@ -24,7 +24,9 @@ from miv_simulator.utils import io as io_utils
 from miv_simulator.utils import neuron as neuron_utils
 from miv_simulator.utils import profile_memory, simtime, zip_longest
 from miv_simulator.utils.neuron import h
-h.nrnmpi_init()
+if hasattr(h, "nrnmpi_init"):
+    h.nrnmpi_init()
+
 from mpi4py import MPI
 from neuroh5.io import (
     NeuroH5CellAttrGen,

@@ -45,7 +45,8 @@ if TYPE_CHECKING:
 
 # This logger will inherit its settings from the root logger, created in env
 logger = get_module_logger(__name__)
-h.nrnmpi_init()
+if hasattr(h, "nrnmpi_init"):
+    h.nrnmpi_init()
 
 def get_node_attribute(name, content, sec, secnodes, x=None):
     """

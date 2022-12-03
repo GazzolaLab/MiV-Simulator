@@ -6,7 +6,8 @@ import commandlib
 import miv_simulator
 from mpi4py import MPI
 from neuron import h
-h.nrnmpi_init()
+if hasattr(h, "nrnmpi_init"):
+    h.nrnmpi_init()
 
 from typing import Optional
 
