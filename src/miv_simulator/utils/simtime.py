@@ -9,7 +9,8 @@ from neuron import h
 
 # This logger will inherit its settings from the root logger, created in miv_simulator.env
 logger = get_module_logger(__name__)
-
+if hasattr(h, "nrnmpi_init"):
+    h.nrnmpi_init()
 
 class SimTimeEvent:
     def __init__(
