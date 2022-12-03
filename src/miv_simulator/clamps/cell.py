@@ -30,7 +30,7 @@ from scipy.optimize import curve_fit
 
 # This logger will inherit its settings from the root logger, created in miv_simulator.env
 logger = get_module_logger(__name__)
-
+h.nrnmpi_init()
 context = Context()
 
 

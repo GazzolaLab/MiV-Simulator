@@ -13,6 +13,7 @@ import logging
 import math
 
 from neuron import h
+h.nrnmpi_init()
 
 if TYPE_CHECKING:
     from neuron.hoc import HocObject
