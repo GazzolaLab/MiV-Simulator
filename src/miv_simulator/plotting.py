@@ -38,6 +38,7 @@ from neuroh5.io import (
     bcast_cell_attributes,
 )
 from scipy import interpolate, ndimage, signal
+
 if hasattr(h, "nrnmpi_init"):
     h.nrnmpi_init()
 

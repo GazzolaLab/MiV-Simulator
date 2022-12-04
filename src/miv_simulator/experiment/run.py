@@ -2,16 +2,17 @@ import os
 import pathlib
 import sys
 from dataclasses import dataclass
-from typing import Optional, List
+from typing import Optional
 
 import numpy as np
 from machinable import Experiment
-from machinable.config import Field
+from machinable.config import Field, validator
 import miv_simulator.network
 from miv_simulator.env import Env
 from miv_simulator.utils import config_logging
 from mpi4py import MPI
 from miv_simulator.mechanisms import compile_and_load
+from miv_simulator.experiment.config import FromYAMLConfig, HandlesYAMLConfig
 
 
 def h5_copy_dataset(f_src, f_dst, dset_path):
@@ -31,10 +32,15 @@ def mpi_excepthook(type, value, traceback):
 sys_excepthook = sys.excepthook
 sys.excepthook = mpi_excepthook
 
-class RunNetwork(Experiment):
+
+class RunNetwork(HandlesYAMLConfig, Experiment):
     @dataclass
-    class Config:
-        using: List[str] = Field(default_factory=lambda: [])
+    class Config(FromYAMLConfig):
+        cells: str = Field("???")
+        connections: str = Field("???")
+        spike_input_path: str = Field("???")
+        spike_input_namespace: Optional[str] = None
+        spike_input_attr: Optional[str] = None
         record_syn_spike_count: bool = False
         t_stop: int = 1
         v_init: float = -75.0
@@ -47,49 +53,26 @@ class RunNetwork(Experiment):
     def on_create(self):
         compile_and_load()
 
-        self.using = []
-        for use in self.config.using:
-            experiment = Experiment.find(use)
-            if not experiment:
-                raise ValueError(f"Invalid use: {use}")
-            self.using.append(experiment)
-
-    def dependencies(self, kind: Optional[str] = None):
-        return list(filter(lambda x: x.module == kind, self.using))
-
     def on_execute(self):
         self.local_directory("data", create=True)
         config_logging(True)
         np.seterr(all="raise")
 
-        network = self.dependencies("miv_simulator.experiment.make_network")[0]
-        spike_trains = self.dependencies(
-            "miv_simulator.experiment.derive_spike_trains"
-        )[0]
-        custom_spike_train_meta = spike_trains.custom_spike_train_meta
-        data = Experiment.singleton(
-            "miv_simulator.experiment.prepare_data",
-            {"using": self.config.using},
-        ).execute()
-
-        if data.is_finished():
-            print(
-                f"Using existing H5 data from {data.experiment_id} at {data.local_directory()}"
-            )
-
         data_configuration = {
             "Model Name": "simulation",
             "Dataset Name": "simulation",
-            "Cell Data": "cells.h5",
-            "Connection Data": "connections.h5",
+            "Cell Data": self.config.cells,
+            "Connection Data": self.config.connections,
         }
+
+        blueprint = self.config.blueprint or {}
 
         self.env = env = Env(
             comm=MPI.COMM_WORLD,
-            config={**network.config.blueprint, **data_configuration},
+            config={**blueprint, **data_configuration},
             template_paths="templates",
             hoc_lib_path=None,
-            dataset_prefix=data.local_directory("data"),
+            dataset_prefix="",
             results_path=self.local_directory("data"),
             results_file_id=None,
             results_namespace_id=None,
@@ -114,9 +97,9 @@ class RunNetwork(Experiment):
             lptbal=False,
             cell_selection_path=None,
             microcircuit_inputs=False,
-            spike_input_path=spike_trains.output_filepath,
-            spike_input_namespace=custom_spike_train_meta["namespace"],
-            spike_input_attr=custom_spike_train_meta["attr_name"],
+            spike_input_path=self.config.spike_input_path,
+            spike_input_namespace=self.config.spike_input_namespace,
+            spike_input_attr=self.config.spike_input_attr,
             cleanup=True,
             cache_queries=False,
             profile_memory=False,
