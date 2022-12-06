@@ -100,7 +100,6 @@ NEURON {
 	POINT_PROCESS Gfluct3
 	RANGE h, on, g_e, g_i, E_e, E_i, g_e0, g_i0, g_e1, g_i1
 	RANGE std_e, std_i, tau_e, tau_i, D_e, D_i
-	RANGE new_seed
 	NONSPECIFIC_CURRENT i
 	THREADSAFE
 	BBCOREPOINTER donotuse
