@@ -199,7 +199,7 @@ VERBATIM
 #if !NRNBBCORE
 /* backward compatibility */
 double nrn_random_pick(void* r);
-void* nrn_random_arg(int argpos);
+Rand* nrn_random_arg(int argpos);
 int nrn_random_isran123(void* r, uint32_t* id1, uint32_t* id2, uint32_t* id3);
 #endif
 ENDVERBATIM
@@ -279,7 +279,7 @@ PROCEDURE noiseFromRandom() {
 VERBATIM
 #if !NRNBBCORE
  {
-	void** pv = (void**)(&_p_donotuse);
+	Rand** pv = (void**)(&_p_donotuse);
 	if (_ran_compat == 2) {
 		fprintf(stderr, "Gfluct3.noiseFromRandom123 was previously called\n");
 		assert(0);
