@@ -116,7 +116,15 @@ class RunNetwork(HandlesYAMLConfig, Experiment):
             output=False,
         )
 
-        self.save_data(f"timing_summary_rank{int(env.pc.id())}.json", summary)
+        if self.on_write_meta_data() is not False:
+            self.save_data(
+                f"timing_summary_rank{int(env.pc.id())}.json", summary
+            )
+
+    def on_write_meta_data(self) -> Optional[bool]:
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+        return rank == 0
 
     def on_after_dispatch(self):
         return miv_simulator.network.shutdown(self.env)
