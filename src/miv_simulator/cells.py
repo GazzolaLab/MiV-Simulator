@@ -1117,6 +1117,11 @@ def set_mech_param(
         if pp is None:
             pp = getattr(h, mech_name)(node.sec(point_process_loc))
             pp_dict[point_process_loc] = pp
+            hoc_cell = getattr(cell, "hoc_cell", None)
+            if hoc_cell is not None:
+                pps = getattr(hoc_cell, "pps", None)
+                if pps is not None:
+                    pps.append(pp)
         setattr(pp, param_name, baseline)
     else:
         try:
