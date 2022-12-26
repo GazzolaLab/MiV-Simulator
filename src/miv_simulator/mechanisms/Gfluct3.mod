@@ -100,7 +100,6 @@ NEURON {
 	POINT_PROCESS Gfluct3
 	RANGE h, on, g_e, g_i, E_e, E_i, g_e0, g_i0, g_e1, g_i1
 	RANGE std_e, std_i, tau_e, tau_i, D_e, D_i
-	RANGE new_seed
 	NONSPECIFIC_CURRENT i
 	THREADSAFE
 	BBCOREPOINTER donotuse
@@ -196,13 +195,6 @@ INITIAL {
 
 VERBATIM
 #include "nrnran123.h"
-
-#if !NRNBBCORE
-/* backward compatibility */
-double nrn_random_pick(void* r);
-void* nrn_random_arg(int argpos);
-int nrn_random_isran123(void* r, uint32_t* id1, uint32_t* id2, uint32_t* id3);
-#endif
 ENDVERBATIM
 
 FUNCTION mynormrand(mean, std) {
