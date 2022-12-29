@@ -3,11 +3,9 @@ Network initialization routines.
 """
 
 from typing import Dict, Union
-
-from typing import Dict, Union
-
 import gc
 import os
+import sys
 import pprint
 import time
 
@@ -449,15 +447,19 @@ def connect_cells(env: Env) -> None:
     gids = list(syn_attrs.gids())
     comm0 = env.comm.Split(2 if len(gids) > 0 else 0, 0)
 
+    first_gid_set = set([])
     for gid in gids:
-        if first_gid is None:
-            first_gid = gid
         if not env.pc.gid_exists(gid):
             logger.info(f"connect_cells: rank {rank}: gid {gid} does not exist")
         assert gid in env.gidset
         assert env.pc.gid_exists(gid)
         postsyn_cell = env.pc.gid2cell(gid)
         postsyn_name = find_gid_pop(env.celltypes, gid)
+
+        first_gid = None
+        if postsyn_name not in first_gid_set:
+            first_gid = gid
+            first_gid_set.add(postsyn_name)
 
         if rank == 0 and gid == first_gid:
             logger.info(f"Rank {rank}: configuring synapses for gid {gid}")
@@ -479,8 +481,14 @@ def connect_cells(env: Env) -> None:
         if rank == 0 and gid == first_gid:
             logger.info(
                 f"Rank {rank}: took {(time.time() - last_time):.02f} s to configure {syn_count} synapses, {mech_count} synaptic mechanisms, {nc_count} network "
-                f"connections for gid {gid}"
+                f"connections for gid {gid} from population {postsyn_name}"
             )
+            hoc_cell = env.pc.gid2cell(gid)
+            if hasattr(hoc_cell, "all"):
+                if gid in env.biophys_cells[postsyn_name]:
+                    biophys_cell = env.biophys_cells[postsyn_name][gid]
+                for sec in list(hoc_cell.all):
+                    logger.info(pprint.pformat(sec.psection()))
 
         env.edge_count[postsyn_name] += syn_count
 
@@ -807,7 +815,7 @@ def connect_cell_selection(env):
             hoc_cell = env.pc.gid2cell(gid)
             if hasattr(hoc_cell, "all"):
                 for sec in list(hoc_cell.all):
-                    h.psection(sec=sec)
+                    logger.info(pprint.pformat(sec.psection()))
 
         if gid in env.recording_sets.get(pop_name, {}):
             cells.record_cell(env, pop_name, gid)
@@ -949,6 +957,7 @@ def make_cells(env: Env) -> None:
         if template_name_lower != "vecstim":
             neuron_utils.load_cell_template(env, pop_name, bcast_template=True)
 
+        mech_dict = None
         mech_file_path = None
         if "mech_file_path" in env.celltypes[pop_name]:
             mech_dict = env.celltypes[pop_name]["mech_dict"]
@@ -957,8 +966,6 @@ def make_cells(env: Env) -> None:
                 logger.info(
                     f"*** Mechanism file for population {pop_name} is {mech_file_path}"
                 )
-        else:
-            mech_dict = None
 
         is_PR = template_name.lower() == "pr_nrn"
         is_SC = template_name.lower() == "sc_nrn"
@@ -997,11 +1004,13 @@ def make_cells(env: Env) -> None:
                         gid=gid, pop_name=pop_name, env=env, mech_dict=mech_dict
                     )
                     cells.register_cell(env, pop_name, gid, SC_cell)
+
                 elif is_PR:
                     PR_cell = cells.make_PR_cell(
                         gid=gid, pop_name=pop_name, env=env, mech_dict=mech_dict
                     )
                     cells.register_cell(env, pop_name, gid, PR_cell)
+
                 else:
                     hoc_cell = cells.make_hoc_cell(
                         env, pop_name, gid, neurotree_dict=tree
@@ -1028,7 +1037,7 @@ def make_cells(env: Env) -> None:
                     if rank == 0 and first_gid == gid:
                         if hasattr(hoc_cell, "all"):
                             for sec in list(hoc_cell.all):
-                                h.psection(sec=sec)
+                                logger.info(pprint.pformat(sec.psection()))
 
                 num_cells += 1
             del trees
@@ -1235,7 +1244,7 @@ def make_cell_selection(env):
                 if rank == 0 and first_gid == gid:
                     if hasattr(hoc_cell, "all"):
                         for sec in list(hoc_cell.all):
-                            h.psection(sec=sec)
+                            logger.info(pprint.pformat(sec.psection()))
 
                 num_cells += 1
 

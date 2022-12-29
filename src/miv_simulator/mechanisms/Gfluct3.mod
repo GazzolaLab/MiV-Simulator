@@ -193,6 +193,10 @@ INITIAL {
        }
 }
 
+VERBATIM
+#include "nrnran123.h"
+ENDVERBATIM
+
 FUNCTION mynormrand(mean, std) {
 VERBATIM
 	if (_p_donotuse) {

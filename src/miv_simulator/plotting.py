@@ -27,6 +27,7 @@ from miv_simulator.utils import (
     add_bins,
     update_bins,
     finalize_bins,
+    get_low_pass_filtered_trace,
 )
 from miv_simulator.utils.neuron import h, interplocs
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -2390,20 +2391,23 @@ def plot_intracellular_state(
                             )
 
                 if lowpass_plot is not None and not distance:
-                    filtered_cell_states = [
-                        get_low_pass_filtered_trace(cell_state, st_x)
-                        for cell_state in cell_states
-                    ]
-                    mean_filtered_cell_state = np.mean(
-                        filtered_cell_states, axis=0
-                    )
-                    ax_lowpass.plot(
-                        st_x,
-                        mean_filtered_cell_state,
-                        label=f"{pop_name} {gid} (filtered)",
-                        linewidth=fig_options.lw,
-                        alpha=0.75,
-                    )
+                    try:
+                        filtered_cell_states = [
+                            get_low_pass_filtered_trace(cell_state, st_x)
+                            for cell_state in cell_states
+                        ]
+                        mean_filtered_cell_state = np.mean(
+                            filtered_cell_states, axis=0
+                        )
+                        ax_lowpass.plot(
+                            st_x,
+                            mean_filtered_cell_state,
+                            label=f"{pop_name} {gid} (filtered)",
+                            linewidth=fig_options.lw,
+                            alpha=0.75,
+                        )
+                    except:
+                        pass
 
             ax.set_xlabel("Time [ms]", fontsize=fig_options.fontSize)
             if distance:
@@ -2893,7 +2897,6 @@ def plot_network_clamp(
 
     states = indata["states"]
     stvplots = []
-    from dentate.utils import get_low_pass_filtered_trace
 
     for (pop_name, pop_states) in states.items():
         for (gid, cell_states) in pop_states.items():
