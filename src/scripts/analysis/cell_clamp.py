@@ -148,4 +148,3 @@ def main(
         verbose,
         config_prefix=config_prefix,
     )
-

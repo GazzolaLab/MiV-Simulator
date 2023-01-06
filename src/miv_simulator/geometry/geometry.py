@@ -871,8 +871,6 @@ def icp_transform(
     return soma_coords_dict
 
 
-
-
 if __name__ == "__main__":
     #     test_alphavol()
     test_nodes()

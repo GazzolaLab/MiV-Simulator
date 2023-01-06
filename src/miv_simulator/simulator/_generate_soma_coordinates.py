@@ -544,7 +544,10 @@ def generate_soma_coordinates(
                             coord_v = np.random.uniform(
                                 min_extent[1] + safety, max_extent[1] - safety
                             )
-                            if pop_constraint is None or layer not in pop_constraint:
+                            if (
+                                pop_constraint is None
+                                or layer not in pop_constraint
+                            ):
                                 coord_l = np.random.uniform(
                                     min_extent[2] + safety,
                                     max_extent[2] - safety,

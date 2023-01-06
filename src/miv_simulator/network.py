@@ -22,6 +22,7 @@ from miv_simulator.utils import io as io_utils
 from miv_simulator.utils import neuron as neuron_utils
 from miv_simulator.utils import profile_memory, simtime, zip_longest
 from miv_simulator.utils.neuron import h
+
 if hasattr(h, "nrnmpi_init"):
     h.nrnmpi_init()
 
