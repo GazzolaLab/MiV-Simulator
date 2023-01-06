@@ -48,6 +48,7 @@ logger = get_module_logger(__name__)
 if hasattr(h, "nrnmpi_init"):
     h.nrnmpi_init()
 
+
 def get_node_attribute(name, content, sec, secnodes, x=None):
     """
 

@@ -284,7 +284,7 @@ def read_spike_events(
         tmin = 0.0
     if tmax == float("inf"):
         tmax = 0.0
-        
+
     return {
         "spkpoplst": spkpoplst,
         "spktlst": spktlst,

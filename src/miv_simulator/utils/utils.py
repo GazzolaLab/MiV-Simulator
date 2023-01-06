@@ -1039,7 +1039,7 @@ def get_low_pass_filtered_trace(trace, t, down_dt=0.5, window_len_ms=2000.0):
 
     if (np.max(t) - np.min(t)) < window_len_ms:
         return None
-    
+
     down_t = np.arange(np.min(t), np.max(t), down_dt)
     # 2000 ms Hamming window, ~3 Hz low-pass filter
     window_len = int(float(window_len_ms) / down_dt)
@@ -1055,7 +1055,7 @@ def get_low_pass_filtered_trace(trace, t, down_dt=0.5, window_len_ms=2000.0):
     )
     down_filtered = down_filtered[pad_len:-pad_len]
     filtered = np.interp(t, down_t, down_filtered)
-    
+
     return filtered
 
 

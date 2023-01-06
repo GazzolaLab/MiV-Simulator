@@ -40,6 +40,7 @@ from neuroh5.io import (
     bcast_cell_attributes,
 )
 from scipy import interpolate, ndimage, signal
+
 if hasattr(h, "nrnmpi_init"):
     h.nrnmpi_init()
 
@@ -3169,9 +3170,7 @@ def plot_single_vertex_dist(
         ax.set_xlabel(
             "Longitudinal position (um)", fontsize=fig_options.fontSize
         )
-        ax.set_ylabel(
-            "Transverse position (um)", fontsize=fig_options.fontSize
-        )
+        ax.set_ylabel("Transverse position (um)", fontsize=fig_options.fontSize)
         ax.set_title(
             f"Connectivity distribution ({direction}) of "
             f"{source} to {destination} for gid {target_gid}",
@@ -3190,30 +3189,54 @@ def plot_single_vertex_dist(
 
     comm.barrier()
 
-    
-def update_spatial_rasters(frame, scts, timebins, n_trials, data, distances_U_dict, distances_V_dict, lgd):
+
+def update_spatial_rasters(
+    frame,
+    scts,
+    timebins,
+    n_trials,
+    data,
+    distances_U_dict,
+    distances_V_dict,
+    lgd,
+):
     N = len(timebins)
     if frame > 0:
         t0 = timebins[frame % N]
-        t1 = timebins[(frame+1) % N]
+        t1 = timebins[(frame + 1) % N]
         trial = frame // N
         for p, (pop_name, spkinds, spkts) in enumerate(data):
             distances_U = distances_U_dict[pop_name]
             distances_V = distances_V_dict[pop_name]
-            rinds = np.where(np.logical_and(spkts[trial] >= t0, spkts[trial] <= t1))
+            rinds = np.where(
+                np.logical_and(spkts[trial] >= t0, spkts[trial] <= t1)
+            )
             cinds = spkinds[trial][rinds]
             x = np.asarray([distances_U[ind] for ind in cinds])
             y = np.asarray([distances_V[ind] for ind in cinds])
             scts[p].set_data(x, y)
             scts[p].set_label(pop_name)
             if n_trials > 1:
-                scts[-1].set_text(f'trial {trial}; t = {t1:.02f} ms')
+                scts[-1].set_text(f"trial {trial}; t = {t1:.02f} ms")
             else:
-                scts[-1].set_text(f't = {t1:.02f} ms')
+                scts[-1].set_text(f"t = {t1:.02f} ms")
     return scts
 
 
-def init_spatial_rasters(ax, timebins, n_trials, data, range_U_dict, range_V_dict, distances_U_dict, distances_V_dict, lgd, marker, pop_colors, **kwargs):
+def init_spatial_rasters(
+    ax,
+    timebins,
+    n_trials,
+    data,
+    range_U_dict,
+    range_V_dict,
+    distances_U_dict,
+    distances_V_dict,
+    lgd,
+    marker,
+    pop_colors,
+    **kwargs,
+):
 
     fig_options = copy.copy(default_fig_options)
     fig_options.update(kwargs)
@@ -3232,7 +3255,7 @@ def init_spatial_rasters(ax, timebins, n_trials, data, range_U_dict, range_V_dic
         cinds = spkinds[0][rinds]
         x = np.asarray([distances_U[ind] for ind in cinds])
         y = np.asarray([distances_V[ind] for ind in cinds])
-        #scts.append(ax.scatter(x, y, linewidths=options.lw, marker=marker, c=pop_colors[pop_name], alpha=0.5, label=pop_name))
+        # scts.append(ax.scatter(x, y, linewidths=options.lw, marker=marker, c=pop_colors[pop_name], alpha=0.5, label=pop_name))
         scts = scts + plt.plot([], [], marker, animated=True, alpha=0.5)
         if min_U is None:
             min_U = range_U_dict[pop_name][0]
@@ -3252,16 +3275,37 @@ def init_spatial_rasters(ax, timebins, n_trials, data, range_U_dict, range_V_dic
             max_V = max(max_V, range_V_dict[pop_name][1])
     ax.set_xlim((min_U, max_U))
     ax.set_ylim((min_V, max_V))
-    
-    return scts + [lgd(scts), plt.text(0.05, 0.95, 't = %f ms' % t0, fontsize=fig_options.fontSize, transform=ax.transAxes)]
-        
+
+    return scts + [
+        lgd(scts),
+        plt.text(
+            0.05,
+            0.95,
+            "t = %f ms" % t0,
+            fontsize=fig_options.fontSize,
+            transform=ax.transAxes,
+        ),
+    ]
+
+
 spatial_raster_aniplots = []
-        
+
 ## Plot spike raster
-def plot_spatial_spike_raster (input_path, namespace_id, coords_path, distances_namespace='Arc Distances',
-                               include = ['eachPop'], time_step = 5.0, time_range = None, time_variable='t',
-                               include_artificial=True, max_spikes = int(1e6), marker = 'o', **kwargs): 
-    ''' 
+def plot_spatial_spike_raster(
+    input_path,
+    namespace_id,
+    coords_path,
+    distances_namespace="Arc Distances",
+    include=["eachPop"],
+    time_step=5.0,
+    time_range=None,
+    time_variable="t",
+    include_artificial=True,
+    max_spikes=int(1e6),
+    marker="o",
+    **kwargs,
+):
+    """
     Spatial raster plot of network spike times. Returns the figure handle.
 
     input_path: file with spike data
@@ -3271,20 +3315,20 @@ def plot_spatial_spike_raster (input_path, namespace_id, coords_path, distances_
     max_spikes (int): maximum number of spikes that will be plotted  (default: 1e6)
     labels = ('legend', 'overlay'): Show population labels in a legend or overlayed on one side of raster (default: 'legend')
     marker (char): Marker for each spike (default: '|')
-    '''
+    """
     fig_options = copy.copy(default_fig_options)
     fig_options.update(kwargs)
 
     (population_ranges, N) = read_population_ranges(input_path)
-    population_names  = read_population_names(input_path)
+    population_names = read_population_names(input_path)
 
     pop_num_cells = {}
     for k in population_names:
         pop_num_cells[k] = population_ranges[k][1]
 
     # Replace 'eachPop' with list of populations
-    if 'eachPop' in include: 
-        include.remove('eachPop')
+    if "eachPop" in include:
+        include.remove("eachPop")
         for pop in population_names:
             include.append(pop)
 
@@ -3293,14 +3337,22 @@ def plot_spatial_spike_raster (input_path, namespace_id, coords_path, distances_
     range_U_dict = {}
     range_V_dict = {}
     for population in include:
-        distances = read_cell_attributes(coords_path, population, namespace=distances_namespace)
-    
-        soma_distances = { k: (v['U Distance'][0], v['V Distance'][0]) for (k,v) in distances }
+        distances = read_cell_attributes(
+            coords_path, population, namespace=distances_namespace
+        )
+
+        soma_distances = {
+            k: (v["U Distance"][0], v["V Distance"][0]) for (k, v) in distances
+        }
         del distances
-        
-        logger.info('read distances (%i elements)' % len(soma_distances.keys()))
-        distance_U_array = np.asarray([soma_distances[gid][0] for gid in soma_distances])
-        distance_V_array = np.asarray([soma_distances[gid][1] for gid in soma_distances])
+
+        logger.info("read distances (%i elements)" % len(soma_distances.keys()))
+        distance_U_array = np.asarray(
+            [soma_distances[gid][0] for gid in soma_distances]
+        )
+        distance_V_array = np.asarray(
+            [soma_distances[gid][1] for gid in soma_distances]
+        )
 
         U_min = np.min(distance_U_array)
         U_max = np.max(distance_U_array)
@@ -3309,56 +3361,95 @@ def plot_spatial_spike_raster (input_path, namespace_id, coords_path, distances_
 
         range_U_dict[population] = (U_min, U_max)
         range_V_dict[population] = (V_min, V_max)
-        
-        distance_U = { gid: soma_distances[gid][0] for gid in soma_distances }
-        distance_V = { gid: soma_distances[gid][1] for gid in soma_distances }
+
+        distance_U = {gid: soma_distances[gid][0] for gid in soma_distances}
+        distance_V = {gid: soma_distances[gid][1] for gid in soma_distances}
 
         distance_U_dict[population] = distance_U
         distance_V_dict[population] = distance_V
-        
-    spkdata = spikedata.read_spike_events (input_path, include, namespace_id, spike_train_attr_name=time_variable,
-                                           time_range=time_range, include_artificial=include_artificial)
 
-    n_trials         = spkdata['n_trials']
-    spkpoplst        = spkdata['spkpoplst']
-    spkindlst        = spkdata['spkindlst']
-    spktlst          = spkdata['spktlst']
-    num_cell_spks    = spkdata['num_cell_spks']
-    pop_active_cells = spkdata['pop_active_cells']
-    tmin             = spkdata['tmin']
-    tmax             = spkdata['tmax']
+    spkdata = spikedata.read_spike_events(
+        input_path,
+        include,
+        namespace_id,
+        spike_train_attr_name=time_variable,
+        time_range=time_range,
+        include_artificial=include_artificial,
+    )
 
+    n_trials = spkdata["n_trials"]
+    spkpoplst = spkdata["spkpoplst"]
+    spkindlst = spkdata["spkindlst"]
+    spktlst = spkdata["spktlst"]
+    num_cell_spks = spkdata["num_cell_spks"]
+    pop_active_cells = spkdata["pop_active_cells"]
+    tmin = spkdata["tmin"]
+    tmax = spkdata["tmax"]
 
     time_range = [tmin, tmax]
-    
-    pop_colors = { pop_name: dflt_colors[ipop%len(dflt_colors)] for ipop, pop_name in enumerate(spkpoplst) }
-    
+
+    pop_colors = {
+        pop_name: dflt_colors[ipop % len(dflt_colors)]
+        for ipop, pop_name in enumerate(spkpoplst)
+    }
+
     # Plot spikes
     fig, ax = plt.subplots(figsize=fig_options.figSize)
 
-    pop_labels = [ pop_name for pop_name in spkpoplst ]
+    pop_labels = [pop_name for pop_name in spkpoplst]
     legend_labels = pop_labels
-    lgd = lambda objs: plt.legend(objs, legend_labels, fontsize=fig_options.fontSize, scatterpoints=1, markerscale=2., \
-                                    loc='upper right', bbox_to_anchor=(0.95, 0.95))
-    
-    timebins = np.linspace(tmin, tmax, int(((tmax-tmin) / time_step)))
-    
-    data = list(zip (spkpoplst, spkindlst, spktlst))
-    scts = init_spatial_rasters(ax, timebins, n_trials, data, range_U_dict, range_V_dict,
-                                distance_U_dict, distance_V_dict, lgd, marker, pop_colors)
-    ani = FuncAnimation(fig, func=update_spatial_rasters,
-                        frames=list(range(0, len(timebins)*n_trials-1)),
-                        blit=True, repeat=False,
-                        init_func=lambda: scts, fargs=(scts, timebins, n_trials, data, distance_U_dict, distance_V_dict, lgd))
+    lgd = lambda objs: plt.legend(
+        objs,
+        legend_labels,
+        fontsize=fig_options.fontSize,
+        scatterpoints=1,
+        markerscale=2.0,
+        loc="upper right",
+        bbox_to_anchor=(0.95, 0.95),
+    )
+
+    timebins = np.linspace(tmin, tmax, int(((tmax - tmin) / time_step)))
+
+    data = list(zip(spkpoplst, spkindlst, spktlst))
+    scts = init_spatial_rasters(
+        ax,
+        timebins,
+        n_trials,
+        data,
+        range_U_dict,
+        range_V_dict,
+        distance_U_dict,
+        distance_V_dict,
+        lgd,
+        marker,
+        pop_colors,
+    )
+    ani = FuncAnimation(
+        fig,
+        func=update_spatial_rasters,
+        frames=list(range(0, len(timebins) * n_trials - 1)),
+        blit=True,
+        repeat=False,
+        init_func=lambda: scts,
+        fargs=(
+            scts,
+            timebins,
+            n_trials,
+            data,
+            distance_U_dict,
+            distance_V_dict,
+            lgd,
+        ),
+    )
     spatial_raster_aniplots.append(ani)
 
-    # show fig 
+    # show fig
     if fig_options.showFig:
         show_figure()
 
     if fig_options.saveFig:
-        Writer = writers['ffmpeg']
-        writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
-        ani.save(f'{namespace_id} spatial raster.mp4', writer=writer)
-        
+        Writer = writers["ffmpeg"]
+        writer = Writer(fps=15, metadata=dict(artist="Me"), bitrate=1800)
+        ani.save(f"{namespace_id} spatial raster.mp4", writer=writer)
+
     return fig
