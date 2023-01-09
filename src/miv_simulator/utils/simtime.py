@@ -1,6 +1,7 @@
 """Routines to keep track of simulation computation time and terminate the simulation if not enough time has been allocated."""
 
 import time
+import datetime
 
 from neuron.hoc import HocObject
 from miv_simulator.utils import get_module_logger
@@ -8,6 +9,8 @@ from neuron import h
 
 # This logger will inherit its settings from the root logger, created in miv_simulator.env
 logger = get_module_logger(__name__)
+if hasattr(h, "nrnmpi_init"):
+    h.nrnmpi_init()
 
 
 class SimTimeEvent:
@@ -89,13 +92,13 @@ class SimTimeEvent:
             )  ## maximum value
             if int(self.pc.id()) == 0:
                 logger.info(
-                    f"*** remaining computation time is {walltime_rem:.2f} s and remaining simulation time is {trem:.2f} ms"
+                    f"*** remaining computation time is {walltime_rem:.2f} s ({str(datetime.timedelta(seconds=walltime_rem))}) and remaining simulation time is {trem:.2f} ms"
                 )
                 logger.info(
-                    f"*** estimated computation time to completion is {walltime_needed_max:.2f} s"
+                    f"*** estimated computation time to completion is {walltime_needed_max:.2f} s ({time.ctime(time.time() + walltime_needed_max)})"
                 )
                 logger.info(
-                    f"*** computation time so far is {self.tcsum:.2f} s"
+                    f"*** computation time so far is {self.tcsum:.2f} s ({str(datetime.timedelta(seconds=self.tcsum))})"
                 )
             ## if not enough time, reduce tstop and perform collective operations to set minimum (earliest) tstop across all ranks
             if walltime_needed_max > walltime_rem_min:

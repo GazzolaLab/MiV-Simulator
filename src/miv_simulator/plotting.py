@@ -12,6 +12,7 @@ from matplotlib import gridspec
 from matplotlib.colors import BoundaryNorm
 from matplotlib.offsetbox import AnchoredText
 from matplotlib.ticker import MaxNLocator
+from matplotlib.animation import FuncAnimation, writers
 from miv_simulator import cells, spikedata, statedata, stimulus, synapses
 from miv_simulator.volume import network_volume
 from miv_simulator.env import Env
@@ -24,6 +25,9 @@ from miv_simulator.utils import (
     signal_power_spectrogram,
     signal_psd,
     zip_longest,
+    add_bins,
+    update_bins,
+    finalize_bins,
     get_low_pass_filtered_trace,
 )
 from miv_simulator.utils.neuron import h, interplocs
@@ -36,6 +40,9 @@ from neuroh5.io import (
     bcast_cell_attributes,
 )
 from scipy import interpolate, ndimage, signal
+
+if hasattr(h, "nrnmpi_init"):
+    h.nrnmpi_init()
 
 # This logger will inherit its settings from the root logger, created in miv_simulator.env
 logger = get_module_logger(__name__)
@@ -559,7 +566,6 @@ def plot_cell_tree(
     mayavi=False,
     **kwargs,
 ):
-
     import networkx as nx
 
     fig_options = copy.copy(default_fig_options)
@@ -620,8 +626,8 @@ def plot_cell_tree(
     start_idx = edge_array[0, :]
     end_idx = edge_array[1, :]
 
-    start_idx = start_idx.astype(np.int)
-    end_idx = end_idx.astype(np.int)
+    start_idx = start_idx.astype(np.int_)
+    end_idx = end_idx.astype(np.int_)
     if color_edge_scalars:
         edge_scalars = z[start_idx]
         edge_color = None
@@ -673,16 +679,14 @@ def plot_cell_tree(
             mlab.show()
 
     else:
-        from mpl_toolkits.mplot3d import Axes3D
-
         fig = plt.figure(figsize=fig_options.figSize)
-        ax = Axes3D(fig)
+        ax = fig.add_subplot(projection="3d")
 
         layer_set = set(layer)
         sct = ax.scatter(
             x,
             y,
-            z,
+            zs=z,
             c=layer,
             alpha=0.7,
         )
@@ -711,11 +715,12 @@ def plot_cell_tree(
                     f"{population}_{gid}_cell_tree.{fig_options.figFormat}"
                 )
             plt.savefig(filename)
+            print(f"Save figure: {filename}")
 
         if fig_options.showFig:
             show_figure()
 
-    return fig
+    # return fig
 
 
 ## Plot spike raster
@@ -1468,6 +1473,8 @@ def plot_lfp(
             if time_range is None:
                 t = infile[namespace_id]["t"]
                 v = infile[namespace_id]["v"]
+                t = np.asarray(t)
+                v = np.asarray(v)
             else:
                 tlst = []
                 vlst = []
@@ -1842,10 +1849,8 @@ def plot_biophys_cell_tree(
         fig = mlab.gcf()
 
     elif plot_method == "matplotlib":
-        from mpl_toolkits.mplot3d import Axes3D
-
         fig = plt.figure(figsize=fig_options.figSize)
-        ax = Axes3D(fig)
+        ax = fig.add_subplot(projection="3d")
 
         xcoords = np.asarray(
             [x for (i, x) in morph_graph.nodes.data("x")], dtype=np.float32
@@ -1905,17 +1910,18 @@ def plot_biophys_cell_tree(
         ax.view_init(30)
         ax.set_axis_off
 
-        if fig_options.saveFig:
-            if isinstance(fig_options.saveFig, str):
-                filename = fig_options.saveFig
-            else:
-                filename = (
-                    f"{population}_{gid}_cell_tree.{fig_options.figFormat}"
-                )
-            plt.savefig(filename)
+        # if fig_options.saveFig:
+        #    if isinstance(fig_options.saveFig, str):
+        #        filename = fig_options.saveFig
+        #    else:
+        #        filename = (
+        #            f"{population}_{gid}_cell_tree.{fig_options.figFormat}"
+        #        )
+        #    plt.savefig(filename)
 
         if fig_options.showFig:
-            show_figure()
+            # show_figure()
+            plt.show()
     else:
         sl = h.SectionList([sec for sec in biophys_cell.hoc_cell.all])
         for sec in sl:
@@ -1928,7 +1934,7 @@ def plot_biophys_cell_tree(
         ax = ps.plot(plt)
         plt.show()
 
-    return fig
+    # return fig
 
 
 # =============================================================================
@@ -2392,20 +2398,23 @@ def plot_intracellular_state(
                             )
 
                 if lowpass_plot is not None and not distance:
-                    filtered_cell_states = [
-                        get_low_pass_filtered_trace(cell_state, st_x)
-                        for cell_state in cell_states
-                    ]
-                    mean_filtered_cell_state = np.mean(
-                        filtered_cell_states, axis=0
-                    )
-                    ax_lowpass.plot(
-                        st_x,
-                        mean_filtered_cell_state,
-                        label=f"{pop_name} {gid} (filtered)",
-                        linewidth=fig_options.lw,
-                        alpha=0.75,
-                    )
+                    try:
+                        filtered_cell_states = [
+                            get_low_pass_filtered_trace(cell_state, st_x)
+                            for cell_state in cell_states
+                        ]
+                        mean_filtered_cell_state = np.mean(
+                            filtered_cell_states, axis=0
+                        )
+                        ax_lowpass.plot(
+                            st_x,
+                            mean_filtered_cell_state,
+                            label=f"{pop_name} {gid} (filtered)",
+                            linewidth=fig_options.lw,
+                            alpha=0.75,
+                        )
+                    except:
+                        pass
 
             ax.set_xlabel("Time [ms]", fontsize=fig_options.fontSize)
             if distance:
@@ -2589,7 +2598,7 @@ def plot_network_clamp(
         time_range = [tmin, tmax]
 
     if (
-        time_range[0] > time_range[1]
+        time_range[0] == time_range[1]
         or time_range[0] == float("inf")
         or time_range[1] == float("inf")
     ):
@@ -2661,6 +2670,8 @@ def plot_network_clamp(
             spkpoplst, spkindlst, spktlst
         )
     }
+    N = pop_num_cells[pop_name]
+    S = pop_start_inds[pop_name]
 
     n_plots = len(spkpoplst) + 2
     plot_height_ratios = [1] * len(spkpoplst)
@@ -2733,8 +2744,7 @@ def plot_network_clamp(
             alpha=0.5,
             label=pop_name,
         )
-        if len(sphist_y) > 0:
-            axes[i].set_ylim(0.0, np.ceil(np.max(sphist_y)))
+        axes[i].set_ylim(0.0, np.ceil(np.max(sphist_y)))
         stplots.append(sph)
 
         if i == 0:
@@ -2955,9 +2965,7 @@ def plot_network_clamp(
                 prop=dict(size=fig_options.fontSize),
             )
             axes[i].add_artist(at)
-        max_label_len = 0
-        if len(lgd_labels) > 0:
-            max_label_len = max(len(l) for l in lgd_labels)
+        max_label_len = max(len(l) for l in lgd_labels)
 
     else:
         raise RuntimeError(f"plot_network_clamp: unknown label type {labels}")
@@ -3162,9 +3170,7 @@ def plot_single_vertex_dist(
         ax.set_xlabel(
             "Longitudinal position (um)", fontsize=fig_options.fontSize
         )
-        ax.set_ylabel(
-            "Transverse position (um)", fontsize=fig_options.fontSize
-        )
+        ax.set_ylabel("Transverse position (um)", fontsize=fig_options.fontSize)
         ax.set_title(
             f"Connectivity distribution ({direction}) of "
             f"{source} to {destination} for gid {target_gid}",
@@ -3182,3 +3188,268 @@ def plot_single_vertex_dist(
                 plt.savefig(filename)
 
     comm.barrier()
+
+
+def update_spatial_rasters(
+    frame,
+    scts,
+    timebins,
+    n_trials,
+    data,
+    distances_U_dict,
+    distances_V_dict,
+    lgd,
+):
+    N = len(timebins)
+    if frame > 0:
+        t0 = timebins[frame % N]
+        t1 = timebins[(frame + 1) % N]
+        trial = frame // N
+        for p, (pop_name, spkinds, spkts) in enumerate(data):
+            distances_U = distances_U_dict[pop_name]
+            distances_V = distances_V_dict[pop_name]
+            rinds = np.where(
+                np.logical_and(spkts[trial] >= t0, spkts[trial] <= t1)
+            )
+            cinds = spkinds[trial][rinds]
+            x = np.asarray([distances_U[ind] for ind in cinds])
+            y = np.asarray([distances_V[ind] for ind in cinds])
+            scts[p].set_data(x, y)
+            scts[p].set_label(pop_name)
+            if n_trials > 1:
+                scts[-1].set_text(f"trial {trial}; t = {t1:.02f} ms")
+            else:
+                scts[-1].set_text(f"t = {t1:.02f} ms")
+    return scts
+
+
+def init_spatial_rasters(
+    ax,
+    timebins,
+    n_trials,
+    data,
+    range_U_dict,
+    range_V_dict,
+    distances_U_dict,
+    distances_V_dict,
+    lgd,
+    marker,
+    pop_colors,
+    **kwargs,
+):
+
+    fig_options = copy.copy(default_fig_options)
+    fig_options.update(kwargs)
+
+    scts = []
+    t0 = timebins[0]
+    t1 = timebins[1]
+    min_U = None
+    min_V = None
+    max_U = None
+    max_V = None
+    for (pop_name, spkinds, spkts) in data:
+        distances_U = distances_U_dict[pop_name]
+        distances_V = distances_V_dict[pop_name]
+        rinds = np.where(np.logical_and(spkts[0] >= t0, spkts[0] <= t1))
+        cinds = spkinds[0][rinds]
+        x = np.asarray([distances_U[ind] for ind in cinds])
+        y = np.asarray([distances_V[ind] for ind in cinds])
+        # scts.append(ax.scatter(x, y, linewidths=options.lw, marker=marker, c=pop_colors[pop_name], alpha=0.5, label=pop_name))
+        scts = scts + plt.plot([], [], marker, animated=True, alpha=0.5)
+        if min_U is None:
+            min_U = range_U_dict[pop_name][0]
+        else:
+            min_U = min(min_U, range_U_dict[pop_name][0])
+        if min_V is None:
+            min_V = range_V_dict[pop_name][0]
+        else:
+            min_V = min(min_V, range_V_dict[pop_name][0])
+        if max_U is None:
+            max_U = range_U_dict[pop_name][1]
+        else:
+            max_U = max(max_U, range_U_dict[pop_name][1])
+        if max_V is None:
+            max_V = range_V_dict[pop_name][1]
+        else:
+            max_V = max(max_V, range_V_dict[pop_name][1])
+    ax.set_xlim((min_U, max_U))
+    ax.set_ylim((min_V, max_V))
+
+    return scts + [
+        lgd(scts),
+        plt.text(
+            0.05,
+            0.95,
+            "t = %f ms" % t0,
+            fontsize=fig_options.fontSize,
+            transform=ax.transAxes,
+        ),
+    ]
+
+
+spatial_raster_aniplots = []
+
+## Plot spike raster
+def plot_spatial_spike_raster(
+    input_path,
+    namespace_id,
+    coords_path,
+    distances_namespace="Arc Distances",
+    include=["eachPop"],
+    time_step=5.0,
+    time_range=None,
+    time_variable="t",
+    include_artificial=True,
+    max_spikes=int(1e6),
+    marker="o",
+    **kwargs,
+):
+    """
+    Spatial raster plot of network spike times. Returns the figure handle.
+
+    input_path: file with spike data
+    namespace_id: attribute namespace for spike events
+    time_range ([start:stop]): Time range of spikes shown; if None shows all (default: None)
+    time_variable: Name of variable containing spike times (default: 't')
+    max_spikes (int): maximum number of spikes that will be plotted  (default: 1e6)
+    labels = ('legend', 'overlay'): Show population labels in a legend or overlayed on one side of raster (default: 'legend')
+    marker (char): Marker for each spike (default: '|')
+    """
+    fig_options = copy.copy(default_fig_options)
+    fig_options.update(kwargs)
+
+    (population_ranges, N) = read_population_ranges(input_path)
+    population_names = read_population_names(input_path)
+
+    pop_num_cells = {}
+    for k in population_names:
+        pop_num_cells[k] = population_ranges[k][1]
+
+    # Replace 'eachPop' with list of populations
+    if "eachPop" in include:
+        include.remove("eachPop")
+        for pop in population_names:
+            include.append(pop)
+
+    distance_U_dict = {}
+    distance_V_dict = {}
+    range_U_dict = {}
+    range_V_dict = {}
+    for population in include:
+        distances = read_cell_attributes(
+            coords_path, population, namespace=distances_namespace
+        )
+
+        soma_distances = {
+            k: (v["U Distance"][0], v["V Distance"][0]) for (k, v) in distances
+        }
+        del distances
+
+        logger.info("read distances (%i elements)" % len(soma_distances.keys()))
+        distance_U_array = np.asarray(
+            [soma_distances[gid][0] for gid in soma_distances]
+        )
+        distance_V_array = np.asarray(
+            [soma_distances[gid][1] for gid in soma_distances]
+        )
+
+        U_min = np.min(distance_U_array)
+        U_max = np.max(distance_U_array)
+        V_min = np.min(distance_V_array)
+        V_max = np.max(distance_V_array)
+
+        range_U_dict[population] = (U_min, U_max)
+        range_V_dict[population] = (V_min, V_max)
+
+        distance_U = {gid: soma_distances[gid][0] for gid in soma_distances}
+        distance_V = {gid: soma_distances[gid][1] for gid in soma_distances}
+
+        distance_U_dict[population] = distance_U
+        distance_V_dict[population] = distance_V
+
+    spkdata = spikedata.read_spike_events(
+        input_path,
+        include,
+        namespace_id,
+        spike_train_attr_name=time_variable,
+        time_range=time_range,
+        include_artificial=include_artificial,
+    )
+
+    n_trials = spkdata["n_trials"]
+    spkpoplst = spkdata["spkpoplst"]
+    spkindlst = spkdata["spkindlst"]
+    spktlst = spkdata["spktlst"]
+    num_cell_spks = spkdata["num_cell_spks"]
+    pop_active_cells = spkdata["pop_active_cells"]
+    tmin = spkdata["tmin"]
+    tmax = spkdata["tmax"]
+
+    time_range = [tmin, tmax]
+
+    pop_colors = {
+        pop_name: dflt_colors[ipop % len(dflt_colors)]
+        for ipop, pop_name in enumerate(spkpoplst)
+    }
+
+    # Plot spikes
+    fig, ax = plt.subplots(figsize=fig_options.figSize)
+
+    pop_labels = [pop_name for pop_name in spkpoplst]
+    legend_labels = pop_labels
+    lgd = lambda objs: plt.legend(
+        objs,
+        legend_labels,
+        fontsize=fig_options.fontSize,
+        scatterpoints=1,
+        markerscale=2.0,
+        loc="upper right",
+        bbox_to_anchor=(0.95, 0.95),
+    )
+
+    timebins = np.linspace(tmin, tmax, int(((tmax - tmin) / time_step)))
+
+    data = list(zip(spkpoplst, spkindlst, spktlst))
+    scts = init_spatial_rasters(
+        ax,
+        timebins,
+        n_trials,
+        data,
+        range_U_dict,
+        range_V_dict,
+        distance_U_dict,
+        distance_V_dict,
+        lgd,
+        marker,
+        pop_colors,
+    )
+    ani = FuncAnimation(
+        fig,
+        func=update_spatial_rasters,
+        frames=list(range(0, len(timebins) * n_trials - 1)),
+        blit=True,
+        repeat=False,
+        init_func=lambda: scts,
+        fargs=(
+            scts,
+            timebins,
+            n_trials,
+            data,
+            distance_U_dict,
+            distance_V_dict,
+            lgd,
+        ),
+    )
+    spatial_raster_aniplots.append(ani)
+
+    # show fig
+    if fig_options.showFig:
+        show_figure()
+
+    if fig_options.saveFig:
+        Writer = writers["ffmpeg"]
+        writer = Writer(fps=15, metadata=dict(artist="Me"), bitrate=1800)
+        ani.save(f"{namespace_id} spatial raster.mp4", writer=writer)
+
+    return fig

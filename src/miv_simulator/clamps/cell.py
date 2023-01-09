@@ -30,6 +30,8 @@ from scipy.optimize import curve_fit
 
 # This logger will inherit its settings from the root logger, created in miv_simulator.env
 logger = get_module_logger(__name__)
+if hasattr(h, "nrnmpi_init"):
+    h.nrnmpi_init()
 
 context = Context()
 
@@ -98,10 +100,9 @@ def init_biophys_cell(
     template_name = env.celltypes[pop_name]["template"]
 
     ## Determine if a mechanism configuration file exists for this cell type
+    mech_dict = None
     if "mech_file_path" in env.celltypes[pop_name]:
         mech_dict = env.celltypes[pop_name]["mech_dict"]
-    else:
-        mech_dict = None
 
     ## Determine if correct_for_spines flag has been specified for this cell type
     synapse_config = env.celltypes[pop_name]["synapses"]

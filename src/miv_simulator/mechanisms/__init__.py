@@ -4,7 +4,11 @@ from glob import glob
 
 import commandlib
 import miv_simulator
+from mpi4py import MPI
 from neuron import h
+
+if hasattr(h, "nrnmpi_init"):
+    h.nrnmpi_init()
 
 from typing import Optional
 
@@ -59,10 +63,22 @@ def compile(directory: Optional[str] = None, force: bool = False) -> str:
 def compile_and_load(
     directory: Optional[str] = None, force: bool = False
 ) -> str:
-    """Compile and load dll file into NEURON"""
-    src = compile(directory, force)
+    """
+    Compile mechanism file on the processor 0, and load the output DLL file into NEURON.
+    """
+    comm = MPI.COMM_WORLD
+    rank = comm.rank
+    if rank == 0:
+        src = compile(directory, force)
+    else:
+        src = None
+    comm.barrier()
+    src = comm.bcast(src, root=0)
+
     dll_path = os.path.join(src, "x86_64", ".libs", "libnrnmech.so")
-    assert os.path.exists(dll_path), "libnrnmech.so file is not found properly."
+    assert os.path.exists(
+        dll_path
+    ), f"libnrnmech.so file is not found properly. {dll_path}"
     h(f'nrn_load_dll("{dll_path}")')
 
     return dll_path

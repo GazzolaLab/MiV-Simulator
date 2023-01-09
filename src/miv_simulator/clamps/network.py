@@ -1900,7 +1900,6 @@ def write_params(env, pop_params_dict):
     env.comm.barrier()
 
 
-
 def show(
     config_file,
     config_prefix,
@@ -2361,4 +2360,3 @@ def optimize(
             )
             write_to_yaml(file_path, results_config_dict)
     comm.barrier()
-

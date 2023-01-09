@@ -1,9 +1,9 @@
-
 import os
 import sys
 import click
 from miv_simulator import utils
 from miv_simulator.clamps import network
+
 
 @click.group()
 def cli():
@@ -22,8 +22,9 @@ def cli():
     "--config-prefix",
     required=True,
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    default='config',
-    help='path to directory containing network and cell mechanism config files')
+    default="config",
+    help="path to directory containing network and cell mechanism config files",
+)
 @click.option(
     "--population",
     "-p",
@@ -166,7 +167,6 @@ def show(
     )
 
 
-
 @click.command()
 @click.option(
     "--config-file",
@@ -179,8 +179,9 @@ def show(
     "--config-prefix",
     required=True,
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    default='config',
-    help='path to directory containing network and cell mechanism config files')
+    default="config",
+    help="path to directory containing network and cell mechanism config files",
+)
 @click.option(
     "--population",
     "-p",
@@ -429,8 +430,9 @@ def go(
     "--config-prefix",
     required=True,
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    default='config',
-    help='path to directory containing network and cell mechanism config files')
+    default="config",
+    help="path to directory containing network and cell mechanism config files",
+)
 @click.option(
     "--population",
     "-p",
@@ -697,12 +699,11 @@ def optimize(
     )
 
 
-
 cli.add_command(show)
 cli.add_command(go)
 cli.add_command(optimize)
 
+
 def main_cli():
 
     cli(sys.argv[1:])
-

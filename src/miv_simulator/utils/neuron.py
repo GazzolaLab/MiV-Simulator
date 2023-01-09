@@ -22,7 +22,8 @@ if TYPE_CHECKING:
 
 # This logger will inherit its settings from the root logger, created in miv_simulator.env
 logger = get_module_logger(__name__)
-
+if hasattr(h, "nrnmpi_init"):
+    h.nrnmpi_init()
 
 freq = 100  # Hz, frequency at which AC length constant will be computed
 d_lambda = 0.1  # no segment will be longer than this fraction of the AC length constant

@@ -643,7 +643,9 @@ class Env(AbstractEnv):
         """
         netclamp_config_dict = self.model_config["Network Clamp"]
         weight_generator_dict = netclamp_config_dict.get("Weight Generator", {})
-        template_param_rules_dict = netclamp_config_dict.get("Template Parameter Rules", {})
+        template_param_rules_dict = netclamp_config_dict.get(
+            "Template Parameter Rules", {}
+        )
 
         opt_param_rules_dict = {}
         if "Synaptic Optimization" in netclamp_config_dict:

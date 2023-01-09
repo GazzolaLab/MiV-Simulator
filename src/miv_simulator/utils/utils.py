@@ -1035,12 +1035,15 @@ def gaussian(x, mu, sig, A=1.0):
     return A * np.exp(-np.power(x - mu, 2.0) / (2.0 * np.power(sig, 2.0)))
 
 
-def get_low_pass_filtered_trace(trace, t, down_dt=0.5):
+def get_low_pass_filtered_trace(trace, t, down_dt=0.5, window_len_ms=2000.0):
     import scipy.signal as signal
+
+    if (np.max(t) - np.min(t)) < window_len_ms:
+        return None
 
     down_t = np.arange(np.min(t), np.max(t), down_dt)
     # 2000 ms Hamming window, ~3 Hz low-pass filter
-    window_len = int(2000.0 / down_dt)
+    window_len = int(float(window_len_ms) / down_dt)
     pad_len = int(window_len / 2.0)
     ramp_filter = signal.firwin(window_len, 2.0, nyq=1000.0 / 2.0 / down_dt)
     down_sampled = np.interp(down_t, t, trace)
@@ -1053,6 +1056,7 @@ def get_low_pass_filtered_trace(trace, t, down_dt=0.5):
     )
     down_filtered = down_filtered[pad_len:-pad_len]
     filtered = np.interp(t, down_t, down_filtered)
+
     return filtered
 
 

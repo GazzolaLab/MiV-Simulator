@@ -1039,7 +1039,7 @@ def update_mechanism_by_node(
     if mech_content is not None:
         # process either a dict specifying rules for a single parameter
         if isinstance(mech_content, dict):
-            point_process_loc=mech_content.get('loc', None)
+            point_process_loc = mech_content.get("loc", None)
             for param_name in mech_content:
                 if param_name != "loc":
                     apply_mech_rules(
@@ -1087,8 +1087,15 @@ def apply_mech_rules(
         init_nseg(node.section, verbose=verbose)
         reinit_diam(node.section, node.diam_bounds)
     else:
-        set_mech_param(cell, node, mech_name, param_name, baseline, rules,
-                       point_process_loc=point_process_loc)
+        set_mech_param(
+            cell,
+            node,
+            mech_name,
+            param_name,
+            baseline,
+            rules,
+            point_process_loc=point_process_loc,
+        )
 
 
 def set_mech_param(
@@ -1117,6 +1124,11 @@ def set_mech_param(
         if pp is None:
             pp = getattr(h, mech_name)(node.sec(point_process_loc))
             pp_dict[point_process_loc] = pp
+            hoc_cell = getattr(cell, "hoc_cell", None)
+            if hoc_cell is not None:
+                pps = getattr(hoc_cell, "pps", None)
+                if pps is not None:
+                    pps.append(pp)
         setattr(pp, param_name, baseline)
     else:
         try:
