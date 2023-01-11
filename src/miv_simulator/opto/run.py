@@ -3,7 +3,7 @@ Based on code from the PyRhO: A Multiscale Optogenetics Simulation Platform
 https://github.com/ProjectPyRhO/PyRhO.git
 """
 
-from typing import TYPE_CHECKING, Dict, Set, Tuple
+from typing import TYPE_CHECKING, Optional, Dict, Set, Tuple
 from collections import defaultdict
 import copy
 import logging
@@ -13,9 +13,9 @@ from neuron import h
 from miv_simulator.utils import (
     get_module_logger,
 )
-from miv_simulator.opsin.core import cycles2times
-from miv_simulator.opsin.models import select_model
-from miv_simulator.opsin.protocols import select_protocol
+from miv_simulator.opto.core import cycles2times
+from miv_simulator.opto.models import select_model
+from miv_simulator.opto.protocols import select_protocol
 
 if TYPE_CHECKING:
     from neuron.hoc import HocObject
@@ -23,9 +23,9 @@ if TYPE_CHECKING:
 logger = get_module_logger(__name__)
 
 
-class Opsin:
+class OptoSim:
     
-    """Class for cellular level opsin simulations with NEURON."""
+    """Class for cellular level optogenetic simulations with NEURON."""
 
     mechanisms = {3: 'RhO3c', 4: 'RhO4c', 6: 'RhO6c'}
 
@@ -34,6 +34,7 @@ class Opsin:
                  pop_gid_dict: Dict[str, Set[int]],
                  nstates: int,
                  protocol: str,
+                 protocol_params: Optional[Dict[str, Any]],
                  rho_params,
                  max_gid_rec_count: int = 1,
                  sec_rec_count: int = 1,
@@ -44,7 +45,7 @@ class Opsin:
         self.max_gid_rec_count = max_gid_rec_count
         self.sec_rec_count = sec_rec_count
         self.pc = pc
-        self.protocol = select_protocol(protocol)
+        self.protocol = select_protocol(protocol, params=protocol_params)
         self.rho_params = copy.deepcopy(rho_params)
         self.model = select_model(nstates)()
         self.pop_gid_dict = pop_gid_dict
@@ -92,7 +93,7 @@ class Opsin:
             rho_dict = self.pop_rho_dict[pop_name]
             mech = getattr(h, self.mechanisms[self.model.nStates])
         
-            expProb = self.rho_params.expProb
+            expProb = self.rho_params['expProb']
 
             for gid in gid_set:
                 

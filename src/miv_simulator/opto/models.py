@@ -18,7 +18,7 @@ from miv_simulator.utils import (
     Struct,
     get_module_logger,
 )
-from miv_simulator.opsin.core import rho_type
+from miv_simulator.opto.core import rho_type
 
 logger = get_module_logger(__name__)
 

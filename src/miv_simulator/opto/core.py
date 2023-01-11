@@ -12,7 +12,6 @@ import math
 import numpy as np
 from neuron import h
 from miv_simulator.utils import (
-    Struct,
     get_module_logger,
 )
 

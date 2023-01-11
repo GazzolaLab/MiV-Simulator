@@ -20,7 +20,7 @@ from miv_simulator.utils import (
     Struct,
     get_module_logger,
 )
-from miv_simulator.opsin.core import cycles2times
+from miv_simulator.opto.core import cycles2times
 
 
 logger = get_module_logger(__name__)
