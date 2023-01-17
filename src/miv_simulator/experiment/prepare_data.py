@@ -7,7 +7,6 @@ from typing import List
 import commandlib
 import h5py
 from machinable import Experiment
-from machinable.config import Field
 from mpi4py import MPI
 from neuroh5.io import read_population_names
 
@@ -31,12 +30,18 @@ sys.excepthook = mpi_excepthook
 
 
 class PrepareData(Experiment):
-    @dataclass
-    class Config:
-        using: List[str] = Field(default_factory=lambda: [])
-
     def output_filepath(self, path: str = "cells") -> str:
         return self.local_directory(f"data/simulation/{path}.h5")
+
+    def on_compute_predicate(self):
+        return {
+            "uses*": sorted(
+                map(
+                    lambda x: x.experiment_id,
+                    self.uses,
+                )
+            )
+        }
 
     def on_create(self):
         # load dependencies
@@ -44,42 +49,36 @@ class PrepareData(Experiment):
         self.network = None
         self.spike_trains = None
         self.distance_connections = {}
-        for use in self.config.using:
-            experiment = Experiment.find(use)
-            if not isinstance(experiment, Experiment):
-                raise ValueError(f"Invalid use: {use}")
-
-            if experiment.module == "miv_simulator.experiment.soma_coordinates":
-                self.soma_coordinates = experiment
-            elif experiment.module == "miv_simulator.experiment.make_network":
-                self.network = experiment
+        for dependency in self.uses:
+            if dependency.module == "miv_simulator.experiment.soma_coordinates":
+                self.soma_coordinates = dependency
+            elif dependency.module == "miv_simulator.experiment.make_network":
+                self.network = dependency
             elif (
-                experiment.module
+                dependency.module
                 == "miv_simulator.experiment.derive_spike_trains"
             ):
-                self.spike_trains = experiment
+                self.spike_trains = dependency
             elif (
-                experiment.module
+                dependency.module
                 == "miv_simulator.experiment.distance_connections"
             ):
-                populations = read_population_names(experiment.config.forest)
+                populations = read_population_names(dependency.config.forest)
                 for p in populations:
                     if p in self.distance_connections:
                         # check for duplicates
                         raise ValueError(
                             f"Redundant distance connection specification for population {p}"
-                            f"Found duplicate in {experiment.config.forest}, while already "
+                            f"Found duplicate in {dependency.config.forest}, while already "
                             f"defined in {self.distance_connections[p].config.forest}"
                         )
-                    self.distance_connections[p] = experiment
+                    self.distance_connections[p] = dependency
 
     def on_execute(self):
         print(f"Consolidating generated data files into unified H5")
 
         self.local_directory("data/simulation", create=True)
 
-        # todo: this should not be hardcoded but inferred from the
-        # config, e.g. network.config.blueprint...
         MiV_populations = ["PYR", "OLM", "PVBC", "STIM"]
         MiV_IN_populations = ["OLM", "PVBC"]
         MiV_EXT_populations = ["STIM"]

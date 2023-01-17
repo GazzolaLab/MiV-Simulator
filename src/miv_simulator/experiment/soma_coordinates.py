@@ -76,7 +76,7 @@ class SomaCoordinates(HandlesYAMLConfig, Experiment):
         )
 
     def measure_distances(self, version: VersionType = None):
-        return self.derive_singleton(
+        return self.derive(
             "miv_simulator.experiment.measure_distances",
             [
                 {
@@ -89,7 +89,7 @@ class SomaCoordinates(HandlesYAMLConfig, Experiment):
         )
 
     def distribute_synapses(self, version: VersionType = None):
-        return self.derive_singleton(
+        return self.derive(
             "miv_simulator.experiment.distribute_synapses",
             [
                 {
@@ -101,7 +101,7 @@ class SomaCoordinates(HandlesYAMLConfig, Experiment):
         )
 
     def distance_connections(self, version: VersionType = None):
-        return self.derive_singleton(
+        return self.derive(
             "miv_simulator.experiment.distance_connections",
             [
                 {
@@ -113,7 +113,7 @@ class SomaCoordinates(HandlesYAMLConfig, Experiment):
         )
 
     def input_features(self, version: VersionType = None):
-        return self.derive_singleton(
+        return self.derive(
             "miv_simulator.experiment.input_features",
             [
                 {

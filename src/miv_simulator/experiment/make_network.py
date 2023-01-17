@@ -60,7 +60,7 @@ class MakeNetwork(HandlesYAMLConfig, Experiment):
         return self.local_directory("data/network_h5types.h5")
 
     def soma_coordinates(self, version: VersionType = None) -> Experiment:
-        return self.derive_singleton(
+        return self.derive(
             "miv_simulator.experiment.soma_coordinates",
             [
                 {

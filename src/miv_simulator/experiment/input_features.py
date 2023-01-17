@@ -61,7 +61,7 @@ class InputFeatures(HandlesYAMLConfig, Experiment):
         return self.local_directory("data/network_input_features.h5")
 
     def derive_spike_trains(self, version: VersionType = None):
-        return self.derive_singleton(
+        return self.derive(
             "miv_simulator.experiment.derive_spike_trains",
             [
                 {
