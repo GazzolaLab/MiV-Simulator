@@ -9,12 +9,13 @@ from machinable.element import normversion
 from machinable.types import VersionType
 from miv_simulator.simulator import generate_input_features
 from neuroh5.io import append_cell_attributes
-from miv_simulator.interface.config import BaseConfig
+from miv_simulator.config import Blueprint
 
 
 class InputFeatures(Experiment):
     @dataclass
-    class Config(BaseConfig):
+    class Config:
+        blueprint: Blueprint = Field(default_factory=Blueprint)
         coordinates: str = Field("???")
         distances_namespace: str = "Arc Distances"
         arena_id: str = "A"

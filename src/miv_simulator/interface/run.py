@@ -12,7 +12,7 @@ from miv_simulator.env import Env
 from miv_simulator.utils import config_logging
 from mpi4py import MPI
 from miv_simulator.mechanisms import compile_and_load
-from miv_simulator.interface.config import BaseConfig
+from miv_simulator.config import Blueprint
 
 
 def h5_copy_dataset(f_src, f_dst, dset_path):
@@ -35,7 +35,8 @@ sys.excepthook = mpi_excepthook
 
 class RunNetwork(Experiment):
     @dataclass
-    class Config(BaseConfig):
+    class Config:
+        blueprint: Blueprint = Field(default_factory=Blueprint)
         cells: str = Field("???")
         connections: str = Field("???")
         spike_input_path: str = Field("???")

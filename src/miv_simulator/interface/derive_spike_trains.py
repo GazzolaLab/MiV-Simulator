@@ -10,12 +10,13 @@ from miv_simulator.simulator import (
     generate_input_spike_trains,
     import_input_spike_train,
 )
-from miv_simulator.interface.config import BaseConfig
+from miv_simulator.config import Blueprint
 
 
 class DeriveSpikeTrains(Experiment):
     @dataclass
-    class Config(BaseConfig):
+    class Config:
+        blueprint: Blueprint = Field(default_factory=Blueprint)
         input_features: str = Field("???")
         coordinates: Optional[str] = None
         distances_namespace: str = "Arc Distances"

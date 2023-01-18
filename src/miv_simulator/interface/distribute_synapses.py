@@ -5,12 +5,13 @@ from machinable import Experiment
 from machinable.config import Field
 from miv_simulator.simulator import distribute_synapse_locations
 from miv_simulator.mechanisms import compile_and_load
-from miv_simulator.interface.config import BaseConfig
+from miv_simulator.config import Blueprint
 
 
 class DistributeSynapseLocations(Experiment):
     @dataclass
-    class Config(BaseConfig):
+    class Config:
+        blueprint: Blueprint = Field(default_factory=Blueprint)
         population: str = Field("???")
         coordinates: str = Field("???")
         forest: str = Field("???")

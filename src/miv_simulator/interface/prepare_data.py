@@ -1,13 +1,11 @@
 import os
 import pathlib
 import sys
-from dataclasses import dataclass
 from typing import List
 
 import commandlib
 import h5py
 from machinable import Experiment
-from mpi4py import MPI
 from neuroh5.io import read_population_names
 
 
@@ -15,18 +13,6 @@ def h5_copy_dataset(f_src, f_dst, dset_path):
     print(f"Copying {dset_path} from {f_src} to {f_dst} ...")
     target_path = str(pathlib.Path(dset_path).parent)
     f_src.copy(f_src[dset_path], f_dst[target_path])
-
-
-def mpi_excepthook(type, value, traceback):
-    sys_excepthook(type, value, traceback)
-    sys.stderr.flush()
-    sys.stdout.flush()
-    if MPI.COMM_WORLD.size > 1:
-        MPI.COMM_WORLD.Abort(1)
-
-
-sys_excepthook = sys.excepthook
-sys.excepthook = mpi_excepthook
 
 
 class PrepareData(Experiment):

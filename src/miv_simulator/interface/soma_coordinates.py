@@ -9,14 +9,15 @@ from machinable.element import normversion
 from machinable.types import VersionType
 from miv_simulator import plotting
 from miv_simulator.simulator import generate_soma_coordinates
-from miv_simulator.interface.config import BaseConfig
+from miv_simulator.config import Blueprint
 
 
 class SomaCoordinates(Experiment):
     """Generate soma coordinates within layer-specific volume."""
 
     @dataclass
-    class Config(BaseConfig):
+    class Config:
+        blueprint: Blueprint = Field(default_factory=Blueprint)
         h5types: str = Field("???")
         geometry: Optional[str] = None
         output_namespace: str = "Generated Coordinates"

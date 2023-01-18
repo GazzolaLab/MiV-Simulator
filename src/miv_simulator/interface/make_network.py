@@ -7,9 +7,10 @@ import commandlib
 import miv_simulator
 from machinable import Experiment
 from machinable.element import normversion
+from machinable.config import Field
 from machinable.types import VersionType
 from miv_simulator.simulator import make_h5types
-from miv_simulator.interface.config import BaseConfig
+from miv_simulator.config import Blueprint
 import h5py
 
 
@@ -20,7 +21,8 @@ def _bin_check(bin: str) -> None:
 
 class MakeNetwork(Experiment):
     @dataclass
-    class Config(BaseConfig):
+    class Config:
+        blueprint: Blueprint = Field(default_factory=Blueprint)
         gap_junctions: bool = False
         ranks_: int = 1
 

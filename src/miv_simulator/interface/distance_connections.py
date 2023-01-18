@@ -5,12 +5,13 @@ from typing import List, Tuple
 from machinable import Experiment
 from machinable.config import Field
 from miv_simulator.simulator import generate_distance_connections
-from miv_simulator.interface.config import BaseConfig
+from miv_simulator.config import Blueprint
 
 
 class DistanceConnections(Experiment):
     @dataclass
-    class Config(BaseConfig):
+    class Config:
+        blueprint: Blueprint = Field(default_factory=Blueprint)
         coordinates: str = Field("???")
         forest: str = Field("???")
         include: List[str] = Field(default_factory=lambda: [])

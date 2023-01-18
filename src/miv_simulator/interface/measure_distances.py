@@ -5,12 +5,13 @@ from typing import Optional, Tuple
 from machinable import Experiment
 from machinable.config import Field
 from miv_simulator.simulator import measure_distances
-from miv_simulator.interface.config import BaseConfig
+from miv_simulator.config import Blueprint
 
 
 class MeasureDistances(Experiment):
     @dataclass
-    class Config(BaseConfig):
+    class Config:
+        blueprint: Blueprint = Field(default_factory=Blueprint)
         coordinates: str = Field("???")
         geometry: Optional[str] = None
         output_namespace: str = "Generated Coordinates"
