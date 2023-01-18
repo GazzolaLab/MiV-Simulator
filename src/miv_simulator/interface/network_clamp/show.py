@@ -3,14 +3,15 @@ from miv_simulator.clamps import network
 from dataclasses import dataclass
 from typing import Tuple, Optional, Union, List, Dict
 
-from machinable import Interface
+from machinable import Experiment
 from machinable.config import Field
-from miv_simulator.interface.config import BaseConfig
+from miv_simulator.config import Blueprint
 
 
-class ClampShow(Interface):
+class ClampShow(Experiment):
     @dataclass
-    class Config(BaseConfig):
+    class Config:
+        blueprint: Blueprint = Field(default_factory=Blueprint)
         population: str = "GC"
         gid: int = 0
         area_id: Optional[str] = None

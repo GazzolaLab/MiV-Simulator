@@ -1,16 +1,17 @@
 from dataclasses import dataclass
 from typing import Tuple, Optional, Union, List, Dict
 
-from machinable import Interface
+from machinable import Experiment
 from machinable.config import Field
 
 from miv_simulator.clamps import network
-from miv_simulator.interface.config import BaseConfig
+from miv_simulator.config import Blueprint
 
 
-class ClampOptimize(Interface):
+class ClampOptimize(Experiment):
     @dataclass
-    class Config(BaseConfig):
+    class Config:
+        blueprint: Blueprint = Field(default_factory=Blueprint)
         population: str = "PYR"
         dt: Optional[float] = None
         gids: List[int] = Field(default_factory=[])
