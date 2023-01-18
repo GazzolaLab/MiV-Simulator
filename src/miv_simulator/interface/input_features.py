@@ -9,13 +9,12 @@ from machinable.element import normversion
 from machinable.types import VersionType
 from miv_simulator.simulator import generate_input_features
 from neuroh5.io import append_cell_attributes
+from miv_simulator.interface.config import BaseConfig
 
-from miv_simulator.experiment.config import FromYAMLConfig, HandlesYAMLConfig
 
-
-class InputFeatures(HandlesYAMLConfig, Experiment):
+class InputFeatures(Experiment):
     @dataclass
-    class Config(FromYAMLConfig):
+    class Config(BaseConfig):
         coordinates: str = Field("???")
         distances_namespace: str = "Arc Distances"
         arena_id: str = "A"
@@ -58,11 +57,14 @@ class InputFeatures(HandlesYAMLConfig, Experiment):
 
     @property
     def output_filepath(self):
-        return self.local_directory("data/network_input_features.h5")
+        return (
+            self.local_directory("data/", create=True)
+            + "network_input_features.h5"
+        )
 
     def derive_spike_trains(self, version: VersionType = None):
         return self.derive(
-            "miv_simulator.experiment.derive_spike_trains",
+            "miv_simulator.interface.derive_spike_trains",
             [
                 {
                     "blueprint": self.config.blueprint,

@@ -3,15 +3,14 @@ from miv_simulator.clamps import network
 from dataclasses import dataclass
 from typing import Tuple, Optional, Union, List, Dict
 
-from machinable import Experiment
+from machinable import Interface
 from machinable.config import Field
+from miv_simulator.interface.config import BaseConfig
 
-from miv_simulator.experiment.config import FromYAMLConfig, HandlesYAMLConfig
 
-
-class ClampShow(HandlesYAMLConfig, Experiment):
+class ClampShow(Interface):
     @dataclass
-    class Config(FromYAMLConfig):
+    class Config(BaseConfig):
         population: str = "GC"
         gid: int = 0
         area_id: Optional[str] = None

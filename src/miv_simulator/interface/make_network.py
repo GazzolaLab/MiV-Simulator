@@ -5,12 +5,12 @@ from dataclasses import dataclass
 
 import commandlib
 import miv_simulator
-from machinable import Interface
+from machinable import Experiment
 from machinable.element import normversion
 from machinable.types import VersionType
 from miv_simulator.simulator import make_h5types
-import h5py
 from miv_simulator.interface.config import BaseConfig
+import h5py
 
 
 def _bin_check(bin: str) -> None:
@@ -18,7 +18,7 @@ def _bin_check(bin: str) -> None:
         raise FileNotFoundError(f"{bin} not found. Did you add it to the PATH?")
 
 
-class MakeNetwork(Interface):
+class MakeNetwork(Experiment):
     @dataclass
     class Config(BaseConfig):
         gap_junctions: bool = False
@@ -58,7 +58,7 @@ class MakeNetwork(Interface):
     def output_filepath(self) -> str:
         return self.local_directory("data/", create=True) + "network_h5types.h5"
 
-    def soma_coordinates(self, version: VersionType = None) -> "Interface":
+    def soma_coordinates(self, version: VersionType = None) -> "Experiment":
         return self.derive(
             "miv_simulator.interface.soma_coordinates",
             [

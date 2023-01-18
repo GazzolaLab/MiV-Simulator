@@ -10,13 +10,12 @@ from miv_simulator.simulator import (
     generate_input_spike_trains,
     import_input_spike_train,
 )
+from miv_simulator.interface.config import BaseConfig
 
-from miv_simulator.experiment.config import FromYAMLConfig, HandlesYAMLConfig
 
-
-class DeriveSpikeTrains(HandlesYAMLConfig, Experiment):
+class DeriveSpikeTrains(Experiment):
     @dataclass
-    class Config(FromYAMLConfig):
+    class Config(BaseConfig):
         input_features: str = Field("???")
         coordinates: Optional[str] = None
         distances_namespace: str = "Arc Distances"
@@ -103,4 +102,7 @@ class DeriveSpikeTrains(HandlesYAMLConfig, Experiment):
 
     @property
     def output_filepath(self):
-        return self.local_directory("data/network_input_spike_trains.h5")
+        return (
+            self.local_directory("data/", create=True)
+            + "network_input_spike_trains.h5"
+        )

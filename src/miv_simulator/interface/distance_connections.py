@@ -5,13 +5,12 @@ from typing import List, Tuple
 from machinable import Experiment
 from machinable.config import Field
 from miv_simulator.simulator import generate_distance_connections
+from miv_simulator.interface.config import BaseConfig
 
-from miv_simulator.experiment.config import FromYAMLConfig, HandlesYAMLConfig
 
-
-class DistanceConnections(HandlesYAMLConfig, Experiment):
+class DistanceConnections(Experiment):
     @dataclass
-    class Config(FromYAMLConfig):
+    class Config(BaseConfig):
         coordinates: str = Field("???")
         forest: str = Field("???")
         include: List[str] = Field(default_factory=lambda: [])
@@ -31,7 +30,7 @@ class DistanceConnections(HandlesYAMLConfig, Experiment):
 
     @property
     def output_filepath(self):
-        return self.local_directory(f"data/connectivity.h5")
+        return self.local_directory("data/", create=True) + "connectivity.h5"
 
     def on_execute(self):
         logging.basicConfig(level=logging.INFO)

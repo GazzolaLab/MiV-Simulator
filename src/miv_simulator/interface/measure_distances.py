@@ -5,13 +5,12 @@ from typing import Optional, Tuple
 from machinable import Experiment
 from machinable.config import Field
 from miv_simulator.simulator import measure_distances
+from miv_simulator.interface.config import BaseConfig
 
-from miv_simulator.experiment.config import FromYAMLConfig, HandlesYAMLConfig
 
-
-class MeasureDistances(HandlesYAMLConfig, Experiment):
+class MeasureDistances(Experiment):
     @dataclass
-    class Config(FromYAMLConfig):
+    class Config(BaseConfig):
         coordinates: str = Field("???")
         geometry: Optional[str] = None
         output_namespace: str = "Generated Coordinates"
@@ -24,7 +23,6 @@ class MeasureDistances(HandlesYAMLConfig, Experiment):
         chunk_size: int = 1000
         value_chunk_size: int = 1000
         cache_size: int = 50
-        # resources
         ranks_: int = 8
 
     def on_execute(self):

@@ -9,15 +9,14 @@ from machinable.element import normversion
 from machinable.types import VersionType
 from miv_simulator import plotting
 from miv_simulator.simulator import generate_soma_coordinates
+from miv_simulator.interface.config import BaseConfig
 
-from miv_simulator.experiment.config import FromYAMLConfig, HandlesYAMLConfig
 
-
-class SomaCoordinates(HandlesYAMLConfig, Experiment):
+class SomaCoordinates(Experiment):
     """Generate soma coordinates within layer-specific volume."""
 
     @dataclass
-    class Config(FromYAMLConfig):
+    class Config(BaseConfig):
         h5types: str = Field("???")
         geometry: Optional[str] = None
         output_namespace: str = "Generated Coordinates"
@@ -33,11 +32,10 @@ class SomaCoordinates(HandlesYAMLConfig, Experiment):
 
     @property
     def output_filepath(self):
-        return self.local_directory("data/coordinates.h5")
+        return self.local_directory("data/", create=True) + "coordinates.h5"
 
     def on_execute(self):
         logging.basicConfig(level=logging.INFO)
-        self.local_directory("data", create=True)
         generate_soma_coordinates(
             config=self.config.blueprint,
             types_path=self.config.h5types,
@@ -77,7 +75,7 @@ class SomaCoordinates(HandlesYAMLConfig, Experiment):
 
     def measure_distances(self, version: VersionType = None):
         return self.derive(
-            "miv_simulator.experiment.measure_distances",
+            "miv_simulator.interface.measure_distances",
             [
                 {
                     "blueprint": self.config.blueprint,
@@ -90,7 +88,7 @@ class SomaCoordinates(HandlesYAMLConfig, Experiment):
 
     def distribute_synapses(self, version: VersionType = None):
         return self.derive(
-            "miv_simulator.experiment.distribute_synapses",
+            "miv_simulator.interface.distribute_synapses",
             [
                 {
                     "blueprint": self.config.blueprint,
@@ -102,7 +100,7 @@ class SomaCoordinates(HandlesYAMLConfig, Experiment):
 
     def distance_connections(self, version: VersionType = None):
         return self.derive(
-            "miv_simulator.experiment.distance_connections",
+            "miv_simulator.interface.distance_connections",
             [
                 {
                     "blueprint": self.config.blueprint,
@@ -114,7 +112,7 @@ class SomaCoordinates(HandlesYAMLConfig, Experiment):
 
     def input_features(self, version: VersionType = None):
         return self.derive(
-            "miv_simulator.experiment.input_features",
+            "miv_simulator.interface.input_features",
             [
                 {
                     "blueprint": self.config.blueprint,

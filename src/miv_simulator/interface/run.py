@@ -12,7 +12,7 @@ from miv_simulator.env import Env
 from miv_simulator.utils import config_logging
 from mpi4py import MPI
 from miv_simulator.mechanisms import compile_and_load
-from miv_simulator.experiment.config import FromYAMLConfig, HandlesYAMLConfig
+from miv_simulator.interface.config import BaseConfig
 
 
 def h5_copy_dataset(f_src, f_dst, dset_path):
@@ -33,9 +33,9 @@ sys_excepthook = sys.excepthook
 sys.excepthook = mpi_excepthook
 
 
-class RunNetwork(HandlesYAMLConfig, Experiment):
+class RunNetwork(Experiment):
     @dataclass
-    class Config(FromYAMLConfig):
+    class Config(BaseConfig):
         cells: str = Field("???")
         connections: str = Field("???")
         spike_input_path: str = Field("???")
