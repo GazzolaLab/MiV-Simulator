@@ -35,6 +35,7 @@ class PrepareData(Experiment):
         self.network = None
         self.spike_trains = None
         self.distance_connections = {}
+        self.synapse_forest = {}
         for dependency in self.uses:
             if dependency.module == "miv_simulator.interface.soma_coordinates":
                 self.soma_coordinates = dependency
@@ -59,6 +60,15 @@ class PrepareData(Experiment):
                             f"defined in {self.distance_connections[p].config.forest}"
                         )
                     self.distance_connections[p] = dependency
+            elif dependency.module == "miv_simulator.interface.synapse_forest":
+                if dependency.config.population in self.synapse_forest:
+                    # check for duplicates
+                    raise ValueError(
+                        f"Redundant distance connection specification for population {dependency.config.population}"
+                        f"Found duplicate in {dependency}, while already "
+                        f"defined in {self.synapse_forest[dependency.config.population]}"
+                    )
+                self.synapse_forest[dependency.config.population] = dependency
 
     def on_execute(self):
         print(f"Consolidating generated data files into unified H5")
@@ -103,8 +113,8 @@ class PrepareData(Experiment):
         for p in MiV_populations:
             if p not in ["OLM", "PVBC", "PYR"]:
                 continue
-            forest_file = self.network.synapse_forest(p)
-            forest_syns_file = self.network.synapse_forest(p)
+            forest_file = self.synapse_forest[p].output_filepath
+            forest_syns_file = self.synapse_forest[p].output_filepath
             forest_dset_path = f"/Populations/{p}/Trees"
             forest_syns_dset_path = f"/Populations/{p}/Synapse Attributes"
 
