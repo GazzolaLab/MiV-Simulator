@@ -761,10 +761,10 @@ def select_model(nStates, opsin_type):
         model_params = model_params_dict[3][opsin_type]
         return RhO_3states(opsin_type, ( (x[0], x[1]) for x in model_params ))
     elif int(nStates) == 4 or str(nStates).lower() == 'four':
-        model_params = models[4][opsin_type]
+        model_params = model_params_dict[4][opsin_type]
         return RhO_4states(opsin_type, ( (x[0], x[1]) for x in model_params ))
     elif int(nStates) == 6 or str(nStates).lower() == 'six':
-        model_params = models[6][opsin_type]
+        model_params = model_params_dict[6][opsin_type]
         return RhO_6states(opsin_type, ( (x[0], x[1]) for x in model_params ))
     else:
         raise NotImplementedError(nStates)

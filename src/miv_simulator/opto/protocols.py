@@ -95,6 +95,7 @@ class Protocol(Struct):
 
         if np.isscalar(self.phis):
             self.phis = [self.phis]  # np.asarray([self.phis])
+        logger.info(f"self.phis = {self.phis}")
         self.phis.sort(reverse=True)
         self.nPhis = len(self.phis)
 
@@ -496,9 +497,10 @@ default_protocol_parameters['recovery'] = make_param_dict(
 def select_protocol(protocol, params=None):
     """Protocol selection function"""
     if protocol in protocols:
-        if params:
-            return protocols[protocol](params)
-        else:
-            return protocols[protocol](params=default_protocol_parameters[protocol])
+        run_params = {}
+        run_params.update(default_protocol_parameters[protocol])
+        if params is not None:
+            run_params.update(params)
+        return protocols[protocol](run_params)
     else:
         raise NotImplementedError(protocol)

@@ -102,6 +102,7 @@ class OptoSim:
                     continue
                 
                 cell = self.pc.gid2cell(gid)
+                assert(cell is not None)
                 
                 is_art = False
                 if hasattr(cell, "is_art"):
@@ -111,15 +112,14 @@ class OptoSim:
 
                 sec_list = sec_dict[gid]
                 rho_list = rho_dict[gid]
-                for sec in sec_list:
-                    if (expProb >= 1) or (self.rng.random() <= expProb):
-                        # Insert a rhodopsin mechanism and append it to rho_list for that cell
-                        rho = mech(sec(0.5))
-                        for p in self.params:
-                            setattr(rho, p, params[p])
-
-                        rho_list.append(rho)
-                        sec_list.append(sec)
+                for sec in cell.all:
+                    nseg = sec.nseg
+                    for x in np.linspace(0.1, 0.9, nseg) if nseg > 1 else [0.5]:
+                        if (expProb >= 1) or (self.rng.random() <= expProb):
+                            # Insert a rhodopsin mechanism and append it to rho_list for that cell
+                            rho = mech(sec(x))
+                            rho_list.append(rho)
+                            sec_list.append(sec)
                     
 
     def init_recording(self):
