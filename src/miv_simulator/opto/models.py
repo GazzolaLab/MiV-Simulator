@@ -43,19 +43,16 @@ def calcV1(E, v0):
     # return (-70-E)/(1-np.exp(-(-70-E)/v0))
 
 
-model_params = OrderedDict([(3, {}), (4, {}), (6, {})])    
-
 class RhodopsinModel(Struct):
     """Common base class for all models."""
     # This an abstract base class since it is never directly instantiated
     __metaclass__ = abc.ABCMeta
+
     # TODO: Revise to be stateless and store date in PhotoCurrent objects
     phi = 0.0  # Instantaneous Light flux [photons * mm^-2 * s^-1]
 
-    def __init__(self, params=None, rho_type=rho_type):
+    def __init__(self, rho_type, params):
 
-        if params is None:
-            params = model_params[self.nStates]
         self.rho_type = rho_type  # E.g. 'ChR2' or 'ArchT'
 
         self.update(params)
@@ -69,9 +66,8 @@ class RhodopsinModel(Struct):
         self.initStates(phi=self.phi_0, s0=self.s_0)
         # self.transRates = {r: getattr(self, r) for r in itertools.chain(self.photoRates, self.constRates)}
 
-        logger.info("PyRhO {}-state {} model initialised!".format(self.nStates, self.rho_type))
-
-        self.printParams()
+        logger.info(f"PyRhO {self.nStates}-state {self.rho_type} model initialised: "
+                    f"{self.__dict__}")
 
     def __str__(self):
         return "{}-state {}".format(self.nStates, self.rho_type)  # self.__name__+
@@ -669,17 +665,106 @@ class RhO_6states(RhodopsinModel):
         raise NotImplementedError(self.nStates)
 
 
-models = OrderedDict([(3, RhO_3states),
-                      (4, RhO_4states),
-                      (6, RhO_6states)])
+model_params_dict = OrderedDict([(3, OrderedDict()),
+                                 (4, OrderedDict()),
+                                 (6, OrderedDict())])
 
-def select_model(nStates):
+
+# (Name, Value,  Vary, Min, Max, Expr=Units)
+
+model_params_dict[3]['ChR2'] = (  # Depolarising: passively transports Na+, H+, K+ and Ca2+ down their electrochemical gradients
+    ('g0',    1.57e5, True, 0.001,  1e6,  None),
+    ('phi_m', 5e17,   True, 1e15,   1e19, None),
+    ('k_a',   5,      True, 0.001,  1000, None),
+    ('k_r',   0.1,    True, 0.001,  1000, None),
+    ('p',     0.8,    True, 0.1,    5,    None),
+    ('q',     0.25,   True, 0.1,    5,    None),
+    ('Gd',    0.104,  True, 0.0001, 1,    None),
+    ('Gr0',   0.0002, True, 0.0001, 0.1,  None),
+    ('E',     0,      True, -1000,  1000, None),
+    ('v0',    43,     True, -1e15,  1e15, None),
+    ('v1',    17.1,   True, -1e15,  1e15, None))
+
+model_params_dict[3]['NpHR'] = (  # Hyperpolarising: pumps chloride ions into the cell
+    ('g0',    1.57e5, True, 0.001,  1e6,  None),
+    ('phi_m', 1.32e18,True, 1e15,   1e19, None),
+    ('k_a',   0.01,   True, 0.001,  1000, None),
+    ('k_r',   0.01,   True, 0.001,  1000, None),
+    ('p',     0.793,  True, 0.1,    5,    None),
+    ('q',     0.793,  True, 0.1,    5,    None),
+    ('Gd',    0.1,    True, 0.0001, 1,    None),
+    ('Gr0',   0.0002, True, 0.0001, 0.1,  None),
+    ('E',     -400,   True, -1000,  1000, None),
+    ('v0',    43,     True, -1e15,  1e15, None),
+    ('v1',    17.1,   True, -1e15,  1e15, None))
+
+model_params_dict[3]['ArchT'] = (  # Hyperpolarising: actively extrudes Hydrogen ions
+    ('g0',    1.57e5, True, 0.001,  1e6,  None),
+    ('phi_m', 1.32e18,True, 1e15,   1e19, None),
+    ('k_a',   0.01,   True, 0.001,  1000, None),
+    ('k_r',   0.01,   True, 0.001,  1000, None),
+    ('p',     0.793,  True, 0.1,    5,    None),
+    ('q',     0.793,  True, 0.1,    5,    None),
+    ('Gd',    0.1,    True, 0.0001, 1,    None),
+    ('Gr0',   0.001,  True, 0.0001, 0.1,  None),
+    ('E',     0,      True, -1000,  1000, None),
+    ('v0',    43,     True, -1e15,  1e15, None),
+    ('v1',    17.1,   True, -1e15,  1e15, None))
+
+
+model_params_dict[4]['ChR2'] = (
+    ('g0',      1.14e5, True, 0.001,1e15,   None),
+    ('gam',     0.00742,True, 0.0,  1,      None),
+    ('phi_m',   2.33e17,True, 1e15, 1e19,   None),
+    ('k1',      4.15,   True, 0.001,1e5,    None), #3
+    ('k2',      0.868,  True, 0.001,1e5,    None), #1.5
+    ('p',       0.833,  True, 0.1,  5,      None),
+    ('Gf0',     0.0373, True, 0,    1e3,    None), #e12d
+    ('k_f',     0.0581, True, 0.001,1e3,    None), #c1
+    ('Gb0',     0.0161, True, 0,    1e3,    None), #e21d
+    ('k_b',     0.063,  True, 0.001,1e3,    None), #c2
+    ('q',       1.94,   True, 0.1,  5,      None),
+    ('Gd1',     0.105,  True, 0.01, 1,      None),
+    ('Gd2',     0.0138, True, 0.01, 1,      None),
+    ('Gr0',     0.00033,True, 1e-6, 1,      None), #Gr #0.0004
+    ('E',       0,      True, -1000,1000,   None),
+    ('v0',      43,     True, -1e15,1e15,   None),
+    ('v1',      17.1,   True, -1e15,1e15,   None))
+
+
+model_params_dict[6]['ChR2'] = (
+    ('g0',      2.52e4, True, 0.0,  1e15, None),
+    ('gam',     0.0161, True, 0.0,  1,    None),  # Max=1 if gO1 >= gO2
+    ('phi_m',   3.54e17,True, 1e15, 1e19, None),
+    ('k1',      13.4,   True, 0.0,  1000, None),
+    ('k2',      2.71,   True, 0.0,  1000, None),
+    ('p',       0.985,  True, 0.1,  5,    None),
+    ('Gf0',     0.0389, True, 0.0,  1000, None),
+    ('k_f',     0.103,  True, 0.0,  1000, None),
+    ('Gb0',     0.0198, True, 0.0,  1000, None),
+    ('k_b',     0.139,  True, 0.0,  1000, None),
+    ('q',       1.58,   True, 0.1,  5,    None),
+    ('Go1',     2,      True, 0.0,  1000, None),
+    ('Go2',     0.0567, True, 0.0,  1000, None),
+    ('Gd1',     0.112,  True, 0.0,  1000, None),
+    ('Gd2',     0.0185, True, 0.0,  1000, None),
+    ('Gr0',     0.00033,True, 0.0,  1000, None), #0.00163
+    ('E',       0,      True, -1000,1000, None),
+    ('v0',      43,     True, -1e15, 1e15,None),
+    ('v1',      17.1,   True, -1e15, 1e15,None))
+
+
+
+def select_model(nStates, opsin_type):
     """Model selection function"""
-    if int(nStates) == 3 or nStates == 'three':
-        return models[3]
-    elif int(nStates) == 4 or nStates == 'four':
-        return models[4]
-    elif int(nStates) == 6 or nStates == 'six':
-        return models[6]
+    if int(nStates) == 3 or str(nStates).lower() == 'three':
+        model_params = model_params_dict[3][opsin_type]
+        return RhO_3states(opsin_type, ( (x[0], x[1]) for x in model_params ))
+    elif int(nStates) == 4 or str(nStates).lower() == 'four':
+        model_params = models[4][opsin_type]
+        return RhO_4states(opsin_type, ( (x[0], x[1]) for x in model_params ))
+    elif int(nStates) == 6 or str(nStates).lower() == 'six':
+        model_params = models[6][opsin_type]
+        return RhO_6states(opsin_type, ( (x[0], x[1]) for x in model_params ))
     else:
         raise NotImplementedError(nStates)

@@ -3,7 +3,7 @@ Based on code from the PyRhO: A Multiscale Optogenetics Simulation Platform
 https://github.com/ProjectPyRhO/PyRhO.git
 """
 
-from typing import TYPE_CHECKING, Optional, Dict, Set, Tuple
+from typing import TYPE_CHECKING, Optional, Any, Dict, Set, Tuple
 from collections import defaultdict
 import copy
 import logging
@@ -32,10 +32,11 @@ class OptoSim:
     def __init__(self,
                  pc: "HocObject",
                  pop_gid_dict: Dict[str, Set[int]],
-                 nstates: int,
+                 model_nstates: int,
+                 opsin_type: str,
+                 rho_params: Dict[str, Any],
                  protocol: str,
-                 protocol_params: Optional[Dict[str, Any]],
-                 rho_params,
+                 protocol_params: Optional[Dict[str, Any]] = None,
                  max_gid_rec_count: int = 1,
                  sec_rec_count: int = 1,
                  seed: int = 1, ):
@@ -47,7 +48,7 @@ class OptoSim:
         self.pc = pc
         self.protocol = select_protocol(protocol, params=protocol_params)
         self.rho_params = copy.deepcopy(rho_params)
-        self.model = select_model(nstates)()
+        self.model = select_model(model_nstates, opsin_type)
         self.pop_gid_dict = pop_gid_dict
         
         self.pop_rec_dict = defaultdict(lambda: defaultdict(list))
@@ -110,7 +111,7 @@ class OptoSim:
 
                 sec_list = sec_dict[gid]
                 rho_list = rho_dict[gid]
-                for sec in cell.all:
+                for sec in sec_list:
                     if (expProb >= 1) or (self.rng.random() <= expProb):
                         # Insert a rhodopsin mechanism and append it to rho_list for that cell
                         rho = mech(sec(0.5))
@@ -209,7 +210,7 @@ class OptoSim:
             start = end
             Dt_on, Dt_off = cycles[p, 0], cycles[p, 1]
             end = start + Dt_on + Dt_off
-            nSteps = int(round(((end-start)/dt)+1))
+            nSteps = int(round(((end-start)/self.dt)+1))
             tPulse = np.linspace(start, end, nSteps, endpoint=True)
             phi_t = phi_ts[p]
             phiPulse = phi_t(tPulse) # -tPulse[0] # Align time vector to 0 for phi_t to work properly
