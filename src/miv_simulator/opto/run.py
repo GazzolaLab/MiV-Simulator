@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 logger = get_module_logger(__name__)
 
 
-class OptoSim:
+class OptoStim:
     
     """Class for cellular level optogenetic simulations with NEURON."""
 

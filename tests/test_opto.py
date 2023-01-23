@@ -8,7 +8,7 @@ from mpi4py import MPI
 import matplotlib.pyplot as plt
 
 from miv_simulator.mechanisms import compile_and_load
-from miv_simulator.opto.run import OptoSim
+from miv_simulator.opto.run import OptoStim
 from miv_simulator.utils import config_logging
 
 h.nrnmpi_init()
@@ -107,15 +107,15 @@ def run():
     ncycles = 10
     cycles = np.asarray([[10,100]*ncycles]).reshape((-1,2))
     if opto_stim:
-        opto = OptoSim(pc=pc,
-                       pop_gid_dict=pop_gid_dict,
-                       rho_params = {'expProb': 0.95},
-                       model_nstates=6,
-                       opsin_type = 'ChR2',
-                       protocol="step",
-                       protocol_params=(("Dt_delay", 150),
-                                        ("phis", [1e16, 1e16]),
-                                        ("cycles", cycles )),
+        opto = OptoStim(pc=pc,
+                        pop_gid_dict=pop_gid_dict,
+                        rho_params = {'expProb': 0.95},
+                        model_nstates=6,
+                        opsin_type = 'ChR2',
+                        protocol="step",
+                        protocol_params=(("Dt_delay", 150),
+                                         ("phis", [1e16, 1e16]),
+                                         ("cycles", cycles )),
         )
     cell = pc.gid2cell(1)
     h.psection(sec=cell.soma)
