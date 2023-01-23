@@ -551,7 +551,6 @@ def init(
             soma_positions_dict[population] = abs_positions
             del distances
 
-
     if env.opsin_config is not None:
         opsin_pop_dict = {
             pop_name: set(env.cells[pop_name].keys()).difference(
@@ -568,14 +567,11 @@ def init(
             nstates=env.opsin_config["nstates"],
             protocol=env.opsin_config["protocol"],
             rho_params=rho_params,
-            seed=int(
-                env.model_config["Random Seeds"]["Opsin"]
-            ),
+            seed=int(env.model_config["Random Seeds"]["Opsin"]),
         )
         if rank == 0:
             logger.info("*** Opsin configuration instantiated")
 
-            
     input_source_dict = None
     if (worker is not None) and cooperative_init:
         if worker.worker_id == 1:

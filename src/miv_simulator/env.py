@@ -450,7 +450,6 @@ class Env(AbstractEnv):
             pop_name: set() for pop_name in self.celltypes.keys()
         }
 
-        
         # Configuration profile for optogenetic stimulation
         self.opsin_config = None
         if "Stimulus" in self.model_config:
@@ -462,7 +461,6 @@ class Env(AbstractEnv):
                     "parameters": config["parameters"],
                 }
 
-        
         # Configuration profile for recording intracellular quantities
         self.recording_profile = None
         if ("Recording" in self.model_config) and (
@@ -489,7 +487,7 @@ class Env(AbstractEnv):
 
             if self.use_coreneuron:
                 self.recording_profile["dt"] = None
-                
+
         # Configuration profile for recording local field potentials
         self.LFP_config = {}
         if "Recording" in self.model_config:
