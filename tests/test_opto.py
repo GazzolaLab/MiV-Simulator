@@ -75,7 +75,7 @@ class BallAndStick(Cell):
 
 def run():
 
-    #    compile_and_load(force=True)
+    compile_and_load(force=True)
 
     for gid in range(ngids):
 
@@ -107,7 +107,7 @@ def run():
 
     pop_gid_dict = {"default": [0, 1]}
     ncycles = 10
-    cycles = np.asarray([[10, 100] * ncycles]).reshape((-1, 2))
+    cycles = np.asarray([[10, 50] * ncycles]).reshape((-1, 2))
     if opto_stim:
         opto = OptoStim(
             pc=pc,
@@ -129,16 +129,10 @@ def run():
     h.dt = 0.025
     pc.set_maxstep(10)
     h.finitialize(-65)
-    pc.psolve(1500)
+    pc.psolve(1000)
 
     pc.runworker()
     pc.done()
 
-    if myrank == 0:
-        plt.plot(rec_t, vrecs[0])
-        plt.show()
-
     h.quit()
 
-
-run()
