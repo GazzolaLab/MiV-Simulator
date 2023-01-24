@@ -1,0 +1,8 @@
+./Gfluct3.c: ../Gfluct3.mod
+	@printf " -> $(C_GREEN)NMODL$(C_RESET) $<\\n"
+	(cd "..";  MODLUNIT=$(NRNUNITS) $(NOCMODL) "Gfluct3.mod" -o "/work2/08818/fg14/frontera/mind-in-vitro/MiV-Simulator/tests/mechanisms/compiled/x86_64")
+
+./Gfluct3.o: ./Gfluct3.c
+	@printf " -> $(C_GREEN)Compiling$(C_RESET) $<\\n"
+	$(COMPILE) -I".." $(INCLUDES) -fPIC -c $< -o $@
+

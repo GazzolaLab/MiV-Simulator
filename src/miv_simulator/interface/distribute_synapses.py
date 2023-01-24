@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from machinable import Experiment
 from machinable.config import Field
 from miv_simulator.simulator import distribute_synapse_locations
-from miv_simulator.mechanisms import compile_and_load
 from miv_simulator.config import Blueprint
 
 

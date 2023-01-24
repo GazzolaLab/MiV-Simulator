@@ -175,7 +175,7 @@ def distribute_synapse_locations(
     dry_run,
     debug,
     config_prefix="",
-    mechanisms_path=None,
+    mechanisms_path="./mechanisms",
 ):
 
     utils.config_logging(verbose)

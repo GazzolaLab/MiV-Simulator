@@ -1,27 +1,38 @@
 import pytest
 import os
-import commandlib
+import shutil
 
 from miv_simulator.mechanisms import compile, compile_and_load
 
 
-def test_mechanisms_compile():
+def test_mechanisms_compile(tmp_path):
+    d = str(tmp_path / "mechanisms")
+    os.makedirs(d)
+
+    # invalid directory
+    with pytest.raises(FileNotFoundError):
+        compile()
+
+    assert os.path.isdir(compile(d))
+    assert os.path.exists(os.path.join(d, "compiled"))
+
+    # skip if existing
+    assert os.path.isdir(compile(d))
     # compile with -force
-    compiled_path = compile(force=True)
+    compiled_path = compile(d, force=True)
     assert os.path.basename(compiled_path) == "compiled"
 
-    # calling compile() after initial compilation
-    compile()
 
+def test_mechanisms_compile_and_load(tmp_path):
+    d = str(tmp_path / "mechanisms")
+    os.makedirs(d)
 
-def test_mechanisms_compile_and_load():
     # Test if compile_and_load is called properly
-    dll_path = compile_and_load()
-    assert os.path.exists(dll_path)
+    dll_path = compile_and_load(d)
+    assert os.path.isfile(dll_path)
 
     # Test if compile_and_load creates the dll file
-    remove_cmd = commandlib.Command("rm", "-f")
-    remove_cmd(dll_path).run()
+    os.remove(dll_path)
     assert not os.path.exists(dll_path)
-    compile_and_load(force=True)
+    compile_and_load(d, force=True)
     assert os.path.exists(dll_path)

@@ -81,6 +81,7 @@ sys.excepthook = mpi_excepthook
 @click.option(
     "--mechanisms-path",
     "-m",
+    default="./mechanisms",
     required=False,
     type=click.Path(exists=True, dir_okay=True, file_okay=False),
 )

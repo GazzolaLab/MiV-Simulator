@@ -43,6 +43,7 @@ class RunNetwork(Experiment):
         spike_input_namespace: Optional[str] = None
         spike_input_attr: Optional[str] = None
         record_syn_spike_count: bool = False
+        mechanisms: str = "./mechanisms"
         t_stop: int = 1
         v_init: float = -75.0
         stimulus_onset: float = 1.0
@@ -52,7 +53,7 @@ class RunNetwork(Experiment):
         nodes_: int = 1
 
     def on_create(self):
-        compile_and_load()
+        compile_and_load(self.config.mechanisms)
 
     def on_execute(self):
         self.local_directory("data", create=True)
