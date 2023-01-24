@@ -15,6 +15,7 @@ class DistributeSynapseLocations(Experiment):
         coordinates: str = Field("???")
         forest: str = Field("???")
         templates: str = "templates"
+        mechanisms: str = "./mechanisms"
         distribution: str = "uniform"
         io_size: int = -1
         chunk_size: int = 1000
@@ -40,4 +41,5 @@ class DistributeSynapseLocations(Experiment):
             verbose=True,
             dry_run=False,
             debug=False,
+            mechanisms_path=self.config.mechanisms,
         )
