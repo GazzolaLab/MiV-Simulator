@@ -1513,6 +1513,17 @@ files = [
 ]
 
 [[package]]
+name = "quantities"
+version = "0.13.0"
+description = "Support for physical quantities with units, based on numpy"
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "quantities-0.13.0.tar.gz", hash = "sha256:0fde20115410de21cefa786f3aeae69c1b51bb19ee492190324c1da705e61a81"},
+]
+
+[[package]]
 name = "rbf"
 version = "1.0"
 description = "Package containing the tools necessary for radial basis function (RBF) applications"
@@ -1895,4 +1906,4 @@ docs = []
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.11"
-content-hash = "57c0cfa5d96bd899a3f4cafc993502a4b1e84abd6a81b526f559fbb860f56973"
+content-hash = "59fce338480dc7cc0718ba86060a201bf892055ab12cfe066d35309af2c95837"

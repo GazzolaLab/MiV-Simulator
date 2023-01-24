@@ -26,6 +26,7 @@ rbf = {git = "https://github.com/frthjf/RBF.git", rev = "master"}
 neuroh5 = {git = "https://github.com/iraikov/neuroh5.git"}
 future = "^0.18.2"
 matplotlib = "^3.6.0"
+quantities = "^0.13.0"
 
 [tool.poetry.dev-dependencies]
 black = {extras = ["jupyter"], version = "^22.3.0"}
