@@ -395,7 +395,6 @@ def connect_cells(env: Env) -> None:
                 ] = presyn_input_sources
             else:
                 syn_edge_iter = edge_iter
-
             syn_attrs.init_edge_attrs_from_iter(
                 postsyn_name, presyn_name, a, syn_edge_iter
             )
@@ -1877,10 +1876,20 @@ def init(env: Env) -> None:
         h.cvode.use_fast_imem(1)
 
 
+def shutdown(env: Env):
+    """
+    Forces NEURON to make it delete its MPI communicator and shut down properly.
+
+    TODO: This may no longer be required in more recent versions of neurons
+    """
+    env.pc.runworker()
+    env.pc.done()
+    h.quit()
+
+
 def run(
     env: Env,
     output: bool = True,
-    shutdown: bool = True,
     output_syn_spike_count: bool = False,
 ):
     """
@@ -2019,6 +2028,21 @@ def run(
     meangj = gjvect.mean()
     maxgj = gjvect.max()
 
+    summary = {
+        "rank": rank,
+        "cell_creation": env.mkcellstime,
+        "cell_connection": env.connectcellstime,
+        "gap_junctions": env.connectgjstime,
+        "run_simulation": env.pc.step_time(),
+        "spike_communication": env.pc.send_time(),
+        "event_handling": env.pc.event_time(),
+        "numerical_integration": env.pc.integ_time(),
+        "voltage_transfer": gjtime,
+        "load_balance": (meancomp / maxcw),
+        "mean_voltage_transfer_time": meangj,
+        "max_voltage_transfer_time": maxgj,
+    }
+
     if rank == 0:
         logger.info(
             f"Execution time summary for host {rank}: \n"
@@ -2042,7 +2066,4 @@ def run(
                     "Voltage transfer time on host {i}: {gjvect.x[i]:.02f} s\n"
                 )
 
-    if shutdown:
-        env.pc.runworker()
-        env.pc.done()
-        h.quit()
+    return summary

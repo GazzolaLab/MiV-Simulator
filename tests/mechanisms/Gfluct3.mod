@@ -206,7 +206,7 @@ VERBATIM
 		if (_ran_compat == 2) {
 			x = nrnran123_normal((nrnran123_State*)_p_donotuse);
 		}else{		
-			x = nrn_random_pick(_p_donotuse);
+			x = nrn_random_pick((Rand*)_p_donotuse);
 		}
 #else
 		#pragma acc routine(nrnran123_normal) seq
@@ -272,7 +272,7 @@ PROCEDURE noiseFromRandom() {
 VERBATIM
 #if !NRNBBCORE
  {
-	void** pv = (void**)(&_p_donotuse);
+	Rand** pv = (Rand**)(&_p_donotuse);
 	if (_ran_compat == 2) {
 		fprintf(stderr, "Gfluct3.noiseFromRandom123 was previously called\n");
 		assert(0);
@@ -281,7 +281,7 @@ VERBATIM
 	if (ifarg(1)) {
 		*pv = nrn_random_arg(1);
 	}else{
-		*pv = (void*)0;
+		*pv = (Rand*)0;
 	}
  }
 #endif
@@ -330,7 +330,6 @@ FUNCTION exptrap(loc,x) {
 }
 
 VERBATIM
-#if !NRNBBCORE
 static void bbcore_write(double* x, int* d, int* xx, int *offset, _threadargsproto_) {
 	/* error if using the legacy normrand */
 	if (!_p_donotuse) {
@@ -339,29 +338,45 @@ static void bbcore_write(double* x, int* d, int* xx, int *offset, _threadargspro
 	}
 	if (d) {
 		uint32_t* di = ((uint32_t*)d) + *offset;
+#if !NRNBBCORE
 		if (_ran_compat == 1) { 
-			void** pv = (void**)(&_p_donotuse);
+			char which;
+			Rand** pv = (Rand**)(&_p_donotuse);
 			/* error if not using Random123 generator */
 			if (!nrn_random_isran123(*pv, di, di+1, di+2)) {
 				fprintf(stderr, "Gfluct3: Random123 generator is required\n");
 				assert(0);
 			}
+			/* because coreneuron psolve may not start at t=0 also need the sequence */
+			nrn_random123_getseq(*pv, di+3, &which);
+			di[4] = (int)which;
 		}else{
+#else
+	{
+#endif
+			char which;
 			nrnran123_State** pv = (nrnran123_State**)(&_p_donotuse);
 			nrnran123_getids3(*pv, di, di+1, di+2);
+			nrnran123_getseq(*pv, di+3, &which);
+			di[4] = (int)which;
 		}
-		/*printf("Gfluct3 bbcore_write %d %d %d\n", di[0], di[1], di[3]);*/
+		/*printf("Gfluct3 bbcore_write %d %d %d %d %d\n", di[0], di[1], di[2], di[3], di[4]);*/
 	}
-	*offset += 3;
+	*offset += 5;
 }
-#endif
 
 static void bbcore_read(double* x, int* d, int* xx, int* offset, _threadargsproto_) {
-	assert(!_p_donotuse);
 	uint32_t* di = ((uint32_t*)d) + *offset;
 	nrnran123_State** pv = (nrnran123_State**)(&_p_donotuse);
+#if !NRNBBCORE
+	assert(_ran_compat == 2);
+#endif
+	if (pv) {
+		nrnran123_deletestream(*pv);
+	}
 	*pv = nrnran123_newstream3(di[0], di[1], di[2]);
-	*offset += 3;  
+	nrnran123_setseq(*pv, di[3], (char)di[4]);
+	*offset += 5;
 }
 ENDVERBATIM
 

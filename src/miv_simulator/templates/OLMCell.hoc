@@ -46,6 +46,7 @@ iterator pyitr() {local i, k, x, n, sz localobj itr1, itrn
 }
 
 proc init() {
+
 	gid = $1
         
         apicalidx = new Vector()
@@ -55,7 +56,6 @@ proc init() {
         axonidx = new Vector()
         aisidx = new Vector()
         hilidx = new Vector()
-        
         pyenv = new PythonObject()
     	nrnpython("import numpy as np")
         
@@ -230,16 +230,18 @@ proc get_root() {local i localobj sref
         }
         
 
-proc topol_from_python() { local i,j,l,p,s,p_layer,loc,vlen localobj vsrc, vdst, vloc, secnodes, layers, swc_types
+proc topol_from_python() { local i,j,l,p,s,p_layer,loc,vlen localobj vsrc, vdst, vloc, secnodes, layers, swc_types, nodes
     
     secnodes = $o1
-    layers   = $o2
+    layers   = new Vector()
+    layers.from_python($o2)
     
     vlen     = $o3.size
     vsrc     = pyenv.iter($o3)
     vdst     = pyenv.iter($o4)
     vloc     = pyenv.iter($o5)
-    swc_types = $o6
+    swc_types = new Vector()
+    swc_types.from_python($o6)
     
     nDends = 0
     nSoma  = 0
@@ -248,10 +250,12 @@ proc topol_from_python() { local i,j,l,p,s,p_layer,loc,vlen localobj vsrc, vdst,
     nHill  = 0
     
     for s=0, secnodes.__len__()-1 {
-        
-        p = secnodes.__getitem__(s)._[-1]
-        p_layer = layers._[p]
-        swc_type = swc_types._[p]
+
+    	nodes = new Vector()
+	nodes.from_python(secnodes.__getitem__(s))
+        p = nodes.x[nodes.size()-1]
+        p_layer = layers.x[p]
+        swc_type = swc_types.x[p]
 
         if (swc_type == 4) {
             nDends = nDends + 1
@@ -300,10 +304,14 @@ proc topol_from_python() { local i,j,l,p,s,p_layer,loc,vlen localobj vsrc, vdst,
 proc shape_from_python() { local x,y,z,r,s,p localobj secnodes, pidxs, vx, vy, vz, vradius
     
     secnodes = $o1
-    vx = $o2
-    vy = $o3
-    vz = $o4
-    vradius = $o5
+    vx = new Vector()
+    vx.from_python($o2)
+    vy = new Vector()
+    vy.from_python($o3)
+    vz = new Vector()
+    vz.from_python($o4)
+    vradius = new Vector()
+    vradius.from_python($o5)
     
     create sections[secnodes.__len__()]
     for s=0, secnodes.__len__()-1 {
@@ -312,11 +320,10 @@ proc shape_from_python() { local x,y,z,r,s,p localobj secnodes, pidxs, vx, vy, v
             pt3dconst(0)
             for pyitr (pidxs.size, &p, pyenv.iter(pidxs)) {
                 
-                x = vx._[p]
-                y = vy._[p]
-                z = vz._[p]
-                r = vradius._[p]
-
+                x = vx.x[p]
+                y = vy.x[p]
+                z = vz.x[p]
+                r = vradius.x[p]
                 pt3dadd(x, y, z, 2*r)
             }
         }

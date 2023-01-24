@@ -130,7 +130,7 @@ def generate_soma_coordinates(
     output_path: str,
     geometry_path: Optional[str] = None,
     output_namespace: str = "Generated Coordinates",
-    populations: Tuple[str] = (),
+    populations: Tuple[str, ...] = (),
     resolution: Tuple[int, int, int] = (3, 3, 3),
     alpha_radius: float = 2500.0,
     nodeiter: int = 10,
@@ -248,7 +248,7 @@ def generate_soma_coordinates(
 
     comm.barrier()
     population_ranges = read_population_ranges(output_path, comm)[0]
-    if len(populations) == 0:
+    if not populations:
         populations = sorted(population_ranges.keys())
 
     total_count = 0
