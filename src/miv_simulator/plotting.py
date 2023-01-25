@@ -161,12 +161,6 @@ def hex2rgb(hexcode):
         return tuple(float(b) / 255.0 for b in codecs.decode(bhexcode, "hex"))
 
 
-mpl.rcParams["svg.fonttype"] = "none"
-mpl.rcParams["font.size"] = 14.0
-mpl.rcParams["font.sans-serif"] = "Arial"
-mpl.rcParams["text.usetex"] = False
-
-
 def show_figure():
     plt.show()
 

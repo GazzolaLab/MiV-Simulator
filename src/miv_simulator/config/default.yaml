@@ -11,8 +11,7 @@ Stimulus: !include Input_Configuration.yaml
 Analysis: !include Analysis_Configuration.yaml
 Cell Types:
   PYR:
-    template: SC_nrn
-    mechanism file: PYR_SoldadoMagraner.yaml
+    template: PoolosPyramidalCell
     synapses:
       density: !include PYR_synapse_density.yaml
   OLM:

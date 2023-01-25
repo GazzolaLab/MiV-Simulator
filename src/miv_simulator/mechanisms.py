@@ -13,14 +13,14 @@ if hasattr(h, "nrnmpi_init"):
 from typing import Optional
 
 
-def compile(directory: Optional[str] = None, force: bool = False) -> str:
+def compile(directory: str = "./mechanisms", force: bool = False) -> str:
     """
     Compile NEURON NMODL files
 
     Parameters
     ----------
     directory:
-        Optional directory of the source files. If None, package default machanism will be used
+        Directory for the mechanism source files. Defaults to ./mechanisms
     force : bool
         Force recompile
 
@@ -28,21 +28,16 @@ def compile(directory: Optional[str] = None, force: bool = False) -> str:
     -------
     str: compilation path
     """
-    # infer compilation source
-    default_directory = os.path.join(
-        os.path.dirname(miv_simulator.__file__), "mechanisms"
-    )
-    if directory is None:
-        src = default_directory
-    else:
-        src = os.path.abspath(directory)
+    src = os.path.abspath(directory)
+
+    if not os.path.isdir(src):
+        raise FileNotFoundError(f"Mechanism directory does not exists at {src}")
 
     # attempt to automatically compile
     compiled = os.path.join(src, "compiled")
-    if force:
+    if force and os.path.isdir(compiled):
         # remove compiled directory
-        remove_cmd = commandlib.Command("rm", "-rf")
-        remove_cmd(compiled).run()
+        shutil.rmtree(compiled)
     if not os.path.isdir(compiled):
         print("Attempting to compile *.mod files via nrnivmodl")
         # move into compiled directory
@@ -60,12 +55,19 @@ def compile(directory: Optional[str] = None, force: bool = False) -> str:
     return compiled
 
 
+_compiled_and_loaded = {}
+
+
 def compile_and_load(
-    directory: Optional[str] = None, force: bool = False
+    directory: str = "./mechanisms", force: bool = False
 ) -> str:
     """
     Compile mechanism file on the processor 0, and load the output DLL file into NEURON.
     """
+    if not force and directory in _compiled_and_loaded:
+        # already loaded
+        return _compiled_and_loaded[directory]
+
     comm = MPI.COMM_WORLD
     rank = comm.rank
     if rank == 0:
@@ -80,5 +82,7 @@ def compile_and_load(
         dll_path
     ), f"libnrnmech.so file is not found properly. {dll_path}"
     h(f'nrn_load_dll("{dll_path}")')
+
+    _compiled_and_loaded[directory] = dll_path
 
     return dll_path
