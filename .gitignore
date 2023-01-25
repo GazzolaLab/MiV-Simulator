@@ -1,4 +1,4 @@
-src/miv_simulator/mechanisms/compiled
+tests/mechanisms/compiled
 examples/datasets
 
 # Byte-compiled / optimized / DLL files
