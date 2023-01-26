@@ -1789,6 +1789,32 @@ def init(env: Env) -> None:
                 f"*** Gap junctions created in {env.connectgjstime:.02f} s"
             )
 
+    if env.opsin_config is not None:
+        st = time.time()
+        opsin_pop_dict = {
+            pop_name: set(env.cells[pop_name].keys()).difference(
+                set(env.artificial_cells[pop_name].keys())
+            )
+            for pop_name in env.cells.keys()
+        }
+        rho_params = env.opsin_config["rho parameters"]
+        protocol_params = env.opsin_config["protocol parameters"]
+        env.opto_stim = OptoStim(
+            env.pc,
+            opsin_pop_dict,
+            model_nstates=env.opsin_config["nstates"],
+            opsin_type=env.opsin_config["opsin_type"],
+            protocol=env.opsin_config["protocol"],
+            protocol_params=protocol_params,
+            rho_params=rho_params,
+            seed=int(env.model_config["Random Seeds"].get("Opsin", None)),
+        )
+        env.optotime = time.time() - st
+        if rank == 0:
+            logger.info(
+                "*** Opsin configuration instantiated in {env.optotime:.02f} s"
+            )
+
     if env.profile_memory and rank == 0:
         profile_memory(logger)
 

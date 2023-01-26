@@ -12,7 +12,7 @@ import click
 import h5py
 import numpy as np
 from miv_simulator import spikedata, stimulus, synapses
-from miv_simulator.opsin import runtime as opsin_runtime
+from miv_simulator.opto.run import OptoStim
 from miv_simulator.clamps.cell import init_biophys_cell
 from miv_simulator.cells import (
     h,
@@ -558,16 +558,17 @@ def init(
             )
             for pop_name in env.cells.keys()
         }
-        rho_params_dict = env.opsin_config["parameters"]
-        rho_params = Struct()
-        rho_params.update(rho_params_dict)
-        env.opsin = opsin_runtime.Opsin(
+        rho_params = env.opsin_config["rho parameters"]
+        protocol_params = env.opsin_config["protocol parameters"]
+        env.opto_stim = OptoStim(
             env.pc,
             opsin_pop_dict,
-            nstates=env.opsin_config["nstates"],
+            model_nstates=env.opsin_config["nstates"],
+            opsin_type=env.opsin_config["opsin_type"],
             protocol=env.opsin_config["protocol"],
+            protocol_params=protocol_params,
             rho_params=rho_params,
-            seed=int(env.model_config["Random Seeds"]["Opsin"]),
+            seed=int(env.model_config["Random Seeds"].get("Opsin", None)),
         )
         if rank == 0:
             logger.info("*** Opsin configuration instantiated")
