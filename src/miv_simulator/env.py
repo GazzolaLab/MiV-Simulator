@@ -450,6 +450,17 @@ class Env(AbstractEnv):
             pop_name: set() for pop_name in self.celltypes.keys()
         }
 
+        # Configuration profile for optogenetic stimulation
+        self.opsin_config = None
+        if "Stimulus" in self.model_config:
+            if "Opsin" in self.model_config["Stimulus"]:
+                config = self.model_config["Stimulus"]["Opsin"]
+                self.opsin_config = {
+                    "nstates": config["nstates"],
+                    "protocol": config["protocol"],
+                    "parameters": config["parameters"],
+                }
+
         # Configuration profile for recording intracellular quantities
         self.recording_profile = None
         if ("Recording" in self.model_config) and (
