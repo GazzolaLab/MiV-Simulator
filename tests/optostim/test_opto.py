@@ -73,9 +73,9 @@ class BallAndStick(Cell):
             seg.pas.e = -65  # Leak reversal potential mV
 
 
-def run():
+def test_optostim():
 
-    compile_and_load(force=True)
+    compile_and_load("tests/optostim", force=True)
 
     for gid in range(ngids):
 
