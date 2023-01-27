@@ -1,4 +1,4 @@
-"""Simulation of opsin receptors at the channel, cell, and network level. 
+"""Simulation of opsin receptors at the channel, cell, and network level.
 Based on code from the PyRhO: A Multiscale Optogenetics Simulation Platform
 https://github.com/ProjectPyRhO/PyRhO.git
 """
@@ -263,7 +263,7 @@ class OptoStim:
                         rho._ref_phi, self.tvec, 1, discontinuities
                     )
 
-    def sample(self):
+    def sample(self, rec_index=0):
 
         t_rec = np.array(self.rho_tvec.to_python(), copy=True)
 
@@ -285,13 +285,12 @@ class OptoStim:
                     continue
 
                 rec = rec_dict[gid]
-
-                Iphi = np.array(rec["Iphi"].to_python(), copy=True)
+                Iphi = np.array(rec[rec_index]["Iphi"].to_python(), copy=True)
 
                 # Get solution variables
-                soln = np.zeros((len(t), self.model.nStates))
+                soln = np.zeros((len(t_rec), self.model.nStates))
                 for sInd, s in enumerate(self.model.stateVars):
-                    soln[:, sInd] = np.array(rec[s].to_python())
+                    soln[:, sInd] = np.array(rec[rec_index][s].to_python())
 
                 if not stored:
                     self.model.storeStates(soln[1:], t_rec[1:])
