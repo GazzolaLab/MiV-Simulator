@@ -564,7 +564,7 @@ def init(
             env.pc,
             opsin_pop_dict,
             model_nstates=env.opsin_config["nstates"],
-            opsin_type=env.opsin_config["opsin_type"],
+            opsin_type=env.opsin_config["opsin type"],
             protocol=env.opsin_config["protocol"],
             protocol_params=protocol_params,
             rho_params=rho_params,

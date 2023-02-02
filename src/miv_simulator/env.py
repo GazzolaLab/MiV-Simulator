@@ -456,9 +456,13 @@ class Env(AbstractEnv):
             if "Opsin" in self.model_config["Stimulus"]:
                 config = self.model_config["Stimulus"]["Opsin"]
                 self.opsin_config = {
-                    "nstates": config["nstates"],
+                    "nstates": int(config["nstates"]),
+                    "opsin type": config["opsin type"],
                     "protocol": config["protocol"],
-                    "parameters": config["parameters"],
+                    "protocol parameters": config.get(
+                        "protocol parameters", dict()
+                    ),
+                    "rho parameters": config.get("rho parameters", dict()),
                 }
 
         # Configuration profile for recording intracellular quantities
