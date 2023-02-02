@@ -130,7 +130,7 @@ def generate_soma_coordinates(
     output_path: str,
     geometry_path: Optional[str] = None,
     output_namespace: str = "Generated Coordinates",
-    populations: Tuple[str] = (),
+    populations: Tuple[str, ...] = (),
     resolution: Tuple[int, int, int] = (3, 3, 3),
     alpha_radius: float = 2500.0,
     nodeiter: int = 10,
@@ -248,7 +248,7 @@ def generate_soma_coordinates(
 
     comm.barrier()
     population_ranges = read_population_ranges(output_path, comm)[0]
-    if len(populations) == 0:
+    if not populations:
         populations = sorted(population_ranges.keys())
 
     total_count = 0
@@ -474,13 +474,16 @@ def generate_soma_coordinates(
         coords_count = 0
         coords_count = np.sum(np.asarray(comm.allgather(len(coords))))
 
-        mean_xyz_error = np.asarray(
-            [
-                (total_xyz_error[0] / coords_count),
-                (total_xyz_error[1] / coords_count),
-                (total_xyz_error[2] / coords_count),
-            ]
-        )
+        if coords_count == 0:
+            mean_xyz_error = np.asarray([0.0, 0.0, 0.0])
+        else:
+            mean_xyz_error = np.asarray(
+                [
+                    (total_xyz_error[0] / coords_count),
+                    (total_xyz_error[1] / coords_count),
+                    (total_xyz_error[2] / coords_count),
+                ]
+            )
 
         pop_coords_dict[population] = coords
         coords_offset += gen_coords_count
@@ -541,7 +544,10 @@ def generate_soma_coordinates(
                             coord_v = np.random.uniform(
                                 min_extent[1] + safety, max_extent[1] - safety
                             )
-                            if pop_constraint is None:
+                            if (
+                                pop_constraint is None
+                                or layer not in pop_constraint
+                            ):
                                 coord_l = np.random.uniform(
                                     min_extent[2] + safety,
                                     max_extent[2] - safety,
