@@ -175,8 +175,10 @@ def distribute_synapse_locations(
     dry_run,
     debug,
     config_prefix="",
-    mechanisms_path="./mechanisms",
+    mechanisms_path=None,
 ):
+    if mechanisms_path is None:
+        mechanisms_path = "./mechanisms"
 
     utils.config_logging(verbose)
     logger = utils.get_script_logger(os.path.basename(__file__))
