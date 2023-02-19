@@ -358,7 +358,6 @@ def measure_passive(
     stim_amp=-0.1,
     cell_dict={},
 ):
-
     biophys_cell = init_biophys_cell(
         env, pop_name, gid, register_cell=False, cell_dict=cell_dict
     )
@@ -404,7 +403,6 @@ def measure_passive(
 
 
 def measure_ap(gid, pop_name, v_init, env: AbstractEnv, cell_dict={}):
-
     biophys_cell = init_biophys_cell(
         env, pop_name, gid, register_cell=False, cell_dict=cell_dict
     )
@@ -458,7 +456,6 @@ def measure_ap_rate(
     maxit=5,
     cell_dict={},
 ):
-
     biophys_cell = init_biophys_cell(
         env, pop_name, gid, register_cell=False, cell_dict=cell_dict
     )
@@ -492,7 +489,6 @@ def measure_ap_rate(
     ## Increase the injected current until at least maxspikes spikes occur
     ## or up to maxit steps
     while h.spikelog.size() < minspikes:
-
         logger.info(f"ap_rate_test: iteration {it}")
 
         h.dt = env.dt
@@ -570,7 +566,6 @@ def measure_ap_rate(
 
 
 def measure_fi(gid, pop_name, v_init, env: AbstractEnv, cell_dict={}):
-
     biophys_cell = init_biophys_cell(
         env, pop_name, gid, register_cell=False, cell_dict=cell_dict
     )
@@ -608,7 +603,6 @@ def measure_fi(gid, pop_name, v_init, env: AbstractEnv, cell_dict={}):
     frs = []
     stim_amps = [stim1.amp]
     for it in range(1, 9):
-
         neuron_utils.simulate(v_init, prelength, mainlength)
 
         logger.info(
@@ -635,7 +629,6 @@ def measure_fi(gid, pop_name, v_init, env: AbstractEnv, cell_dict={}):
 
 
 def measure_gap_junction_coupling(gid, population, v_init, env: AbstractEnv):
-
     h("objref gjlist, cells, Vlog1, Vlog2")
 
     pc = env.pc
@@ -723,7 +716,6 @@ def measure_psc(
     load_weights=False,
     cell_dict={},
 ):
-
     biophys_cell = init_biophys_cell(
         env,
         pop_name,
@@ -804,7 +796,6 @@ def measure_psp(
     load_weights=False,
     cell_dict={},
 ):
-
     biophys_cell = init_biophys_cell(
         env,
         pop_name,
@@ -847,7 +838,6 @@ def measure_psp(
     count = 0
     target_syn_pps = None
     for target_syn_id, target_syn in iter(syns.items()):
-
         target_syn_pps = syn_attrs.get_pps(gid, target_syn_id, syn_mech_name)
         target_syn_nc = syn_attrs.get_netcon(gid, target_syn_id, syn_mech_name)
         target_syn_nc.weight[0] = weight
@@ -957,7 +947,6 @@ def cell_clamps(
     verbose,
     config_prefix="",
 ):
-
     config_logging(verbose)
 
     if results_file_id is None:

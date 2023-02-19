@@ -134,7 +134,6 @@ def read_spike_events(
     tmax = 0.0
 
     for pop_name in population_names:
-
         if time_range is None or time_range[1] is None:
             logger.info(
                 f"Reading spike data for population {pop_name} namespace {namespace_id}..."
@@ -175,7 +174,6 @@ def read_spike_events(
                 time_range[0] = 0.0
 
         for spkind, spkattrs in spkiter:
-
             is_artificial_flag = spkattrs.get(artificial_attr, None)
             is_artificial = (
                 (is_artificial_flag[0] > 0)
@@ -400,8 +398,7 @@ def spike_density_estimate(
 
 def spike_bin_counts(spkdict, time_bins):
     bin_dict = {}
-    for (ind, lst) in spkdict.items():
-
+    for ind, lst in spkdict.items():
         if len(lst) > 0:
             spkts = np.asarray(lst, dtype=np.float32)
             bins, bin_edges = np.histogram(spkts, bins=time_bins)

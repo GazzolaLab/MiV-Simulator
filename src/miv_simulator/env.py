@@ -431,7 +431,7 @@ class Env(AbstractEnv):
                     f"env.connectivity_file_path = {str(self.connectivity_file_path)}"
                 )
                 if self.connectivity_file_path is not None:
-                    for (src, dst) in read_projection_names(
+                    for src, dst in read_projection_names(
                         self.connectivity_file_path, comm=comm0
                     ):
                         projection_dict[dst].append(src)
@@ -585,7 +585,7 @@ class Env(AbstractEnv):
         for k, v in stimulus_dict.items():
             if k == "Selectivity Type Probabilities":
                 selectivity_type_prob_dict = {}
-                for (pop, dvals) in v.items():
+                for pop, dvals in v.items():
                     pop_selectivity_type_prob_dict = {}
                     for (
                         selectivity_type_name,
@@ -602,9 +602,9 @@ class Env(AbstractEnv):
                 ] = selectivity_type_prob_dict
             elif k == "Peak Rate":
                 peak_rate_dict = {}
-                for (pop, dvals) in v.items():
+                for pop, dvals in v.items():
                     pop_peak_rate_dict = {}
-                    for (selectivity_type_name, peak_rate) in dvals.items():
+                    for selectivity_type_name, peak_rate in dvals.items():
                         pop_peak_rate_dict[
                             int(self.selectivity_types[selectivity_type_name])
                         ] = float(peak_rate)
@@ -656,7 +656,7 @@ class Env(AbstractEnv):
             ]
 
         template_params = {}
-        for (template_name, params) in template_param_rules_dict.items():
+        for template_name, params in template_param_rules_dict.items():
             template_params[template_name] = params
 
         self.netclamp_config = NetclampConfig(
@@ -741,10 +741,8 @@ class Env(AbstractEnv):
         self.connection_extents = {}
 
         for population in extent_config:
-
             pop_connection_extents = {}
             for layer_name in extent_config[population]:
-
                 if layer_name == "default":
                     pop_connection_extents[layer_name] = {
                         "width": extent_config[population][layer_name]["width"],
@@ -766,10 +764,10 @@ class Env(AbstractEnv):
         synapse_config = connection_config["Synapses"]
         connection_dict = {}
 
-        for (key_postsyn, val_syntypes) in synapse_config.items():
+        for key_postsyn, val_syntypes in synapse_config.items():
             connection_dict[key_postsyn] = {}
 
-            for (key_presyn, syn_dict) in val_syntypes.items():
+            for key_presyn, syn_dict in val_syntypes.items():
                 val_type = syn_dict["type"]
                 val_synsections = syn_dict["sections"]
                 val_synlayers = syn_dict["layers"]
@@ -817,17 +815,15 @@ class Env(AbstractEnv):
                 )
 
             config_dict = defaultdict(lambda: 0.0)
-            for (key_presyn, conn_config) in connection_dict[
-                key_postsyn
-            ].items():
-                for (s, l, p) in zip(
+            for key_presyn, conn_config in connection_dict[key_postsyn].items():
+                for s, l, p in zip(
                     conn_config.sections,
                     conn_config.layers,
                     conn_config.proportions,
                 ):
                     config_dict[(conn_config.type, s, l)] += p
 
-            for (k, v) in config_dict.items():
+            for k, v in config_dict.items():
                 try:
                     assert np.isclose(v, 1.0)
                 except Exception as e:
@@ -922,7 +918,6 @@ class Env(AbstractEnv):
             self.gapjunctions = None
 
     def load_node_rank_map(self, node_rank_file):
-
         rank = 0
         if self.comm is not None:
             rank = self.comm.Get_rank()

@@ -350,7 +350,6 @@ def generate_input_spike_trains(
 
         write_every = max(1, int(math.floor(write_size / comm.size)))
         for population in populations:
-
             req = comm.Ibarrier()
             gc.collect()
             req.wait()
@@ -372,7 +371,6 @@ def generate_input_spike_trains(
             for this_selectivity_namespace in sorted(
                 valid_selectivity_namespaces[population]
             ):
-
                 if rank == 0:
                     logger.info(
                         f"Generating input source spike trains for population {population} [{this_selectivity_namespace}]..."
@@ -515,7 +513,6 @@ def generate_input_spike_trains(
                             )
 
                 if plot:
-
                     if save_fig is not None:
                         fig_options.saveFig = save_fig
 

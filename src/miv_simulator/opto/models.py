@@ -54,7 +54,6 @@ class RhodopsinModel(Struct):
     phi = 0.0  # Instantaneous Light flux [photons * mm^-2 * s^-1]
 
     def __init__(self, rho_type, params):
-
         self.rho_type = rho_type  # E.g. 'ChR2' or 'ArchT'
 
         self.update(params)

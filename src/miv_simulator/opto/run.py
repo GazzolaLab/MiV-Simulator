@@ -42,7 +42,6 @@ class OptoStim:
         sec_rec_count: int = 1,
         seed: int = 1,
     ):
-
         self.rng = np.random.RandomState(seed)
 
         self.max_gid_rec_count = max_gid_rec_count
@@ -78,7 +77,6 @@ class OptoStim:
         self.setup_stim(phi_ts, Dt_delay, cycles)
 
     def init_dt(self):
-
         """Function to set the time step according to the protocol and rhodopsin"""
 
         self.dt = self.protocol.getShortestPeriod()
@@ -87,9 +85,7 @@ class OptoStim:
             logger.info(f"Time step reduced to {h.dt} by optogenetic protocol")
 
     def init_mechanisms(self):
-
         for pop_name in self.pop_gid_dict:
-
             gid_set = self.pop_gid_dict[pop_name]
             sec_dict = self.pop_sec_dict[pop_name]
             rho_dict = self.pop_rho_dict[pop_name]
@@ -98,7 +94,6 @@ class OptoStim:
             expProb = self.rho_params["expProb"]
 
             for gid in gid_set:
-
                 if not self.pc.gid_exists(gid):
                     continue
 
@@ -123,13 +118,11 @@ class OptoStim:
                             sec_list.append(sec)
 
     def init_recording(self):
-
         # Record time points
         self.rho_tvec = h.Vector()
         self.rho_tvec.record(h._ref_t)
 
         for pop_name in self.pop_gid_dict:
-
             gid_set = self.pop_gid_dict[pop_name]
             sec_dict = self.pop_sec_dict[pop_name]
             rho_dict = self.pop_rho_dict[pop_name]
@@ -137,7 +130,6 @@ class OptoStim:
             this_gid_rec_count = 0
 
             for gid in gid_set:
-
                 if not self.pc.gid_exists(gid):
                     continue
 
@@ -153,7 +145,6 @@ class OptoStim:
                 rec_dict[gid] = rec_rho_list
 
                 for rec in rec_rho_list:
-
                     sec = rec["section"]
 
                     # Record photocurrent
@@ -248,12 +239,10 @@ class OptoStim:
 
         # Iterate over all opsin mechanisms and initialize instantaneous fluxes
         for pop_name in self.pop_gid_dict:
-
             gid_set = self.pop_gid_dict[pop_name]
             rho_dict = self.pop_rho_dict[pop_name]
 
             for gid in gid_set:
-
                 if gid not in rho_dict:
                     continue
 
@@ -264,7 +253,6 @@ class OptoStim:
                     )
 
     def sample(self, rec_index=0):
-
         t_rec = np.array(self.rho_tvec.to_python(), copy=True)
 
         pop_result_dict = defaultdict(lambda: {})
@@ -272,12 +260,10 @@ class OptoStim:
         stored = False
 
         for pop_name in self.pop_gid_dict:
-
             gid_set = self.pop_gid_dict[pop_name]
             rec_dict = self.pop_rec_dict[pop_name]
 
             for gid in gid_set:
-
                 if not self.pc.gid_exists(gid):
                     continue
 

@@ -44,7 +44,6 @@ def main(
     include_artificial,
     verbose,
 ):
-
     utils.config_logging(verbose)
 
     if t_max is None:

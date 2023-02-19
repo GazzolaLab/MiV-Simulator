@@ -105,7 +105,6 @@ def show_celltypes(input_path: str, output=print):
     """
 
     with h5py.File(input_path, "r") as h5:
-
         dt_population_labels = h5[path_population_labels]
         enum_dtype_dict = h5py.h5t.check_enum_dtype(dt_population_labels.dtype)
         population_idx_dict = {enum_dtype_dict[k]: k for k in enum_dtype_dict}
@@ -124,13 +123,11 @@ def show_celltypes(input_path: str, output=print):
 
 
 def import_celltypes(celltype_path, output_path):
-
     import csv
 
     population_dict = {}
 
     with open(celltype_path) as infile:
-
         reader = csv.DictReader(infile, delimiter="\t")
         for row in reader:
             celltype = row["celltype"]
@@ -153,7 +150,6 @@ def import_celltypes(celltype_path, output_path):
     dt_population_labels = h5py.special_dtype(enum=(np.uint16, mapping))
 
     with h5py.File(output_path, "x") as h5:
-
         h5[path_population_labels] = dt_population_labels
 
         dt_populations = np.dtype(
@@ -196,7 +192,6 @@ def import_spikeraster(
     progress=False,
     comm=None,
 ):
-
     if progress:
         import tqdm
 
@@ -241,7 +236,6 @@ def import_spikeraster(
         it = enumerate(zip(gid_array, gid_bins))
 
     for i, (gid, pop_idx) in it:
-
         pop_name = populations[pop_idx][0]
         pop_start = populations[pop_idx][0]
         spk_t = spike_array["time"][i]
@@ -249,7 +243,6 @@ def import_spikeraster(
         pop_spk_dict[pop_name][gid].append(spk_t)
 
     for pop_name, _, _ in populations:
-
         this_spk_dict = pop_spk_dict[pop_name]
         logger.info(
             f"Saving spike data for population {pop_name} gid set {sorted(this_spk_dict.keys())}"
@@ -296,7 +289,6 @@ def make_h5types(env: AbstractEnv, output_path, gap_junctions=False):
     dt_population_labels = h5py.special_dtype(enum=(np.uint16, mapping))
 
     with h5py.File(output_path, "a") as h5:
-
         h5[path_population_labels] = dt_population_labels
 
         dt_populations = np.dtype(
@@ -607,7 +599,6 @@ def lfpout(env: AbstractEnv, output_path: str):
     """
 
     for lfp in list(env.lfp.values()):
-
         if env.results_namespace_id is None:
             namespace_id = f"Local Field Potential {str(lfp.label)}"
         else:
@@ -718,7 +709,6 @@ def write_cell_selection(
         pop_names = populations
 
     for pop_name in pop_names:
-
         gid_range = [
             gid
             for i, gid in enumerate(env.cell_selection[pop_name])
@@ -822,8 +812,7 @@ def write_connection_selection(
 
     input_sources = {pop_name: set() for pop_name in env.celltypes}
 
-    for (postsyn_name, presyn_names) in sorted(env.projection_dict.items()):
-
+    for postsyn_name, presyn_names in sorted(env.projection_dict.items()):
         gc.collect()
 
         if rank == 0:
@@ -874,9 +863,7 @@ def write_connection_selection(
         del syn_attributes_iter
 
         if has_weights:
-
             for weight_dict in weight_dicts:
-
                 weights_namespaces = weight_dict["namespace"]
 
                 if rank == 0:
@@ -929,7 +916,6 @@ def write_connection_selection(
             edge_count = 0
             node_count = 0
             if postsyn_name in graph:
-
                 if (
                     postsyn_name in attr_info
                     and presyn_name in attr_info[postsyn_name]
@@ -963,8 +949,7 @@ def write_connection_selection(
                     ),
                     graph[postsyn_name][presyn_name],
                 )
-                for (postsyn_gid, edges) in edge_iter:
-
+                for postsyn_gid, edges in edge_iter:
                     presyn_gids, edge_attrs = edges
                     edge_syn_ids = edge_attrs["Synapses"][syn_id_attr_index]
                     edge_dists = edge_attrs["Connections"][distance_attr_index]
@@ -1028,7 +1013,6 @@ def write_input_cell_selection(
         pop_names = populations
 
     for pop_name, gid_range in sorted(input_sources.items()):
-
         gc.collect()
 
         if pop_name not in pop_names:
@@ -1081,7 +1065,6 @@ def write_input_cell_selection(
             )
 
         if has_spike_train:
-
             vecstim_attr_set = {"t"}
             if env.spike_input_attr is not None:
                 vecstim_attr_set.add(env.spike_input_attr)
@@ -1123,7 +1106,6 @@ def write_input_cell_selection(
 
 
 def query_cell_attributes(input_file, population_names, namespace_ids=None):
-
     pop_state_dict = {}
 
     logger.info("Querying cell attribute data...")

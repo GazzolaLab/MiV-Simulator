@@ -46,7 +46,6 @@ def main(
     save_fig,
     verbose,
 ):
-
     utils.config_logging(verbose)
 
     if t_max is None:

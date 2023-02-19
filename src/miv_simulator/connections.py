@@ -58,9 +58,7 @@ class ConnectionProb:
         self.scale_factor = defaultdict(dict)
 
         for source_population, layer_extents in extents.items():
-
             for layer, extents in layer_extents.items():
-
                 extent_width = extents["width"]
                 if "offset" in extents:
                     extent_offset = extents["offset"]
@@ -167,8 +165,7 @@ class ConnectionProb:
         max_distance_u = source_width["u"] + source_offset["u"]
         max_distance_v = source_width["v"] + source_offset["v"]
 
-        for (source_gid, coords) in source_coords.items():
-
+        for source_gid, coords in source_coords.items():
             source_u, source_v, source_l = coords
 
             source_distance_u, source_distance_v = source_distances[source_gid]
@@ -379,7 +376,7 @@ def generate_synaptic_connections(
             logger.info(f"synapse_dict = {synapse_dict}")
         synapse_prj_counts.fill(0)
         synapse_prj_partition.clear()
-        for (syn_id, syn_cdist, syn_type, swc_type, syn_layer) in zip(
+        for syn_id, syn_cdist, syn_type, swc_type, syn_layer in zip(
             synapse_dict["syn_ids"],
             synapse_dict["syn_cdists"],
             synapse_dict["syn_types"],

@@ -70,7 +70,6 @@ def random_subset(iterator, K):
 def gen_min_energy_nodes(
     count, domain, constraint, nodeiter, dispersion_delta, snap_delta
 ):
-
     N = int(count * 2)  # layer-specific number of nodes
     node_count = 0
 
@@ -142,7 +141,6 @@ def generate_soma_coordinates(
     verbose: bool = False,
     config_prefix="",
 ):
-
     config_logging(verbose)
     logger = get_script_logger(script_name)
 
@@ -297,8 +295,8 @@ def generate_soma_coordinates(
                 smp = np.asarray(alpha.bounds, dtype=np.int64)
 
                 extents_xyz = layer_extent_transformed_vals[layer]
-                for (vvi, vv) in enumerate(vert):
-                    for (vi, v) in enumerate(vv):
+                for vvi, vv in enumerate(vert):
+                    for vi, v in enumerate(vv):
                         if v < extents_xyz[vi][0]:
                             vert[vvi][vi] = extents_xyz[vi][0]
                         elif v > extents_xyz[vi][1]:
@@ -414,9 +412,7 @@ def generate_soma_coordinates(
         for i, coord_ind in enumerate(
             range(coords_offset, coords_offset + gen_coords_count)
         ):
-
             if i % size == rank:
-
                 uvl_coords = all_uvl_coords_interp[coord_ind, :].ravel()
                 xyz_coords1 = all_xyz_coords_interp[coord_ind, :].ravel()
                 if uvl_in_bounds(
@@ -506,7 +502,6 @@ def generate_soma_coordinates(
     comm0 = comm.Split(color, 0)
 
     for population in populations:
-
         pop_start, pop_count = population_ranges[population]
         pop_layers = env.geometry["Cell Distribution"][population]
         pop_constraint = None

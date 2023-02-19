@@ -52,7 +52,6 @@ def read_cell_attributes(file_path, population, namespace):
         for attribute, group in f[grp_populations][population][
             namespace
         ].items():
-
             cell_index = group[cell_index_name]
             attr_pointer = group[cell_attr_pointer_name]
             attr_value = group[cell_attr_value_name]
@@ -67,7 +66,6 @@ def read_cell_attributes(file_path, population, namespace):
 
 
 def read_spikes(file_path, population, attr_name="t", namespace="Spike Events"):
-
     spike_attrs = read_cell_attributes(file_path, population, namespace)
 
     return spike_attrs[attr_name]

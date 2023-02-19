@@ -21,7 +21,6 @@ def network_meshgrid(
     rotate=None,
     return_uvl=False,
 ):
-
     ures, vres, lres = resolution
 
     obs_u = np.linspace(extent_u[0], extent_u[1], num=ures)
@@ -64,7 +63,6 @@ def make_network_volume(
 
 
 def test_mplot_volume():
-
     extent_u = [0.0, 4000.0]
     extent_v = [0.0, 1250.0]
     extent_l = [0.0, 100.0]
@@ -81,7 +79,6 @@ def test_mplot_volume():
 
 
 def test_tri():
-
     extent_u = [0.0, 4000.0]
     extent_v = [0.0, 1250.0]
     extent_l = [0.0, 100.0]
@@ -96,7 +93,6 @@ def test_tri():
 
 
 def test_alpha_shape():
-
     extent_u = [0.0, 4000.0]
     extent_v = [0.0, 1250.0]
     extent_l = [0.0, 100.0]

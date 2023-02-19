@@ -104,10 +104,10 @@ def synapse_seg_density(
         secnodes_dict = neurotree_dict["section_topology"]["nodes"]
     else:
         secnodes_dict = None
-    for (syn_type_label, layer_density_dict) in layer_density_dicts.items():
+    for syn_type_label, layer_density_dict in layer_density_dicts.items():
         syn_type = syn_type_dict[syn_type_label]
         rans = {}
-        for (layer_label, density_dict) in layer_density_dict.items():
+        for layer_label, density_dict in layer_density_dict.items():
             if layer_label == "default":
                 layer = layer_label
             else:
@@ -195,10 +195,10 @@ def synapse_seg_counts(
         secnodes_dict = neurotree_dict["section_topology"]["nodes"]
     else:
         secnodes_dict = None
-    for (syn_type_label, layer_density_dict) in layer_density_dicts.items():
+    for syn_type_label, layer_density_dict in layer_density_dicts.items():
         syn_type = syn_type_dict[syn_type_label]
         rans = {}
-        for (layer_label, density_dict) in layer_density_dict.items():
+        for layer_label, density_dict in layer_density_dict.items():
             if layer_label == "default":
                 layer = layer_label
             else:
@@ -285,7 +285,7 @@ def distribute_uniform_synapses(
 
     sec_interp_loc_dict = {}
     segcounts_per_sec = {}
-    for (sec_name, layer_density_dict) in sec_layer_density_dict.items():
+    for sec_name, layer_density_dict in sec_layer_density_dict.items():
         sec_index_dict = cell_secidx_dict[sec_name]
         swc_type = swc_type_dict[sec_name]
         seg_list = []
@@ -297,7 +297,7 @@ def distribute_uniform_synapses(
             sec_interp_loc_dict[idx] = interplocs(sec)
         sec_dict = {int(idx): sec for sec, idx in zip(seclst, secidxlst)}
         seg_dict = {}
-        for (sec_index, sec) in sec_dict.items():
+        for sec_index, sec in sec_dict.items():
             seg_list = []
             if maxdist is None:
                 for seg in sec:
@@ -324,7 +324,7 @@ def distribute_uniform_synapses(
         )
         segcounts_per_sec[sec_name] = segcounts_dict
         sample_size = total
-        for (syn_type_label, _) in layer_density_dict.items():
+        for syn_type_label, _ in layer_density_dict.items():
             syn_type = syn_type_dict[syn_type_label]
             segcounts = segcounts_dict[syn_type]
             layers = layers_dict[syn_type]
@@ -425,8 +425,7 @@ def distribute_poisson_synapses(
     seg_density_per_sec = {}
     r = np.random.RandomState()
     r.seed(int(density_seed))
-    for (sec_name, layer_density_dict) in sec_layer_density_dict.items():
-
+    for sec_name, layer_density_dict in sec_layer_density_dict.items():
         swc_type = swc_type_dict[sec_name]
         seg_dict = {}
         L_total = 0
@@ -475,7 +474,7 @@ def distribute_poisson_synapses(
             neurotree_dict=neurotree_dict,
         )
         seg_density_per_sec[sec_name] = seg_density_dict
-        for (syn_type_label, _) in layer_density_dict.items():
+        for syn_type_label, _ in layer_density_dict.items():
             syn_type = syn_type_dict[syn_type_label]
             seg_density = seg_density_dict[syn_type]
             layers = layers_dict[syn_type]
@@ -681,7 +680,7 @@ class SynapseAttributes:
 
         first_gid = True
         if attr_type == "dict":
-            for (gid, attr_dict) in cell_iter:
+            for gid, attr_dict in cell_iter:
                 syn_ids = attr_dict["syn_ids"]
                 syn_layers = attr_dict["syn_layers"]
                 syn_types = attr_dict["syn_types"]
@@ -705,7 +704,7 @@ class SynapseAttributes:
             swc_types_ind = attr_tuple_index.get("swc_types", None)
             syn_secs_ind = attr_tuple_index.get("syn_secs", None)
             syn_locs_ind = attr_tuple_index.get("syn_locs", None)
-            for (gid, attr_tuple) in cell_iter:
+            for gid, attr_tuple in cell_iter:
                 syn_ids = attr_tuple[syn_ids_ind]
                 syn_layers = attr_tuple[syn_layers_ind]
                 syn_types = attr_tuple[syn_types_ind]
@@ -736,7 +735,6 @@ class SynapseAttributes:
         syn_secs: ndarray,
         syn_locs: ndarray,
     ) -> None:
-
         """
         Initializes synaptic attributes for the given cell gid.
         Only the intrinsic properties of a synapse, such as type, layer, location are set.
@@ -870,7 +868,7 @@ class SynapseAttributes:
                 f"init_edge_attrs_from_iter: missing edge attributes for projection {presyn_name} -> {pop_name}"
             )
 
-        for (postsyn_gid, edges) in edge_iter:
+        for postsyn_gid, edges in edge_iter:
             presyn_gids, edge_attrs = edges
             edge_syn_ids = edge_attrs["Synapses"][syn_id_attr_index]
             edge_dists = edge_attrs["Connections"][distance_attr_index]
@@ -1241,7 +1239,6 @@ class SynapseAttributes:
                 else:
                     attr_dict[k] = new_val
             elif k in rules[mech_name]["netcon_params"]:
-
                 mech_param = mech_params.get(k, None)
                 if isinstance(mech_param, ExprClosure):
                     if mech_param.parameters[0] == "delay":
@@ -1665,7 +1662,6 @@ def insert_hoc_cell_syns(
     nc_count = 0
     mech_count = 0
     for syn_id in syn_ids:
-
         syn = syn_id_attr_dict[syn_id]
         swc_type = syn.swc_type
         syn_loc = syn.syn_loc
@@ -1702,7 +1698,6 @@ def insert_hoc_cell_syns(
             mech_params = syn_params[swc_type]
 
         for syn_name, params in mech_params.items():
-
             syn_mech = make_syn_mech(
                 syn_name=syn_name,
                 seg=sec(syn_loc),
@@ -1994,7 +1989,6 @@ def config_hoc_cell_syns(
     total_syn_id_count = 0
     config_time = time.time()
     for presyn_name, source_syns in source_syn_dict.items():
-
         if source_syns is None:
             continue
 
@@ -2659,7 +2653,6 @@ def set_syn_mech_param(
     update_targets=False,
     verbose=False,
 ):
-
     """Provided a synaptic mechanism, a parameter, a node, a list of
     syn_ids, and a dict of rules. Sets placeholder values for each
     provided syn_id in the syn_mech_attr_dict of a SynapseAttributes
@@ -2794,7 +2787,6 @@ def write_syn_spike_count(
                     output_dict[syn_name][gid][source_population] += spike_count
 
     for syn_name in sorted(output_dict):
-
         syn_attrs_dict = output_dict[syn_name]
         attr_dict = defaultdict(lambda: dict())
 

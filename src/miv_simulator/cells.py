@@ -15,6 +15,7 @@ from miv_simulator.utils import (
     zip_longest,
 )
 from miv_simulator.utils.neuron import (
+    BRKconfig,
     PRconfig,
     default_hoc_sec_lists,
     default_ordered_sec_types,
@@ -258,6 +259,147 @@ def make_section_graph(neurotree_dict):
     return sec_graph
 
 
+class BRKneuron:
+    """
+    An implementation of a Booth-Rinzel-Kiehn-type reduced biophysical
+    neuron model for simulation in NEURON.  Conforms to the same API
+    as BiophysCell.
+
+    """
+
+    def __init__(
+        self, gid, pop_name, env=None, cell_config=None, mech_dict=None
+    ):
+        """
+
+        :param gid: int
+        :param pop_name: str
+        :param env: :class:'Env'
+        :param cell_config: :namedtuple:'BRKconfig'
+        """
+        self._gid = gid
+        self._pop_name = pop_name
+        self.tree = nx.DiGraph()
+        self.count = 0  # Keep track of number of nodes
+        if env is not None:
+            for sec_type in env.SWC_Types:
+                if sec_type not in default_ordered_sec_types:
+                    raise AttributeError(
+                        "Warning! unexpected SWC Type definitions found in Env"
+                    )
+        self.nodes = {key: [] for key in default_ordered_sec_types}
+        self.mech_file_path = None
+        self.init_mech_dict = dict(mech_dict) if mech_dict is not None else None
+        self.mech_dict = dict(mech_dict) if mech_dict is not None else None
+
+        self.random = np.random.RandomState()
+        self.random.seed(self.gid)
+        self.spike_detector = None
+        self.spike_onset_delay = 0.0
+        self.is_reduced = True
+        if not isinstance(cell_config, BRKconfig):
+            raise RuntimeError(
+                "BRKneuron: argument cell_attrs must be of type BRKconfig"
+            )
+
+        param_dict = {
+            "pp": cell_config.pp,
+            "Ltotal": cell_config.Ltotal,
+            "gc": cell_config.gc,
+            "soma_gmax_Na": cell_config.soma_gmax_Na,
+            "soma_gmax_K": cell_config.soma_gmax_K,
+            "soma_gmax_KCa": cell_config.soma_gmax_KCa,
+            "soma_gmax_CaN": cell_config.soma_gmax_CaN,
+            "soma_f_Caconc": cell_config.soma_f_Caconc,
+            "soma_kCa_Caconc": cell_config.soma_kCa_Caconc,
+            "soma_alpha_Caconc": cell_config.soma_alpha_Caconc,
+            "soma_g_pas": cell_config.soma_g_pas,
+            "dend_gmax_CaL": cell_config.dend_gmax_CaL,
+            "dend_gmax_CaN": cell_config.dend_gmax_CaN,
+            "dend_gmax_KCa": cell_config.dend_gmax_KCa,
+            "dend_g_pas": cell_config.dend_g_pas,
+            "dend_f_Caconc": cell_config.dend_f_Caconc,
+            "dend_kCa_Caconc": cell_config.dend_kCa_Caconc,
+            "dend_alpha_Caconc": cell_config.dend_alpha_Caconc,
+            "cm_ratio": cell_config.cm_ratio,
+            "global_cm": cell_config.global_cm,
+            "global_diam": cell_config.global_diam,
+            "e_pas": cell_config.e_pas,
+        }
+
+        BRK_nrn = h.BRK_nrn(param_dict)
+        BRK_nrn.soma.ic_constant = cell_config.ic_constant
+
+        self.hoc_cell = BRK_nrn
+
+        soma_node = insert_section_node(self, "soma", index=0, sec=BRK_nrn.soma)
+        apical_node = insert_section_node(
+            self, "apical", index=1, sec=BRK_nrn.dend
+        )
+        connect_nodes(
+            self.tree, self.soma[0], self.apical[0], connect_hoc_sections=False
+        )
+
+        init_spike_detector(self, threshold=cell_config.V_threshold)
+
+    def update_cell_attrs(self, **kwargs):
+        for attr_name, attr_val in kwargs.items():
+            if attr_name in BRKconfig._fields:
+                setattr(self.hoc_cell, attr_name, attr_val)
+
+    @property
+    def gid(self):
+        return self._gid
+
+    @property
+    def pop_name(self):
+        return self._pop_name
+
+    @property
+    def soma(self):
+        return self.nodes["soma"]
+
+    @property
+    def axon(self):
+        return self.nodes["axon"]
+
+    @property
+    def basal(self):
+        return self.nodes["basal"]
+
+    @property
+    def apical(self):
+        return self.nodes["apical"]
+
+    @property
+    def trunk(self):
+        return self.nodes["trunk"]
+
+    @property
+    def tuft(self):
+        return self.nodes["tuft"]
+
+    @property
+    def spine(self):
+        return self.nodes["spine_head"]
+
+    @property
+    def spine_head(self):
+        return self.nodes["spine_head"]
+
+    @property
+    def spine_neck(self):
+        return self.nodes["spine_neck"]
+
+    @property
+    def ais(self):
+        return self.nodes["ais"]
+
+    @property
+    def hillock(self):
+        return self.nodes["hillock"]
+
+
 class PRneuron:
     """
     An implementation of a Pinsky-Rinzel-type reduced biophysical neuron model for simulation in NEURON.
@@ -326,7 +468,9 @@ class PRneuron:
         apical_node = insert_section_node(
             self, "apical", index=1, sec=PR_nrn.dend
         )
-        connect_nodes(self.soma[0], self.apical[0], connect_hoc_sections=False)
+        connect_nodes(
+            self.tree, self.soma[0], self.apical[0], connect_hoc_sections=False
+        )
 
         init_spike_detector(self, threshold=cell_config.V_threshold)
 
@@ -690,7 +834,7 @@ def get_node_children(
 
 
 def insert_section_node(
-    cell: Union[BiophysCell, SCneuron],
+    cell: Union[BiophysCell, SCneuron, PRneuron, BRKneuron],
     section_type: str,
     index: int,
     sec: Section,
@@ -1276,7 +1420,7 @@ def make_morph_graph(biophys_cell, node_filters={}):
             dst_pt = pts[i]
             edges.append((src_pt, dst_pt))
 
-    for (s, d, parent_loc) in zip(src_sec, dst_sec, connection_locs):
+    for s, d, parent_loc in zip(src_sec, dst_sec, connection_locs):
         for src_pt in sec_pts[s]:
             if pt_locs[src_pt] >= parent_loc:
                 break
@@ -1441,7 +1585,7 @@ def load_biophys_cell_dicts(
         if pop_name in graph:
             for presyn_name in graph[pop_name].keys():
                 edge_iter = graph[pop_name][presyn_name]
-                for (postsyn_gid, edges) in edge_iter:
+                for postsyn_gid, edges in edge_iter:
                     connection_graphs[postsyn_gid][pop_name][presyn_name] = [
                         (postsyn_gid, edges)
                     ]
@@ -1489,7 +1633,6 @@ def init_circuit_context(
     set_edge_delays: bool = True,
     **kwargs,
 ) -> None:
-
     syn_attrs = env.synapse_attributes
     synapse_config = env.celltypes[pop_name]["synapses"]
 
@@ -1545,9 +1688,7 @@ def init_circuit_context(
             )
 
     if init_weights and has_weights:
-
         for weight_config_dict in weight_config:
-
             expr_closure = weight_config_dict.get("closure", None)
             weights_namespaces = weight_config_dict["namespace"]
 
@@ -1921,6 +2062,84 @@ def make_biophys_cell(
     return cell
 
 
+def make_BRK_cell(
+    env: AbstractEnv,
+    pop_name,
+    gid,
+    mech_file_path=None,
+    mech_dict=None,
+    tree_dict=None,
+    load_synapses=False,
+    synapses_dict=None,
+    load_edges=False,
+    connection_graph=None,
+    load_weights=False,
+    weight_dict=None,
+    set_edge_delays=True,
+    bcast_template=True,
+    **kwargs,
+):
+    """
+    :param env: :class:'Env'
+    :param pop_name: str
+    :param gid: int
+    :param mech_file_path: str (path)
+    :param mech_dict: dict
+    :param synapses_dict: dict
+    :param weight_dicts: list of dict
+    :param load_synapses: bool
+    :param load_edges: bool
+    :param load_weights: bool
+    :param set_edge_delays: bool
+    :return: :class:'BRKneuron'
+    """
+    load_cell_template(env, pop_name, bcast_template=bcast_template)
+
+    if mech_dict is None and mech_file_path is None:
+        raise RuntimeError(
+            "make_BRK_cell: mech_dict or mech_file_path must be specified"
+        )
+
+    if mech_dict is None and mech_file_path is not None:
+        mech_dict = read_from_yaml(mech_file_path)
+
+    cell = BRKneuron(
+        gid=gid,
+        pop_name=pop_name,
+        env=env,
+        cell_config=BRKconfig(**mech_dict["BoothRinzelKiehn"]),
+        mech_dict={
+            k: mech_dict[k] for k in mech_dict if k != "BoothRinzelKiehn"
+        },
+    )
+
+    circuit_flag = (
+        load_edges
+        or load_weights
+        or load_synapses
+        or synapses_dict
+        or weight_dict
+        or connection_graph
+    )
+    if circuit_flag:
+        init_circuit_context(
+            env,
+            pop_name,
+            gid,
+            load_synapses=load_synapses,
+            synapses_dict=synapses_dict,
+            load_edges=load_edges,
+            connection_graph=connection_graph,
+            load_weights=load_weights,
+            weight_dict=weight_dict,
+            set_edge_delays=set_edge_delays,
+            **kwargs,
+        )
+
+    env.biophys_cells[pop_name][gid] = cell
+    return cell
+
+
 def make_PR_cell(
     env: AbstractEnv,
     pop_name,
@@ -2195,7 +2414,6 @@ def record_cell(
                             gid, syn_id, syn_name, throw_error=False
                         )
                         if (pps is not None) and (pps not in env.recs_pps_set):
-
                             rec_id = "%d.%s.%s" % (
                                 syn_id,
                                 syn_name,

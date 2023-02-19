@@ -254,7 +254,6 @@ def clean_axes(axes, left=True, right=False):
 
 
 def plot_spatial_bin_graph(graph_dict, **kwargs):
-
     import hiveplot as hv
 
     edge_dflt_colors = ["red", "crimson", "coral", "purple"]
@@ -414,7 +413,6 @@ def plot_coords_in_volume(
     mayavi=False,
     config_prefix="",
 ):
-
     from miv_simulator.geometry.geometry import get_total_extents
 
     env = Env(config=config, config_prefix=config_prefix)
@@ -437,7 +435,7 @@ def plot_coords_in_volume(
     cmap_range = np.linspace(0, 1, num=len(populations))
 
     colors = []
-    for (pop_id, population) in enumerate(populations):
+    for pop_id, population in enumerate(populations):
         coords = read_cell_attributes(
             coords_path, population, namespace=coords_namespace
         )
@@ -446,7 +444,7 @@ def plot_coords_in_volume(
         cxcoords = []
         cycoords = []
         czcoords = []
-        for (k, v) in coords:
+        for k, v in coords:
             count += 1
             cxcoords.append(v["X Coordinate"][0])
             cycoords.append(v["Y Coordinate"][0])
@@ -595,7 +593,7 @@ def plot_cell_tree(
     loc_x = []
     loc_y = []
     loc_z = []
-    for (s, d, l) in zip(src, dst, loc):
+    for s, d, l in zip(src, dst, loc):
         srcnode = secnodes[s][l]
         dstnode = secnodes[d][0]
         edges.append((srcnode, dstnode))
@@ -630,7 +628,6 @@ def plot_cell_tree(
         edge_color = hex2rgb(rainbow_colors[gid % len(rainbow_colors)])
 
     if mayavi:
-
         from mayavi import mlab
 
         mlab.figure(bgcolor=(0, 0, 0))
@@ -692,7 +689,6 @@ def plot_cell_tree(
         ax.add_artist(layer_legend)
 
         for i, j in g.edges:
-
             e_x = (x[i], x[j])
             e_y = (y[i], y[j])
             e_z = (z[i], z[j])
@@ -867,7 +863,6 @@ def plot_spike_raster(
         axes = [axes]
 
     for i, pop_name in enumerate(spkpoplst):
-
         if pop_name not in pop_spk_dict:
             continue
 
@@ -1198,7 +1193,7 @@ def plot_spike_histogram(
                 subset, spkdict, time_bins, progress=progress, **baks_config
             )
             bin_dict = defaultdict(lambda: {"rates": 0.0, "active": 0})
-            for (ind, dct) in sdf_dict.items():
+            for ind, dct in sdf_dict.items():
                 rate = dct["rate"]
                 for ibin in range(0, len(time_bins)):
                     d = bin_dict[ibin]
@@ -1215,7 +1210,7 @@ def plot_spike_histogram(
             spkdict = spikedata.make_spike_dict(spkinds, spkts)
             count_bin_dict = spikedata.spike_bin_counts(spkdict, time_bins)
             bin_dict = defaultdict(lambda: {"counts": 0, "active": 0})
-            for (ind, counts) in count_bin_dict.items():
+            for ind, counts in count_bin_dict.items():
                 for ibin in range(0, len(time_bins) - 1):
                     d = bin_dict[ibin]
                     d["counts"] += counts[ibin]
@@ -1230,7 +1225,6 @@ def plot_spike_histogram(
 
     # Plot separate line for each entry in include
     for iplot, subset in enumerate(spkpoplst):
-
         hist_x = time_bins + (bin_size / 2)
         bin_dict = hist_dict[subset]
 
@@ -1370,7 +1364,6 @@ def plot_lfp(
     )
     fig = plt.figure(figsize=fig_options.figSize)
     if env is None:
-
         lfp_array = np.loadtxt(
             input_path, dtype=np.dtype([("t", np.float32), ("v", np.float32)])
         )
@@ -1381,7 +1374,7 @@ def plot_lfp(
         else:
             tlst = []
             vlst = []
-            for (t, v) in zip(lfp_array["t"], lfp_array["v"]):
+            for t, v in zip(lfp_array["t"], lfp_array["v"]):
                 if time_range[0] <= t <= time_range[1]:
                     tlst.append(t)
                     vlst.append(v)
@@ -1472,7 +1465,7 @@ def plot_lfp(
             else:
                 tlst = []
                 vlst = []
-                for (t, v) in zip(
+                for t, v in zip(
                     infile[namespace_id]["t"], infile[namespace_id]["v"]
                 ):
                     if time_range[0] <= t <= time_range[1]:
@@ -1583,7 +1576,6 @@ def plot_lfp_spectrogram(
         nrows=nrows, ncols=ncols, figsize=fig_options.figSize, squeeze=False
     )
     if env is None:
-
         lfp_array = np.loadtxt(
             input_path, dtype=np.dtype([("t", np.float32), ("v", np.float32)])
         )
@@ -1594,7 +1586,7 @@ def plot_lfp_spectrogram(
         else:
             tlst = []
             vlst = []
-            for (t, v) in zip(lfp_array["t"], lfp_array["v"]):
+            for t, v in zip(lfp_array["t"], lfp_array["v"]):
                 if time_range[0] <= t <= time_range[1]:
                     tlst.append(t)
                     vlst.append(v)
@@ -1657,7 +1649,7 @@ def plot_lfp_spectrogram(
             else:
                 tlst = []
                 vlst = []
-                for (t, v) in zip(
+                for t, v in zip(
                     infile[namespace_id]["t"], infile[namespace_id]["v"]
                 ):
                     if time_range[0] <= t <= time_range[1]:
@@ -1875,7 +1867,6 @@ def plot_biophys_cell_tree(
         ax.add_artist(layer_legend)
 
         for i, j in morph_graph.edges:
-
             e_x = (xcoords[i], xcoords[j])
             e_y = (ycoords[i], ycoords[j])
             e_z = (zcoords[i], zcoords[j])
@@ -1935,7 +1926,6 @@ def plot_biophys_cell_tree(
 # Get radially averaged PSD of 2D PSD (total power spectrum by angular bin)
 # =============================================================================
 def get_RPSD(psd2D, dTheta=30, rMin=10, rMax=100):
-
     h = psd2D.shape[0]
     w = psd2D.shape[1]
     wc = w // 2
@@ -2150,7 +2140,6 @@ def plot_2D_histogram(
 
 def plot_2D_point_density(data, width=100, height=100, ax=None, inc=0.3):
     def points_image(data, height, width, inc=0.3):
-
         xlims = (data[:, 0].min(), data[:, 0].max())
         ylims = (data[:, 1].min(), data[:, 1].max())
         dxl = xlims[1] - xlims[0]
@@ -2276,13 +2265,13 @@ def plot_intracellular_state(
         )
         states = data["states"]
 
-        for (pop_name, pop_states) in states.items():
-            for (gid, cell_states) in pop_states.items():
+        for pop_name, pop_states in states.items():
+            for gid, cell_states in pop_states.items():
                 pop_states_dict[pop_name][gid][namespace_id] = cell_states
 
     pop_state_mat_dict = defaultdict(lambda: dict())
-    for (pop_name, pop_states) in pop_states_dict.items():
-        for (gid, cell_state_dict) in pop_states.items():
+    for pop_name, pop_states in pop_states_dict.items():
+        for gid, cell_state_dict in pop_states.items():
             nss = sorted(cell_state_dict.keys())
             cell_state_x = cell_state_dict[nss[0]][time_variable]
             cell_state_mat = np.matrix(
@@ -2326,10 +2315,8 @@ def plot_intracellular_state(
         ax_lowpass = ax
 
     legend_labels = []
-    for (pop_name, pop_states) in pop_state_mat_dict.items():
-
-        for (gid, cell_state_mat) in pop_states.items():
-
+    for pop_name, pop_states in pop_state_mat_dict.items():
+        for gid, cell_state_mat in pop_states.items():
             m, n = cell_state_mat[1].shape
             st_x = cell_state_mat[0][0].reshape((n,))
 
@@ -2356,7 +2343,6 @@ def plot_intracellular_state(
                 legend_labels.append(f"{pop_name} {gid}")
 
             else:
-
                 cell_states = [
                     np.asarray(cell_state_mat[1][i, :]).reshape((n,))
                     for i in range(m)
@@ -2899,8 +2885,8 @@ def plot_network_clamp(
     states = indata["states"]
     stvplots = []
 
-    for (pop_name, pop_states) in states.items():
-        for (gid, cell_states) in pop_states.items():
+    for pop_name, pop_states in states.items():
+        for gid, cell_states in pop_states.items():
             st_len = cell_states[intracellular_variable][0].shape[0]
             st_xs = [x[:st_len] for x in cell_states[time_variable]]
             st_ys = [y[:st_len] for y in cell_states[intracellular_variable]]
@@ -3067,7 +3053,7 @@ def plot_single_vertex_dist(
     dist_bins = {}
 
     if direction == "in":
-        for (destination_gid, rest) in g:
+        for destination_gid, rest in g:
             if destination_gid == target_gid:
                 (source_indexes, attr_dict) = rest
                 for source_gid in source_indexes:
@@ -3076,7 +3062,7 @@ def plot_single_vertex_dist(
                     update_bins(dist_bins, bin_size, dist_u, dist_v)
                 break
     elif direction == "out":
-        for (destination_gid, rest) in g:
+        for destination_gid, rest in g:
             if rest is not None:
                 (source_indexes, attr_dict) = rest
                 for source_gid in source_indexes:
@@ -3091,7 +3077,6 @@ def plot_single_vertex_dist(
     dist_bins = comm.reduce(dist_bins, op=add_bins_op)
 
     if rank == 0:
-
         dist_hist_vals, dist_u_bin_edges, dist_v_bin_edges = finalize_bins(
             dist_bins, bin_size
         )
@@ -3231,7 +3216,6 @@ def init_spatial_rasters(
     pop_colors,
     **kwargs,
 ):
-
     fig_options = copy.copy(default_fig_options)
     fig_options.update(kwargs)
 
@@ -3242,7 +3226,7 @@ def init_spatial_rasters(
     min_V = None
     max_U = None
     max_V = None
-    for (pop_name, spkinds, spkts) in data:
+    for pop_name, spkinds, spkts in data:
         distances_U = distances_U_dict[pop_name]
         distances_V = distances_V_dict[pop_name]
         rinds = np.where(np.logical_and(spkts[0] >= t0, spkts[0] <= t1))
@@ -3283,6 +3267,7 @@ def init_spatial_rasters(
 
 
 spatial_raster_aniplots = []
+
 
 ## Plot spike raster
 def plot_spatial_spike_raster(

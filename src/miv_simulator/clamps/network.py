@@ -92,7 +92,6 @@ def generate_weights(env, weight_source_rules, this_syn_attrs):
     weights_dict = {}
 
     if len(weight_source_rules) > 0:
-
         for presyn_id, weight_rule in weight_source_rules.items():
             source_syn_dict = defaultdict(list)
 
@@ -202,7 +201,6 @@ def init_inputs_from_spikes(
     ## Organize spike times by index of presynaptic population and gid
     input_source_dict = {}
     for population in populations:
-
         pop_index = int(env.Populations[population])
         spk_pop_index = list_index(population, spkpoplst)
         if spk_pop_index is None:
@@ -334,7 +332,6 @@ def init_inputs_from_features(
                 comm=env.comm,
             )
             for gid, selectivity_attr_dict in input_features_iter:
-
                 phase_mod_config = None
                 if phase_mod_config_dict is not None:
                     phase_mod_config = phase_mod_config_dict[gid]
@@ -499,7 +496,6 @@ def init(
             presyn_sources[presyn_name].add(presyn_gid)
 
     for presyn_name in presyn_names:
-
         presyn_gid_set = env.comm.reduce(
             presyn_sources[presyn_name], root=0, op=mpi_op_set_union
         )
@@ -795,14 +791,11 @@ def run(env, cvode=False, pc_runworker=False):
 
 
 def update_params(env, pop_param_dict):
-
     for population, param_tuple_dict in pop_param_dict.items():
-
         synapse_config = env.celltypes[population]["synapses"]
         weights_dict = synapse_config.get("weights", {})
         biophys_cell_dict = env.biophys_cells[population]
         for gid, param_tuples in param_tuple_dict.items():
-
             if gid not in biophys_cell_dict:
                 continue
             biophys_cell = biophys_cell_dict[gid]
@@ -810,8 +803,7 @@ def update_params(env, pop_param_dict):
             if hasattr(biophys_cell, "is_reduced"):
                 is_reduced = biophys_cell.is_reduced
 
-            for (param_tuple, param_value) in param_tuples:
-
+            for param_tuple, param_value in param_tuples:
                 assert population == param_tuple.population
 
                 source = param_tuple.source
@@ -976,7 +968,6 @@ def init_state_objfun(
     worker,
     **kwargs,
 ):
-
     params = dict(locals())
     params["config"] = params.pop("config_file")
     env = Env(**params)
@@ -1140,7 +1131,6 @@ def init_rate_objfun(
     worker,
     **kwargs,
 ):
-
     params = dict(locals())
     params["config"] = params.pop("config_file")
     env = Env(**params)
@@ -1393,7 +1383,6 @@ def init_rate_dist_objfun(
     worker,
     **kwargs,
 ):
-
     params = dict(locals())
     params["config"] = params.pop("config_file")
     env = Env(**params)
@@ -1995,7 +1984,6 @@ def go(
     recording_profile,
     input_seed,
 ):
-
     """
     Runs network clamp simulation for the specified gid, or for all gids found in the input data file.
     """

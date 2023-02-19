@@ -608,7 +608,7 @@ def read_stimulus(stimulus_path, stimulus_namespace, population, module=None):
         gid_module_gen = read_cell_attributes(
             stimulus_path, population, namespace="Cell Attributes"
         )
-        for (gid, attr_dict) in gid_module_gen:
+        for gid, attr_dict in gid_module_gen:
             this_module = attr_dict["Module"][0]
             if this_module == module:
                 module_gid_set.add(gid)
@@ -692,7 +692,6 @@ def rate_maps_from_features(
     include_time=False,
     phase_mod_config=None,
 ):
-
     """Initializes presynaptic spike sources from a file with input selectivity features represented as firing rates."""
 
     if input_features_dict is not None:
@@ -780,7 +779,6 @@ def rate_maps_from_features(
         input_features_iter = input_features_dict.items()
 
     for gid, selectivity_attr_dict in input_features_iter:
-
         this_selectivity_type = selectivity_attr_dict["Selectivity Type"][0]
         this_selectivity_type_name = selectivity_type_names[
             this_selectivity_type
@@ -817,7 +815,6 @@ def arena_rate_maps_from_features(
     time_range=None,
     n_trials=1,
 ):
-
     """Initializes presynaptic spike sources from a file with input selectivity features represented as firing rates."""
 
     if time_range is not None:
@@ -865,7 +862,6 @@ def arena_rate_maps_from_features(
         io_size=env.io_size,
     )
     for gid, selectivity_attr_dict in input_features_iter:
-
         this_selectivity_type = selectivity_attr_dict["Selectivity Type"][0]
         this_selectivity_type_name = selectivity_type_names[
             this_selectivity_type
@@ -1058,7 +1054,6 @@ def spatial2d_phase_mod(
     mod_depth,
     freq,
 ):
-
     x_mod = spatial_phase_mod(
         x,
         velocity,

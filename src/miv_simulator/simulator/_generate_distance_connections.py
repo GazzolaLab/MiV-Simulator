@@ -151,7 +151,6 @@ def generate_distance_connections(
         )
 
     for destination_population in destination_populations:
-
         if rank == 0:
             logger.info(
                 f"Generating connection probabilities for population {destination_population}..."

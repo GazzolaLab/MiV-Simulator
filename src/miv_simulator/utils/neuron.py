@@ -75,6 +75,38 @@ PRconfig = namedtuple(
 )
 
 
+BRKconfig = namedtuple(
+    "BRKconfig",
+    [
+        "pp",
+        "Ltotal",
+        "gc",
+        "soma_gmax_Na",
+        "soma_gmax_K",
+        "soma_gmax_KCa",
+        "soma_gmax_CaN",
+        "soma_g_pas",
+        "dend_gmax_CaL",
+        "dend_gmax_CaN",
+        "dend_gmax_KCa",
+        "dend_g_pas",
+        "soma_f_Caconc",
+        "soma_alpha_Caconc",
+        "soma_kCa_Caconc",
+        "dend_f_Caconc",
+        "dend_alpha_Caconc",
+        "dend_kCa_Caconc",
+        "global_cm",
+        "global_diam",
+        "ic_constant",
+        "cm_ratio",
+        "e_pas",
+        "V_rest",
+        "V_threshold",
+    ],
+)
+
+
 HocCellInterface = namedtuple(
     "HocCellInterface",
     [
@@ -548,7 +580,6 @@ def run_iclamp(
     stim_amp=0.0001,
     use_cvode=True,
 ):
-
     h.cvode.use_fast_imem(1)
     h.cvode.cache_efficient(1)
     h.secondorder = 2

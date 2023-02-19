@@ -950,7 +950,6 @@ def baks(spktimes, time, a=1.5, b=None):
 
 
 def get_R2(y_test, y_pred):
-
     """
     Obtain coefficient of determination (R-squared, R2)
 
@@ -1162,7 +1161,6 @@ def signal_power_spectrogram(signal, fs, window_size, window_overlap):
 
 
 def signal_psd(s, Fs, frequency_range=(0, 500), window_size=4096, overlap=0.9):
-
     nperseg = window_size
     win = signal.get_window("hanning", nperseg)
     noverlap = int(overlap * nperseg)

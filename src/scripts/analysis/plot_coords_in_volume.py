@@ -48,7 +48,6 @@ def main(
     mayavi,
     verbose,
 ):
-
     utils.config_logging(verbose)
     plot.plot_coords_in_volume(
         populations,

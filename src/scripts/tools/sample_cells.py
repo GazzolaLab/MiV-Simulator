@@ -113,7 +113,6 @@ def main(
     stimulus_id,
     verbose,
 ):
-
     utils.config_logging(verbose)
     logger = utils.get_script_logger(os.path.basename(__file__))
 

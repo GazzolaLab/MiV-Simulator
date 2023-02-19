@@ -79,7 +79,6 @@ def feature_edges(G, points, theta=1e-6):
 
 
 def true_boundary(simplices, points):
-
     G = tri_graph(simplices)
 
     # Find edges attached to two coplanar faces

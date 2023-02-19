@@ -268,7 +268,6 @@ class StGen:
         return spike_train
 
     def _inh_adaptingmarkov_generator_python(self, a, bq, tau, t, t_stop):
-
         """
         Returns a SpikeList whose spikes are an inhomogeneous
         realization (dynamic rate) of the so-called adapting markov
@@ -380,7 +379,6 @@ class StGen:
     def _inh_2Dadaptingmarkov_generator_python(
         self, a, bq, tau_s, tau_r, qrqs, t, t_stop
     ):
-
         """
         Returns a SpikeList whose spikes are an inhomogeneous
         realization (dynamic rate) of the so-called 2D adapting markov

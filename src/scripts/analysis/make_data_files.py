@@ -88,7 +88,6 @@ with h5py.File(MiV_cells_file, "w") as f:
 
 ## Creates coordinates entries
 with h5py.File(MiV_cells_file, "a") as f_dst:
-
     grp = f_dst.create_group("Populations")
 
     for p in MiV_populations:
@@ -126,7 +125,7 @@ for p in MiV_populations:
 
 
 ## Creates vector stimulus entries
-for (vecstim_ns, vecstim_file) in vecstim_dict.items():
+for vecstim_ns, vecstim_file in vecstim_dict.items():
     for p in MiV_EXT_populations:
         vecstim_dset_path = f"/Populations/{p}/{vecstim_ns}"
         cmd = (

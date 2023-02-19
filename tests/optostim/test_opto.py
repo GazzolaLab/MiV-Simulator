@@ -74,13 +74,10 @@ class BallAndStick(Cell):
 
 
 def test_optostim():
-
     compile_and_load("tests/optostim", force=True)
 
     for gid in range(ngids):
-
         if gid % nranks == myrank:
-
             print(f"Creating gid {gid} on rank {myrank}")
 
             cell = BallAndStick(gid)

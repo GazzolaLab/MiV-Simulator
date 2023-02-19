@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "miv-simulator"
-version = "0.0.2"
+version = "0.0.3"
 description = "Mind-in-Vitro simulator"
 readme = "README.md"
 authors = []

@@ -78,7 +78,6 @@ def main(
     line_width,
     verbose,
 ):
-
     utils.config_logging(verbose)
 
     if t_max is None:
