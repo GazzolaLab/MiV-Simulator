@@ -40,7 +40,7 @@ sys.excepthook = mpi_excepthook
 
 
 def debug_callback(context):
-    from MiV.plot import close_figure, plot_2D_rate_map
+    from miv_simulator.plotting import close_figure, plot_2D_rate_map
 
     fig_title = "%s %s cell %i" % (
         context.population,
@@ -233,7 +233,7 @@ def generate_input_features(
     comm.barrier()
     population_ranges = read_population_ranges(coords_path, comm)[0]
 
-    if len(populations) == 0:
+    if not populations:
         populations = sorted(population_ranges.keys())
 
     reference_u_arc_distance_bounds_dict = {}

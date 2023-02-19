@@ -29,6 +29,7 @@ from miv_simulator.simulator import distribute_synapse_locations
 @click.option(
     "--mechanisms-path",
     "-m",
+    default="./mechanisms",
     required=False,
     type=click.Path(exists=True, dir_okay=True, file_okay=False),
 )

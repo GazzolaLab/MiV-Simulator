@@ -7,6 +7,7 @@ from collections import defaultdict
 import h5py
 import numpy as np
 from miv_simulator import cells, synapses, utils
+from miv_simulator.mechanisms import compile_and_load
 from miv_simulator.cells import load_cell_template
 from miv_simulator.env import Env
 from miv_simulator.utils.neuron import configure_hoc_env
@@ -171,7 +172,11 @@ def distribute_synapse_locations(
     dry_run,
     debug,
     config_prefix="",
+    mechanisms_path=None,
 ):
+    if mechanisms_path is None:
+        mechanisms_path = "./mechanisms"
+
     utils.config_logging(verbose)
     logger = utils.get_script_logger(os.path.basename(__file__))
 
@@ -180,6 +185,8 @@ def distribute_synapse_locations(
 
     if rank == 0:
         logger.info(f"{comm.size} ranks have been allocated")
+
+    compile_and_load(directory=mechanisms_path)
 
     env = Env(
         comm=comm,

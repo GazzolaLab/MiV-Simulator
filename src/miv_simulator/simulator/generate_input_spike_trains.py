@@ -5,17 +5,13 @@ import os
 import sys
 import time
 from collections import defaultdict
+from typing import Dict, Union, List
 
 import click
 import h5py
 import numpy as np
 from miv_simulator.env import Env
-from miv_simulator.stimulus import (
-    generate_input_spike_trains,
-    generate_linear_trajectory,
-    get_equilibration,
-    oscillation_phase_mod_config,
-)
+from miv_simulator import stimulus
 from miv_simulator.utils import (
     Struct,
     config_logging,
@@ -209,7 +205,7 @@ def generate_input_spike_trains(
 
     population_ranges = read_population_ranges(selectivity_path, comm)[0]
 
-    if len(populations) == 0:
+    if not populations:
         populations = sorted(population_ranges.keys())
 
     soma_positions_dict = None
@@ -287,14 +283,14 @@ def generate_input_spike_trains(
         val: key for (key, val) in env.selectivity_types.items()
     }
 
-    equilibrate = get_equilibration(env)
+    equilibrate = stimulus.get_equilibration(env)
 
     logger.info(f"trajectories: {arena.trajectories}")
     for trajectory_id in sorted(arena.trajectories.keys()):
         trajectory = arena.trajectories[trajectory_id]
         t, x, y, d = None, None, None, None
         if rank == 0:
-            t, x, y, d = generate_linear_trajectory(
+            t, x, y, d = stimulus.generate_linear_trajectory(
                 trajectory,
                 temporal_resolution=env.stimulus_config["Temporal Resolution"],
                 equilibration_duration=env.stimulus_config[
@@ -359,7 +355,7 @@ def generate_input_spike_trains(
 
             phase_mod_config_dict = None
             if phase_mod:
-                phase_mod_config_dict = oscillation_phase_mod_config(
+                phase_mod_config_dict = stimulus.oscillation_phase_mod_config(
                     env, population, soma_positions_dict[population]
                 )
 
@@ -401,7 +397,9 @@ def generate_input_spike_trains(
                         phase_mod_config = None
                         if phase_mod_config_dict is not None:
                             phase_mod_config = phase_mod_config_dict[gid]
-                        spikes_attr_dict[gid] = generate_input_spike_trains(
+                        spikes_attr_dict[
+                            gid
+                        ] = stimulus.generate_input_spike_trains(
                             env,
                             population,
                             selectivity_type_names,
@@ -527,3 +525,45 @@ def generate_input_spike_trains(
 
     if is_interactive and rank == 0:
         context.update(locals())
+
+
+def import_input_spike_train(
+    data: Dict[int, Union[List, np.ndarray]],
+    output_filepath: str,
+    namespace: str = "Custom",
+    attr_name: str = "Input Spikes",
+    population: str = "STIM",
+) -> None:
+    """Takes data representing spike trains and writes it to a input spike HD5 output file
+
+    :param data: A dictionary where keys represent the global ID of input neurons and value are array-likes with spike times in seconds
+    :param output_filepath: Output HD5 file path
+    :param namespace: HD5 target namespace
+    :param attr_name: HD5 attribute name
+    :param population: Neuron population
+    """
+
+    def _validate_key(_key):
+        try:
+            return int(_key)
+        except Exception as _e:
+            raise ValueError(
+                f"Spike train data contains invalid neuron GID. Expected int key but found '{_key}'"
+            ) from _e
+
+    output_spike_attr_dict = dict(
+        {
+            _validate_key(k): {
+                attr_name: np.array(v, dtype=np.float32)
+                * 1000  # to miliseconds
+            }
+            for k, v in data.items()
+        }
+    )
+
+    append_cell_attributes(
+        output_filepath,
+        population,
+        output_spike_attr_dict,
+        namespace=namespace,
+    )
