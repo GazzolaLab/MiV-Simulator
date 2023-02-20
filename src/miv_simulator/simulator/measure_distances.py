@@ -118,7 +118,6 @@ def measure_distances(
     )
 
     for population in list(sorted(soma_distances.keys())):
-
         if rank == 0:
             logger.info(f"Writing distances for population {population}...")
 

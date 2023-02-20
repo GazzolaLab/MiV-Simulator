@@ -65,7 +65,6 @@ def main(
     fig_format,
     verbose,
 ):
-
     utils.config_logging(verbose)
     logger = utils.get_script_logger(os.path.basename(script_name))
 

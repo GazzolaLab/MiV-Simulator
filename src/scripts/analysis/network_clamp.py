@@ -705,5 +705,4 @@ cli.add_command(optimize)
 
 
 def main_cli():
-
     cli(sys.argv[1:])

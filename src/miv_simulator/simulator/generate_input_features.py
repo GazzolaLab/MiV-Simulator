@@ -359,7 +359,6 @@ def generate_input_features(
         for iter_count, (gid, distances_attr_dict) in enumerate(
             distances_attr_gen
         ):
-
             req = comm.Ibarrier()
             if gid is not None:
                 if rank == 0:

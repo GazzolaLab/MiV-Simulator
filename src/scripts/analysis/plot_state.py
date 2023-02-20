@@ -46,7 +46,6 @@ def main(
     distance,
     verbose,
 ):
-
     utils.config_logging(verbose)
     logger = utils.get_script_logger(script_name)
 

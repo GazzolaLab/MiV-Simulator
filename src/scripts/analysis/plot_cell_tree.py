@@ -42,7 +42,6 @@ def main(
     mayavi,
     verbose,
 ):
-
     (tree_iter, _) = read_tree_selection(
         forest_path, population, selection=[gid]
     )

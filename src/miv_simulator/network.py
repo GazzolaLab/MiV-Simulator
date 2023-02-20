@@ -118,8 +118,7 @@ def connect_cells(env: Env) -> None:
         logger.info("*** Reading projections: ")
 
     biophys_cell_count = 0
-    for (postsyn_name, presyn_names) in sorted(env.projection_dict.items()):
-
+    for postsyn_name, presyn_names in sorted(env.projection_dict.items()):
         if rank == 0:
             logger.info(f"*** Reading projections of population {postsyn_name}")
 
@@ -173,7 +172,6 @@ def connect_cells(env: Env) -> None:
             for iter_count, (gid, gid_attr_data) in enumerate(
                 synapses_attr_gen
             ):
-
                 if gid is not None:
                     (attr_tuple, attr_tuple_index) = gid_attr_data
                     syn_ids_ind = attr_tuple_index.get("syn_ids", None)
@@ -253,9 +251,7 @@ def connect_cells(env: Env) -> None:
         weight_attr_mask.append("syn_id")
 
         if has_weights:
-
             for weight_dict in weight_dicts:
-
                 expr_closure = weight_dict.get("closure", None)
                 weights_namespaces = weight_dict["namespace"]
 
@@ -289,7 +285,6 @@ def connect_cells(env: Env) -> None:
                 append_weights = False
                 multiple_weights = "error"
                 for weights_namespace in weights_namespaces:
-
                     syn_weights_iter, weight_attr_info = weight_attr_dict[
                         weights_namespace
                     ]
@@ -566,7 +561,6 @@ def connect_cell_selection(env):
     selection_pop_names = sorted(env.cell_selection.keys())
     biophys_cell_count = 0
     for postsyn_name in sorted(env.projection_dict.keys()):
-
         if rank == 0:
             logger.info(f"*** Postsynaptic population: {postsyn_name}")
 
@@ -629,9 +623,7 @@ def connect_cell_selection(env):
         weight_attr_mask.append("syn_id")
 
         if has_weights:
-
             for weight_dict in weight_dicts:
-
                 expr_closure = weight_dict.get("closure", None)
                 weights_namespaces = weight_dict["namespace"]
 
@@ -643,7 +635,6 @@ def connect_cell_selection(env):
                 multiple_weights = "error"
 
                 for weights_namespace in weights_namespaces:
-
                     (
                         syn_weights_iter,
                         weight_attr_info,
@@ -728,7 +719,6 @@ def connect_cell_selection(env):
         env.edge_count[postsyn_name] = 0
         if postsyn_name in graph:
             for presyn_name in presyn_names:
-
                 logger.info(f"*** Connecting {presyn_name} -> {postsyn_name}")
 
                 edge_iter = graph[postsyn_name][presyn_name]
@@ -789,7 +779,6 @@ def connect_cell_selection(env):
     assert len(gids) == biophys_cell_count
 
     for gid in gids:
-
         last_time = time.time()
         if first_gid is None:
             first_gid = gid
@@ -847,7 +836,6 @@ def connect_gjs(env: Env) -> None:
     num_gj_intra = 0
     num_gj_inter = 0
     if gapjunctions_file_path is not None:
-
         (graph, a) = bcast_graph(
             gapjunctions_file_path,
             namespaces=["Coupling strength", "Location"],
@@ -967,6 +955,7 @@ def make_cells(env: Env) -> None:
                     f"*** Mechanism file for population {pop_name} is {mech_file_path}"
                 )
 
+        is_BRK = template_name.lower() == "brk_nrn"
         is_PR = template_name.lower() == "pr_nrn"
         is_SC = template_name.lower() == "sc_nrn"
         num_cells = 0
@@ -1010,6 +999,12 @@ def make_cells(env: Env) -> None:
                         gid=gid, pop_name=pop_name, env=env, mech_dict=mech_dict
                     )
                     cells.register_cell(env, pop_name, gid, PR_cell)
+
+                elif is_BRK:
+                    BRK_cell = cells.make_BRK_cell(
+                        gid=gid, pop_name=pop_name, env=env, mech_dict=mech_dict
+                    )
+                    cells.register_cell(env, pop_name, gid, BRK_cell)
 
                 else:
                     hoc_cell = cells.make_hoc_cell(
@@ -1093,6 +1088,11 @@ def make_cells(env: Env) -> None:
                         gid=gid, pop_name=pop_name, env=env, mech_dict=mech_dict
                     )
                     cells.register_cell(env, pop_name, gid, PR_cell)
+                elif is_BRK:
+                    BRK_cell = cells.make_BRK_cell(
+                        gid=gid, pop_name=pop_name, env=env, mech_dict=mech_dict
+                    )
+                    cells.register_cell(env, pop_name, gid, BRK_cell)
                 else:
                     hoc_cell = cells.make_hoc_cell(env, pop_name, gid)
                     cell_x = cell_coords[x_index][0]
@@ -1180,6 +1180,7 @@ def make_cell_selection(env):
         else:
             mech_dict = None
 
+        is_BRK = template_name.lower() == "brk_nrn"
         is_PR = template_name.lower() == "pr_nrn"
         is_SC = template_name.lower() == "sc_nrn"
         num_cells = 0
@@ -1197,7 +1198,6 @@ def make_cell_selection(env):
 
             first_gid = None
             for i, (gid, tree) in enumerate(trees):
-
                 if rank == 0:
                     logger.info(f"*** Creating {pop_name} gid {gid}")
                 if first_gid == None:
@@ -1219,6 +1219,14 @@ def make_cell_selection(env):
                         param_dict=mech_dict,
                     )
                     cells.register_cell(env, pop_name, gid, PR_cell)
+                elif is_BRK:
+                    BRK_cell = cells.make_BRK_cell(
+                        gid=gid,
+                        pop_name=pop_name,
+                        env=env,
+                        param_dict=mech_dict,
+                    )
+                    cells.register_cell(env, pop_name, gid, BRK_cell)
                 else:
                     hoc_cell = cells.make_hoc_cell(
                         env, pop_name, gid, neurotree_dict=tree
@@ -1293,6 +1301,14 @@ def make_cell_selection(env):
                         param_dict=mech_dict,
                     )
                     cells.register_cell(env, pop_name, gid, PR_cell)
+                elif is_BRK:
+                    BRK_cell = cells.make_BRK_cell(
+                        gid=gid,
+                        pop_name=pop_name,
+                        env=env,
+                        param_dict=mech_dict,
+                    )
+                    cells.register_cell(env, pop_name, gid, BRK_cell)
                 else:
                     hoc_cell = cells.make_hoc_cell(env, pop_name, gid)
 
@@ -1330,7 +1346,6 @@ def make_input_cell_selection(env):
     for pop_name, input_gid_range in sorted(
         env.microcircuit_input_sources.items()
     ):
-
         pop_index = int(env.Populations[pop_name])
 
         has_spike_train = False
@@ -1438,7 +1453,6 @@ def init_input_cells(env: Env) -> None:
     trial_index_attr = "Trial Index"
     trial_dur_attr = "Trial Duration"
     for pop_name in pop_names:
-
         if "spike train" in env.celltypes[pop_name]:
             if env.arena_id and env.stimulus_id:
                 vecstim_namespace = f"{env.celltypes[pop_name]['spike train']['namespace']} {env.arena_id} {env.stimulus_id}"
@@ -1477,9 +1491,7 @@ def init_input_cells(env: Env) -> None:
                     )
 
             if has_vecstim:
-
-                for (input_path, input_ns, input_attr) in vecstim_source_loc:
-
+                for input_path, input_ns, input_attr in vecstim_source_loc:
                     if rank == 0:
                         logger.info(
                             f"*** Initializing stimulus population {pop_name} from input path {input_path} namespace {vecstim_namespace}"
@@ -1559,7 +1571,7 @@ def init_input_cells(env: Env) -> None:
                     trial_dur_attr_index = vecstim_attr_info.get(
                         trial_dur_attr, None
                     )
-                    for (gid, vecstim_tuple) in vecstim_iter:
+                    for gid, vecstim_tuple in vecstim_iter:
                         if not (env.pc.gid_exists(gid)):
                             continue
 
@@ -1598,9 +1610,7 @@ def init_input_cells(env: Env) -> None:
     gc.collect()
 
     if env.microcircuit_inputs:
-
         for pop_name in sorted(env.microcircuit_input_sources.keys()):
-
             gid_range = env.microcircuit_input_sources.get(pop_name, set())
 
             if (env.cell_selection is not None) and (
@@ -1641,7 +1651,6 @@ def init_input_cells(env: Env) -> None:
                     f"*** Initializing input source {pop_name} from locations {spike_input_source_loc}"
                 )
             if has_spike_train:
-
                 vecstim_attr_set = {"t", trial_index_attr, trial_dur_attr}
                 if env.spike_input_attr is not None:
                     vecstim_attr_set.add(env.spike_input_attr)
@@ -1651,7 +1660,7 @@ def init_input_cells(env: Env) -> None:
                             env.celltypes[pop_name]["spike train"]["attribute"]
                         )
                 cell_spikes_items = []
-                for (input_path, input_ns) in spike_input_source_loc:
+                for input_path, input_ns in spike_input_source_loc:
                     item = scatter_read_cell_attribute_selection(
                         input_path,
                         pop_name,

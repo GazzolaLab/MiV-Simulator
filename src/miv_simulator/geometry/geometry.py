@@ -96,7 +96,6 @@ def get_layer_extents(layer_extents, layer):
 
 
 def get_total_extents(layer_extents):
-
     min_u = float("inf")
     max_u = 0.0
 
@@ -136,7 +135,6 @@ def uvl_in_bounds(uvl_coords, layer_extents, pop_layers):
 
 
 def make_alpha_shape(vol, alpha_radius=120.0):
-
     logger.info("Constructing volume triangulation...")
 
     tri = vol.create_triangulation()
@@ -511,7 +509,7 @@ def interp_soma_distances(
                 )
                 raise e
 
-        for (i, gid) in enumerate(gids):
+        for i, gid in enumerate(gids):
             local_dist_dict[gid] = (distance_u[i], distance_v[i])
             if rank == 0:
                 logger.info(
@@ -642,7 +640,6 @@ def measure_distances(
     interp_chunk_size=1000,
     allgather=False,
 ):
-
     rank = comm.rank
 
     layer_extents = geometry_config["Parametric Surface"]["Layer Extents"]
@@ -673,7 +670,6 @@ def measure_distances(
 
 
 def measure_distance_extents(geometry_config, volume):
-
     layer_extents = geometry_config["Parametric Surface"]["Layer Extents"]
 
     (extent_u, extent_v, extent_l) = get_total_extents(layer_extents)
@@ -806,7 +802,7 @@ def icp_transform(
         all_est_uvl_coords = []
         all_interp_err = []
 
-        for (k, cloud_prj) in enumerate(projection_ls):
+        for k, cloud_prj in enumerate(projection_ls):
             k_est_xyz_coords = np.zeros((len(gids), 3))
             k_est_uvl_coords = np.zeros((len(gids), 3))
             interp_err = np.zeros((len(gids),))
@@ -828,9 +824,7 @@ def icp_transform(
                     f_uvl_distance, limits[0], limits[1], opt_iter
                 )
                 k_est_uvl_coords[i, :] = uvl_coords
-                interp_err[
-                    i,
-                ] = err
+                interp_err[i,] = err
                 if rank == 0:
                     logger.info(
                         "gid %i: u: %f v: %f l: %f"
@@ -841,7 +835,7 @@ def icp_transform(
             all_interp_err.append(interp_err)
 
         coords_dict = {}
-        for (i, gid) in enumerate(gids):
+        for i, gid in enumerate(gids):
             coords_dict[gid] = {
                 "X Coordinate": np.asarray(
                     [col[i, 0] for col in all_est_xyz_coords], dtype="float32"

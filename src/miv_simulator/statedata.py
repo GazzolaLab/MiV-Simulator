@@ -13,7 +13,6 @@ logger = get_module_logger(__name__)
 
 
 def query_state(input_file, population_names, namespace_ids=None):
-
     pop_state_dict = {}
 
     logger.info("Querying state data...")

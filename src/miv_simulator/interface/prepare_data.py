@@ -87,7 +87,6 @@ class PrepareData(Experiment):
 
         print("Import coordinate entries")
         with h5py.File(self.output_filepath("cells"), "a") as f_dst:
-
             grp = f_dst.create_group("Populations")
 
             for p in MiV_populations:
@@ -153,7 +152,7 @@ class PrepareData(Experiment):
             f"Input Spikes {stim_id}": stim_file
             for stim_id, stim_file in vecstim_file_dict.items()
         }
-        for (vecstim_ns, vecstim_file) in vecstim_dict.items():
+        for vecstim_ns, vecstim_file in vecstim_dict.items():
             for p in MiV_EXT_populations:
                 vecstim_dset_path = f"/Populations/{p}/{vecstim_ns}"
                 cmd = [

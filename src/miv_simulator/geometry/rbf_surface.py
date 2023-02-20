@@ -96,7 +96,6 @@ class RBFSurface:
         return self.ev(*args, **kwargs)
 
     def _create_srf(self, obs_u, obs_v, xyz, **kwargs):
-
         # Create surface definitions
         u, v = np.meshgrid(obs_u, obs_v, indexing="ij")
         uv_obs = np.array([u.ravel(), v.ravel()]).T
@@ -177,7 +176,6 @@ class RBFSurface:
         return arr.T
 
     def utan(self, su, sv, normalize=True):
-
         u = np.array([su]).reshape(
             -1,
         )
@@ -200,7 +198,6 @@ class RBFSurface:
         return arr
 
     def vtan(self, su, sv, normalize=True):
-
         u = np.array([su]).reshape(
             -1,
         )
@@ -309,8 +306,7 @@ class RBFSurface:
 
         distances = []
         coords = [[] for i in range(0, 2)]
-        for (sgn, axes) in ordered_axes:
-
+        for sgn, axes in ordered_axes:
             npts = axes[axis].shape[0]
 
             if npts > 1:

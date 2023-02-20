@@ -98,7 +98,6 @@ class RBFVolume:
 
     @classmethod
     def load(cls, filename):
-
         f = open(filename, "rb")
         s = pickle.load(f)
         f.close()
@@ -106,7 +105,6 @@ class RBFVolume:
         return cls(**s)
 
     def save(self, filename, basis_name):
-
         s = {
             "u": self.u,
             "v": self.v,
@@ -127,7 +125,6 @@ class RBFVolume:
         return self.ev(*args, **kwargs)
 
     def _create_vol(self, obs_u, obs_v, obs_l, xyz, **kwargs):
-
         # Create volume definitions
         u, v, l = np.meshgrid(obs_u, obs_v, obs_l, indexing="ij")
         uvl_obs = np.array([u.ravel(), v.ravel(), l.ravel()]).T
@@ -234,7 +231,6 @@ class RBFVolume:
         return arr.T
 
     def utan(self, su, sv, sl, normalize=True):
-
         u = np.array([su]).reshape(
             -1,
         )
@@ -260,7 +256,6 @@ class RBFVolume:
         return arr
 
     def vtan(self, su, sv, sl, normalize=True):
-
         u = np.array([su]).reshape(
             -1,
         )

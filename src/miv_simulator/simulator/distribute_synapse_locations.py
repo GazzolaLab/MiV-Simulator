@@ -33,7 +33,6 @@ sys.excepthook = mpi_excepthook
 
 
 def update_syn_stats(env, syn_stats_dict, syn_dict):
-
     syn_type_excitatory = env.Synapse_Types["excitatory"]
     syn_type_inhibitory = env.Synapse_Types["inhibitory"]
 
@@ -44,14 +43,13 @@ def update_syn_stats(env, syn_stats_dict, syn_dict):
         "total": {"excitatory": 0, "inhibitory": 0},
     }
 
-    for (syn_id, syn_sec, syn_type, swc_type, syn_layer) in zip(
+    for syn_id, syn_sec, syn_type, swc_type, syn_layer in zip(
         syn_dict["syn_ids"],
         syn_dict["syn_secs"],
         syn_dict["syn_types"],
         syn_dict["swc_types"],
         syn_dict["syn_layers"],
     ):
-
         if syn_type == syn_type_excitatory:
             syn_type_str = "excitatory"
         elif syn_type == syn_type_inhibitory:
@@ -125,7 +123,6 @@ def check_syns(
     env,
     logger,
 ):
-
     layer_stats = syn_stats_dict["layer"]
     swc_stats = syn_stats_dict["swc_type"]
 

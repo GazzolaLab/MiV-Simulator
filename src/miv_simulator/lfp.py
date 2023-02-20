@@ -74,7 +74,6 @@ class LFP:
         dt_lfp: float = 0.5,
         seed: int = 1,
     ) -> None:
-
         self.label = label
         self.pc = pc
         self.dt_lfp = dt_lfp
@@ -95,10 +94,8 @@ class LFP:
         self.setup_lfp()
 
     def setup_lfp_coeffs(self) -> None:
-
         ex, ey, ez = self.epoint
         for pop_name in self.pop_gid_dict:
-
             lfp_ids = self.lfp_ids[pop_name]
             lfp_types = self.lfp_types[pop_name]
             lfp_coeffs = self.lfp_coeffs[pop_name]
@@ -112,7 +109,6 @@ class LFP:
                 ## Iterates over each compartment of the cell
                 for sec in list(cell.all):
                     if h.ismembrane("extracellular", sec=sec):
-
                         nn = sec.n3d()
 
                         xx = h.Vector(nn)
@@ -139,7 +135,6 @@ class LFP:
                         sy0 = yint.x[0]
                         sz0 = zint.x[0]
                         for seg in sec:
-
                             sx = xint.x[j]
                             sy = yint.x[j]
                             sz = zint.x[j]
@@ -190,8 +185,7 @@ class LFP:
         ##printf ("host %d: entering setup_npole_lfp" % int(self.pc.id()))
 
         ## Determine which cells will be used for the LFP computation and the sizes of their compartments
-        for (ipop, pop_name) in enumerate(sorted(self.pop_gid_dict.keys())):
-
+        for ipop, pop_name in enumerate(sorted(self.pop_gid_dict.keys())):
             ranlfp = h.Random(self.seed + ipop)
             ranlfp.uniform(0, 1)
 
@@ -200,7 +194,6 @@ class LFP:
             lfp_coeffs = h.List()
 
             for gid in self.pop_gid_dict[pop_name]:
-
                 ransample = ranlfp.repick()
 
                 if not self.pc.gid_exists(gid):
@@ -291,7 +284,6 @@ class LFP:
         return meanlfp
 
     def sample_lfp(self) -> None:
-
         ## recording electrode position (um)
         ex, ey, ez = self.epoint
 

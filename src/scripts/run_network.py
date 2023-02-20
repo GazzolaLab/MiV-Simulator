@@ -278,7 +278,6 @@ def main(
     debug,
     dry_run,
 ):
-
     profile_time = False
     config_logging(verbose)
 
