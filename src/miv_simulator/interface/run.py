@@ -43,6 +43,7 @@ class RunNetwork(Experiment):
         spike_input_namespace: Optional[str] = None
         spike_input_attr: Optional[str] = None
         record_syn_spike_count: bool = False
+        templates: str = "templates"
         mechanisms: str = "./mechanisms"
         t_stop: int = 1
         v_init: float = -75.0
@@ -72,7 +73,7 @@ class RunNetwork(Experiment):
         self.env = env = Env(
             comm=MPI.COMM_WORLD,
             config={**blueprint, **data_configuration},
-            template_paths="templates",
+            template_paths=self.config.templates,
             hoc_lib_path=None,
             dataset_prefix="",
             results_path=self.local_directory("data"),
@@ -128,5 +129,6 @@ class RunNetwork(Experiment):
         rank = comm.Get_rank()
         return rank == 0
 
-    def on_after_dispatch(self):
-        return miv_simulator.network.shutdown(self.env)
+    def on_after_dispatch(self, success: bool):
+        if success:
+            miv_simulator.network.shutdown(self.env)
