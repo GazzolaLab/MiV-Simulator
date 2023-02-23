@@ -1401,8 +1401,8 @@ def plot_lfp(
             filtered_v = apply_filter(
                 v,
                 butter_bandpass_filter(
-                    max(bandpass_filter[0], 1.0),
-                    bandpass_filter[1],
+                    max(frequency_range[0], 1.0),
+                    frequency_range[1],
                     Fs,
                     order=2,
                 ),
@@ -1490,9 +1490,9 @@ def plot_lfp(
             if bandpass_filter:
                 filtered_v = apply_filter(
                     v,
-                    butter_bandpass(
-                        max(bandpass_filter[0], 1.0),
-                        bandpass_filter[1],
+                    butter_bandpass_filter(
+                        max(frequency_range[0], 1.0),
+                        frequency_range[1],
                         Fs,
                         order=2,
                     ),
