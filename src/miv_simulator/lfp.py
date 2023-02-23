@@ -209,20 +209,29 @@ class LFP:
                 is_reduced = False
                 if hasattr(cell, "is_reduced"):
                     is_reduced = cell.is_reduced
-                if is_reduced:
-                    continue
 
-                try:
-                    somasec = list(cell.soma_list)
-                except:
-                    logger.info(
-                        "cell %d = %s (dir: %s)"
-                        % (gid, str(cell), str(dir(cell)))
+                if hasattr(cell, "soma_list"):
+                    try:
+                        somasec = list(cell.soma_list)
+                    except:
+                        logger.info(f"cell {gid} = {cell} (dir: {dir(cell)})")
+                        raise
+                    x = somasec[0].x3d(0)
+                    y = somasec[0].y3d(0)
+                    z = somasec[0].z3d(0)
+                elif hasattr(cell, "soma"):
+                    try:
+                        somasec = cell.soma
+                    except:
+                        logger.info(f"cell {gid} = {cell} (dir: {dir(cell)})")
+                        raise
+                    x = somasec.x3d(0)
+                    y = somasec.y3d(0)
+                    z = somasec.z3d(0)
+                else:
+                    raise RuntimeError(
+                        f"population {pop_name} gid {gid}: unable to obtain soma coordinates"
                     )
-                    raise
-                x = somasec[0].x3d(0)
-                y = somasec[0].y3d(0)
-                z = somasec[0].z3d(0)
 
                 ## Relative to the recording electrode position
                 if (

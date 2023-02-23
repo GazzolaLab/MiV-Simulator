@@ -1024,14 +1024,15 @@ def make_cells(env: Env) -> None:
                             f"*** make_cells: population: {pop_name}; gid: {gid}; loaded biophysics from path: {mech_file_path}"
                         )
 
-                    if rank == 0 and first_gid == gid:
-                        if hasattr(hoc_cell, "all"):
-                            for sec in list(hoc_cell.all):
-                                logger.info(pprint.pformat(sec.psection()))
-
                 if is_reduced:
                     soma_xyz = cells.get_soma_xyz(tree, env.SWC_Types)
                     cell.position(soma_xyz[0], soma_xyz[1], soma_xyz[2])
+                if rank == 0 and first_gid == gid:
+                    if hasattr(cell, "hoc_cell"):
+                        hoc_cell = cell.hoc_cell
+                        if hasattr(hoc_cell, "all"):
+                            for sec in list(hoc_cell.all):
+                                logger.info(pprint.pformat(sec.psection()))
                 cells.register_cell(env, pop_name, gid, cell)
                 num_cells += 1
             del trees
@@ -1246,14 +1247,16 @@ def make_cell_selection(env):
                                 f"*** make_cell_selection: population: {pop_name}; gid: {gid}; loaded biophysics from path: {mech_file_path}"
                             )
 
-                    if rank == 0 and first_gid == gid:
-                        if hasattr(hoc_cell, "all"):
-                            for sec in list(hoc_cell.all):
-                                logger.info(pprint.pformat(sec.psection()))
                 if is_reduced:
                     soma_xyz = cells.get_soma_xyz(tree, env.SWC_Types)
                     cell.position(soma_xyz[0], soma_xyz[1], soma_xyz[2])
 
+                if rank == 0 and first_gid == gid:
+                    if hasattr(cell, "hoc_cell"):
+                        hoc_cell = cell.hoc_cell
+                        if hasattr(hoc_cell, "all"):
+                            for sec in list(hoc_cell.all):
+                                logger.info(pprint.pformat(sec.psection()))
                 cells.register_cell(env, pop_name, gid, cell)
 
                 num_cells += 1

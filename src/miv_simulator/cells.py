@@ -350,6 +350,7 @@ class BRKneuron:
         BRK_nrn.soma.ic_constant = cell_config.ic_constant
 
         self.hoc_cell = BRK_nrn
+        h.define_shape()
 
         soma_node = insert_section_node(self, "soma", index=0, sec=BRK_nrn.soma)
         apical_node = insert_section_node(
@@ -485,6 +486,7 @@ class PRneuron:
         PR_nrn.soma.ic_constant = cell_config.ic_constant
 
         self.hoc_cell = PR_nrn
+        h.define_shape()
 
         soma_node = insert_section_node(self, "soma", index=0, sec=PR_nrn.soma)
         apical_node = insert_section_node(
@@ -614,6 +616,8 @@ class SCneuron:
         SC_nrn = h.SC_nrn()
 
         self.hoc_cell = SC_nrn
+        h.define_shape()
+
         soma_node = insert_section_node(self, "soma", index=0, sec=SC_nrn.soma)
 
         init_cable(self)
