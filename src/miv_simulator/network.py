@@ -1030,7 +1030,7 @@ def make_cells(env: Env) -> None:
                                 logger.info(pprint.pformat(sec.psection()))
 
                 if is_reduced:
-                    soma_xyz = cells.get_soma_xyz(tree)
+                    soma_xyz = cells.get_soma_xyz(tree, env.SWC_Types)
                     cell.position(soma_xyz[0], soma_xyz[1], soma_xyz[2])
                 cells.register_cell(env, pop_name, gid, cell)
                 num_cells += 1
@@ -1095,7 +1095,7 @@ def make_cells(env: Env) -> None:
                         gid=gid, pop_name=pop_name, env=env, mech_dict=mech_dict
                     )
                 else:
-                    hoc_cell = cells.make_hoc_cell(env, pop_name, gid)
+                    cell = cells.make_hoc_cell(env, pop_name, gid)
                 cell.position(cell_x, cell_y, cell_z)
                 cells.register_cell(env, pop_name, gid, cell)
                 num_cells += 1
@@ -1251,7 +1251,7 @@ def make_cell_selection(env):
                             for sec in list(hoc_cell.all):
                                 logger.info(pprint.pformat(sec.psection()))
                 if is_reduced:
-                    soma_xyz = cells.get_soma_xyz(tree)
+                    soma_xyz = cells.get_soma_xyz(tree, env.SWC_Types)
                     cell.position(soma_xyz[0], soma_xyz[1], soma_xyz[2])
 
                 cells.register_cell(env, pop_name, gid, cell)

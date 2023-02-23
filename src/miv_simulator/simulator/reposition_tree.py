@@ -1,9 +1,14 @@
 import gc
 import os
+import copy
 import sys
 import h5py
+import numpy as np
 from miv_simulator import utils
 from scipy.spatial.distance import cdist
+from miv_simulator.utils import config_logging, get_module_logger
+
+logger = get_module_logger("reposition_tree")
 
 
 def reposition_tree(neurotree_dict, cell_coords, swc_type_defs):
@@ -22,6 +27,8 @@ def reposition_tree(neurotree_dict, cell_coords, swc_type_defs):
 
     """
 
+    cell_coords = np.asarray(cell_coords).reshape((1, -1))
+
     pt_xs = copy.deepcopy(neurotree_dict["x"])
     pt_ys = copy.deepcopy(neurotree_dict["y"])
     pt_zs = copy.deepcopy(neurotree_dict["z"])
@@ -39,7 +46,7 @@ def reposition_tree(neurotree_dict, cell_coords, swc_type_defs):
     )
     pos_delta = (
         soma_coords[np.argmin(cdist(soma_coords, cell_coords))] - cell_coords
-    )
+    ).reshape((-1,))
 
     new_tree_dict = {
         "x": pt_xs - pos_delta[0],

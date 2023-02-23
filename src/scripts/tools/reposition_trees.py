@@ -2,13 +2,14 @@ import os, sys, gc, logging, random
 import click
 import numpy as np
 from mpi4py import MPI
-import miv
-from miv_simulator.simulator import reposition_tree
+from miv_simulator.simulator.reposition_tree import reposition_tree
+from miv_simulator.utils import config_logging, get_script_logger, list_find
 from miv_simulator.env import Env
 from neuroh5.io import (
     NeuroH5TreeGen,
     append_cell_attributes,
     append_cell_trees,
+    read_cell_attributes,
     read_population_ranges,
 )
 import h5py
@@ -82,8 +83,8 @@ def main(
     :param verbose: bool
     """
 
-    utils.config_logging(verbose)
-    logger = utils.get_script_logger(os.path.basename(__file__))
+    config_logging(verbose)
+    logger = get_script_logger(os.path.basename(__file__))
 
     comm = MPI.COMM_WORLD
     rank = comm.rank
@@ -133,7 +134,7 @@ def main(
             mask={"X Coordinate", "Y Coordinate", "Z Coordinate"},
             namespace=coords_namespace,
         )
-
+        soma_coords = {}
         soma_coords[population] = {
             k: (
                 float(v["X Coordinate"][0]),
@@ -154,7 +155,7 @@ def main(
     ):
         if gid is not None:
             logger.info("Rank %d received gid %d" % (rank, gid))
-            cell_coords = soma_coords[gid]
+            cell_coords = soma_coords[population][gid]
             new_tree_dict = reposition_tree(
                 tree_dict, cell_coords, env.SWC_Types
             )
@@ -167,14 +168,14 @@ def main(
 
     comm.barrier()
     if (not dry_run) and (rank == 0):
-        logger.info("Appended normalized trees to %s" % output_path)
+        logger.info("Appended repositioned trees to %s" % output_path)
 
 
 if __name__ == "__main__":
     main(
         args=sys.argv[
             (
-                utils.list_find(
+                list_find(
                     lambda x: os.path.basename(x) == os.path.basename(__file__),
                     sys.argv,
                 )

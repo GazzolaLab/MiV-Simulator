@@ -93,12 +93,13 @@ class SectionNode:
 def get_soma_xyz(
     neurotree_dict: Dict[
         str, Union[ndarray, Dict[str, Union[int, Dict[int, ndarray], ndarray]]]
-    ]
+    ],
+    swc_type_defs: Dict[str, int],
 ):
-    vx = neurotree_dict["x"]
-    vy = neurotree_dict["y"]
-    vz = neurotree_dict["z"]
-    swc_type = neurotree_dict["swc_type"]
+    pt_xs = neurotree_dict["x"]
+    pt_ys = neurotree_dict["y"]
+    pt_zs = neurotree_dict["z"]
+    pt_swc_types = neurotree_dict["swc_type"]
 
     soma_pts = np.where(pt_swc_types == swc_type_defs["soma"])[0]
     soma_coords = np.column_stack(
@@ -365,6 +366,9 @@ class BRKneuron:
             if attr_name in BRKconfig._fields:
                 setattr(self.hoc_cell, attr_name, attr_val)
 
+    def position(self, x, y, z):
+        self.hoc_cell.position(x, y, z)
+
     @property
     def gid(self):
         return self._gid
@@ -497,6 +501,9 @@ class PRneuron:
             if attr_name in PRconfig._fields:
                 setattr(self.hoc_cell, attr_name, attr_val)
 
+    def position(self, x, y, z):
+        self.hoc_cell.position(x, y, z)
+
     @property
     def gid(self):
         return self._gid
@@ -611,6 +618,9 @@ class SCneuron:
 
         init_cable(self)
         init_spike_detector(self)
+
+    def position(self, x, y, z):
+        self.hoc_cell.position(x, y, z)
 
     @property
     def gid(self) -> int:
