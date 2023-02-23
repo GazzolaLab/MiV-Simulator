@@ -95,6 +95,7 @@ query-cell-attrs = "scripts.tools.query_cell_attrs:main"
 check-config = "scripts.tools.check_config:main"
 cut-slice = "scripts.tools.cut_slice:main"
 sample-cells = "scripts.tools.sample_cells:main"
+reposition-trees = "scripts.tools.reposition_trees:main"
 
 
 [build-system]

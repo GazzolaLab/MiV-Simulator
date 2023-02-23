@@ -90,6 +90,24 @@ class SectionNode:
         return self.name
 
 
+def get_soma_xyz(
+    neurotree_dict: Dict[
+        str, Union[ndarray, Dict[str, Union[int, Dict[int, ndarray], ndarray]]]
+    ]
+):
+    vx = neurotree_dict["x"]
+    vy = neurotree_dict["y"]
+    vz = neurotree_dict["z"]
+    swc_type = neurotree_dict["swc_type"]
+
+    soma_pts = np.where(pt_swc_types == swc_type_defs["soma"])[0]
+    soma_coords = np.column_stack(
+        (pt_xs[soma_pts], pt_ys[soma_pts], pt_zs[soma_pts])
+    )
+
+    return soma_coords[0]
+
+
 def make_neurotree_hoc_cell(
     template_class: "HocObject",
     gid: int = 0,
