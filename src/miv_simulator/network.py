@@ -958,6 +958,8 @@ def make_cells(env: Env) -> None:
         is_BRK = template_name.lower() == "brk_nrn"
         is_PR = template_name.lower() == "pr_nrn"
         is_SC = template_name.lower() == "sc_nrn"
+        is_reduced = is_BRK or is_PR or is_SC
+
         num_cells = 0
         if (pop_name in env.cell_attribute_info) and (
             "Trees" in env.cell_attribute_info[pop_name]
@@ -989,28 +991,22 @@ def make_cells(env: Env) -> None:
                     first_gid = gid
 
                 if is_SC:
-                    SC_cell = cells.make_SC_cell(
+                    cell = cells.make_SC_cell(
                         gid=gid, pop_name=pop_name, env=env, mech_dict=mech_dict
                     )
-                    cells.register_cell(env, pop_name, gid, SC_cell)
-
                 elif is_PR:
-                    PR_cell = cells.make_PR_cell(
+                    cell = cells.make_PR_cell(
                         gid=gid, pop_name=pop_name, env=env, mech_dict=mech_dict
                     )
-                    cells.register_cell(env, pop_name, gid, PR_cell)
-
                 elif is_BRK:
-                    BRK_cell = cells.make_BRK_cell(
+                    cell = cells.make_BRK_cell(
                         gid=gid, pop_name=pop_name, env=env, mech_dict=mech_dict
                     )
-                    cells.register_cell(env, pop_name, gid, BRK_cell)
-
                 else:
                     hoc_cell = cells.make_hoc_cell(
                         env, pop_name, gid, neurotree_dict=tree
                     )
-                    biophys_cell = cells.make_biophys_cell(
+                    cell = cells.make_biophys_cell(
                         gid=gid,
                         population_name=pop_name,
                         hoc_cell=hoc_cell,
@@ -1019,7 +1015,6 @@ def make_cells(env: Env) -> None:
                         mech_dict=mech_dict,
                     )
                     # cells.init_spike_detector(biophys_cell)
-                    cells.register_cell(env, pop_name, gid, biophys_cell)
                     if (
                         rank == 0
                         and gid == first_gid
@@ -1029,11 +1024,16 @@ def make_cells(env: Env) -> None:
                             f"*** make_cells: population: {pop_name}; gid: {gid}; loaded biophysics from path: {mech_file_path}"
                         )
 
-                    if rank == 0 and first_gid == gid:
+                if is_reduced:
+                    soma_xyz = cells.get_soma_xyz(tree, env.SWC_Types)
+                    cell.position(soma_xyz[0], soma_xyz[1], soma_xyz[2])
+                if rank == 0 and first_gid == gid:
+                    if hasattr(cell, "hoc_cell"):
+                        hoc_cell = cell.hoc_cell
                         if hasattr(hoc_cell, "all"):
                             for sec in list(hoc_cell.all):
                                 logger.info(pprint.pformat(sec.psection()))
-
+                cells.register_cell(env, pop_name, gid, cell)
                 num_cells += 1
             del trees
 
@@ -1078,28 +1078,27 @@ def make_cells(env: Env) -> None:
                 if rank == 0:
                     logger.info(f"*** Creating {pop_name} gid {gid}")
 
+                cell_x = cell_coords[x_index][0]
+                cell_y = cell_coords[y_index][0]
+                cell_z = cell_coords[z_index][0]
+
+                cell = None
                 if is_SC:
-                    SC_cell = cells.make_SC_cell(
+                    cell = cells.make_SC_cell(
                         gid=gid, pop_name=pop_name, env=env, mech_dict=mech_dict
                     )
-                    cells.register_cell(env, pop_name, gid, SC_cell)
                 elif is_PR:
-                    PR_cell = cells.make_PR_cell(
+                    cell = cells.make_PR_cell(
                         gid=gid, pop_name=pop_name, env=env, mech_dict=mech_dict
                     )
-                    cells.register_cell(env, pop_name, gid, PR_cell)
                 elif is_BRK:
-                    BRK_cell = cells.make_BRK_cell(
+                    cell = cells.make_BRK_cell(
                         gid=gid, pop_name=pop_name, env=env, mech_dict=mech_dict
                     )
-                    cells.register_cell(env, pop_name, gid, BRK_cell)
                 else:
-                    hoc_cell = cells.make_hoc_cell(env, pop_name, gid)
-                    cell_x = cell_coords[x_index][0]
-                    cell_y = cell_coords[y_index][0]
-                    cell_z = cell_coords[z_index][0]
-                    hoc_cell.position(cell_x, cell_y, cell_z)
-                    cells.register_cell(env, pop_name, gid, hoc_cell)
+                    cell = cells.make_hoc_cell(env, pop_name, gid)
+                cell.position(cell_x, cell_y, cell_z)
+                cells.register_cell(env, pop_name, gid, cell)
                 num_cells += 1
         else:
             raise RuntimeError(
@@ -1183,6 +1182,8 @@ def make_cell_selection(env):
         is_BRK = template_name.lower() == "brk_nrn"
         is_PR = template_name.lower() == "pr_nrn"
         is_SC = template_name.lower() == "sc_nrn"
+        is_reduced = is_BRK or is_PR or is_SC
+
         num_cells = 0
         if (pop_name in env.cell_attribute_info) and (
             "Trees" in env.cell_attribute_info[pop_name]
@@ -1197,6 +1198,7 @@ def make_cell_selection(env):
                 logger.info(f"*** Done reading trees for population {pop_name}")
 
             first_gid = None
+            cell = None
             for i, (gid, tree) in enumerate(trees):
                 if rank == 0:
                     logger.info(f"*** Creating {pop_name} gid {gid}")
@@ -1204,37 +1206,34 @@ def make_cell_selection(env):
                     first_gid = gid
 
                 if is_SC:
-                    SC_cell = cells.make_SC_cell(
+                    cell = cells.make_SC_cell(
                         gid=gid,
                         pop_name=pop_name,
                         env=env,
                         param_dict=mech_dict,
                     )
-                    cells.register_cell(env, pop_name, gid, SC_cell)
                 elif is_PR:
-                    PR_cell = cells.make_PR_cell(
+                    cell = cells.make_PR_cell(
                         gid=gid,
                         pop_name=pop_name,
                         env=env,
                         param_dict=mech_dict,
                     )
-                    cells.register_cell(env, pop_name, gid, PR_cell)
                 elif is_BRK:
-                    BRK_cell = cells.make_BRK_cell(
+                    cell = cells.make_BRK_cell(
                         gid=gid,
                         pop_name=pop_name,
                         env=env,
                         param_dict=mech_dict,
                     )
-                    cells.register_cell(env, pop_name, gid, BRK_cell)
                 else:
                     hoc_cell = cells.make_hoc_cell(
                         env, pop_name, gid, neurotree_dict=tree
                     )
                     if mech_file_path is None:
-                        cells.register_cell(env, pop_name, gid, hoc_cell)
+                        cell = hoc_cell
                     else:
-                        biophys_cell = cells.make_biophys_cell(
+                        cell = cells.make_biophys_cell(
                             gid=gid,
                             pop_name=pop_name,
                             hoc_cell=hoc_cell,
@@ -1243,16 +1242,22 @@ def make_cell_selection(env):
                             mech_dict=mech_dict,
                         )
                         # cells.init_spike_detector(biophys_cell)
-                        cells.register_cell(env, pop_name, gid, biophys_cell)
                         if rank == 0 and gid == first_gid:
                             logger.info(
                                 f"*** make_cell_selection: population: {pop_name}; gid: {gid}; loaded biophysics from path: {mech_file_path}"
                             )
 
+                if is_reduced:
+                    soma_xyz = cells.get_soma_xyz(tree, env.SWC_Types)
+                    cell.position(soma_xyz[0], soma_xyz[1], soma_xyz[2])
+
                 if rank == 0 and first_gid == gid:
-                    if hasattr(hoc_cell, "all"):
-                        for sec in list(hoc_cell.all):
-                            logger.info(pprint.pformat(sec.psection()))
+                    if hasattr(cell, "hoc_cell"):
+                        hoc_cell = cell.hoc_cell
+                        if hasattr(hoc_cell, "all"):
+                            for sec in list(hoc_cell.all):
+                                logger.info(pprint.pformat(sec.psection()))
+                cells.register_cell(env, pop_name, gid, cell)
 
                 num_cells += 1
 
@@ -1285,8 +1290,9 @@ def make_cell_selection(env):
                 if rank == 0:
                     logger.info(f"*** Creating {pop_name} gid {gid}")
 
+                cell = None
                 if is_SC:
-                    SC_cell = cells.make_SC_cell(
+                    cell = cells.make_SC_cell(
                         gid=gid,
                         pop_name=pop_name,
                         env=env,
@@ -1294,7 +1300,7 @@ def make_cell_selection(env):
                     )
                     cells.register_cell(env, pop_name, gid, SC_cell)
                 elif is_PR:
-                    PR_cell = cells.make_PR_cell(
+                    cell = cells.make_PR_cell(
                         gid=gid,
                         pop_name=pop_name,
                         env=env,
@@ -1302,22 +1308,31 @@ def make_cell_selection(env):
                     )
                     cells.register_cell(env, pop_name, gid, PR_cell)
                 elif is_BRK:
-                    BRK_cell = cells.make_BRK_cell(
+                    cell = cells.make_BRK_cell(
                         gid=gid,
                         pop_name=pop_name,
                         env=env,
                         param_dict=mech_dict,
                     )
-                    cells.register_cell(env, pop_name, gid, BRK_cell)
                 else:
                     hoc_cell = cells.make_hoc_cell(env, pop_name, gid)
+                    if mech_file_path is None:
+                        cell = hoc_cell
+                    else:
+                        cell = cells.make_biophys_cell(
+                            gid=gid,
+                            pop_name=pop_name,
+                            hoc_cell=hoc_cell,
+                            env=env,
+                            tree_dict=tree,
+                            mech_dict=mech_dict,
+                        )
 
-                    cell_x = cell_coords_tuple[x_index][0]
-                    cell_y = cell_coords_tuple[y_index][0]
-                    cell_z = cell_coords_tuple[z_index][0]
-                    hoc_cell.position(cell_x, cell_y, cell_z)
-                    cells.register_cell(env, pop_name, gid, hoc_cell)
-
+                cell_x = cell_coords_tuple[x_index][0]
+                cell_y = cell_coords_tuple[y_index][0]
+                cell_z = cell_coords_tuple[z_index][0]
+                hoc_cell.position(cell_x, cell_y, cell_z)
+                cells.register_cell(env, pop_name, gid, cell)
                 num_cells += 1
 
         h.define_shape()

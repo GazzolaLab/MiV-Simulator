@@ -90,6 +90,25 @@ class SectionNode:
         return self.name
 
 
+def get_soma_xyz(
+    neurotree_dict: Dict[
+        str, Union[ndarray, Dict[str, Union[int, Dict[int, ndarray], ndarray]]]
+    ],
+    swc_type_defs: Dict[str, int],
+):
+    pt_xs = neurotree_dict["x"]
+    pt_ys = neurotree_dict["y"]
+    pt_zs = neurotree_dict["z"]
+    pt_swc_types = neurotree_dict["swc_type"]
+
+    soma_pts = np.where(pt_swc_types == swc_type_defs["soma"])[0]
+    soma_coords = np.column_stack(
+        (pt_xs[soma_pts], pt_ys[soma_pts], pt_zs[soma_pts])
+    )
+
+    return soma_coords[0]
+
+
 def make_neurotree_hoc_cell(
     template_class: "HocObject",
     gid: int = 0,
@@ -331,6 +350,7 @@ class BRKneuron:
         BRK_nrn.soma.ic_constant = cell_config.ic_constant
 
         self.hoc_cell = BRK_nrn
+        h.define_shape()
 
         soma_node = insert_section_node(self, "soma", index=0, sec=BRK_nrn.soma)
         apical_node = insert_section_node(
@@ -346,6 +366,9 @@ class BRKneuron:
         for attr_name, attr_val in kwargs.items():
             if attr_name in BRKconfig._fields:
                 setattr(self.hoc_cell, attr_name, attr_val)
+
+    def position(self, x, y, z):
+        self.hoc_cell.position(x, y, z)
 
     @property
     def gid(self):
@@ -463,6 +486,7 @@ class PRneuron:
         PR_nrn.soma.ic_constant = cell_config.ic_constant
 
         self.hoc_cell = PR_nrn
+        h.define_shape()
 
         soma_node = insert_section_node(self, "soma", index=0, sec=PR_nrn.soma)
         apical_node = insert_section_node(
@@ -478,6 +502,9 @@ class PRneuron:
         for attr_name, attr_val in kwargs.items():
             if attr_name in PRconfig._fields:
                 setattr(self.hoc_cell, attr_name, attr_val)
+
+    def position(self, x, y, z):
+        self.hoc_cell.position(x, y, z)
 
     @property
     def gid(self):
@@ -589,10 +616,15 @@ class SCneuron:
         SC_nrn = h.SC_nrn()
 
         self.hoc_cell = SC_nrn
+        h.define_shape()
+
         soma_node = insert_section_node(self, "soma", index=0, sec=SC_nrn.soma)
 
         init_cable(self)
         init_spike_detector(self)
+
+    def position(self, x, y, z):
+        self.hoc_cell.position(x, y, z)
 
     @property
     def gid(self) -> int:
