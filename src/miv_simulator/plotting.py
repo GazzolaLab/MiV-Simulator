@@ -1432,7 +1432,7 @@ def plot_lfp(
                 "Power Spectral Density (dB/Hz)", fontsize=fig_options.fontSize
             )
             ax.set_title(
-                f"PSD (peak: {freqs[peak_index]:.3g} Hz)",
+                f"PSD (peak: {freqs[peak_index]:.3f} Hz)",
                 fontsize=fig_options.fontSize,
             )
 
@@ -1478,7 +1478,7 @@ def plot_lfp(
             Fs = 1000.0 / dt
 
             if compute_psd:
-                freqs, psd, peak_index = signal_psd(
+                psd, freqs, peak_index = signal_psd(
                     v,
                     Fs=Fs,
                     frequency_range=frequency_range,
@@ -1490,7 +1490,7 @@ def plot_lfp(
             if bandpass_filter:
                 filtered_v = apply_filter(
                     v,
-                    butter_bandpass(
+                    butter_bandpass_filter(
                         max(bandpass_filter[0], 1.0),
                         bandpass_filter[1],
                         Fs,
@@ -1521,7 +1521,7 @@ def plot_lfp(
                     fontsize=fig_options.fontSize,
                 )
                 ax.set_title(
-                    f"PSD (peak: {freqs[peak_index]:.3g} Hz)",
+                    f"PSD (peak: {freqs[peak_index]:.3f} Hz)",
                     fontsize=fig_options.fontSize,
                 )
 

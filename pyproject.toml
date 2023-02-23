@@ -89,6 +89,8 @@ plot-spike-raster = "scripts.analysis.plot_spike_raster:main"
 plot-state = "scripts.analysis.plot_state:main"
 plot-single-vertex-dist = "scripts.analysis.plot_single_vertex_dist:main"
 plot-spatial-spike-raster = "scripts.analysis.plot_spatial_spike_raster:main"
+plot-lfp = "scripts.analysis.plot_lfp:main"
+plot-lfp-spectrogram = "scripts.analysis.plot_lfp_spectrogram:main"
 #Tools
 show-h5types = "scripts.tools.show_h5types:main"
 query-cell-attrs = "scripts.tools.query_cell_attrs:main"
