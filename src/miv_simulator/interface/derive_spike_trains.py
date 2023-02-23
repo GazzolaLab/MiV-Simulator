@@ -3,7 +3,7 @@ from typing import Tuple, Optional, Union, List, Dict
 from collections import defaultdict
 
 import numpy as np
-
+import arrow
 from machinable import Experiment
 from machinable.config import Field
 from miv_simulator.simulator import (
@@ -33,6 +33,10 @@ class DeriveSpikeTrains(Experiment):
         spike_train_attr_name: str = "Spike Train"
         # resources
         ranks_: int = 1
+
+    def on_instantiate(self):
+        self.active_spike_input_namespace = None
+        self.active_spike_input_attr = None
 
     def on_execute(self):
         generate_input_spike_trains(
@@ -67,39 +71,31 @@ class DeriveSpikeTrains(Experiment):
 
     def from_numpy(
         self,
-        spike_train: Union[List, np.ndarray],
+        spike_trains: Dict[int, Union[List, np.ndarray]],
         namespace: str = "Custom",
         attr_name: str = "Input Spikes",
     ) -> "DeriveSpikeTrains":
-        self.set_custom(namespace, attr_name)
-
         import_input_spike_train(
-            spike_train,
+            spike_trains,
             namespace=namespace,
             attr_name=attr_name,
             output_filepath=self.output_filepath,
         )
 
+        self.active_spike_input_namespace = namespace
+        self.active_spike_input_attr = attr_name
+
+        self.save_data("refreshed_at", str(arrow.now()))
+
         return self
 
-    def set_custom(
-        self,
-        namespace: str = "Custom",
-        attr_name: str = "Input Spikes",
-    ):
-        self.save_data(
-            "custom_spike_train_meta.json",
-            {
-                "namespace": namespace,
-                "attr_name": attr_name,
-            },
-        )
-
     @property
-    def custom_spike_train_meta(self) -> Optional[Dict]:
-        return self.load_data(
-            "custom_spike_train_meta.json", defaultdict(lambda: None)
-        )
+    def refreshed_at(self):
+        refreshed_at = self.load_data("refreshed_at")
+        if refreshed_at is not None:
+            return arrow.get(refreshed_at)
+
+        return self.finished_at()
 
     @property
     def output_filepath(self):

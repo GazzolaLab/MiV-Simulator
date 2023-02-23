@@ -20,10 +20,15 @@ class PrepareData(Experiment):
         return self.local_directory(f"data/simulation/{path}.h5")
 
     def on_compute_predicate(self):
+        def generate_uid(use):
+            if getattr(use, "refreshed_at", None) is not None:
+                return f"{use.experiment_id}-{use.refreshed_at}"
+            return use.experiment_id
+
         return {
             "uses*": sorted(
                 map(
-                    lambda x: x.experiment_id,
+                    generate_uid,
                     self.uses,
                 )
             )
