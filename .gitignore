@@ -1,4 +1,4 @@
-tests/mechanisms/compiled
+tests/**/compiled
 examples/datasets
 
 # Byte-compiled / optimized / DLL files
