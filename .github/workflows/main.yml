@@ -60,7 +60,9 @@ jobs:
           poetry config virtualenvs.in-project false
           poetry install
           poetry run pip install neuron
-      # Test MiV-Simulator using pytest
+      - name: Check style
+        run: |
+          make check-codestyle
       - name: Run tests
         run: |
           make test
