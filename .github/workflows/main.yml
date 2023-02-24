@@ -18,9 +18,13 @@ jobs:
             mpi: "mpich" # Brew hdf5-mpi only support openmpi
         include:
           - os: ubuntu-latest
-            path: ~/.cache/pip
+            path: |
+              ~/.cache/pypoetry
+              ~/.cache/pip
           - os: macos-latest
-            path: ~/Library/Caches/pip
+            path: |
+              ~/Library/Caches/pypoetry
+              ~/Library/Caches/pip
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
@@ -35,6 +39,7 @@ jobs:
       - name: Install Poetry
         uses: snok/install-poetry@v1
       - name: Set up cache
+        id: cached-python-dependencies
         uses: actions/cache@v3
         with:
           path: ${{ matrix.path }}
@@ -50,6 +55,7 @@ jobs:
         run: |
           sudo apt-get install -y libhdf5-mpi-dev # Install hdf5-mpi
       - name: Install dependencies
+        if: steps.cached-python-dependencies.outputs.cache-hit != 'true'
         run: |
           poetry config virtualenvs.in-project false
           poetry install
