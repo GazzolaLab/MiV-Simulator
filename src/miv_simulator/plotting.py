@@ -1571,10 +1571,10 @@ def plot_lfp_spectrogram(
         nrows = len(env.LFP_config)
 
     ncols = 1
-
-    fig, axes = plt.subplots(
-        nrows=nrows, ncols=ncols, figsize=fig_options.figSize, squeeze=False
+    gs = gridspec.GridSpec(
+        nrows, ncols, width_ratios=[3, 1] if ncols > 1 else [1]
     )
+    fig = plt.figure(figsize=fig_options.figSize)
     if env is None:
         lfp_array = np.loadtxt(
             input_path, dtype=np.dtype([("t", np.float32), ("v", np.float32)])
@@ -1608,25 +1608,22 @@ def plot_lfp_spectrogram(
         sxx = Sxx[freqinds, :][0]
 
         iplot = 0
-        axes[iplot, 0].set_xlim([0.4, 0.8])
-        axes[iplot, 0].set_ylim(*frequency_range)
-        axes[iplot, 0].set_title(
-            "LFP Spectrogram", fontsize=fig_options.fontSize
-        )
-        pcm = axes[iplot, 0].pcolormesh(t, freqs, sxx, cmap="jet")
-        axes[iplot, 0].set_xlabel("Time (s)", fontsize=fig_options.fontSize)
-        axes[iplot, 0].set_ylabel(
-            "Frequency (Hz)", fontsize=fig_options.fontSize
-        )
-        axes[iplot, 0].tick_params(axis="both", labelsize=fig_options.fontSize)
-        fig.colorbar(pcm, ax=axes[iplot, 0])
+        ax = plt.subplot(gs[iplot, 0])
+        ax.set_xlim([0.4, 0.8])
+        ax.set_ylim(*frequency_range)
+        ax.set_title("LFP Spectrogram", fontsize=fig_options.fontSize)
+        pcm = ax.pcolormesh(t, freqs, sxx, cmap="jet")
+        ax.set_xlabel("Time (s)", fontsize=fig_options.fontSize)
+        ax.set_ylabel("Frequency (Hz)", fontsize=fig_options.fontSize)
+        ax.tick_params(axis="both", labelsize=fig_options.fontSize)
+        fig.colorbar(pcm, ax=ax)
 
         # save figure
         if fig_options.saveFig:
             if isinstance(fig_options.saveFig, str):
                 filename = fig_options.saveFig
-        else:
-            filename = namespace_id + f".{fig_options.figFormat}"
+            else:
+                filename = namespace_id + f".{fig_options.figFormat}"
             plt.savefig(filename)
 
         # show fig
@@ -1672,27 +1669,25 @@ def plot_lfp_spectrogram(
             freqs = freqs[freqinds]
             sxx = Sxx[freqinds, :][0]
 
-            axes[iplot, 0].set_ylim(*frequency_range)
-            axes[iplot, 0].set_title(
-                f"{namespace_id}", fontsize=fig_options.fontSize
-            )
-            axes[iplot, 0].pcolormesh(t, freqs, sxx, cmap="jet")
-            axes[iplot, 0].set_xlabel("Time (s)", fontsize=fig_options.fontSize)
-            axes[iplot, 0].set_ylabel(
-                "Frequency (Hz)", fontsize=fig_options.fontSize
-            )
+            ax = plt.subplot(gs[iplot, 0])
 
-            # save figure
-            if fig_options.saveFig:
-                if isinstance(fig_options.saveFig, str):
-                    filename = fig_options.saveFig
+            ax.set_ylim(*frequency_range)
+            ax.set_title(f"{namespace_id}", fontsize=fig_options.fontSize)
+            ax.pcolormesh(t, freqs, sxx, cmap="jet")
+            ax.set_xlabel("Time (s)", fontsize=fig_options.fontSize)
+            ax.set_ylabel("Frequency (Hz)", fontsize=fig_options.fontSize)
+
+        # save figure
+        if fig_options.saveFig:
+            if isinstance(fig_options.saveFig, str):
+                filename = fig_options.saveFig
             else:
                 filename = namespace_id + f".{fig_options.figFormat}"
-                plt.savefig(filename)
+            plt.savefig(filename)
 
-            # show fig
-            if fig_options.showFig:
-                show_figure()
+        # show fig
+        if fig_options.showFig:
+            show_figure()
 
     return fig
 
