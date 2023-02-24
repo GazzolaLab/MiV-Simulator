@@ -66,6 +66,16 @@ class RunNetwork(Experiment):
             "Dataset Name": "simulation",
             "Cell Data": self.config.cells,
             "Connection Data": self.config.connections,
+            "Cell Types": {
+                "STIM": {
+                    "spike train": {
+                        "namespace": self.config.spike_input_namespace
+                        or "Input Spikes",
+                        "attribute": self.config.spike_input_attr
+                        or "Spike Train",
+                    }
+                }
+            },
         }
 
         blueprint = self.config.blueprint or {}
