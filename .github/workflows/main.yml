@@ -54,7 +54,7 @@ jobs:
         if: startsWith(runner.os, 'Linux')
         run: |
           sudo apt-get install -y libhdf5-mpi-dev # Install hdf5-mpi
-      - name: Install dependencies
+      - name: Install poetry dependencies
         if: steps.cached-python-dependencies.outputs.cache-hit != 'true'
         run: |
           poetry config virtualenvs.in-project false
