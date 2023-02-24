@@ -1150,7 +1150,7 @@ def signal_power_spectrogram(signal, fs, window_size, window_overlap):
     from scipy.signal import get_window, spectrogram
 
     nperseg = window_size
-    win = get_window("hamming", nperseg)
+    win = get_window("hann", nperseg)
     noverlap = int(window_overlap * nperseg)
 
     f, t, sxx = spectrogram(
@@ -1162,7 +1162,7 @@ def signal_power_spectrogram(signal, fs, window_size, window_overlap):
 
 def signal_psd(s, Fs, frequency_range=(0, 500), window_size=4096, overlap=0.9):
     nperseg = window_size
-    win = signal.get_window("hamming", nperseg)
+    win = signal.get_window("hann", nperseg)
     noverlap = int(overlap * nperseg)
 
     freqs, psd = signal.welch(
@@ -1184,7 +1184,7 @@ def signal_psd(s, Fs, frequency_range=(0, 500), window_size=4096, overlap=0.9):
     if np.all(psd):
         psd = 10.0 * np.log10(psd)
 
-    peak_index = np.where(psd == np.max(psd))[0]
+    peak_index = np.argwhere(psd == np.max(psd))[0][0]
 
     return psd, freqs, peak_index
 
