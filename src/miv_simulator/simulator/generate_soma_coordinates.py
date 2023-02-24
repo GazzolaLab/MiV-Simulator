@@ -339,7 +339,7 @@ def generate_soma_coordinates(
 
         # Additional dispersion step to ensure no overlapping cell positions
         all_xyz_coords = np.row_stack(all_xyz_coords_lst)
-        mask = np.ones((all_xyz_coords.shape[0],), dtype=np.bool)
+        mask = np.ones((all_xyz_coords.shape[0],), dtype=np.bool_)
         # distance to nearest neighbor
         while True:
             kdt = cKDTree(all_xyz_coords[mask, :])
