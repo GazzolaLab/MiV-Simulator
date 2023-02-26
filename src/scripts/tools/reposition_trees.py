@@ -178,7 +178,9 @@ def main(
 
     comm.barrier()
     if (not dry_run) and (rank == 0):
-        logger.info(f"Appended {len(new_trees_dict)} repositioned trees to {output_path}")
+        logger.info(
+            f"Appended {len(new_trees_dict)} repositioned trees to {output_path}"
+        )
 
 
 if __name__ == "__main__":
