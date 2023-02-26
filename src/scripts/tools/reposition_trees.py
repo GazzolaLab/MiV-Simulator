@@ -9,7 +9,7 @@ from neuroh5.io import (
     NeuroH5TreeGen,
     append_cell_attributes,
     append_cell_trees,
-    read_cell_attributes,
+    scatter_read_cell_attributes,
     read_population_ranges,
 )
 import h5py
@@ -55,6 +55,7 @@ sys.excepthook = mpi_excepthook
 @click.option("--io-size", type=int, default=-1)
 @click.option("--chunk-size", type=int, default=1000)
 @click.option("--value-chunk-size", type=int, default=1000)
+@click.option("--cache-size", type=int, default=50)
 @click.option("--dry-run", is_flag=True)
 @click.option("--verbose", "-v", is_flag=True)
 def main(
@@ -69,6 +70,7 @@ def main(
     io_size,
     chunk_size,
     value_chunk_size,
+    cache_size,
     dry_run,
     verbose,
 ):
@@ -127,12 +129,13 @@ def main(
     soma_coords = None
     if rank == 0:
         logger.info(f"Reading {population} coordinates...")
-        coords_iter = read_cell_attributes(
+        coords_iter = scatter_read_cell_attributes(
             coords_path,
             population,
             comm=comm0,
             mask={"X Coordinate", "Y Coordinate", "Z Coordinate"},
-            namespace=coords_namespace,
+            namespaces=[coords_namespace],
+            io_size=io_size,
         )
         soma_coords = {}
         soma_coords[population] = {
@@ -141,7 +144,7 @@ def main(
                 float(v["Y Coordinate"][0]),
                 float(v["Z Coordinate"][0]),
             )
-            for (k, v) in coords_iter
+            for (k, v) in coords_iter[coords_namespace]
         }
 
     comm.barrier()
@@ -151,7 +154,12 @@ def main(
 
     new_trees_dict = {}
     for gid, tree_dict in NeuroH5TreeGen(
-        forest_path, population, io_size=io_size, comm=comm, topology=False
+        forest_path,
+        population,
+        io_size=io_size,
+        comm=comm,
+        cache_size=cache_size,
+        topology=False,
     ):
         if gid is not None:
             logger.info("Rank %d received gid %d" % (rank, gid))
@@ -162,13 +170,17 @@ def main(
             new_trees_dict[gid] = new_tree_dict
 
     if not dry_run:
+        if (not dry_run) and (rank == 0):
+            logger.info(f"Appending repositioned trees to {output_path}...")
         append_cell_trees(
             output_path, population, new_trees_dict, io_size=io_size, comm=comm
         )
 
     comm.barrier()
     if (not dry_run) and (rank == 0):
-        logger.info("Appended repositioned trees to %s" % output_path)
+        logger.info(
+            f"Appended {len(new_trees_dict)} repositioned trees to {output_path}"
+        )
 
 
 if __name__ == "__main__":
