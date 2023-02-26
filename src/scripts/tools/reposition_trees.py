@@ -55,7 +55,7 @@ sys.excepthook = mpi_excepthook
 @click.option("--io-size", type=int, default=-1)
 @click.option("--chunk-size", type=int, default=1000)
 @click.option("--value-chunk-size", type=int, default=1000)
-@click.option("--cache-size", type=int, default=10)
+@click.option("--cache-size", type=int, default=50)
 @click.option("--dry-run", is_flag=True)
 @click.option("--verbose", "-v", is_flag=True)
 def main(
@@ -134,7 +134,7 @@ def main(
             population,
             comm=comm0,
             mask={"X Coordinate", "Y Coordinate", "Z Coordinate"},
-            namespace=coords_namespace,
+            namespaces=[coords_namespace],
             io_size=io_size,
         )
         soma_coords = {}
@@ -144,7 +144,7 @@ def main(
                 float(v["Y Coordinate"][0]),
                 float(v["Z Coordinate"][0]),
             )
-            for (k, v) in coords_iter
+            for (k, v) in coords_iter[coords_namespace]
         }
 
     comm.barrier()
@@ -170,13 +170,15 @@ def main(
             new_trees_dict[gid] = new_tree_dict
 
     if not dry_run:
+        if (not dry_run) and (rank == 0):
+            logger.info(f"Appending repositioned trees to {output_path}...")
         append_cell_trees(
             output_path, population, new_trees_dict, io_size=io_size, comm=comm
         )
 
     comm.barrier()
     if (not dry_run) and (rank == 0):
-        logger.info("Appended repositioned trees to %s" % output_path)
+        logger.info(f"Appended {len(new_trees_dict)} repositioned trees to {output_path}")
 
 
 if __name__ == "__main__":
