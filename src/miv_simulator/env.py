@@ -724,48 +724,69 @@ class Env(AbstractEnv):
     def parse_connection_config(self) -> None:
         """
 
-        :return:
+        [] : defined in Definition.yaml
+        <> : defined in the same file
+        Head: Connection Generator
+        *. Connection Velocity
+            *. [Populations]
+        *. Synapse Mechanisms
+            *. [Synapse Mechanisms]: <mechanism name>
+        *. Synapse Parameter Rules - details are in SynapseAttributes
+            *. <mechanism name>:
+                *. mech_file
+                *. mech_params
+                *. netcon_params
+                *. netcon_state
+        *. Axon Extent 
+            *. [Populations]
+                *. "default" or [Layers]
+                    *. "width"
+                    *. "offset"
+        *. Synapses
+            *. [Populations - Postsynapse]
+                *. [Populations - Presynapse]
+                    *. "type": [Synapse Types]
+                    *. "sections": List of [SWC Types]
+                    *. "layers": List of [Layers]
+                    *. "proportions": List of values
+                    *. "mechanisms":
+                        *. [Synapse Mechanisms]
+                            *. <mech_params>: value
         """
         connection_config = self.model_config["Connection Generator"]
 
+        # Parse <Connection Velocity>
         self.connection_velocity = connection_config["Connection Velocity"]
 
+        # Parse <Synapses>
         syn_mech_names = connection_config["Synapse Mechanisms"]
         syn_param_rules = connection_config["Synapse Parameter Rules"]
-
         self.synapse_attributes = SynapseAttributes(
             self, syn_mech_names, syn_param_rules
         )
 
-        extent_config = connection_config["Axon Extent"]
+        # Parse <Axon Extent>
         self.connection_extents = {}
-
+        extent_config = connection_config["Axon Extent"]
         for population in extent_config:
+            # TODO: check if population is registered in Definition.yaml
             pop_connection_extents = {}
-            for layer_name in extent_config[population]:
+            for layer_name, layer_extent_config in extent_config[population].items():
+                assert "width" in layer_extent_config
+                assert "offset" in layer_extent_config
                 if layer_name == "default":
-                    pop_connection_extents[layer_name] = {
-                        "width": extent_config[population][layer_name]["width"],
-                        "offset": extent_config[population][layer_name][
-                            "offset"
-                        ],
-                    }
+                    pop_connection_extents[layer_name] = layer_extent_config 
                 else:
                     layer_index = self.layers[layer_name]
-                    pop_connection_extents[layer_index] = {
-                        "width": extent_config[population][layer_name]["width"],
-                        "offset": extent_config[population][layer_name][
-                            "offset"
-                        ],
-                    }
-
+                    pop_connection_extents[layer_index] = layer_extent_config
             self.connection_extents[population] = pop_connection_extents
 
+        # Parse <Synapses>
+        self.connection_config = {}
         synapse_config = connection_config["Synapses"]
-        connection_dict = {}
-
         for key_postsyn, val_syntypes in synapse_config.items():
-            connection_dict[key_postsyn] = {}
+            postsyn_config = {}
+            self.connection_config[key_postsyn] = postsyn_config
 
             for key_presyn, syn_dict in val_syntypes.items():
                 val_type = syn_dict["type"]
@@ -805,7 +826,7 @@ class Env(AbstractEnv):
                         mechparams_dict
                     )
 
-                connection_dict[key_postsyn][key_presyn] = SynapseConfig(
+                postsyn_config[key_presyn] = SynapseConfig(
                     res_type,
                     res_synsections,
                     res_synlayers,
@@ -815,7 +836,7 @@ class Env(AbstractEnv):
                 )
 
             config_dict = defaultdict(lambda: 0.0)
-            for key_presyn, conn_config in connection_dict[key_postsyn].items():
+            for key_presyn, conn_config in postsyn_config.items():
                 for s, l, p in zip(
                     conn_config.sections,
                     conn_config.layers,
@@ -832,14 +853,13 @@ class Env(AbstractEnv):
                     )
                     raise e
 
-        self.connection_config = connection_dict
-
     def parse_gapjunction_config(self) -> None:
         """
 
         :return:
         """
         connection_config = self.model_config["Connection Generator"]
+        self.gapjunctions = None
         if "Gap Junctions" in connection_config:
             gj_config = connection_config["Gap Junctions"]
 
@@ -914,8 +934,6 @@ class Env(AbstractEnv):
                     coupling_params,
                     coupling_bounds,
                 )
-        else:
-            self.gapjunctions = None
 
     def load_node_rank_map(self, node_rank_file):
         rank = 0
