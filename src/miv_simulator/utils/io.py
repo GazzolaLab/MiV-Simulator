@@ -266,12 +266,10 @@ def make_h5types(env: AbstractEnv, output_path, gap_junctions=False):
     populations = []
     for pop_name, pop_idx in env.Populations.items():
         layer_counts = env.geometry["Cell Distribution"][pop_name]
-        pop_count = 0
-        for layer_name, layer_count in layer_counts.items():
-            pop_count += layer_count
+        pop_count = sum(layer_counts.values())
         populations.append((pop_name, pop_idx, pop_count))
-    populations.sort(key=lambda x: x[1])
-    min_pop_idx = populations[0][1]
+    populations.sort(key=lambda x: x[1])  # Sort by population index
+    min_pop_idx = populations[0][1]  # FIXME: Not needed?
 
     projections = []
     if gap_junctions:

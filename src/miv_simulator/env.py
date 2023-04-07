@@ -749,7 +749,8 @@ class Env(AbstractEnv):
                     *. "sections": List of [SWC Types]
                     *. "layers": List of [Layers]
                     *. "proportions": List of values
-                    *. "mechanisms":
+                    *. "contacts": Optional, default is 1
+                    *. "mechanisms" or "swctype mechanisms":
                         *. [Synapse Mechanisms]
                             *. <mech_params>: value
         """
