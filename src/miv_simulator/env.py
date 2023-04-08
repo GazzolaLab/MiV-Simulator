@@ -751,8 +751,11 @@ class Env(AbstractEnv):
                     *. "proportions": List of values
                     *. "contacts": Optional, default is 1
                     *. "mechanisms" or "swctype mechanisms":
-                        *. [Synapse Mechanisms]
+                        *. [Synapse Mechanisms] - if "mechanisms"
                             *. <mech_params>: value
+                        *. [SWC Types] - if "swctype mechanisms"
+                            *. [Synapse Mechanisms]
+                                *. <mech_params>: value
         """
         connection_config = self.model_config["Connection Generator"]
 
@@ -802,18 +805,15 @@ class Env(AbstractEnv):
                 swctype_mechparams_dict = None
                 if "mechanisms" in syn_dict:
                     mechparams_dict = syn_dict["mechanisms"]
-                else:
+                elif "swctype mechanisms" in syn_dict:
                     swctype_mechparams_dict = syn_dict["swctype mechanisms"]
+                else:
+                    raise AttributeError("Missing mechanisms/swctype-mechanisms in synapse configuration.")
 
                 res_type = self.Synapse_Types[val_type]
-                res_synsections = []
-                res_synlayers = []
+                res_synsections = [self.SWC_Types[name] for name in val_synsections]
+                res_synlayers = [self.layers[name] for name in val_synlayers]
                 res_mechparams = {}
-
-                for name in val_synsections:
-                    res_synsections.append(self.SWC_Types[name])
-                for name in val_synlayers:
-                    res_synlayers.append(self.layers[name])
                 if swctype_mechparams_dict is not None:
                     for swc_type in swctype_mechparams_dict:
                         swc_type_index = self.SWC_Types[swc_type]
@@ -845,10 +845,11 @@ class Env(AbstractEnv):
                 ):
                     config_dict[(conn_config.type, s, l)] += p
 
+            # Check if proportion sums to 1.0
             for k, v in config_dict.items():
                 try:
                     assert np.isclose(v, 1.0)
-                except Exception as e:
+                except AssertionError as e:
                     self.logger.error(
                         f"Connection configuration: probabilities for {key_postsyn} do not sum to 1: type: {self.Synapse_Type_index[k[0]]} section: {self.SWC_Type_index[k[1]]}  layer {self.layer_type_index[k[2]]} = {v}"
                     )
