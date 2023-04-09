@@ -74,6 +74,7 @@ docs = [
 make-h5types = "scripts.make_h5types:main"
 measure-distances = "scripts.measure_distances:main"
 generate-distance-connections = "scripts.generate_distance_connections:main"
+generate-gapjunctions = "scripts.generate_gapjunctions:main"
 generate-input-features = "scripts.generate_input_features:main"
 generate-input-spike-trains = "scripts.generate_input_spike_trains:main"
 generate-soma-coordinates = "scripts.generate_soma_coordinates:main"

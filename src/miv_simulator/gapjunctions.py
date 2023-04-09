@@ -115,8 +115,10 @@ def choose_gj_locations(ranstream_gj, cell_a, cell_b):
     position_a = max(ranstream_gj.random_sample(), 0.01)
     position_b = max(ranstream_gj.random_sample(), 0.01)
 
-    distance_a = distance_to_root(cell_a.soma, section_a, position_a)
-    distance_b = distance_to_root(cell_b.soma, section_b, position_b)
+    soma_a = cell_a.soma_list if hasattr(cell_a, "soma_list") else cell_a.soma
+    soma_b = cell_b.soma_list if hasattr(cell_b, "soma_list") else cell_b.soma
+    distance_a = distance_to_root(soma_a, section_a, position_a)
+    distance_b = distance_to_root(soma_b, section_b, position_b)
 
     return (
         sectionidx_a,
@@ -153,7 +155,7 @@ def generate_gap_junctions(
         gid_b = gids_b[i]
         gid_dict[gid_a].append(gid_b)
 
-    for gid_a, gids_b in viewitems(gid_dict):
+    for gid_a, gids_b in gid_dict.items():
         sections_a = []
         positions_a = []
         sections_b = []
@@ -265,7 +267,7 @@ def generate_gj_connections(
     total_count = 0
     gid_count = 0
 
-    for i, (pp, gj_config) in enumerate(sorted(viewitems(gj_config_dict))):
+    for i, (pp, gj_config) in enumerate(sorted(gj_config_dict.items())):
         if rank == 0:
             logger.info(
                 f"Generating gap junction connections between populations {pp[0]} and {pp[1]}..."
@@ -292,7 +294,7 @@ def generate_gj_connections(
 
         clst_a = []
         gid_a = []
-        for gid, coords in viewitems(soma_coords_dict[population_a]):
+        for gid, coords in soma_coords_dict[population_a].items():
             clst_a.append(np.asarray(coords))
             gid_a.append(gid)
         gid_a = np.asarray(gid_a)
@@ -302,7 +304,7 @@ def generate_gj_connections(
 
         clst_b = []
         gid_b = []
-        for gid, coords in viewitems(soma_coords_dict[population_b]):
+        for gid, coords in soma_coords_dict[population_b].items():
             clst_b.append(np.asarray(coords))
             gid_b.append(gid)
         gid_b = np.asarray(gid_b)
@@ -323,7 +325,7 @@ def generate_gj_connections(
         gj_distances = []
         gids_a = []
         gids_b = []
-        for gid, v in viewitems(gj_prob_dict):
+        for gid, v in gj_prob_dict.items():
             if gid % size == rank:
                 (nngids, nndists, nnprobs) = v
                 gids_a.append(np.full(nngids.shape, gid, np.int32))
