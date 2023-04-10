@@ -1837,7 +1837,7 @@ def init(env: Env) -> None:
         env.optotime = time.time() - st
         if rank == 0:
             logger.info(
-                "*** Opsin configuration instantiated in {env.optotime:.02f} s"
+                f"*** Opsin configuration instantiated in {env.optotime:.02f} s"
             )
 
     if env.profile_memory and rank == 0:
@@ -1866,12 +1866,12 @@ def init(env: Env) -> None:
                 ),
             )
         if rank == 0:
-            logger.info("*** LFP objects instantiated")
+            logger.info(f"*** LFP objects instantiated: time = {time.time() - st:.02f} s")
     lfp_time = time.time() - st
 
     st = time.time()
     if rank == 0:
-        logger.info(f"*** Creating connections: time = {st:.02f} s")
+        logger.info(f"*** Creating connections:")
     if env.cell_selection is None:
         connect_cells(env)
     else:
@@ -1881,11 +1881,7 @@ def init(env: Env) -> None:
     env.connectcellstime = time.time() - st
 
     if rank == 0:
-        logger.info(
-            f"*** Done creating connections: time = {time.time():.02f} s"
-        )
-    if rank == 0:
-        logger.info(f"*** Connections created in {env.connectcellstime:.02f} s")
+        logger.info(f"*** Done creating connections: time = {env.connectcellstime:.02f} s")
     edge_count = int(sum(env.edge_count[dest] for dest in env.edge_count))
     logger.info(f"*** Rank {rank} created {edge_count} connections")
     if env.profile_memory and rank == 0:
