@@ -69,6 +69,22 @@ Analysis scripts
    :prog: plot-state
    :nested: full
 
+.. click:: scripts.analysis.plot_single_vertex_dist:main
+   :prog: plot-single-vertex-dist
+   :nested: full
+
+.. click:: scripts.analysis.plot_spatial_spike_raster:main
+   :prog: plot-spatial-spike-raster
+   :nested: full
+
+.. click:: scripts.analysis.plot_lfp:main
+   :prog: plot-lfp
+   :nested: full
+
+.. click:: scripts.analysis.plot_lfp_spectrogram:main
+   :prog: plot-lfp-spectrogram
+   :nested: full
+
 Tools
 -----
 
