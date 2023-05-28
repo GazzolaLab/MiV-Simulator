@@ -1866,7 +1866,9 @@ def init(env: Env) -> None:
                 ),
             )
         if rank == 0:
-            logger.info(f"*** LFP objects instantiated: time = {time.time() - st:.02f} s")
+            logger.info(
+                f"*** LFP objects instantiated: time = {time.time() - st:.02f} s"
+            )
     lfp_time = time.time() - st
 
     st = time.time()
@@ -1881,7 +1883,9 @@ def init(env: Env) -> None:
     env.connectcellstime = time.time() - st
 
     if rank == 0:
-        logger.info(f"*** Done creating connections: time = {env.connectcellstime:.02f} s")
+        logger.info(
+            f"*** Done creating connections: time = {env.connectcellstime:.02f} s"
+        )
     edge_count = int(sum(env.edge_count[dest] for dest in env.edge_count))
     logger.info(f"*** Rank {rank} created {edge_count} connections")
     if env.profile_memory and rank == 0:

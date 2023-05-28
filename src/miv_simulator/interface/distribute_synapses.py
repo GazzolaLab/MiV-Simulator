@@ -1,13 +1,13 @@
 import logging
 from dataclasses import dataclass
 
-from machinable import Experiment
+from machinable import Component
 from machinable.config import Field
-from miv_simulator.simulator import distribute_synapse_locations
 from miv_simulator.config import Blueprint
+from miv_simulator.simulator import distribute_synapse_locations
 
 
-class DistributeSynapseLocations(Experiment):
+class DistributeSynapseLocations(Component):
     @dataclass
     class Config:
         blueprint: Blueprint = Field(default_factory=Blueprint)
@@ -25,7 +25,7 @@ class DistributeSynapseLocations(Experiment):
         ranks_: int = 8
         nodes_: int = 1
 
-    def on_execute(self):
+    def __call__(self):
         logging.basicConfig(level=logging.INFO)
         distribute_synapse_locations(
             config=self.config.blueprint,

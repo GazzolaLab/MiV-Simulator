@@ -1,14 +1,14 @@
+from typing import Dict, List, Optional, Tuple, Union
+
 from dataclasses import dataclass
-from typing import Tuple, Optional, Union, List, Dict
 
-from machinable import Experiment
+from machinable import Component
 from machinable.config import Field
-
 from miv_simulator.clamps import network
 from miv_simulator.config import Blueprint
 
 
-class ClampOptimize(Experiment):
+class ClampOptimize(Component):
     @dataclass
     class Config:
         blueprint: Blueprint = Field(default_factory=Blueprint)
@@ -50,7 +50,7 @@ class ClampOptimize(Experiment):
         cooperative_init: bool = False
         target: str = "rate"
 
-    def on_execute(self):
+    def __call__(self):
         network.optimize(
             config_file=self.config.blueprint,
             config_prefix=None,

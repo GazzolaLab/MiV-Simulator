@@ -1,14 +1,15 @@
-import logging
-from dataclasses import dataclass
 from typing import Optional, Tuple
 
-from machinable import Experiment
+import logging
+from dataclasses import dataclass
+
+from machinable import Component
 from machinable.config import Field
-from miv_simulator.simulator import measure_distances
 from miv_simulator.config import Blueprint
+from miv_simulator.simulator import measure_distances
 
 
-class MeasureDistances(Experiment):
+class MeasureDistances(Component):
     @dataclass
     class Config:
         blueprint: Blueprint = Field(default_factory=Blueprint)
@@ -26,7 +27,7 @@ class MeasureDistances(Experiment):
         cache_size: int = 50
         ranks_: int = 8
 
-    def on_execute(self):
+    def __call__(self):
         logging.basicConfig(level=logging.INFO)
         measure_distances(
             config=self.config.blueprint,

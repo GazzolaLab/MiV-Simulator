@@ -2,15 +2,15 @@ import logging
 import os
 from dataclasses import dataclass
 
-from machinable import Experiment
-from machinable.element import normversion
+from machinable import Component
 from machinable.config import Field
+from machinable.element import normversion
 from machinable.types import VersionType
-from miv_simulator.simulator import make_h5types
 from miv_simulator.config import Blueprint
+from miv_simulator.simulator import make_h5types
 
 
-class MakeNetwork(Experiment):
+class MakeNetwork(Component):
     @dataclass
     class Config:
         blueprint: Blueprint = Field(default_factory=Blueprint)
@@ -39,7 +39,7 @@ class MakeNetwork(Experiment):
             }
         }
 
-    def on_execute(self) -> None:
+    def __call__(self) -> None:
         logging.basicConfig(level=logging.INFO)
         make_h5types(
             self.config.blueprint,
@@ -51,7 +51,7 @@ class MakeNetwork(Experiment):
     def output_filepath(self) -> str:
         return self.local_directory("data/", create=True) + "network_h5types.h5"
 
-    def soma_coordinates(self, version: VersionType = None) -> "Experiment":
+    def soma_coordinates(self, version: VersionType = None) -> "Component":
         return self.derive(
             "miv_simulator.interface.soma_coordinates",
             [
@@ -61,9 +61,10 @@ class MakeNetwork(Experiment):
                 }
             ]
             + normversion(version),
+            uses=self,
         )
 
-    def synapse_forest(self, version: VersionType = None) -> "Experiment":
+    def synapse_forest(self, version: VersionType = None) -> "Component":
         return self.derive(
             "miv_simulator.interface.synapse_forest",
             [
@@ -72,4 +73,5 @@ class MakeNetwork(Experiment):
                 }
             ]
             + normversion(version),
+            uses=self,
         )

@@ -1,11 +1,12 @@
+from typing import List
+
 import os
 import pathlib
 import sys
-from typing import List
 
 import commandlib
 import h5py
-from machinable import Experiment
+from machinable import Component
 from neuroh5.io import read_population_names
 
 
@@ -15,15 +16,15 @@ def h5_copy_dataset(f_src, f_dst, dset_path):
     f_src.copy(f_src[dset_path], f_dst[target_path])
 
 
-class PrepareData(Experiment):
+class PrepareData(Component):
     def output_filepath(self, path: str = "cells") -> str:
         return self.local_directory(f"data/simulation/{path}.h5")
 
     def on_compute_predicate(self):
         def generate_uid(use):
             if getattr(use, "refreshed_at", None) is not None:
-                return f"{use.experiment_id}-{use.refreshed_at}"
-            return use.experiment_id
+                return f"{use.uuid}-{use.refreshed_at}"
+            return use.uuid
 
         return {
             "uses*": sorted(
@@ -34,8 +35,7 @@ class PrepareData(Experiment):
             )
         }
 
-    def on_create(self):
-        # load dependencies
+    def __call__(self):
         self.soma_coordinates = None
         self.network = None
         self.spike_trains = None
@@ -75,7 +75,6 @@ class PrepareData(Experiment):
                     )
                 self.synapse_forest[dependency.config.population] = dependency
 
-    def on_execute(self):
         print(f"Consolidating generated data files into unified H5")
 
         self.local_directory("data/simulation", create=True)

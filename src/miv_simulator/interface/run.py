@@ -1,18 +1,19 @@
+from typing import Optional
+
 import os
 import pathlib
 import sys
 from dataclasses import dataclass
-from typing import Optional
 
-import numpy as np
-from machinable import Experiment
-from machinable.config import Field, validator
 import miv_simulator.network
+import numpy as np
+from machinable import Component
+from machinable.config import Field, validator
+from miv_simulator.config import Blueprint
 from miv_simulator.env import Env
+from miv_simulator.mechanisms import compile_and_load
 from miv_simulator.utils import config_logging
 from mpi4py import MPI
-from miv_simulator.mechanisms import compile_and_load
-from miv_simulator.config import Blueprint
 
 
 def h5_copy_dataset(f_src, f_dst, dset_path):
@@ -33,7 +34,7 @@ sys_excepthook = sys.excepthook
 sys.excepthook = mpi_excepthook
 
 
-class RunNetwork(Experiment):
+class RunNetwork(Component):
     @dataclass
     class Config:
         blueprint: Blueprint = Field(default_factory=Blueprint)
@@ -53,17 +54,15 @@ class RunNetwork(Experiment):
         ranks_: int = 8
         nodes_: int = 1
 
-    def on_create(self):
+    def __call__(self):
         compile_and_load(self.config.mechanisms)
-
-    def on_execute(self):
         self.local_directory("data", create=True)
         config_logging(True)
         np.seterr(all="raise")
 
         data_configuration = {
             "Model Name": "simulation",
-            "Dataset Name": "simulation",
+            "Dataset Name": "",
             "Cell Data": self.config.cells,
             "Connection Data": self.config.connections,
             "Cell Types": {
@@ -130,8 +129,8 @@ class RunNetwork(Experiment):
         )
 
         if self.on_write_meta_data() is not False:
-            self.save_data(
-                f"timing_summary_rank{int(env.pc.id())}.json", summary
+            self.save_file(
+                f"data/timing_summary_rank{int(env.pc.id())}.json", summary
             )
 
     def on_write_meta_data(self) -> Optional[bool]:

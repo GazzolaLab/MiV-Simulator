@@ -1,11 +1,11 @@
-import shutil
 import os
+import shutil
+from dataclasses import dataclass
 
 import commandlib
-from machinable import Experiment
-from dataclasses import dataclass
-from machinable.config import Field
 import h5py
+from machinable import Component
+from machinable.config import Field
 
 
 def _bin_check(bin: str) -> None:
@@ -13,7 +13,7 @@ def _bin_check(bin: str) -> None:
         raise FileNotFoundError(f"{bin} not found. Did you add it to the PATH?")
 
 
-class GenerateSynapseForest(Experiment):
+class GenerateSynapseForest(Component):
     @dataclass
     class Config:
         h5types: str = Field("???")
@@ -28,7 +28,7 @@ class GenerateSynapseForest(Experiment):
     def output_filepath(self) -> str:
         return self.local_directory("data/", create=True) + "forest.h5"
 
-    def on_execute(self) -> None:
+    def __call__(self) -> None:
         # create tree
         if not os.path.isfile(self.tree_output_filepath):
             _bin_check("neurotrees_import")

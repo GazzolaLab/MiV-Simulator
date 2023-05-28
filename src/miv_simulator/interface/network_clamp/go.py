@@ -1,14 +1,14 @@
-from miv_simulator.clamps import network
+from typing import Dict, List, Optional, Tuple, Union
 
 from dataclasses import dataclass
-from typing import Tuple, Optional, Union, List, Dict
 
-from machinable import Experiment
+from machinable import Component
 from machinable.config import Field
+from miv_simulator.clamps import network
 from miv_simulator.config import Blueprint
 
 
-class ClampGo(Experiment):
+class ClampGo(Component):
     @dataclass
     class Config:
         blueprint: Blueprint = Field(default_factory=Blueprint)
@@ -44,7 +44,7 @@ class ClampGo(Experiment):
         recording_profile: Optional[str] = None
         input_seed: Optional[int] = None
 
-    def on_execute(self):
+    def __call__(self):
         network.go(
             config_file=self.config.blueprint,
             config_prefix=None,

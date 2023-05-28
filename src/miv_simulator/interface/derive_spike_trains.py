@@ -1,19 +1,20 @@
-from dataclasses import dataclass
-from typing import Tuple, Optional, Union, List, Dict
-from collections import defaultdict
+from typing import Dict, List, Optional, Tuple, Union
 
-import numpy as np
+from collections import defaultdict
+from dataclasses import dataclass
+
 import arrow
-from machinable import Experiment
+import numpy as np
+from machinable import Component
 from machinable.config import Field
+from miv_simulator.config import Blueprint
 from miv_simulator.simulator import (
     generate_input_spike_trains,
     import_input_spike_train,
 )
-from miv_simulator.config import Blueprint
 
 
-class DeriveSpikeTrains(Experiment):
+class DeriveSpikeTrains(Component):
     @dataclass
     class Config:
         blueprint: Blueprint = Field(default_factory=Blueprint)
@@ -38,7 +39,7 @@ class DeriveSpikeTrains(Experiment):
         self.active_spike_input_namespace = None
         self.active_spike_input_attr = None
 
-    def on_execute(self):
+    def __call__(self):
         generate_input_spike_trains(
             config=self.config.blueprint,
             selectivity_path=self.config.input_features,
@@ -85,13 +86,13 @@ class DeriveSpikeTrains(Experiment):
         self.active_spike_input_namespace = namespace
         self.active_spike_input_attr = attr_name
 
-        self.save_data("refreshed_at", str(arrow.now()))
+        self.save_file("refreshed_at", str(arrow.now()))
 
         return self
 
     @property
     def refreshed_at(self):
-        refreshed_at = self.load_data("refreshed_at")
+        refreshed_at = self.load_file("refreshed_at")
         if refreshed_at is not None:
             return arrow.get(refreshed_at)
 

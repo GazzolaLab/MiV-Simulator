@@ -1,14 +1,15 @@
-import logging
-from dataclasses import dataclass
 from typing import List, Tuple
 
-from machinable import Experiment
+import logging
+from dataclasses import dataclass
+
+from machinable import Component
 from machinable.config import Field
-from miv_simulator.simulator import generate_distance_connections
 from miv_simulator.config import Blueprint
+from miv_simulator.simulator import generate_distance_connections
 
 
-class DistanceConnections(Experiment):
+class DistanceConnections(Component):
     @dataclass
     class Config:
         blueprint: Blueprint = Field(default_factory=Blueprint)
@@ -33,7 +34,7 @@ class DistanceConnections(Experiment):
     def output_filepath(self):
         return self.local_directory("data/", create=True) + "connectivity.h5"
 
-    def on_execute(self):
+    def __call__(self):
         logging.basicConfig(level=logging.INFO)
 
         generate_distance_connections(

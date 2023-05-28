@@ -1,18 +1,19 @@
+from typing import Optional, Tuple
+
 import logging
 from dataclasses import dataclass
-from typing import Tuple, Optional
 
 import numpy as np
-from machinable import Experiment
+from machinable import Component
 from machinable.config import Field
 from machinable.element import normversion
 from machinable.types import VersionType
 from miv_simulator import plotting
-from miv_simulator.simulator import generate_soma_coordinates
 from miv_simulator.config import Blueprint
+from miv_simulator.simulator import generate_soma_coordinates
 
 
-class SomaCoordinates(Experiment):
+class SomaCoordinates(Component):
     """Generate soma coordinates within layer-specific volume."""
 
     @dataclass
@@ -35,7 +36,7 @@ class SomaCoordinates(Experiment):
     def output_filepath(self):
         return self.local_directory("data/", create=True) + "coordinates.h5"
 
-    def on_execute(self):
+    def __call__(self):
         logging.basicConfig(level=logging.INFO)
         generate_soma_coordinates(
             config=self.config.blueprint,
@@ -85,6 +86,7 @@ class SomaCoordinates(Experiment):
                 }
             ]
             + normversion(version),
+            uses=self,
         )
 
     def distribute_synapses(self, version: VersionType = None):
@@ -97,6 +99,7 @@ class SomaCoordinates(Experiment):
                 }
             ]
             + normversion(version),
+            uses=self,
         )
 
     def distance_connections(self, version: VersionType = None):
@@ -109,6 +112,7 @@ class SomaCoordinates(Experiment):
                 }
             ]
             + normversion(version),
+            uses=self,
         )
 
     def input_features(self, version: VersionType = None):
@@ -121,4 +125,5 @@ class SomaCoordinates(Experiment):
                 }
             ]
             + normversion(version),
+            uses=self,
         )

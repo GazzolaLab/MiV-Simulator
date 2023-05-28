@@ -1,18 +1,19 @@
-from collections import defaultdict
-from dataclasses import dataclass
 from typing import Dict, Tuple
 
+from collections import defaultdict
+from dataclasses import dataclass
+
 import numpy as np
-from machinable import Experiment
+from machinable import Component
 from machinable.config import Field
 from machinable.element import normversion
 from machinable.types import VersionType
+from miv_simulator.config import Blueprint
 from miv_simulator.simulator import generate_input_features
 from neuroh5.io import append_cell_attributes
-from miv_simulator.config import Blueprint
 
 
-class InputFeatures(Experiment):
+class InputFeatures(Component):
     @dataclass
     class Config:
         blueprint: Blueprint = Field(default_factory=Blueprint)
@@ -29,7 +30,7 @@ class InputFeatures(Experiment):
         # resources
         ranks_: int = 1
 
-    def on_execute(self):
+    def __call__(self):
         generate_input_features(
             config=self.config.blueprint,
             coords_path=self.config.coordinates,
@@ -74,4 +75,5 @@ class InputFeatures(Experiment):
                 }
             ]
             + normversion(version),
+            uses=self,
         )
