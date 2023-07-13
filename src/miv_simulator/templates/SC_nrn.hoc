@@ -1,18 +1,66 @@
-
 begintemplate SC_nrn
 
    public soma, sections, all, pps
    create soma
    objref sections, all, pps
-   
+   public sections, all, basal_list, apical_list, soma_list, axon_list, dendrite_list, ais_list, hillock_list
+   public x, y, z, position
+
+
    func is_art() {return 0}
    func is_reduced() {return 1}
-   
+
    proc init() {
        all = new SectionList()
        sections = new SectionList()
        soma { sections.append() all.append() }
        pps = new List()
      }
+
+
+   objref all, basal_list, apical_list, dendrite_list, soma_list, axon_list, ais_list, hillock_list
+   proc append_sections() { local i
+        objref all, basal_list, apical_list, dendrite_list, soma_list, axon_list
+
+        all = new SectionList()
+        basal_list = new SectionList()
+        apical_list = new SectionList()
+        soma_list = new SectionList()
+        axon_list = new SectionList()
+        ais_list = new SectionList()
+        hillock_list = new SectionList()
+        dendrite_list = new SectionList()
+
+        sections[somaidx.x[0]] all.append()
+        sections[somaidx.x[0]] soma_list.append()
+        for i=0, dendidx.size()-1 {
+                sections[dendidx.x[i]] all.append()
+                sections[dendidx.x[i]] dendrite_list.append()
+        }
+
+        for i=0, apicalidx.size()-1 {
+                sections[apicalidx.x[i]] apical_list.append()
+        }
+
+        for i=0, basalidx.size()-1 {
+                sections[basalidx.x[i]] basal_list.append()
+        }
+
+        for i=0, axonidx.size()-1 {
+                sections[axonidx.x[i]] all.append()
+                sections[axonidx.x[i]] axon_list.append()
+        }
+   }
+
+
+   proc position(){ local i
+        forall {
+                for i = 0, n3d()-1 {
+                        pt3dchange(i, $1-x+x3d(i), $2-y+y3d(i), $3-z+z3d(i), diam3d(i))
+                }
+        }
+        x = $1  y = $2  z = $3
+   }
+
 
 endtemplate SC_nrn
