@@ -881,16 +881,17 @@ def plot_spike_raster(
 
         sct = None
         if len(pop_spkinds) > 0:
-            sct = axes[i].scatter(
-                pop_spkts,
-                pop_spkinds,
-                s=1,
-                linewidths=fig_options.lw,
-                marker=marker,
-                c=pop_colors[pop_name],
-                alpha=0.5,
-                label=pop_name,
-            )
+            for this_pop_spkts, this_pop_spkinds in zip(pop_spkts, pop_spkinds):
+                sct = axes[i].scatter(
+                    this_pop_spkts,
+                    this_pop_spkinds,
+                    s=1,
+                    linewidths=fig_options.lw,
+                    marker=marker,
+                    c=pop_colors[pop_name],
+                    alpha=0.5,
+                    label=pop_name,
+                )
 
         axes[i].spines["top"].set_visible(False)
         axes[i].spines["bottom"].set_visible(False)
