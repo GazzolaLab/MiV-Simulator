@@ -5,7 +5,7 @@ from pydantic import (
     conlist,
     GetCoreSchemaHandler,
 )
-from typing import Literal, Dict, Any
+from typing import Literal, Dict, Any, List
 from enum import IntEnum
 from collections import defaultdict
 import numpy as np
@@ -138,6 +138,42 @@ class Synapse(BaseModel):
     layers: conlist(LayersDefOrStr)
     proportions: conlist(float)
     mechanisms: Dict[SynapseMechanismsDefOrStr, Mechanism]
+
+
+class Origin(BaseModel):
+    U: str
+    V: str
+    L: str
+
+
+class LayerExtents(BaseModel):
+    SO: List[List[float]]
+    SP: List[List[float]]
+    SR: List[List[float]]
+    SLM: List[List[float]]
+
+
+class CellConstraint(BaseModel):
+    layer: List[float]
+    reference: str = None
+
+    class Config:
+        fields = {
+            "layer": {
+                "alias": "SP"
+            }  # Using the example layer 'SP', but this can be any from the Layers Enum
+        }
+
+
+class ParametricSurface(BaseModel):
+    Origin: Origin
+    Layer_Extents: LayerExtents
+    Rotation: List[float]
+
+
+class CellConstraints(BaseModel):
+    PC: CellConstraint
+    PVBC: CellConstraint
 
 
 # Composed

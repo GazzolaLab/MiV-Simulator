@@ -10,7 +10,6 @@ class CreateNetwork(Component):
     class Config(BaseModel):
         cell_distributions: config.CellDistributions = {}
         synapses: config.Synapses = {}
-        ranks_: int = 1
 
     @property
     def output_filepath(self) -> str:
@@ -30,7 +29,7 @@ class CreateNetwork(Component):
             "miv_simulator.interface.soma_coordinates",
             [
                 {
-                    "blueprint": self.config.blueprint,
+                    "blueprint": {},  # todo!
                     "h5types": self.output_filepath,
                 }
             ]

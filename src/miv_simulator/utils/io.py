@@ -263,7 +263,7 @@ def import_spikeraster(
 
 
 def create_h5types(
-    output_path: str,
+    output_filepath: str,
     cell_distributions: config.CellDistributions,
     synapses: config.Synapses,
     gap_junctions: Optional[Dict] = None,
@@ -294,7 +294,7 @@ def create_h5types(
     mapping = {name: idx for name, idx in populations.items()}
     dt_population_labels = h5py.special_dtype(enum=(np.uint16, mapping))
 
-    with h5py.File(output_path, "a") as h5:
+    with h5py.File(output_filepath, "a") as h5:
         h5[path_population_labels] = dt_population_labels
 
         dt_populations = np.dtype(

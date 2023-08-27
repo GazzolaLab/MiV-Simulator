@@ -1,23 +1,22 @@
 from typing import Optional, Tuple
 
+from pydantic import BaseModel
 import logging
-from dataclasses import dataclass
-
 import numpy as np
 from machinable import Component
 from machinable.config import Field
 from machinable.element import normversion
 from machinable.types import VersionType
 from miv_simulator import plotting
-from miv_simulator.config import Blueprint
+
+Blueprint = dict
 from miv_simulator.simulator import generate_soma_coordinates
 
 
 class SomaCoordinates(Component):
     """Generate soma coordinates within layer-specific volume."""
 
-    @dataclass
-    class Config:
+    class Config(BaseModel):
         blueprint: Blueprint = Field(default_factory=Blueprint)
         h5types: str = Field("???")
         geometry: Optional[str] = None
@@ -64,7 +63,7 @@ class SomaCoordinates(Component):
         subvol: bool = False,
         mayavi: bool = False,
     ):
-        plotting.plot_coords_in_volume(
+        return plotting.plot_coords_in_volume(
             populations=populations,
             coords_path=self.output_filepath,
             coords_namespace=self.config.output_namespace,

@@ -123,6 +123,7 @@ def gen_min_energy_nodes(
     return in_nodes
 
 
+# !deprecated, use generate() instead
 def generate_soma_coordinates(
     config: str,
     types_path: str,
@@ -142,6 +143,54 @@ def generate_soma_coordinates(
     config_prefix="",
 ):
     config_logging(verbose)
+    env = Env(comm=MPI.COMM_WORLD, config=config, config_prefix=config_prefix)
+
+    # Note that using linearly hardcoded random seeds
+    #  is not recommended (https://dl.acm.org/doi/10.1145/1276927.1276928)
+    #  and hence only part of this deprecated API
+    random_seed = int(env.model_config["Random Seeds"]["Soma Locations"])
+    random.seed(random_seed)
+
+    return generate(
+        output_filepath=output_path,
+        types_filepath=types_path,
+        layer_extents=env.geometry["Parametric Surface"]["Layer Extents"],
+        rotate=env.geometry["Parametric Surface"]["Rotation"],
+        cell_distribution=env.geometry["Cell Distribution"],
+        cell_constraints=env.geometry["Cell Constraints"],
+        output_namespace=output_namespace,
+        geometry_path=geometry_path,
+        populations=populations,
+        resolution=resolution,
+        alpha_radius=alpha_radius,
+        nodeiter=nodeiter,
+        dispersion_delta=dispersion_delta,
+        snap_delta=snap_delta,
+        io_size=io_size,
+        chunk_size=chunk_size,
+        value_chunk_size=value_chunk_size,
+    )
+
+
+def generate(
+    output_filepath: str,
+    types_filepath: str,
+    layer_extents,
+    rotate,
+    cell_distribution,
+    cell_constraints,
+    output_namespace: str = "Generated Coordinates",
+    geometry_path: Optional[str] = None,
+    populations: Tuple[str, ...] = (),
+    resolution: Tuple[int, int, int] = (3, 3, 3),
+    alpha_radius: float = 2500.0,
+    nodeiter: int = 10,
+    dispersion_delta: float = 0.1,
+    snap_delta: float = 0.01,
+    io_size: int = -1,
+    chunk_size: int = 1000,
+    value_chunk_size: int = 1000,
+):
     logger = get_script_logger(script_name)
 
     comm = MPI.COMM_WORLD
@@ -156,21 +205,13 @@ def generate_soma_coordinates(
         logger.info("%i ranks have been allocated" % comm.size)
 
     if rank == 0:
-        if not os.path.isfile(output_path):
-            input_file = h5py.File(types_path, "r")
-            output_file = h5py.File(output_path, "w")
+        if not os.path.isfile(output_filepath):
+            input_file = h5py.File(types_filepath, "r")
+            output_file = h5py.File(output_filepath, "w")
             input_file.copy("/H5Types", output_file)
             input_file.close()
             output_file.close()
     comm.barrier()
-
-    env = Env(comm=comm, config=config, config_prefix=config_prefix)
-
-    random_seed = int(env.model_config["Random Seeds"]["Soma Locations"])
-    random.seed(random_seed)
-
-    layer_extents = env.geometry["Parametric Surface"]["Layer Extents"]
-    rotate = env.geometry["Parametric Surface"]["Rotation"]
 
     (extent_u, extent_v, extent_l) = get_total_extents(layer_extents)
     vol = make_network_volume(
@@ -245,7 +286,7 @@ def generate_soma_coordinates(
                     )
 
     comm.barrier()
-    population_ranges = read_population_ranges(output_path, comm)[0]
+    population_ranges = read_population_ranges(output_filepath, comm)[0]
     if not populations:
         populations = sorted(population_ranges.keys())
 
@@ -263,13 +304,11 @@ def generate_soma_coordinates(
 
             (population_start, population_count) = population_ranges[population]
 
-            pop_layers = env.geometry["Cell Distribution"][population]
+            pop_layers = cell_distribution[population]
             pop_constraint = None
-            if "Cell Constraints" in env.geometry:
-                if population in env.geometry["Cell Constraints"]:
-                    pop_constraint = env.geometry["Cell Constraints"][
-                        population
-                    ]
+            if cell_constraints is not None:
+                if population in cell_constraints:
+                    pop_constraint = cell_constraints[population]
             if rank == 0:
                 logger.info(
                     f"Population {population}: layer distribution is {pop_layers}"
@@ -309,7 +348,7 @@ def generate_soma_coordinates(
                     "Generating %i nodes in layer %s for population %s..."
                     % (N, layer, population)
                 )
-                if verbose:
+                if False:  # verbose
                     rbf_logger = logging.Logger.manager.loggerDict[
                         "rbf.pde.nodes"
                     ]
@@ -402,7 +441,7 @@ def generate_soma_coordinates(
     for population in populations:
         xyz_error = np.asarray([0.0, 0.0, 0.0])
 
-        pop_layers = env.geometry["Cell Distribution"][population]
+        pop_layers = cell_distribution[population]
 
         pop_start, pop_count = population_ranges[population]
         coords = []
@@ -506,11 +545,11 @@ def generate_soma_coordinates(
 
     for population in populations:
         pop_start, pop_count = population_ranges[population]
-        pop_layers = env.geometry["Cell Distribution"][population]
+        pop_layers = cell_distribution[population]
         pop_constraint = None
-        if "Cell Constraints" in env.geometry:
-            if population in env.geometry["Cell Constraints"]:
-                pop_constraint = env.geometry["Cell Constraints"][population]
+        if cell_constraints is not None:
+            if population in cell_constraints:
+                pop_constraint = cell_constraints[population]
 
         coords_lst = comm.gather(pop_coords_dict[population], root=0)
         if rank == 0:
@@ -588,7 +627,7 @@ def generate_soma_coordinates(
             }
 
             append_cell_attributes(
-                output_path,
+                output_filepath,
                 population,
                 coords_dict,
                 namespace=output_namespace,
