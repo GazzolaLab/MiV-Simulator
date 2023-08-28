@@ -19,6 +19,7 @@ from miv_simulator.geometry.geometry import (
     save_alpha_shape,
     uvl_in_bounds,
 )
+from miv_simulator import config
 from miv_simulator.utils import config_logging, get_script_logger
 from miv_simulator.volume import (
     make_network_volume,
@@ -156,7 +157,7 @@ def generate_soma_coordinates(
         types_filepath=types_path,
         layer_extents=env.geometry["Parametric Surface"]["Layer Extents"],
         rotate=env.geometry["Parametric Surface"]["Rotation"],
-        cell_distribution=env.geometry["Cell Distribution"],
+        cell_distributions=env.geometry["Cell Distribution"],
         cell_constraints=env.geometry["Cell Constraints"],
         output_namespace=output_namespace,
         geometry_path=geometry_path,
@@ -174,11 +175,12 @@ def generate_soma_coordinates(
 
 def generate(
     output_filepath: str,
-    types_filepath: str,
+    cell_distributions: config.CellDistributions,
+    # TODO: specify appropriate pydantic model types that capture the configuration space of this method
     layer_extents,
     rotate,
-    cell_distribution,
     cell_constraints,
+    types_filepath: Optional[str] = None,
     output_namespace: str = "Generated Coordinates",
     geometry_path: Optional[str] = None,
     populations: Tuple[str, ...] = (),
@@ -205,7 +207,7 @@ def generate(
         logger.info("%i ranks have been allocated" % comm.size)
 
     if rank == 0:
-        if not os.path.isfile(output_filepath):
+        if types_filepath and not os.path.isfile(output_filepath):
             input_file = h5py.File(types_filepath, "r")
             output_file = h5py.File(output_filepath, "w")
             input_file.copy("/H5Types", output_file)
@@ -304,7 +306,7 @@ def generate(
 
             (population_start, population_count) = population_ranges[population]
 
-            pop_layers = cell_distribution[population]
+            pop_layers = cell_distributions[population]
             pop_constraint = None
             if cell_constraints is not None:
                 if population in cell_constraints:
@@ -441,7 +443,7 @@ def generate(
     for population in populations:
         xyz_error = np.asarray([0.0, 0.0, 0.0])
 
-        pop_layers = cell_distribution[population]
+        pop_layers = cell_distributions[population]
 
         pop_start, pop_count = population_ranges[population]
         coords = []
@@ -545,7 +547,7 @@ def generate(
 
     for population in populations:
         pop_start, pop_count = population_ranges[population]
-        pop_layers = cell_distribution[population]
+        pop_layers = cell_distributions[population]
         pop_constraint = None
         if cell_constraints is not None:
             if population in cell_constraints:

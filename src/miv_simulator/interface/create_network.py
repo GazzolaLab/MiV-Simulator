@@ -16,12 +16,10 @@ class CreateNetwork(Component):
         return self.local_directory("network.h5")
 
     def __call__(self) -> None:
-        io_utils.create_h5types(
+        io_utils.create_neural_h5(
             self.output_filepath,
             self.config.cell_distributions,
             self.config.synapses,
-            # todo: add back support for gap-junctions
-            gap_junctions=None,
         )
 
     def soma_coordinates(self, version: VersionType = None) -> "Component":

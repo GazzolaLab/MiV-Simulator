@@ -262,7 +262,7 @@ def import_spikeraster(
     comm.barrier()
 
 
-def create_h5types(
+def create_neural_h5(
     output_filepath: str,
     cell_distributions: config.CellDistributions,
     synapses: config.Synapses,
