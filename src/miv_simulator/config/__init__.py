@@ -5,7 +5,7 @@ from pydantic import (
     conlist,
     GetCoreSchemaHandler,
 )
-from typing import Literal, Dict, Any, List
+from typing import Literal, Dict, Any, List, Tuple, Optional
 from enum import IntEnum
 from collections import defaultdict
 import numpy as np
@@ -89,6 +89,8 @@ class AllowStringsFrom:
         )
 
 
+# Population
+
 SynapseTypesDefOrStr = Annotated[
     SynapseTypesDef, AllowStringsFrom(SynapseTypesDef)
 ]
@@ -99,9 +101,33 @@ SynapseMechanismsDefOrStr = Annotated[
 ]
 
 
-PopulationName = Literal["STIM", "PYR", "PVBC", "OLM"]
+PopulationName = str
 PostSynapticPopulationName = PopulationName
 PreSynapticPopulationName = PopulationName
+
+
+# Geometry
+
+X_Coordinate = float
+Y_Coordinate = float
+Z_Coordinate = float
+U_Coordinate = float
+V_Coordinate = float
+L_Coordinate = float
+
+ParametricCoordinate = Tuple[U_Coordinate, V_Coordinate, L_Coordinate]
+Rotation = Tuple[float, float, float]
+
+"""One of the layers defined in the LayersDef enum."""
+LayerName = str
+"""For a given neuron kind, this defines the distribution (i.e. numbers) of neurons accross the different layers."""
+CellDistribution = Dict[LayerName, int]
+"""Describes a volume extent"""
+LayerExtents = Dict[LayerName, List[ParametricCoordinate]]
+"""Describes constraints on the distribution of neurons in a given layer."""
+CellConstraints = Optional[
+    Dict[PopulationName, Dict[LayerName, Tuple[float, float]]]
+]
 
 
 # Pydantic data models
@@ -112,16 +138,6 @@ class BaseModel(_BaseModel):
 
     def __getitem__(self, item):
         return getattr(self, item)
-
-
-class CellDistribution(BaseModel):
-    """For a given neuron kind, this defines the distribution
-    (i.e. numbers) of neurons accross the different layers."""
-
-    SO: int = Field(title="Stratum oriens")
-    SP: int = Field(title="Stratum pyramidale")
-    SR: int = Field(title="Stratum radiatum")
-    SLM: int = Field(title="Stratum lacunosum-moleculare")
 
 
 class Mechanism(BaseModel):
@@ -144,13 +160,6 @@ class Origin(BaseModel):
     U: str
     V: str
     L: str
-
-
-class LayerExtents(BaseModel):
-    SO: List[List[float]]
-    SP: List[List[float]]
-    SR: List[List[float]]
-    SLM: List[List[float]]
 
 
 class CellConstraint(BaseModel):

@@ -133,10 +133,8 @@ class RunNetwork(Component):
                 f"data/timing_summary_rank{int(env.pc.id())}.json", summary
             )
 
-    def on_write_meta_data(self) -> Optional[bool]:
-        comm = MPI.COMM_WORLD
-        rank = comm.Get_rank()
-        return rank == 0
+    def on_write_meta_data(self):
+        return MPI.COMM_WORLD.Get_rank() == 0
 
     def on_after_dispatch(self, success: bool):
         if success:

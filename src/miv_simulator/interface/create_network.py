@@ -1,38 +1,71 @@
 from machinable import Component
 from miv_simulator.utils import io as io_utils
 from miv_simulator import config
+from typing import Tuple
 from pydantic import BaseModel
 from machinable.types import VersionType
 from machinable.element import normversion
+from mpi4py import MPI
+from miv_simulator.simulator.soma_coordinates import generate
+import logging
 
 
 class CreateNetwork(Component):
+    """Creates neural H5 type definitions and soma coordinates within specified layer geometry."""
+
     class Config(BaseModel):
         cell_distributions: config.CellDistributions = {}
         synapses: config.Synapses = {}
+        layer_extents: config.LayerExtents = {}
+        rotation: config.Rotation = {}
+        cell_constraints: config.CellConstraints = {}
+        populations: Tuple[str, ...] = ()
+        resolution: Tuple[int, int, int] = (3, 3, 3)
+        alpha_radius: float = 2500.0
+        nodeiter: int = 10
+        dispersion_delta: float = 0.1
+        snap_delta: float = 0.01
+        io_size: int = -1
+        chunk_size: int = 1000
+        value_chunk_size: int = 1000
+        ranks_: int = 1
 
     @property
     def output_filepath(self) -> str:
         return self.local_directory("network.h5")
 
-    def __call__(self) -> None:
-        io_utils.create_neural_h5(
-            self.output_filepath,
-            self.config.cell_distributions,
-            self.config.synapses,
-        )
+    def on_write_meta_data(self):
+        return MPI.COMM_WORLD.Get_rank() == 0
 
-    def soma_coordinates(self, version: VersionType = None) -> "Component":
-        return self.derive(
-            "miv_simulator.interface.soma_coordinates",
-            [
-                {
-                    "blueprint": {},  # todo!
-                    "h5types": self.output_filepath,
-                }
-            ]
-            + normversion(version),
-            uses=self,
+    def __call__(self) -> None:
+        logging.basicConfig(level=logging.INFO)
+
+        if MPI.COMM_WORLD.rank == 0:
+            io_utils.create_neural_h5(
+                self.output_filepath,
+                self.config.cell_distributions,
+                self.config.synapses,
+            )
+        MPI.COMM_WORLD.barrier()
+
+        generate(
+            output_filepath=self.output_filepath,
+            cell_distributions=self.config.cell_distributions,
+            layer_extents=self.config.layer_extents,
+            rotation=self.config.rotation,
+            cell_constraints=self.config.cell_constraints,
+            output_namespace="Generated Coordinates",
+            geometry_filepath=None,
+            populations=self.config.populations,
+            resolution=self.config.resolution,
+            alpha_radius=self.config.alpha_radius,
+            nodeiter=self.config.nodeiter,
+            dispersion_delta=self.config.dispersion_delta,
+            snap_delta=self.config.snap_delta,
+            h5_types_filepath=None,
+            io_size=self.config.io_size,
+            chunk_size=self.config.chunk_size,
+            value_chunk_size=self.config.value_chunk_size,
         )
 
     def synapse_forest(self, version: VersionType = None) -> "Component":
@@ -41,6 +74,59 @@ class CreateNetwork(Component):
             [
                 {
                     "h5types": self.output_filepath,
+                }
+            ]
+            + normversion(version),
+            uses=self,
+        )
+
+    def measure_distances(self, version: VersionType = None):
+        return self.derive(
+            "miv_simulator.interface.measure_distances",
+            [
+                {
+                    "blueprint": self.config.blueprint,
+                    "coordinates": self.output_filepath,
+                    "output_namespace": self.config.output_namespace,
+                }
+            ]
+            + normversion(version),
+            uses=self,
+        )
+
+    def distribute_synapses(self, version: VersionType = None):
+        return self.derive(
+            "miv_simulator.interface.distribute_synapses",
+            [
+                {
+                    "blueprint": self.config.blueprint,
+                    "coordinates": self.output_filepath,
+                }
+            ]
+            + normversion(version),
+            uses=self,
+        )
+
+    def distance_connections(self, version: VersionType = None):
+        return self.derive(
+            "miv_simulator.interface.distance_connections",
+            [
+                {
+                    "blueprint": self.config.blueprint,
+                    "coordinates": self.output_filepath,
+                }
+            ]
+            + normversion(version),
+            uses=self,
+        )
+
+    def input_features(self, version: VersionType = None):
+        return self.derive(
+            "miv_simulator.interface.input_features",
+            [
+                {
+                    "blueprint": self.config.blueprint,
+                    "coordinates": self.output_filepath,
                 }
             ]
             + normversion(version),

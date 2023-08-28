@@ -154,13 +154,13 @@ def generate_soma_coordinates(
 
     return generate(
         output_filepath=output_path,
-        types_filepath=types_path,
+        h5_types_filepath=types_path,
         layer_extents=env.geometry["Parametric Surface"]["Layer Extents"],
-        rotate=env.geometry["Parametric Surface"]["Rotation"],
+        rotation=env.geometry["Parametric Surface"]["Rotation"],
         cell_distributions=env.geometry["Cell Distribution"],
         cell_constraints=env.geometry["Cell Constraints"],
         output_namespace=output_namespace,
-        geometry_path=geometry_path,
+        geometry_filepath=geometry_path,
         populations=populations,
         resolution=resolution,
         alpha_radius=alpha_radius,
@@ -176,22 +176,21 @@ def generate_soma_coordinates(
 def generate(
     output_filepath: str,
     cell_distributions: config.CellDistributions,
-    # TODO: specify appropriate pydantic model types that capture the configuration space of this method
-    layer_extents,
-    rotate,
-    cell_constraints,
-    types_filepath: Optional[str] = None,
-    output_namespace: str = "Generated Coordinates",
-    geometry_path: Optional[str] = None,
-    populations: Tuple[str, ...] = (),
-    resolution: Tuple[int, int, int] = (3, 3, 3),
-    alpha_radius: float = 2500.0,
-    nodeiter: int = 10,
-    dispersion_delta: float = 0.1,
-    snap_delta: float = 0.01,
-    io_size: int = -1,
-    chunk_size: int = 1000,
-    value_chunk_size: int = 1000,
+    layer_extents: config.LayerExtents,
+    rotation: config.Rotation,
+    cell_constraints: config.CellConstraints,
+    output_namespace: str,
+    geometry_filepath: Optional[str],
+    populations: Tuple[str, ...],
+    resolution: Tuple[int, int, int],
+    alpha_radius: float,
+    nodeiter: int,
+    dispersion_delta: float,
+    snap_delta: float,
+    h5_types_filepath: Optional[str],
+    io_size: int,
+    chunk_size: int,
+    value_chunk_size: int,
 ):
     logger = get_script_logger(script_name)
 
@@ -207,8 +206,8 @@ def generate(
         logger.info("%i ranks have been allocated" % comm.size)
 
     if rank == 0:
-        if types_filepath and not os.path.isfile(output_filepath):
-            input_file = h5py.File(types_filepath, "r")
+        if h5_types_filepath and not os.path.isfile(output_filepath):
+            input_file = h5py.File(h5_types_filepath, "r")
             output_file = h5py.File(output_filepath, "w")
             input_file.copy("/H5Types", output_file)
             input_file.close()
@@ -217,7 +216,7 @@ def generate(
 
     (extent_u, extent_v, extent_l) = get_total_extents(layer_extents)
     vol = make_network_volume(
-        extent_u, extent_v, extent_l, rotate=rotate, resolution=resolution
+        extent_u, extent_v, extent_l, rotate=rotation, resolution=resolution
     )
     layer_alpha_shape_path = "Layer Alpha Shape/%d/%d/%d" % tuple(resolution)
     if rank == 0:
@@ -226,15 +225,15 @@ def generate(
             % str((extent_u, extent_v, extent_l))
         )
         vol_alpha_shape_path = f"{layer_alpha_shape_path}/all"
-        if geometry_path:
+        if geometry_filepath:
             vol_alpha_shape = load_alpha_shape(
-                geometry_path, vol_alpha_shape_path
+                geometry_filepath, vol_alpha_shape_path
             )
         else:
             vol_alpha_shape = make_alpha_shape(vol, alpha_radius=alpha_radius)
-            if geometry_path:
+            if geometry_filepath:
                 save_alpha_shape(
-                    geometry_path, vol_alpha_shape_path, vol_alpha_shape
+                    geometry_filepath, vol_alpha_shape_path, vol_alpha_shape
                 )
         vert = vol_alpha_shape.points
         smp = np.asarray(vol_alpha_shape.bounds, dtype=np.int64)
@@ -253,12 +252,12 @@ def generate(
                 extent_u, extent_v, extent_l
             )
             has_layer_alpha_shape = False
-            if geometry_path:
+            if geometry_filepath:
                 this_layer_alpha_shape_path = (
                     f"{layer_alpha_shape_path}/{layer}"
                 )
                 this_layer_alpha_shape = load_alpha_shape(
-                    geometry_path, this_layer_alpha_shape_path
+                    geometry_filepath, this_layer_alpha_shape_path
                 )
                 layer_alpha_shapes[layer] = this_layer_alpha_shape
                 if this_layer_alpha_shape is not None:
@@ -273,16 +272,16 @@ def generate(
                     extent_u,
                     extent_v,
                     extent_l,
-                    rotate=rotate,
+                    rotate=rotation,
                     resolution=resolution,
                 )
                 this_layer_alpha_shape = make_alpha_shape(
                     layer_vol, alpha_radius=alpha_radius
                 )
                 layer_alpha_shapes[layer] = this_layer_alpha_shape
-                if geometry_path:
+                if geometry_filepath:
                     save_alpha_shape(
-                        geometry_path,
+                        geometry_filepath,
                         this_layer_alpha_shape_path,
                         this_layer_alpha_shape,
                     )
@@ -594,7 +593,7 @@ def generate(
                                     pop_constraint[layer][1] - safety,
                                 )
                             xyz_coords = network_volume(
-                                coord_u, coord_v, coord_l, rotate=rotate
+                                coord_u, coord_v, coord_l, rotate=rotation
                             ).ravel()
                             all_coords.append(
                                 (
