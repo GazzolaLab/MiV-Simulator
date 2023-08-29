@@ -1,7 +1,7 @@
 from machinable import Component
 from miv_simulator.utils import io as io_utils
 from miv_simulator import config
-from typing import Tuple
+from typing import Tuple, Optional
 from pydantic import BaseModel
 from machinable.types import VersionType
 from machinable.element import normversion
@@ -17,9 +17,11 @@ class CreateNetwork(Component):
         cell_distributions: config.CellDistributions = {}
         synapses: config.Synapses = {}
         layer_extents: config.LayerExtents = {}
-        rotation: config.Rotation = {}
+        rotation: config.Rotation = (0.0, 0.0, 0.0)
         cell_constraints: config.CellConstraints = {}
         populations: Tuple[str, ...] = ()
+        geometry_filepath: Optional[str] = None
+        coordinate_namespace: str = "Generated Coordinates"
         resolution: Tuple[int, int, int] = (3, 3, 3)
         alpha_radius: float = 2500.0
         nodeiter: int = 10
@@ -54,8 +56,8 @@ class CreateNetwork(Component):
             layer_extents=self.config.layer_extents,
             rotation=self.config.rotation,
             cell_constraints=self.config.cell_constraints,
-            output_namespace="Generated Coordinates",
-            geometry_filepath=None,
+            output_namespace=self.config.coordinate_namespace,
+            geometry_filepath=self.config.geometry_filepath,
             populations=self.config.populations,
             resolution=self.config.resolution,
             alpha_radius=self.config.alpha_radius,
@@ -68,26 +70,34 @@ class CreateNetwork(Component):
             value_chunk_size=self.config.value_chunk_size,
         )
 
-    def synapse_forest(self, version: VersionType = None) -> "Component":
+    def measure_distances(self, version: VersionType = None):
         return self.derive(
-            "miv_simulator.interface.synapse_forest",
+            "miv_simulator.interface.measure_distances",
             [
                 {
-                    "h5types": self.output_filepath,
+                    "filepath": self.output_filepath,
+                    "geometry_filepath": self.config.geometry_filepath,
+                    "coordinate_namespace": self.config.coordinate_namespace,
+                    "cell_distributions": self.config.cell_distributions,
+                    "layer_extents": self.config.layer_extents,
+                    "rotation": self.config.rotation,
+                    "resolution": self.config.resolution,
+                    "alpha_radius": self.config.alpha_radius,
+                    "io_size": self.config.io_size,
+                    "chunk_size": self.config.chunk_size,
+                    "value_chunk_size": self.config.value_chunk_size,
                 }
             ]
             + normversion(version),
             uses=self,
         )
 
-    def measure_distances(self, version: VersionType = None):
+    def synapse_forest(self, version: VersionType = None) -> "Component":
         return self.derive(
-            "miv_simulator.interface.measure_distances",
+            "miv_simulator.interface.synapse_forest",
             [
                 {
-                    "blueprint": self.config.blueprint,
-                    "coordinates": self.output_filepath,
-                    "output_namespace": self.config.output_namespace,
+                    "h5types": self.output_filepath,
                 }
             ]
             + normversion(version),

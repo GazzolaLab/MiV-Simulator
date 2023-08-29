@@ -7,6 +7,10 @@ import rbf
 from miv_simulator.geometry.alphavol import alpha_shape
 from miv_simulator.geometry.rbf_volume import RBFVolume
 from mpi4py import MPI
+from mpi4py.MPI import Intracomm
+from miv_simulator import config
+from typing import Callable, Tuple
+from rbf.interpolate import RBFInterpolant
 
 ## This logger will inherit its setting from its root logger
 logger = logging.getLogger(f"{__name__}")
@@ -83,7 +87,9 @@ def transform_volume(transform, u, v, l, rotate=None):
     return xyz
 
 
-def get_layer_extents(layer_extents, layer):
+def get_layer_extents(
+    layer_extents: config.LayerExtents, layer: config.LayerName
+):
     min_u, max_u = 0.0, 0.0
     min_v, max_v = 0.0, 0.0
     min_l, max_l = 0.0, 0.0
@@ -95,7 +101,7 @@ def get_layer_extents(layer_extents, layer):
     return ((min_u, max_u), (min_v, max_v), (min_l, max_l))
 
 
-def get_total_extents(layer_extents):
+def get_total_extents(layer_extents: config.LayerExtents):
     min_u = float("inf")
     max_u = 0.0
 
@@ -529,18 +535,36 @@ def interp_soma_distances(
     return soma_distances
 
 
+# !deprecated, use distance interpolant
 def make_distance_interpolant(
     comm, geometry_config, make_volume, resolution=[30, 30, 10], nsample=1000
 ):
-    from rbf.interpolate import RBFInterpolant
+    return distance_interpolant(
+        comm,
+        geometry_config["Parametric Surface"]["Layer Extents"],
+        geometry_config["Parametric Surface"]["Rotation"],
+        geometry_config["Parametric Surface"]["Origin"],
+        make_volume=make_volume,
+        resolution=resolution,
+        n_sample=nsample,
+    )
 
+
+def distance_interpolant(
+    comm: Intracomm,
+    layer_extents: config.LayerExtents,
+    rotation: config.Rotation,
+    origin: config.Origin,
+    make_volume: Callable[
+        [Tuple[float, float], Tuple[float, float], Tuple[float, float]],
+        RBFVolume,
+    ],
+    resolution: Tuple[int, int, int],
+    n_sample: int,
+):
     rank = comm.rank
 
-    layer_extents = geometry_config["Parametric Surface"]["Layer Extents"]
     (extent_u, extent_v, extent_l) = get_total_extents(layer_extents)
-
-    rotate = geometry_config["Parametric Surface"]["Rotation"]
-    origin = geometry_config["Parametric Surface"]["Origin"]
 
     min_u, max_u = extent_u
     min_v, max_v = extent_v
@@ -559,7 +583,7 @@ def make_distance_interpolant(
             (min_v - safety, max_v + safety),
             (min_l - safety, max_l + safety),
             resolution=resolution,
-            rotate=rotate,
+            rotate=rotation,
         )
 
     ip_volume = comm.bcast(ip_volume, root=0)
@@ -572,7 +596,7 @@ def make_distance_interpolant(
         logger.info("Computing reference distances...")
 
     vol_dist = get_volume_distances(
-        ip_volume, origin_spec=origin, nsample=nsample, comm=comm
+        ip_volume, origin_spec=origin, nsample=n_sample, comm=comm
     )
     (origin_ranges, obs_uvl, dist_u, dist_v) = vol_dist
 
@@ -631,6 +655,7 @@ def make_distance_interpolant(
     return origin_ranges, ip_dist_u, ip_dist_v
 
 
+# !deprecated, use compute_distances
 def measure_distances(
     comm,
     geometry_config,
@@ -640,14 +665,29 @@ def measure_distances(
     interp_chunk_size=1000,
     allgather=False,
 ):
+    return measure_soma_distances(
+        comm=comm,
+        layer_extents=geometry_config["Parametric Surface"]["Layer Extents"],
+        cell_distributions=geometry_config["Cell Distribution"],
+        soma_coordinates=soma_coords,
+        ip_dist=ip_dist,
+        interp_chunk_size=interp_chunk_size,
+        allgather=allgather,
+    )
+
+
+def measure_soma_distances(
+    comm: Intracomm,
+    layer_extents: config.LayerExtents,
+    cell_distributions: config.CellDistributions,
+    soma_coordinates,
+    ip_dist: Tuple[Tuple[float, float], RBFInterpolant, RBFInterpolant],
+    interp_chunk_size: int,
+    allgather: bool,
+):
     rank = comm.rank
 
-    layer_extents = geometry_config["Parametric Surface"]["Layer Extents"]
-    cell_distribution = geometry_config["Cell Distribution"]
     (extent_u, extent_v, extent_l) = get_total_extents(layer_extents)
-
-    rotate = geometry_config["Parametric Surface"]["Rotation"]
-    origin = geometry_config["Parametric Surface"]["Origin"]
 
     origin_ranges, ip_dist_u, ip_dist_v = ip_dist
 
@@ -659,9 +699,9 @@ def measure_distances(
         comm,
         ip_dist_u,
         ip_dist_v,
-        soma_coords,
+        soma_coordinates,
         layer_extents,
-        cell_distribution,
+        cell_distributions,
         interp_chunk_size=interp_chunk_size,
         allgather=allgather,
     )

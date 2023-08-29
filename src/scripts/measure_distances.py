@@ -5,7 +5,7 @@ import sys
 
 import click
 from miv_simulator import utils
-from miv_simulator.simulator import measure_distances
+from miv_simulator.simulator import measure_distances_ as measure_distances
 
 
 @click.command()
