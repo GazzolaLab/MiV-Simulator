@@ -1,15 +1,13 @@
 import logging
-from dataclasses import dataclass
 
 from machinable import Component
-from machinable.config import Field
-from miv_simulator.config import Blueprint
+from miv_simulator import Config
 from miv_simulator.simulator import distribute_synapse_locations
+from pydantic import BaseModel, Field
 
 
 class DistributeSynapseLocations(Component):
-    @dataclass
-    class Config:
+    class Config(BaseModel):
         blueprint: Blueprint = Field(default_factory=Blueprint)
         population: str = Field("???")
         coordinates: str = Field("???")

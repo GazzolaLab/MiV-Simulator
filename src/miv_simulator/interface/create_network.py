@@ -1,13 +1,15 @@
-from machinable import Component
-from miv_simulator.utils import io as io_utils
-from miv_simulator import config
-from typing import Tuple, Optional
-from pydantic import BaseModel
-from machinable.types import VersionType
-from machinable.element import normversion
-from mpi4py import MPI
-from miv_simulator.simulator.soma_coordinates import generate
+from typing import Optional, Tuple
+
 import logging
+
+from machinable import Component
+from machinable.element import normversion
+from machinable.types import VersionType
+from miv_simulator import config
+from miv_simulator.simulator.soma_coordinates import generate
+from miv_simulator.utils import io as io_utils
+from mpi4py import MPI
+from pydantic import BaseModel
 
 
 class CreateNetwork(Component):
@@ -97,7 +99,7 @@ class CreateNetwork(Component):
             "miv_simulator.interface.synapse_forest",
             [
                 {
-                    "h5types": self.output_filepath,
+                    "filepath": self.output_filepath,
                 }
             ]
             + normversion(version),
