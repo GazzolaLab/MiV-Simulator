@@ -41,6 +41,7 @@ class SynapseMechanismsDef(IntEnum):
 
 
 class LayersDef(IntEnum):
+    default = -1
     Hilus = 0
     GCL = 1  # Granule cell
     IML = 2  # Inner molecular
@@ -201,6 +202,13 @@ class CellType(BaseModel):
 
 CellTypes = Dict[PopulationsDefOrStr, CellType]
 
+
+class AxonExtent(BaseModel):
+    width: Tuple[float, float]
+    offset: Tuple[float, float]
+
+
+AxonExtents = Dict[PopulationsDefOrStr, Dict[LayerName, AxonExtent]]
 
 # Composed
 

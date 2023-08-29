@@ -1,22 +1,24 @@
 import gc
 import os
 import sys
-
+import random
 import h5py
 from miv_simulator import utils
 from miv_simulator.connections import (
     ConnectionProb,
     generate_uv_distance_connections,
 )
+from miv_simulator import config
 from miv_simulator.env import Env
 from miv_simulator.geometry import make_distance_interpolant, measure_distances
-from miv_simulator.utils.neuron import configure_hoc_env
+from miv_simulator.utils.neuron import configure_hoc
 from mpi4py import MPI
 from neuroh5.io import (
     read_cell_attributes,
     read_population_names,
     read_population_ranges,
 )
+from typing import Optional, Union, Tuple
 
 sys_excepthook = sys.excepthook
 
@@ -32,6 +34,7 @@ def mpi_excepthook(type, value, traceback):
 sys.excepthook = mpi_excepthook
 
 
+# !deprecated, use distance connections instead
 def generate_distance_connections(
     config,
     include,
@@ -55,27 +58,93 @@ def generate_distance_connections(
     config_prefix="",
 ):
     utils.config_logging(verbose)
+
+    env = Env(comm=MPI.COMM_WORLD, config=config, config_prefix=config_prefix)
+
+    synapse_seed = int(
+        env.model_config["Random Seeds"]["Synapse Projection Partitions"]
+    )
+
+    connectivity_seed = int(
+        env.model_config["Random Seeds"]["Distance-Dependent Connectivity"]
+    )
+    cluster_seed = int(
+        env.model_config["Random Seeds"]["Connectivity Clustering"]
+    )
+
+    return distance_connections(
+        filepath=coords_path,
+        forest_filepath=forest_path,
+        include_forest_populations=include,
+        synapses=env.connection_config,
+        connection_extents=env.connection_extents,
+        template_path=env.template_path,
+        use_coreneuron=env.use_coreneuron,
+        dt=env.dt,
+        tstop=env.tstop,
+        celsius=env.celsius,
+        output_filepath=connectivity_path,
+        connectivity_namespace=connectivity_namespace,
+        coordinates_namespace=coords_namespace,
+        synapses_namespace=synapses_namespace,
+        distances_namespace=distances_namespace,
+        io_size=io_size,
+        chunk_size=chunk_size,
+        value_chunk_size=value_chunk_size,
+        cache_size=cache_size,
+        write_size=write_size,
+        dry_run=dry_run,
+        seeds=(synapse_seed, connectivity_seed, cluster_seed),
+    )
+
+
+def distance_connections(
+    filepath: str,
+    forest_filepath: str,
+    include_forest_populations: Optional[list],
+    synapses: config.Synapses,
+    connection_extents: config.ConnectionExtents,
+    template_path: str,
+    use_coreneuron: bool,
+    dt: float,
+    tstop: float,
+    celsius: Optional[float],
+    output_filepath: Optional[str],
+    connectivity_namespace: str,
+    coordinates_namespace: str,
+    synapses_namespace: str,
+    distances_namespace: str,
+    io_size: int,
+    chunk_size: int,
+    value_chunk_size: int,
+    cache_size: int,
+    write_size: int,
+    dry_run: bool,
+    seeds: Union[Tuple[int], int, None],
+):
     logger = utils.get_script_logger(os.path.basename(__file__))
 
     comm = MPI.COMM_WORLD
     rank = comm.rank
 
-    env = Env(comm=comm, config=config, config_prefix=config_prefix)
-    configure_hoc_env(env)
-
-    connection_config = env.connection_config
-    extent = {}
+    configure_hoc(
+        template_directory=template_path,
+        use_coreneuron=use_coreneuron,
+        dt=dt,
+        tstop=tstop,
+        celsius=celsius,
+    )
 
     if (not dry_run) and (rank == 0):
-        if not os.path.isfile(connectivity_path):
-            input_file = h5py.File(coords_path, "r")
-            output_file = h5py.File(connectivity_path, "w")
+        if not os.path.isfile(output_filepath):
+            input_file = h5py.File(filepath, "r")
+            output_file = h5py.File(output_filepath, "w")
             input_file.copy("/H5Types", output_file)
             input_file.close()
             output_file.close()
     comm.barrier()
 
-    population_ranges = read_population_ranges(coords_path)[0]
+    population_ranges = read_population_ranges(filepath)[0]
     populations = sorted(list(population_ranges.keys()))
 
     color = 0
@@ -89,14 +158,14 @@ def generate_distance_connections(
         if rank == 0:
             logger.info(f"Reading {population} coordinates...")
             coords_iter = read_cell_attributes(
-                coords_path,
+                filepath,
                 population,
                 comm=comm0,
                 mask={"U Coordinate", "V Coordinate", "L Coordinate"},
-                namespace=coords_namespace,
+                namespace=coordinates_namespace,
             )
             distances_iter = read_cell_attributes(
-                coords_path,
+                filepath,
                 population,
                 comm=comm0,
                 mask={"U Distance", "V Distance"},
@@ -128,12 +197,14 @@ def generate_distance_connections(
     soma_distances = comm.bcast(soma_distances, root=0)
     soma_coords = comm.bcast(soma_coords, root=0)
 
-    forest_populations = sorted(read_population_names(forest_path))
-    if (include is None) or (len(include) == 0):
+    forest_populations = sorted(read_population_names(forest_filepath))
+    if (include_forest_populations is None) or (
+        len(include_forest_populations) == 0
+    ):
         destination_populations = forest_populations
     else:
         destination_populations = []
-        for p in include:
+        for p in include_forest_populations:
             if p in forest_populations:
                 destination_populations.append(p)
     if rank == 0:
@@ -141,14 +212,15 @@ def generate_distance_connections(
             f"Generating connectivity for populations {destination_populations}..."
         )
 
-    if len(soma_distances) == 0:
-        (origin_ranges, ip_dist_u, ip_dist_v) = make_distance_interpolant(
-            env, resolution=resolution, nsample=interp_chunk_size
-        )
-        ip_dist = (origin_ranges, ip_dist_u, ip_dist_v)
-        soma_distances = measure_distances(
-            env, soma_coords, ip_dist, resolution=resolution
-        )
+    # !deprecated, does not seem applicable any longer
+    # if len(soma_distances) == 0:
+    #     (origin_ranges, ip_dist_u, ip_dist_v) = make_distance_interpolant(
+    #         env, resolution=resolution, nsample=interp_chunk_size
+    #     )
+    #     ip_dist = (origin_ranges, ip_dist_u, ip_dist_v)
+    #     soma_distances = measure_distances(
+    #         env, soma_coords, ip_dist, resolution=resolution
+    #     )
 
     for destination_population in destination_populations:
         if rank == 0:
@@ -160,18 +232,7 @@ def generate_distance_connections(
             destination_population,
             soma_coords,
             soma_distances,
-            env.connection_extents,
-        )
-
-        synapse_seed = int(
-            env.model_config["Random Seeds"]["Synapse Projection Partitions"]
-        )
-
-        connectivity_seed = int(
-            env.model_config["Random Seeds"]["Distance-Dependent Connectivity"]
-        )
-        cluster_seed = int(
-            env.model_config["Random Seeds"]["Connectivity Clustering"]
+            connection_extents,
         )
 
         if rank == 0:
@@ -179,25 +240,29 @@ def generate_distance_connections(
                 f"Generating connections for population {destination_population}..."
             )
 
-        populations_dict = env.model_config["Definitions"]["Populations"]
+        if seeds is None or isinstance(seeds, int):
+            r = random.Random(seed=seeds)
+            seeds = [r.randint(0, 2**32 - 1) for r in range(3)]
+
+        populations_dict = config.PopulationsDef.__members__
         generate_uv_distance_connections(
             comm,
             populations_dict,
-            connection_config,
+            synapses,
             connection_prob,
-            forest_path,
-            synapse_seed,
-            connectivity_seed,
-            cluster_seed,
+            forest_filepath,
+            seeds[0],
+            seeds[1],
+            seeds[2],
             synapses_namespace,
             connectivity_namespace,
-            connectivity_path,
+            output_filepath,
             io_size,
             chunk_size,
             value_chunk_size,
             cache_size,
             write_size,
             dry_run=dry_run,
-            debug=debug,
+            debug=False,
         )
     MPI.Finalize()

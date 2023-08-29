@@ -655,7 +655,7 @@ def distance_interpolant(
     return origin_ranges, ip_dist_u, ip_dist_v
 
 
-# !deprecated, use compute_distances
+# !deprecated, use measure_soma_distances
 def measure_distances(
     comm,
     geometry_config,

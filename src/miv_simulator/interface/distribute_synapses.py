@@ -2,7 +2,7 @@ import logging
 
 from machinable import Component
 from miv_simulator import config
-from miv_simulator.simulator import distribute_synapses
+from miv_simulator import simulator
 from pydantic import BaseModel, Field
 from typing import Optional
 
@@ -27,7 +27,7 @@ class DistributeSynapses(Component):
 
     def __call__(self):
         logging.basicConfig(level=logging.INFO)
-        distribute_synapses(
+        simulator.distribute_synapses(
             forest_filepath=self.config.forest_filepath,
             cell_types=self.config.cell_types,
             populations=(self.config.population,),
