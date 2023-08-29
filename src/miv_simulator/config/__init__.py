@@ -5,7 +5,7 @@ from pydantic import (
     conlist,
     GetCoreSchemaHandler,
 )
-from typing import Literal, Dict, Any, List, Tuple, Optional
+from typing import Literal, Dict, Any, List, Tuple, Optional, Union
 from enum import IntEnum
 from collections import defaultdict
 import numpy as np
@@ -99,6 +99,9 @@ LayersDefOrStr = Annotated[LayersDef, AllowStringsFrom(LayersDef)]
 SynapseMechanismsDefOrStr = Annotated[
     SynapseMechanismsDef, AllowStringsFrom(SynapseMechanismsDef)
 ]
+PopulationsDefOrStr = Annotated[
+    PopulationsDef, AllowStringsFrom(PopulationsDef)
+]
 
 
 PopulationName = str
@@ -183,6 +186,20 @@ class ParametricSurface(BaseModel):
 class CellConstraints(BaseModel):
     PC: CellConstraint
     PVBC: CellConstraint
+
+
+class CellType(BaseModel):
+    template: str
+    synapses: Dict[
+        SWCTypesDefOrStr,
+        Dict[
+            Union[LayersDefOrStr, Literal["default"]],
+            Dict[Literal["mean", "variance"], float],
+        ],
+    ]
+
+
+CellTypes = Dict[PopulationsDefOrStr, CellType]
 
 
 # Composed

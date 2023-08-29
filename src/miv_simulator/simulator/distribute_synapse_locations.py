@@ -8,15 +8,17 @@ import h5py
 import numpy as np
 from miv_simulator import cells, synapses, utils
 from miv_simulator.mechanisms import compile_and_load
-from miv_simulator.cells import load_cell_template
+from miv_simulator.cells import load_template
 from miv_simulator.env import Env
-from miv_simulator.utils.neuron import configure_hoc_env
+from miv_simulator import config
+from miv_simulator.utils.neuron import configure_hoc
 from mpi4py import MPI
 from neuroh5.io import (
     NeuroH5TreeGen,
     append_cell_attributes,
     read_population_ranges,
 )
+from typing import Optional, Tuple, Literal
 
 sys_excepthook = sys.excepthook
 
@@ -32,10 +34,12 @@ def mpi_excepthook(type, value, traceback):
 sys.excepthook = mpi_excepthook
 
 
+# !deprecated, use update_synapse_statistics instead
 def update_syn_stats(env, syn_stats_dict, syn_dict):
-    syn_type_excitatory = env.Synapse_Types["excitatory"]
-    syn_type_inhibitory = env.Synapse_Types["inhibitory"]
+    return update_synapse_statistics(syn_dict, syn_stats_dict)
 
+
+def update_synapse_statistics(syn_dict, syn_stats_dict):
     this_syn_stats_dict = {
         "section": defaultdict(lambda: {"excitatory": 0, "inhibitory": 0}),
         "layer": defaultdict(lambda: {"excitatory": 0, "inhibitory": 0}),
@@ -50,9 +54,9 @@ def update_syn_stats(env, syn_stats_dict, syn_dict):
         syn_dict["swc_types"],
         syn_dict["syn_layers"],
     ):
-        if syn_type == syn_type_excitatory:
+        if syn_type == config.SynapseTypesDef.excitatory:
             syn_type_str = "excitatory"
-        elif syn_type == syn_type_inhibitory:
+        elif syn_type == config.SynapseTypesDef.inhibitory:
             syn_type_str = "inhibitory"
         else:
             raise ValueError(f"Unknown synapse type {str(syn_type)}")
@@ -113,6 +117,7 @@ def local_syn_summary(syn_stats_dict):
     return str.join("\n", res)
 
 
+# !deprecated, use check_synapses instead
 def check_syns(
     gid,
     morph_dict,
@@ -121,6 +126,26 @@ def check_syns(
     layer_set_dict,
     swc_set_dict,
     env,
+    logger,
+):
+    return check_synapses(
+        gid,
+        morph_dict,
+        syn_stats_dict,
+        seg_density_per_sec,
+        layer_set_dict,
+        swc_set_dict,
+        logger,
+    )
+
+
+def check_synapses(
+    gid,
+    morph_dict,
+    syn_stats_dict,
+    seg_density_per_sec,
+    layer_set_dict,
+    swc_set_dict,
     logger,
 ):
     layer_stats = syn_stats_dict["layer"]
@@ -136,7 +161,7 @@ def check_syns(
                 warning_flag = True
     if warning_flag:
         logger.warning(
-            f"Rank {env.comm.Get_rank()}: incomplete synapse layer set for cell {gid}: {layer_stats}"
+            f"Rank {MPI.COMM_WORLD.Get_rank()}: incomplete synapse layer set for cell {gid}: {layer_stats}"
             f"  layer_set_dict: {layer_set_dict}\n"
             f"  seg_density_per_sec: {seg_density_per_sec}\n"
             f"  morph_dict: {morph_dict}"
@@ -150,13 +175,14 @@ def check_syns(
                 warning_flag = True
     if warning_flag:
         logger.warning(
-            f"Rank {env.comm.Get_rank()}: incomplete synapse swc type set for cell {gid}: {swc_stats}"
+            f"Rank {MPI.COMM_WORLD.Get_rank()}: incomplete synapse swc type set for cell {gid}: {swc_stats}"
             f"  swc_set_dict: {swc_set_dict.items}\n"
             f"  seg_density_per_sec: {seg_density_per_sec}\n"
             f"   morph_dict: {morph_dict}"
         )
 
 
+# !deprecated, use distribute_synapses instead
 def distribute_synapse_locations(
     config,
     template_path,
@@ -178,6 +204,52 @@ def distribute_synapse_locations(
         mechanisms_path = "./mechanisms"
 
     utils.config_logging(verbose)
+
+    env = Env(
+        comm=MPI.COMM_WORLD,
+        config=config,
+        template_paths=template_path,
+        config_prefix=config_prefix,
+    )
+
+    return distribute_synapses(
+        forest_filepath=forest_path,
+        cell_types=env.celltypes,
+        populations=populations,
+        distribution=distribution,
+        mechanisms_path=mechanisms_path,
+        template_path=template_path,
+        use_coreneuron=env.use_coreneuron,
+        dt=env.dt,
+        tstop=env.tstop,
+        celsius=env.globals.get("celsius", None),
+        output_filepath=output_path,
+        write_size=write_size,
+        chunk_size=chunk_size,
+        value_chunk_size=value_chunk_size,
+        seed=env.model_config["Random Seeds"]["Synapse Locations"],
+        dry_run=dry_run,
+    )
+
+
+def distribute_synapses(
+    forest_filepath: str,
+    cell_types: config.CellTypes,
+    populations: Tuple[str, ...],
+    distribution: Literal["uniform", "poisson"],
+    mechanisms_path: str,
+    template_path: str,
+    dt: float,
+    tstop: float,
+    celsius: Optional[float],
+    output_filepath: Optional[str],
+    write_size: int,
+    chunk_size: int,
+    value_chunk_size: int,
+    use_coreneuron: bool,
+    seed: Optional[int],
+    dry_run: bool,
+):
     logger = utils.get_script_logger(os.path.basename(__file__))
 
     comm = MPI.COMM_WORLD
@@ -186,34 +258,33 @@ def distribute_synapse_locations(
     if rank == 0:
         logger.info(f"{comm.size} ranks have been allocated")
 
-    compile_and_load(directory=mechanisms_path)
+    compile_and_load(mechanisms_path)
 
-    env = Env(
-        comm=comm,
-        config=config,
-        template_paths=template_path,
-        config_prefix=config_prefix,
+    configure_hoc(
+        template_directory=template_path,
+        use_coreneuron=use_coreneuron,
+        dt=dt,
+        tstop=tstop,
+        celsius=celsius,
     )
-
-    configure_hoc_env(env)
 
     if io_size == -1:
         io_size = comm.size
 
-    if output_path is None:
-        output_path = forest_path
+    if output_filepath is None:
+        output_filepath = forest_filepath
 
     if not dry_run:
         if rank == 0:
-            if not os.path.isfile(output_path):
-                input_file = h5py.File(forest_path, "r")
-                output_file = h5py.File(output_path, "w")
+            if not os.path.isfile(output_filepath):
+                input_file = h5py.File(forest_filepath, "r")
+                output_file = h5py.File(output_filepath, "w")
                 input_file.copy("/H5Types", output_file)
                 input_file.close()
                 output_file.close()
         comm.barrier()
 
-    (pop_ranges, _) = read_population_ranges(forest_path, comm=comm)
+    (pop_ranges, _) = read_population_ranges(forest_filepath, comm=comm)
     start_time = time.time()
     syn_stats = dict()
     for population in populations:
@@ -227,19 +298,23 @@ def distribute_synapse_locations(
     for population in populations:
         logger.info(f"Rank {rank} population: {population}")
         (population_start, _) = pop_ranges[population]
-        template_class = load_cell_template(
-            env, population, bcast_template=True
+        template_class = load_template(
+            population_name=population,
+            cell_types=cell_types,
+            template_path=template_path,
         )
 
-        density_dict = env.celltypes[population]["synapses"]["density"]
+        density_dict = cell_types[population]["synapses"]["density"]
         layer_set_dict = defaultdict(set)
         swc_set_dict = defaultdict(set)
         for sec_name, sec_dict in density_dict.items():
             for syn_type, syn_dict in sec_dict.items():
-                swc_set_dict[syn_type].add(env.SWC_Types[sec_name])
+                swc_set_dict[syn_type].add(
+                    config.SWCTypesDef.__members__[sec_name]
+                )
                 for layer_name in syn_dict:
                     if layer_name != "default":
-                        layer = env.layers[layer_name]
+                        layer = config.LayersDef.__members__[layer_name]
                         layer_set_dict[syn_type].add(layer)
 
         syn_stats_dict = {
@@ -253,7 +328,11 @@ def distribute_synapse_locations(
         gid_count = 0
         synapse_dict = {}
         for gid, morph_dict in NeuroH5TreeGen(
-            forest_path, population, io_size=io_size, comm=comm, topology=True
+            forest_filepath,
+            population,
+            io_size=io_size,
+            comm=comm,
+            topology=True,
         ):
             local_time = time.time()
             if gid is not None:
@@ -275,18 +354,16 @@ def distribute_synapse_locations(
                     "hillock": cell.hilidx,
                 }
 
-                random_seed = (
-                    env.model_config["Random Seeds"]["Synapse Locations"] + gid
-                )
+                random_seed = (seed or 0) + gid
                 if distribution == "uniform":
                     (
                         syn_dict,
                         seg_density_per_sec,
                     ) = synapses.distribute_uniform_synapses(
                         random_seed,
-                        env.Synapse_Types,
-                        env.SWC_Types,
-                        env.layers,
+                        config.SynapseTypesDef.__members__,
+                        config.SWCTypesDef.__members__,
+                        config.LayersDef.__members__,
                         density_dict,
                         morph_dict,
                         cell_sec_dict,
@@ -299,9 +376,9 @@ def distribute_synapse_locations(
                         seg_density_per_sec,
                     ) = synapses.distribute_poisson_synapses(
                         random_seed,
-                        env.Synapse_Types,
-                        env.SWC_Types,
-                        env.layers,
+                        config.SynapseTypesDef.__members__,
+                        config.SWCTypesDef.__members__,
+                        config.LayersDef.__members__,
                         density_dict,
                         morph_dict,
                         cell_sec_dict,
@@ -313,15 +390,16 @@ def distribute_synapse_locations(
                     )
 
                 synapse_dict[gid] = syn_dict
-                this_syn_stats = update_syn_stats(env, syn_stats_dict, syn_dict)
-                check_syns(
+                this_syn_stats = update_synapse_statistics(
+                    syn_stats_dict, syn_dict
+                )
+                check_synapses(
                     gid,
                     morph_dict,
                     this_syn_stats,
                     seg_density_per_sec,
                     layer_set_dict,
                     swc_set_dict,
-                    env,
                     logger,
                 )
 
@@ -341,7 +419,7 @@ def distribute_synapse_locations(
                 and (gid_count % write_size == 0)
             ):
                 append_cell_attributes(
-                    output_path,
+                    output_filepath,
                     population,
                     synapse_dict,
                     namespace="Synapse Attributes",
@@ -353,12 +431,10 @@ def distribute_synapse_locations(
                 synapse_dict = {}
             syn_stats[population] = syn_stats_dict
             count += 1
-            if debug and count == 5:
-                break
 
         if not dry_run:
             append_cell_attributes(
-                output_path,
+                output_filepath,
                 population,
                 synapse_dict,
                 namespace="Synapse Attributes",

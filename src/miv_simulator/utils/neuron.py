@@ -5,12 +5,10 @@ from collections import namedtuple
 
 import numpy as np
 
-try:
-    from mpi4py import MPI  # Must come before importing NEURON
-except Exception:
-    pass
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from mpi4py import MPI  # Must come before importing NEURON
 
+from typing import TYPE_CHECKING, Dict, List, Optional, Union, Tuple
+from miv_simulator import config
 from miv_simulator.utils import AbstractEnv, get_module_logger
 from neuron import h
 from nrn import Section
@@ -265,6 +263,7 @@ def mkgap(env: AbstractEnv, cell, gid, secpos, secidx, sgid, dgid, w):
     return gj
 
 
+# !deprecated, use load_template instead
 def load_cell_template(
     env: AbstractEnv, pop_name: str, bcast_template: bool = False
 ) -> "HocObject":
@@ -295,6 +294,34 @@ def load_cell_template(
     assert hasattr(h, template_name)
     template_class = getattr(h, template_name)
     env.template_dict[pop_name] = template_class
+    return template_class
+
+
+_loaded_templates = {}
+
+
+def load_template(
+    population_name: str,
+    cell_types: config.CellTypes,
+    template_path: str,
+):
+    if population_name in _loaded_templates:
+        return _loaded_templates[population_name]
+
+    if population_name not in cell_types:
+        raise KeyError(
+            f"load_cell_templates: unrecognized cell population: {population_name}"
+        )
+
+    template_name = cell_types[population_name]["template"]
+    template_file = os.path.join(template_path, f"{template_name}.hoc")
+    if not hasattr(h, template_name):
+        h.load_file(template_file)
+    assert hasattr(h, template_name)
+    template_class = getattr(h, template_name)
+
+    _loaded_templates[population_name] = template_class
+
     return template_class
 
 
@@ -391,6 +418,49 @@ def configure_hoc_env(env: AbstractEnv, bcast_template: bool = False) -> None:
     ## sparse parallel transfer
     if hasattr(h, "nrn_sparse_partrans"):
         h.nrn_sparse_partrans = 1
+
+
+def configure_hoc(
+    template_directory: str,
+    use_coreneuron: bool,
+    dt: float,
+    tstop: float,
+    celsius: Optional[float],
+) -> Tuple[h.Vector, h.Vector, h.Vector]:
+    h.load_file("stdrun.hoc")
+    h.load_file("loadbal.hoc")
+    for template_dir in template_directory:
+        path = f"{template_dir}/rn.hoc"
+        if os.path.exists(path):
+            h.load_file(path)
+    h.cvode.use_fast_imem(1)
+    h.cvode.cache_efficient(1)
+    h("objref pc, nc, nil")
+    h("strdef dataset_path")
+    h.dataset_path = ""
+    if use_coreneuron:
+        from neuron import coreneuron
+
+        coreneuron.enable = True
+        coreneuron.verbose = 0
+    h.pc = h.ParallelContext()
+    h.pc.gid_clear()
+    h.dt = dt
+    h.tstop = tstop
+    t_vec = h.Vector()  # Spike time of all cells on this host
+    id_vec = h.Vector()  # Ids of spike times on this host
+    t_rec = h.Vector()  # Timestamps of intracellular traces on this host
+
+    if celsius is not None:
+        h.celsius = celsius
+    ## more accurate integration of synaptic discontinuities
+    if hasattr(h, "nrn_netrec_state_adjust"):
+        h.nrn_netrec_state_adjust = 1
+    ## sparse parallel transfer
+    if hasattr(h, "nrn_sparse_partrans"):
+        h.nrn_sparse_partrans = 1
+
+    return (t_vec, id_vec, t_rec)
 
 
 # Code by Michael Hines from this discussion thread:
