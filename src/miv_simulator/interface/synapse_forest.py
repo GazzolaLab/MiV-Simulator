@@ -35,16 +35,16 @@ class GenerateSynapseForest(Component):
         if not os.path.isfile(self.tree_output_filepath):
             _bin_check("neurotrees_import")
             assert (
-                subprocess.run(
+                subprocess.run([
                     "neurotrees_import",
                     self.config.population,
                     self.tree_output_filepath,
                     self.config.morphology,
-                ).returncode
+                ]).returncode
                 == 0
             )
             assert (
-                subprocess.run(
+                subprocess.run([
                     "h5copy",
                     "-p",
                     "-s",
@@ -52,16 +52,16 @@ class GenerateSynapseForest(Component):
                     "-d",
                     "/H5Types",
                     "-i",
-                    self.config.h5types,
+                    self.config.filepath,
                     "-o",
                     self.tree_output_filepath,
-                ).returncode
+                ]).returncode
                 == 0
             )
 
         if not os.path.isfile(self.output_filepath):
             # determine population ranges
-            with h5py.File(self.config.h5types, "r") as f:
+            with h5py.File(self.config.filepath, "r") as f:
                 idx = list(
                     reversed(
                         f["H5Types"]["Population labels"].dtype.metadata["enum"]
@@ -71,14 +71,14 @@ class GenerateSynapseForest(Component):
 
             _bin_check("neurotrees_copy")
             assert (
-                subprocess.run(
+                subprocess.run([
                     "neurotrees_copy",
                     "--fill",
                     "--output",
                     self.output_filepath,
                     self.tree_output_filepath,
                     self.config.population,
-                    offset,
-                ).returncode
+                    str(offset),
+                ]).returncode
                 == 0
             )
