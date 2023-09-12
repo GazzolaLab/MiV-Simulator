@@ -630,6 +630,29 @@ def distance_interpolant(
     ip_dist_u = None
     ip_dist_v = None
     if rank == 0:
+        from scipy.interpolate import RBFInterpolator
+
+        # todo(frthf): does it make sense to use scipy's interpolator here?
+        def RBFInterpolant(
+            y,
+            d,
+            sigma=0.0,
+            phi="phs3",
+            eps=1.0,
+            order=None,
+            neighbors=None,
+            check_cond=True,
+        ):
+            return RBFInterpolator(
+                y=y,
+                d=d,
+                smoothing=sigma,
+                kernel="gaussian",
+                degree=order,
+                neighbors=neighbors,
+                epsilon=eps,
+            )
+
         logger.info("Computing U volume distance interpolants...")
         ip_dist_u = RBFInterpolant(
             obs_uvs,
