@@ -1,27 +1,29 @@
-from typing import Optional, Tuple
-
+from typing import Optional, Tuple, Dict
+import os
 import logging
 
 from machinable import Component
 from machinable.element import normversion
 from machinable.types import VersionType
 from miv_simulator import config
-from miv_simulator.simulator.soma_coordinates import generate
-from miv_simulator.utils import io as io_utils
+from miv_simulator.simulator.soma_coordinates import (
+    generate as generate_soma_coordinates,
+)
+from miv_simulator.utils import io as io_utils, from_yaml
 from mpi4py import MPI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class CreateNetwork(Component):
     """Creates neural H5 type definitions and soma coordinates within specified layer geometry."""
 
     class Config(BaseModel):
-        cell_distributions: config.CellDistributions = {}
-        synapses: config.Synapses = {}
-        layer_extents: config.LayerExtents = {}
+        cell_distributions: config.CellDistributions = Field("???")
+        synapses: config.Synapses = Field("???")
+        layer_extents: config.LayerExtents = Field("???")
         rotation: config.Rotation = (0.0, 0.0, 0.0)
         cell_constraints: config.CellConstraints = {}
-        populations: Tuple[str, ...] = ()
+        populations: Optional[Tuple[str, ...]] = None
         geometry_filepath: Optional[str] = None
         coordinate_namespace: str = "Generated Coordinates"
         resolution: Tuple[int, int, int] = (3, 3, 3)
@@ -33,6 +35,9 @@ class CreateNetwork(Component):
         chunk_size: int = 1000
         value_chunk_size: int = 1000
         ranks_: int = 1
+
+    def config_from_file(self, filename: str) -> Dict:
+        return from_yaml(filename)
 
     @property
     def output_filepath(self) -> str:
@@ -52,7 +57,7 @@ class CreateNetwork(Component):
             )
         MPI.COMM_WORLD.barrier()
 
-        generate(
+        generate_soma_coordinates(
             output_filepath=self.output_filepath,
             cell_distributions=self.config.cell_distributions,
             layer_extents=self.config.layer_extents,
@@ -78,11 +83,11 @@ class CreateNetwork(Component):
             [
                 {
                     "filepath": self.output_filepath,
-                    "geometry_filepath": self.config.geometry_filepath,
-                    "coordinate_namespace": self.config.coordinate_namespace,
                     "cell_distributions": self.config.cell_distributions,
                     "layer_extents": self.config.layer_extents,
                     "rotation": self.config.rotation,
+                    "geometry_filepath": self.config.geometry_filepath,
+                    "coordinate_namespace": self.config.coordinate_namespace,
                     "resolution": self.config.resolution,
                     "alpha_radius": self.config.alpha_radius,
                     "io_size": self.config.io_size,

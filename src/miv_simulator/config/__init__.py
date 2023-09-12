@@ -5,7 +5,7 @@ from pydantic import (
     conlist,
     GetCoreSchemaHandler,
 )
-from typing import Literal, Dict, Any, List, Tuple, Optional, Union
+from typing import Literal, Dict, Any, List, Tuple, Optional, Union, Callable
 from enum import IntEnum
 from collections import defaultdict
 import numpy as np
@@ -92,17 +92,13 @@ class AllowStringsFrom:
 
 # Population
 
-SynapseTypesDefOrStr = Annotated[
-    SynapseTypesDef, AllowStringsFrom(SynapseTypesDef)
-]
+SynapseTypesDefOrStr = Annotated[SynapseTypesDef, AllowStringsFrom(SynapseTypesDef)]
 SWCTypesDefOrStr = Annotated[SWCTypesDef, AllowStringsFrom(SWCTypesDef)]
 LayersDefOrStr = Annotated[LayersDef, AllowStringsFrom(LayersDef)]
 SynapseMechanismsDefOrStr = Annotated[
     SynapseMechanismsDef, AllowStringsFrom(SynapseMechanismsDef)
 ]
-PopulationsDefOrStr = Annotated[
-    PopulationsDef, AllowStringsFrom(PopulationsDef)
-]
+PopulationsDefOrStr = Annotated[PopulationsDef, AllowStringsFrom(PopulationsDef)]
 
 
 PopulationName = str
@@ -129,9 +125,7 @@ CellDistribution = Dict[LayerName, int]
 """Describes a volume extent"""
 LayerExtents = Dict[LayerName, List[ParametricCoordinate]]
 """Describes constraints on the distribution of neurons in a given layer."""
-CellConstraints = Optional[
-    Dict[PopulationName, Dict[LayerName, Tuple[float, float]]]
-]
+CellConstraints = Optional[Dict[PopulationName, Dict[LayerName, Tuple[float, float]]]]
 
 
 # Pydantic data models
@@ -160,21 +154,23 @@ class Synapse(BaseModel):
     mechanisms: Dict[SynapseMechanismsDefOrStr, Mechanism]
 
 
+def _origin_value_to_callable(value: Union[str, float]) -> Callable:
+    if isinstance(value, (float, int)):
+        return lambda _: value
+
+    return getattr(np, value)
+
+
 class Origin(BaseModel):
-    U: str
-    V: str
-    L: str
+    U: Union[str, float, int]
+    V: Union[str, float, int]
+    L: Union[str, float, int]
 
-
-class CellConstraint(BaseModel):
-    layer: List[float]
-    reference: str = None
-
-    class Config:
-        fields = {
-            "layer": {
-                "alias": "SP"
-            }  # Using the example layer 'SP', but this can be any from the Layers Enum
+    def as_spec(self):
+        return {
+            "U": _origin_value_to_callable(self.U),
+            "V": _origin_value_to_callable(self.V),
+            "L": _origin_value_to_callable(self.L),
         }
 
 
@@ -182,11 +178,6 @@ class ParametricSurface(BaseModel):
     Origin: Origin
     Layer_Extents: LayerExtents
     Rotation: List[float]
-
-
-class CellConstraints(BaseModel):
-    PC: CellConstraint
-    PVBC: CellConstraint
 
 
 class CellType(BaseModel):
@@ -244,5 +235,5 @@ Synapses = Dict[
 CellDistributions = Dict[PopulationName, CellDistribution]
 
 
-def config_path(*append) -> str:
+def path(*append) -> str:
     return os.path.join(os.path.dirname(__file__), *append)

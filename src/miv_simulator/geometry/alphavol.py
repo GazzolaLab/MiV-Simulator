@@ -104,9 +104,7 @@ def volumes(simplices, points):
         vol = np.abs(vol) / 6.0
     else:
         ## 2D Area
-        vol = np.subtract(
-            np.multiply(B[:, 0], C[:, 1]) - np.multiply(B[:, 1], C[:, 0])
-        )
+        vol = np.subtract(np.multiply(B[:, 0], C[:, 1]) - np.multiply(B[:, 1], C[:, 0]))
         vol = np.abs(vol) / 2.0
 
     return vol
@@ -157,9 +155,7 @@ def circumcenters(simplices, points):
     )
 
     c = np.linalg.det(
-        np.stack(
-            (xyz_sqsum, spts[:, :, 0], spts[:, :, 1], spts[:, :, 2]), axis=-1
-        )
+        np.stack((xyz_sqsum, spts[:, :, 0], spts[:, :, 1], spts[:, :, 2]), axis=-1)
     )
     del xyz_sqsum
 
@@ -169,9 +165,7 @@ def circumcenters(simplices, points):
     z0 = Dz / (2.0 * a)
 
     ## circumradius
-    r = np.sqrt((Dx**2) + (Dy**2) + (Dz**2) - 4.0 * a * c) / (
-        2.0 * np.abs(a)
-    )
+    r = np.sqrt((Dx**2) + (Dy**2) + (Dz**2) - 4.0 * a * c) / (2.0 * np.abs(a))
 
     return ((x0, y0, z0), r)
 
@@ -261,6 +255,8 @@ def alpha_shape(pts, radius, tri=None):
         nz_simplices = tri.simplices[nz_index, :]
     _, rcc = circumcenters(nz_simplices, tri.points)
     rccidxs = np.where(rcc < radius)[0]
+    if len(rccidxs.shape) == 0:
+        raise RuntimeError("No circumcenters within radius, consider increasing it")
     T = nz_simplices[rccidxs, :]
     rcc = rcc[rccidxs]
     bnd = free_boundary(T)

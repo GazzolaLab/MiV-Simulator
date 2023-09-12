@@ -77,7 +77,7 @@ def generate_distance_connections(
         forest_filepath=forest_path,
         include_forest_populations=include,
         synapses=env.connection_config,
-        connection_extents=env.connection_extents,
+        axon_extents=env.connection_extents,
         template_path=env.template_path,
         use_coreneuron=env.use_coreneuron,
         dt=env.dt,
@@ -103,7 +103,7 @@ def distance_connections(
     forest_filepath: str,
     include_forest_populations: Optional[list],
     synapses: config.Synapses,
-    connection_extents: config.ConnectionExtents,
+    axon_extents: config.AxonExtents,
     template_path: str,
     use_coreneuron: bool,
     dt: float,
@@ -232,7 +232,7 @@ def distance_connections(
             destination_population,
             soma_coords,
             soma_distances,
-            connection_extents,
+            axon_extents,
         )
 
         if rank == 0:

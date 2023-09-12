@@ -27,7 +27,7 @@ from io import TextIOWrapper
 import click
 import numpy as np
 import yaml
-from miv_simulator.config import config_path
+from miv_simulator.config import path as config_path
 from mpi4py import MPI
 from numpy import float64, uint32
 from scipy import signal, sparse
@@ -381,7 +381,7 @@ def write_to_yaml(file_path, data, convert_scalars=False):
             data, outfile, default_flow_style=False, Dumper=ExplicitDumper
         )
 
-
+# !deprecated, use from_yaml instead
 def read_from_yaml(
     file_path: str, include_loader: None = None
 ) -> Dict[str, Dict[str, Dict[str, Union[Dict[str, float], Dict[str, int]]]]]:
@@ -400,6 +400,11 @@ def read_from_yaml(
         return data
     else:
         raise OSError(f"read_from_yaml: invalid file_path: {file_path}")
+
+
+def from_yaml(filepath: str) -> Dict:
+    with open(filepath) as fp:
+        return yaml.load(fp, IncludeLoader)
 
 
 def generate_results_file_id(

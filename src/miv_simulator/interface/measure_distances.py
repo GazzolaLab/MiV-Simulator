@@ -10,15 +10,15 @@ from miv_simulator import config
 
 
 class MeasureDistances(Component):
-    class Config:
+    class Config(BaseModel):
         filepath: str = Field("???")
+        cell_distributions: config.CellDistributions = Field("???")
+        layer_extents: config.LayerExtents = Field("???")
+        rotation: config.Rotation = (0.0, 0.0, 0.0)
         geometry_filepath: Optional[str] = None
         coordinate_namespace: str = "Generated Coordinates"
         resolution: Tuple[int, int, int] = (30, 30, 10)
-        populations: Tuple[str, ...] = ()
-        cell_distributions: config.CellDistributions = {}
-        layer_extents: config.LayerExtents = {}
-        rotation: config.Rotation = (0.0, 0.0, 0.0)
+        populations: Optional[Tuple[str, ...]] = None
         origin: config.Origin = {"U": "median", "V": "median", "L": "max"}
         interp_chunk_size: int = 1000
         alpha_radius: float = 120.0
@@ -42,6 +42,7 @@ class MeasureDistances(Component):
             rotation=self.config.rotation,
             origin=self.config.origin,
             n_sample=self.config.n_sample,
+            alpha_radius=self.config.alpha_radius,
             io_size=self.config.io_size,
             chunk_size=self.config.chunk_size,
             value_chunk_size=self.config.value_chunk_size,

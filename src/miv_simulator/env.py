@@ -6,7 +6,7 @@ from collections import defaultdict, namedtuple
 
 import numpy as np
 import yaml
-from miv_simulator.config import config_path
+from miv_simulator.config import path as config_path
 from miv_simulator.synapses import SynapseAttributes, get_syn_filter_dict
 from miv_simulator.utils import (
     AbstractEnv,

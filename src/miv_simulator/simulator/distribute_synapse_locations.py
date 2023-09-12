@@ -8,10 +8,9 @@ import h5py
 import numpy as np
 from miv_simulator import cells, synapses, utils
 from miv_simulator.mechanisms import compile_and_load
-from miv_simulator.cells import load_template
 from miv_simulator.env import Env
 from miv_simulator import config
-from miv_simulator.utils.neuron import configure_hoc
+from miv_simulator.utils.neuron import configure_hoc, load_template
 from mpi4py import MPI
 from neuroh5.io import (
     NeuroH5TreeGen,

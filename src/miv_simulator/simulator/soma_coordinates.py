@@ -181,7 +181,7 @@ def generate(
     cell_constraints: config.CellConstraints,
     output_namespace: str,
     geometry_filepath: Optional[str],
-    populations: Tuple[str, ...],
+    populations: Optional[Tuple[str, ...]],
     resolution: Tuple[int, int, int],
     alpha_radius: float,
     nodeiter: int,

@@ -74,12 +74,13 @@ def measure_distances(
     geometry_filepath: Optional[str],
     coordinate_namespace: str,
     resolution: Tuple[float, float, float],
-    populations: Tuple[str, ...],
+    populations: Optional[Tuple[str, ...]],
     cell_distributions: config.CellDistributions,
     layer_extents: config.LayerExtents,
     rotation: config.Rotation,
     origin: config.Origin,
     n_sample: int,
+    alpha_radius: Optional[float],
     io_size: int,
     chunk_size: int,
     value_chunk_size: int,
@@ -142,7 +143,8 @@ def measure_distances(
             origin=origin,
             make_volume=make_network_volume,
             resolution=resolution,
-            nsample=n_sample,
+            n_sample=n_sample,
+            alpha_radius=alpha_radius
         )
         if rank == 0:
             if geometry_filepath is not None:
