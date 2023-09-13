@@ -302,18 +302,12 @@ _loaded_templates = {}
 
 def load_template(
     population_name: str,
-    cell_types: config.CellTypes,
+    template_name: str,
     template_path: str,
 ):
     if population_name in _loaded_templates:
         return _loaded_templates[population_name]
 
-    if population_name not in cell_types:
-        raise KeyError(
-            f"load_cell_templates: unrecognized cell population: {population_name}"
-        )
-
-    template_name = cell_types[population_name]["template"]
     template_file = os.path.join(template_path, f"{template_name}.hoc")
     if not hasattr(h, template_name):
         h.load_file(template_file)

@@ -92,9 +92,7 @@ def global_syn_summary(comm, syn_stats, gid_count, root):
                         )
         total_syn_stats_dict = pop_syn_stats["total"]
         for syn_type in total_syn_stats_dict:
-            global_syn_count = comm.gather(
-                total_syn_stats_dict[syn_type], root=root
-            )
+            global_syn_count = comm.gather(total_syn_stats_dict[syn_type], root=root)
             if comm.rank == root:
                 res.append(
                     f"{population}: mean {syn_type} synapses per cell: {np.sum(global_syn_count) / global_count:.2f}"
@@ -222,6 +220,7 @@ def distribute_synapse_locations(
         dt=env.dt,
         tstop=env.tstop,
         celsius=env.globals.get("celsius", None),
+        io_size=io_size,
         output_filepath=output_path,
         write_size=write_size,
         chunk_size=chunk_size,
@@ -242,6 +241,7 @@ def distribute_synapses(
     tstop: float,
     celsius: Optional[float],
     output_filepath: Optional[str],
+    io_size: int,
     write_size: int,
     chunk_size: int,
     value_chunk_size: int,
@@ -299,7 +299,9 @@ def distribute_synapses(
         (population_start, _) = pop_ranges[population]
         template_class = load_template(
             population_name=population,
-            cell_types=cell_types,
+            template_name=cell_types[population][
+                "template"
+            ],
             template_path=template_path,
         )
 
@@ -308,13 +310,10 @@ def distribute_synapses(
         swc_set_dict = defaultdict(set)
         for sec_name, sec_dict in density_dict.items():
             for syn_type, syn_dict in sec_dict.items():
-                swc_set_dict[syn_type].add(
-                    config.SWCTypesDef.__members__[sec_name]
-                )
+                swc_set_dict[syn_type].add(sec_name)
                 for layer_name in syn_dict:
                     if layer_name != "default":
-                        layer = config.LayersDef.__members__[layer_name]
-                        layer_set_dict[syn_type].add(layer)
+                        layer_set_dict[syn_type].add(layer_name)
 
         syn_stats_dict = {
             "section": defaultdict(lambda: {"excitatory": 0, "inhibitory": 0}),
@@ -384,14 +383,10 @@ def distribute_synapses(
                         cell_secidx_dict,
                     )
                 else:
-                    raise Exception(
-                        f"Unknown distribution type: {distribution}"
-                    )
+                    raise Exception(f"Unknown distribution type: {distribution}")
 
                 synapse_dict[gid] = syn_dict
-                this_syn_stats = update_synapse_statistics(
-                    syn_stats_dict, syn_dict
-                )
+                this_syn_stats = update_synapse_statistics(syn_dict, syn_stats_dict)
                 check_synapses(
                     gid,
                     morph_dict,
@@ -412,11 +407,7 @@ def distribute_synapses(
             else:
                 logger.info(f"Rank {rank} gid is None")
             gc.collect()
-            if (
-                (not dry_run)
-                and (write_size > 0)
-                and (gid_count % write_size == 0)
-            ):
+            if (not dry_run) and (write_size > 0) and (gid_count % write_size == 0):
                 append_cell_attributes(
                     output_filepath,
                     population,
@@ -443,9 +434,7 @@ def distribute_synapses(
                 value_chunk_size=value_chunk_size,
             )
 
-        global_count, summary = global_syn_summary(
-            comm, syn_stats, gid_count, root=0
-        )
+        global_count, summary = global_syn_summary(comm, syn_stats, gid_count, root=0)
         if rank == 0:
             logger.info(
                 f"Population: {population}, {comm.size} ranks took {time.time() - start_time:.2f} s "

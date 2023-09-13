@@ -114,13 +114,7 @@ class CreateNetwork(Component):
     def distribute_synapses(self, version: VersionType = None):
         return self.derive(
             "miv_simulator.interface.distribute_synapses",
-            [
-                {
-                    "blueprint": self.config.blueprint,
-                    "coordinates": self.output_filepath,
-                }
-            ]
-            + normversion(version),
+            [] + normversion(version),
             uses=self,
         )
 

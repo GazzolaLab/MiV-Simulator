@@ -3,7 +3,6 @@ from pydantic import (
     BaseModel as _BaseModel,
     Field,
     conlist,
-    GetCoreSchemaHandler,
 )
 from typing import Literal, Dict, Any, List, Tuple, Optional, Union, Callable
 from enum import IntEnum
@@ -11,7 +10,6 @@ from collections import defaultdict
 import numpy as np
 from typing_extensions import Annotated
 from pydantic.functional_validators import AfterValidator, BeforeValidator
-from pydantic_core import CoreSchema, core_schema
 
 # Definitions
 
@@ -27,10 +25,18 @@ class SWCTypesDef(IntEnum):
     hillock = 8
 
 
+SWCTypesLiteral = Literal[
+    "soma", "axon", "basal", "apical", "trunk", "tuft", "ais", "hillock"
+]
+
+
 class SynapseTypesDef(IntEnum):
     excitatory = 0
     inhibitory = 1
     modulatory = 2
+
+
+SynapseTypesLiteral = Literal["excitatory", "inhibitory", "modulatory"]
 
 
 class SynapseMechanismsDef(IntEnum):
@@ -54,6 +60,11 @@ class LayersDef(IntEnum):
     SLM = 9  # Lacunosum-moleculare
 
 
+LayersLiteral = Literal[
+    "default", "Hilus", "GCL", "IML", "MML", "OML", "SO", "SP", "SL", "SR", "SLM"
+]
+
+
 class InputSelectivityTypesDef(IntEnum):
     random = 0
     constant = 1
@@ -66,28 +77,23 @@ class PopulationsDef(IntEnum):
     OLM = 102  # GABAergic oriens-lacunosum/moleculare
 
 
-class AllowStringsFrom:
+PopulationsLiteral = Literal["STIM", "PYR", "PVBC", "OLM"]
+
+
+def AllowStringsFrom(enum):
     """For convenience, allows users to specify enum values using their string name"""
 
-    def __init__(self, enum):
-        self.enum = enum
-
-    def cast(self, v):
+    def _cast(v) -> int:
         if isinstance(v, str):
             try:
-                return self.enum.__members__[v]
+                return enum.__members__[v]
             except KeyError:
                 raise ValueError(
-                    f"'{v}'. Must be one of {tuple(self.enum.__members__.keys())}"
+                    f"'{v}'. Must be one of {tuple(enum.__members__.keys())}"
                 )
         return v
 
-    def __get_pydantic_core_schema__(
-        self, source_type: Any, handler: GetCoreSchemaHandler
-    ) -> CoreSchema:
-        return core_schema.no_info_before_validator_function(
-            self.cast, handler(source_type)
-        )
+    return BeforeValidator(_cast)
 
 
 # Population
@@ -183,15 +189,21 @@ class ParametricSurface(BaseModel):
 class CellType(BaseModel):
     template: str
     synapses: Dict[
-        SWCTypesDefOrStr,
+        Literal["density"],
         Dict[
-            Union[LayersDefOrStr, Literal["default"]],
-            Dict[Literal["mean", "variance"], float],
+            SWCTypesLiteral,
+            Dict[
+                SynapseTypesLiteral,
+                Dict[
+                    LayersLiteral,
+                    Dict[Literal["mean", "variance"], float],
+                ],
+            ],
         ],
     ]
 
 
-CellTypes = Dict[PopulationsDefOrStr, CellType]
+CellTypes = Dict[PopulationsLiteral, CellType]
 
 
 class AxonExtent(BaseModel):
