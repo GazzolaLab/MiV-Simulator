@@ -5,23 +5,24 @@ import logging
 from machinable import Component
 from pydantic import BaseModel, Field
 from miv_simulator import config
-from typing import Optional
+from typing import Optional, Dict
 from miv_simulator.simulator import distance_connections
+from miv_simulator.utils import from_yaml
 
 
 class DistanceConnections(Component):
     class Config(BaseModel):
         filepath: str = Field("???")
         forest_filepath: str = Field("???")
+        axon_extents: config.AxonExtents = Field("???")
+        synapses: config.Synapses = Field("???")
         include_forest_populations: Optional[list] = None
-        synapses: config.Synapses = {}
-        connection_extents: config.ConnectionExtents = {}
         template_path: str = "./templates"
         use_coreneuron: bool = False
         dt: float = 0.025
-        tstop: float = (0.0,)
+        tstop: float = 0.0
         celsius: Optional[float] = 35.0
-        connectivity_namespace: str = "Connectivity"
+        connectivity_namespace: str = "Connections"
         coordinates_namespace: str = "Coordinates"
         synapses_namespace: str = "Synapse Attributes"
         distances_namespace: str = "Arc Distances"
@@ -32,6 +33,9 @@ class DistanceConnections(Component):
         cache_size: int = 1
         write_size: int = 1
         ranks_: int = 8
+
+    def config_from_file(self, filename: str) -> Dict:
+        return from_yaml(filename)
 
     @property
     def output_filepath(self):
@@ -44,7 +48,7 @@ class DistanceConnections(Component):
             forest_filepath=self.config.forest_filepath,
             include_forest_populations=self.config.include_forest_populations,
             synapses=self.config.synapses,
-            connection_extents=self.config.connection_extents,
+            axon_extents=self.config.axon_extents,
             template_path=self.config.template_path,
             use_coreneuron=self.config.use_coreneuron,
             dt=self.config.dt,
@@ -61,4 +65,5 @@ class DistanceConnections(Component):
             cache_size=self.config.cache_size,
             write_size=self.config.write_size,
             dry_run=False,
+            seeds=self.seed
         )

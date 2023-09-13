@@ -123,8 +123,9 @@ class CreateNetwork(Component):
             "miv_simulator.interface.distance_connections",
             [
                 {
-                    "blueprint": self.config.blueprint,
-                    "coordinates": self.output_filepath,
+                    "filepath": self.output_filepath,
+                    "synapses": self.config.synapses,
+                    "coordinates_namespace": self.config.coordinate_namespace,
                 }
             ]
             + normversion(version),

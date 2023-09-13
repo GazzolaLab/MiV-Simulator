@@ -46,6 +46,9 @@ class SynapseMechanismsDef(IntEnum):
     NMDA = 30
 
 
+SynapseMechanismsLiteral = Literal["AMPA", "GABA_A", "GABA_B", "NMDA"]
+
+
 class LayersDef(IntEnum):
     default = -1
     Hilus = 0
@@ -145,11 +148,12 @@ class BaseModel(_BaseModel):
 
 
 class Mechanism(BaseModel):
-    tau_rise: float = None
-    tau_decay: float = None
-    e: int = None
     g_unit: float
     weight: float
+    tau_rise: Optional[float] = None
+    tau_decay: Optional[float] = None
+    e: Optional[int] = None
+    
 
 
 class Synapse(BaseModel):
@@ -157,7 +161,7 @@ class Synapse(BaseModel):
     sections: conlist(SWCTypesDefOrStr)
     layers: conlist(LayersDefOrStr)
     proportions: conlist(float)
-    mechanisms: Dict[SynapseMechanismsDefOrStr, Mechanism]
+    mechanisms: Dict[SynapseMechanismsLiteral, Mechanism]
 
 
 def _origin_value_to_callable(value: Union[str, float]) -> Callable:
@@ -211,9 +215,7 @@ class AxonExtent(BaseModel):
     offset: Tuple[float, float]
 
 
-AxonExtents = Dict[PopulationsDefOrStr, Dict[LayerName, AxonExtent]]
-
-# Composed
+AxonExtents = Dict[PopulationsLiteral, Dict[LayerName, AxonExtent]]
 
 
 def probabilities_sum_to_one(x):

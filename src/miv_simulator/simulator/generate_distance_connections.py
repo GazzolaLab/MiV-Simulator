@@ -241,8 +241,8 @@ def distance_connections(
             )
 
         if seeds is None or isinstance(seeds, int):
-            r = random.Random(seed=seeds)
-            seeds = [r.randint(0, 2**32 - 1) for r in range(3)]
+            r = random.Random(seeds)
+            seeds = [r.randint(0, 2**32 - 1) for _ in range(3)]
 
         populations_dict = config.PopulationsDef.__members__
         generate_uv_distance_connections(
