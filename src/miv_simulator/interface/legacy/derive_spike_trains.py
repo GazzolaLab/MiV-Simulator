@@ -1,13 +1,9 @@
 from typing import Dict, List, Optional, Tuple, Union
 
-from collections import defaultdict
-from dataclasses import dataclass
-
 import arrow
 import numpy as np
 from machinable import Component
-from machinable.config import Field
-from miv_simulator.config import Blueprint
+from pydantic import Field, BaseModel
 from miv_simulator.simulator import (
     generate_input_spike_trains,
     import_input_spike_train,
@@ -15,9 +11,8 @@ from miv_simulator.simulator import (
 
 
 class DeriveSpikeTrains(Component):
-    @dataclass
-    class Config:
-        blueprint: Blueprint = Field(default_factory=Blueprint)
+    class Config(BaseModel):
+        config_filepath: str = Field("???")
         input_features: str = Field("???")
         coordinates: Optional[str] = None
         distances_namespace: str = "Arc Distances"
@@ -41,7 +36,7 @@ class DeriveSpikeTrains(Component):
 
     def __call__(self):
         generate_input_spike_trains(
-            config=self.config.blueprint,
+            config=self.config.config_filepath,
             selectivity_path=self.config.input_features,
             selectivity_namespace="Selectivity",
             coords_path=self.config.coordinates,
@@ -100,7 +95,4 @@ class DeriveSpikeTrains(Component):
 
     @property
     def output_filepath(self):
-        return (
-            self.local_directory("data/", create=True)
-            + "network_input_spike_trains.h5"
-        )
+        return self.local_directory("network_input_spike_trains.h5")

@@ -2,8 +2,7 @@ import os
 import shutil
 from glob import glob
 
-import commandlib
-import miv_simulator
+import subprocess
 from mpi4py import MPI
 from neuron import h
 
@@ -49,8 +48,7 @@ def compile(directory: str = "./mechanisms", force: bool = False) -> str:
             raise ModuleNotFoundError(
                 "nrnivmodl not found. Did you add it to the PATH?"
             )
-        nrnivmodl = commandlib.Command("nrnivmodl").in_dir(compiled)
-        nrnivmodl.run()
+        subprocess.run(["nrnivmodl"], cwd=compiled)
 
     return compiled
 

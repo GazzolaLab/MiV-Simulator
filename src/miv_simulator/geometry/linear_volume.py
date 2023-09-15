@@ -526,14 +526,16 @@ class LinearVolume:
             )
 
             u_extent = u_dist1 + u_dist2
-            u_pos = old_div(u_dist1, u_extent)
+
+            # todo(frthjf): not sure if we should rather error in the 0 case
+            u_pos = old_div(u_dist1, u_extent) if u_extent != 0.0 else 0.0
 
             v_dist1, v_dist2 = self.boundary_distance(
                 1, self.v[0], self.v[-1], uvl[i, :], resolution=resolution
             )
 
             v_extent = v_dist1 + v_dist2
-            v_pos = old_div(v_dist1, v_extent)
+            v_pos = old_div(v_dist1, v_extent) if v_extent != 0.0 else 0.0
 
             pos.append((u_pos, v_pos))
             extents.append((u_extent, v_extent))

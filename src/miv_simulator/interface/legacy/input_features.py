@@ -1,22 +1,15 @@
 from typing import Dict, Tuple
 
-from collections import defaultdict
-from dataclasses import dataclass
-
-import numpy as np
 from machinable import Component
-from machinable.config import Field
+from pydantic import Field, BaseModel
 from machinable.element import normversion
 from machinable.types import VersionType
-from miv_simulator.config import Blueprint
 from miv_simulator.simulator import generate_input_features
-from neuroh5.io import append_cell_attributes
 
 
 class InputFeatures(Component):
-    @dataclass
-    class Config:
-        blueprint: Blueprint = Field(default_factory=Blueprint)
+    class Config(BaseModel):
+        config_filepath: str = Field("???")
         coordinates: str = Field("???")
         distances_namespace: str = "Arc Distances"
         arena_id: str = "A"
@@ -32,7 +25,7 @@ class InputFeatures(Component):
 
     def __call__(self):
         generate_input_features(
-            config=self.config.blueprint,
+            config=self.config.config_filepath,
             coords_path=self.config.coordinates,
             distances_namespace=self.config.distances_namespace,
             output_path=self.output_filepath,
@@ -59,17 +52,14 @@ class InputFeatures(Component):
 
     @property
     def output_filepath(self):
-        return (
-            self.local_directory("data/", create=True)
-            + "network_input_features.h5"
-        )
+        return self.local_directory("network_input_features.h5")
 
     def derive_spike_trains(self, version: VersionType = None):
         return self.derive(
-            "miv_simulator.interface.derive_spike_trains",
+            "miv_simulator.interface.legacy.derive_spike_trains",
             [
                 {
-                    "blueprint": self.config.blueprint,
+                    "config_filepath": self.config.config_filepath,
                     "coordinates": self.config.coordinates,
                     "input_features": self.output_filepath,
                 }

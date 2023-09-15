@@ -108,8 +108,8 @@ def synapse_seg_density(
         syn_type = syn_type_dict[syn_type_label]
         rans = {}
         for layer_label, density_dict in layer_density_dict.items():
-            if layer_label == "default":
-                layer = layer_label
+            if layer_label == "default" or layer_label == -1:
+                layer = "default"
             else:
                 layer = int(layer_dict[layer_label])
             rans[layer] = ran
@@ -199,8 +199,8 @@ def synapse_seg_counts(
         syn_type = syn_type_dict[syn_type_label]
         rans = {}
         for layer_label, density_dict in layer_density_dict.items():
-            if layer_label == "default":
-                layer = layer_label
+            if layer_label == "default" or layer_label == -1:
+                layer = "default"
             else:
                 layer = layer_dict[layer_label]
 

@@ -261,6 +261,10 @@ def alpha_shape(pts, radius, tri=None):
         nz_simplices = tri.simplices[nz_index, :]
     _, rcc = circumcenters(nz_simplices, tri.points)
     rccidxs = np.where(rcc < radius)[0]
+    if len(rccidxs.shape) == 0:
+        raise RuntimeError(
+            "No circumcenters within radius, consider increasing it"
+        )
     T = nz_simplices[rccidxs, :]
     rcc = rcc[rccidxs]
     bnd = free_boundary(T)
