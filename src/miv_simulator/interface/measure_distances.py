@@ -7,6 +7,7 @@ from machinable import Component
 from machinable.config import Field
 from miv_simulator.simulator import measure_distances
 from miv_simulator import config
+from mpi4py import MPI
 
 
 class MeasureDistances(Component):
@@ -48,3 +49,6 @@ class MeasureDistances(Component):
             value_chunk_size=self.config.value_chunk_size,
             cache_size=self.config.cache_size,
         )
+
+    def on_write_meta_data(self):
+        return MPI.COMM_WORLD.Get_rank() == 0

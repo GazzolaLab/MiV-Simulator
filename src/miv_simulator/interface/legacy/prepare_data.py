@@ -95,7 +95,7 @@ class PrepareData(Component):
 
         print("Import H5Types")
         with h5py.File(self.output_filepath("cells"), "w") as f:
-            input_file = h5py.File(self.network.output_filepath, "r")
+            input_file = h5py.File(self.network.config.filepath, "r")
             h5_copy_dataset(input_file, f, "/H5Types")
             input_file.close()
 
@@ -110,7 +110,7 @@ class PrepareData(Component):
                 coords_dset_path = f"/Populations/{p}/Generated Coordinates"
                 coords_output_path = f"/Populations/{p}/Coordinates"
                 distances_dset_path = f"/Populations/{p}/Arc Distances"
-                with h5py.File(self.network.output_filepath, "r") as f_src:
+                with h5py.File(self.network.config.filepath, "r") as f_src:
                     h5_copy_dataset(f_src, f_dst, coords_dset_path)
                     h5_copy_dataset(f_src, f_dst, distances_dset_path)
 
@@ -198,7 +198,7 @@ class PrepareData(Component):
         _run(cmd)
 
         with h5py.File(self.output_filepath("connections"), "w") as f:
-            input_file = h5py.File(self.network.output_filepath, "r")
+            input_file = h5py.File(self.network.config.filepath, "r")
             h5_copy_dataset(input_file, f, "/H5Types")
             input_file.close()
 

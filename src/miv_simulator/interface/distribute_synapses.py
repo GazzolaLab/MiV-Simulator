@@ -6,6 +6,7 @@ from miv_simulator import simulator
 from pydantic import BaseModel, Field
 from typing import Optional, Dict
 from miv_simulator.utils import from_yaml
+from mpi4py import MPI
 
 
 class DistributeSynapses(Component):
@@ -55,3 +56,6 @@ class DistributeSynapses(Component):
             seed=self.seed,
             dry_run=False,
         )
+
+    def on_write_meta_data(self):
+        return MPI.COMM_WORLD.Get_rank() == 0

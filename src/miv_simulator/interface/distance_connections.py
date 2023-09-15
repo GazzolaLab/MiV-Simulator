@@ -8,6 +8,7 @@ from miv_simulator import config
 from typing import Optional, Dict
 from miv_simulator.simulator import distance_connections
 from miv_simulator.utils import from_yaml
+from mpi4py import MPI
 
 
 class DistanceConnections(Component):
@@ -67,3 +68,6 @@ class DistanceConnections(Component):
             dry_run=False,
             seeds=self.seed,
         )
+
+    def on_write_meta_data(self):
+        return MPI.COMM_WORLD.Get_rank() == 0

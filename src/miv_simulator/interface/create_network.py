@@ -18,6 +18,7 @@ class CreateNetwork(Component):
     """Creates neural H5 type definitions and soma coordinates within specified layer geometry."""
 
     class Config(BaseModel):
+        filepath: str = Field("???")
         cell_distributions: config.CellDistributions = Field("???")
         synapses: config.Synapses = Field("???")
         layer_extents: config.LayerExtents = Field("???")
@@ -39,26 +40,13 @@ class CreateNetwork(Component):
     def config_from_file(self, filename: str) -> Dict:
         return from_yaml(filename)
 
-    @property
-    def output_filepath(self) -> str:
-        return self.local_directory("network.h5")
-
     def on_write_meta_data(self):
         return MPI.COMM_WORLD.Get_rank() == 0
 
     def __call__(self) -> None:
         logging.basicConfig(level=logging.INFO)
-
-        if MPI.COMM_WORLD.rank == 0:
-            io_utils.create_neural_h5(
-                self.output_filepath,
-                self.config.cell_distributions,
-                self.config.synapses,
-            )
-        MPI.COMM_WORLD.barrier()
-
         generate_soma_coordinates(
-            output_filepath=self.output_filepath,
+            output_filepath=self.config.filepath,
             cell_distributions=self.config.cell_distributions,
             layer_extents=self.config.layer_extents,
             rotation=self.config.rotation,
@@ -82,7 +70,7 @@ class CreateNetwork(Component):
             "miv_simulator.interface.measure_distances",
             [
                 {
-                    "filepath": self.output_filepath,
+                    "filepath": self.config.filepath,
                     "cell_distributions": self.config.cell_distributions,
                     "layer_extents": self.config.layer_extents,
                     "rotation": self.config.rotation,
@@ -104,7 +92,7 @@ class CreateNetwork(Component):
             "miv_simulator.interface.synapse_forest",
             [
                 {
-                    "filepath": self.output_filepath,
+                    "filepath": self.config.filepath,
                 }
             ]
             + normversion(version),
@@ -123,7 +111,7 @@ class CreateNetwork(Component):
             "miv_simulator.interface.distance_connections",
             [
                 {
-                    "filepath": self.output_filepath,
+                    "filepath": self.config.filepath,
                     "synapses": self.config.synapses,
                     "coordinates_namespace": self.config.coordinate_namespace,
                 }
