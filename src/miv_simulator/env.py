@@ -6,7 +6,6 @@ from collections import defaultdict, namedtuple
 
 import numpy as np
 import yaml
-from miv_simulator.config import config_path
 from miv_simulator.synapses import SynapseAttributes, get_syn_filter_dict
 from miv_simulator.utils import (
     AbstractEnv,
@@ -14,7 +13,6 @@ from miv_simulator.utils import (
     IncludeLoader,
     get_root_logger,
     read_from_yaml,
-    update_dict,
 )
 from mpi4py import MPI
 from mpi4py.MPI import Intracomm
@@ -265,11 +263,7 @@ class Env(AbstractEnv):
                 with open(p) as fp:
                     self.model_config = yaml.load(fp, IncludeLoader)
             else:
-                # load default configuration and apply configuration update
-                with open(config_path("default.yaml")) as fp:
-                    default_config = yaml.load(fp, IncludeLoader)
-
-                self.model_config = update_dict(default_config, config)
+                self.model_config = config
 
         self.model_config = self.comm.bcast(self.model_config, root=0)
 

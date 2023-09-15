@@ -38,6 +38,21 @@ flowchart LR
   - Image: _Template_ by which a container will be initialized at runtime.  To create image, use the command `docker build`.
   - Container: Isolated computing environment. Each container can be created from image by the command `docker run`.
 
+
+### Quick start
+
+The quickest way to get started is to use the preconfigured setup via docker-compose:
+
+```bash
+# If you haven't already, clone the MiV-Simulator source into a local directory
+git clone https://github.com/GazzolaLab/MiV-Simulator  
+cd MiV-Simulator
+# Then launch docker-compose
+docker-compose up
+```
+
+This will build and launch the `jupyter-lab` environment.
+
 ### Build Image
 
 The command below builds `image` tagged `miv_env:01`, based on the instruction set provided in [Dockerfile][url-mivsim-dockerfile]. To see the available images, run `docker images`.
@@ -104,6 +119,16 @@ It is typically recommanded to save simulation results outside the docker-contai
 ### Transfer Files from/to Container
 
 To copy files between container and local directory, one can use `docker cp` command: [doc][url-docker-docs-copy].
+
+### Developing the MiV-Simulator
+
+Note that by default, the source code of the simulator is part of the image and changes are lost as soon as the container terminates. To develop the MiV-Simulator package source code, you have to update the `miv_simulator` package installation inside the container (e.g. via Jupyter lab) to use the mounted repo that is persistent outside the container:
+
+```python
+# from within the container
+import sys
+!{sys.executable} -m pip install --no-cache-dir --no-deps -e /home/user/MiV-Simulator  # location of repo mount point
+```
 
 ## Tutorial Cases
 
