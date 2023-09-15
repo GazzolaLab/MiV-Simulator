@@ -87,7 +87,9 @@ def transform_volume(transform, u, v, l, rotate=None):
     return xyz
 
 
-def get_layer_extents(layer_extents: config.LayerExtents, layer: config.LayerName):
+def get_layer_extents(
+    layer_extents: config.LayerExtents, layer: config.LayerName
+):
     min_u, max_u = 0.0, 0.0
     min_v, max_v = 0.0, 0.0
     min_l, max_l = 0.0, 0.0
@@ -183,7 +185,9 @@ def euclidean_distance(a, b):
 
 
 def make_uvl_distance(vol, xyz_coords, rotate=None):
-    f = lambda u, v, l: euclidean_distance(vol(u, v, l, rotate=rotate), xyz_coords)
+    f = lambda u, v, l: euclidean_distance(
+        vol(u, v, l, rotate=rotate), xyz_coords
+    )
     return f
 
 
@@ -228,7 +232,9 @@ def generate_nodes(alpha, nsample, nodeitr):
         node_count = len(in_nodes)
         N = int(1.5 * N)
 
-    logger.info("%i interior nodes generated (%i iterations)" % (node_count, itr))
+    logger.info(
+        "%i interior nodes generated (%i iterations)" % (node_count, itr)
+    )
 
     xyz_coords = in_nodes.reshape(-1, 3)
 
@@ -299,7 +305,9 @@ def get_volume_distances(
         )
 
         resample = 10
-        span_U, span_V, span_L = ip_vol._resample_uvl(resample, resample, resample)
+        span_U, span_V, span_L = ip_vol._resample_uvl(
+            resample, resample, resample
+        )
         if origin_spec is None:
             origin_coords = np.asarray(
                 [np.median(span_U), np.median(span_V), np.max(span_L)]
@@ -514,7 +522,8 @@ def interp_soma_distances(
             local_dist_dict[gid] = (distance_u[i], distance_v[i])
             if rank == 0:
                 logger.info(
-                    "gid %i: distances: %f %f" % (gid, distance_u[i], distance_v[i])
+                    "gid %i: distances: %f %f"
+                    % (gid, distance_u[i], distance_v[i])
                 )
         if allgather:
             dist_dicts = comm.allgather(local_dist_dict)
@@ -842,7 +851,9 @@ def icp_transform(
     for pop in populations:
         coords_dict = soma_coords[pop]
         if rank == 0:
-            logger.info(f"Computing point transformation for population {pop}...")
+            logger.info(
+                f"Computing point transformation for population {pop}..."
+            )
         count = 0
         xyz_coords = []
         gids = []
@@ -877,7 +888,9 @@ def icp_transform(
             for i, gid in zip(list(range(0, estimate.size)), gids):
                 est_xyz_coords = estimate[i]
                 k_est_xyz_coords[i, :] = est_xyz_coords
-                f_uvl_distance = make_uvl_distance(est_xyz_coords, rotate=rotate)
+                f_uvl_distance = make_uvl_distance(
+                    est_xyz_coords, rotate=rotate
+                )
                 uvl_coords, err = dlib.find_min_global(
                     f_uvl_distance, limits[0], limits[1], opt_iter
                 )

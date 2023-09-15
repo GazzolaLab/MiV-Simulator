@@ -381,6 +381,7 @@ def write_to_yaml(file_path, data, convert_scalars=False):
             data, outfile, default_flow_style=False, Dumper=ExplicitDumper
         )
 
+
 # !deprecated, use from_yaml instead
 def read_from_yaml(
     file_path: str, include_loader: None = None
@@ -1239,24 +1240,3 @@ def baks(spktimes, time, a=1.5, b=None):
         rate = rate + K
 
     return rate, h
-
-
-def update_dict(d: Mapping, update: Optional[Mapping] = None) -> Mapping:
-    if d is None:
-        d = {}
-    if not isinstance(d, Mapping):
-        raise ValueError(
-            f"Error: Expected mapping but found {type(d).__name__}: {d}"
-        )
-    if not update:
-        return d
-    if not isinstance(update, Mapping):
-        raise ValueError(
-            f"Error: Expected update mapping but found {type(update).__name__}: {update}"
-        )
-    for k, val in update.items():
-        if isinstance(val, Mapping):
-            d[k] = update_dict(d.get(k, {}), val)
-        else:
-            d[k] = val
-    return d

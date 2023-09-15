@@ -470,7 +470,7 @@ def generate_synaptic_connections(
                 if len(source_gid_counts) == 0:
                     logger.warning(
                         f"Rank {rank}: source vertices list is empty for gid: {destination_gid} "
-                        f"source: {projection} layer: {layer} "
+                        f"source: {projection} layer: layer? "
                         f"source probs: {source_probs} distances_u: {distances_u} distances_v: {distances_v}"
                     )
 
@@ -611,7 +611,7 @@ def generate_uv_distance_connections(
             projection_config[source_population].layers,
             projection_config[source_population].sections,
             projection_config[source_population].proportions,
-            projection_config[source_population].get("contacts", None),
+            projection_config[source_population].get("contacts", 1),
         )
         for source_population in source_populations
     }

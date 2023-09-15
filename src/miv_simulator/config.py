@@ -64,7 +64,17 @@ class LayersDef(IntEnum):
 
 
 LayersLiteral = Literal[
-    "default", "Hilus", "GCL", "IML", "MML", "OML", "SO", "SP", "SL", "SR", "SLM"
+    "default",
+    "Hilus",
+    "GCL",
+    "IML",
+    "MML",
+    "OML",
+    "SO",
+    "SP",
+    "SL",
+    "SR",
+    "SLM",
 ]
 
 
@@ -101,13 +111,17 @@ def AllowStringsFrom(enum):
 
 # Population
 
-SynapseTypesDefOrStr = Annotated[SynapseTypesDef, AllowStringsFrom(SynapseTypesDef)]
+SynapseTypesDefOrStr = Annotated[
+    SynapseTypesDef, AllowStringsFrom(SynapseTypesDef)
+]
 SWCTypesDefOrStr = Annotated[SWCTypesDef, AllowStringsFrom(SWCTypesDef)]
 LayersDefOrStr = Annotated[LayersDef, AllowStringsFrom(LayersDef)]
 SynapseMechanismsDefOrStr = Annotated[
     SynapseMechanismsDef, AllowStringsFrom(SynapseMechanismsDef)
 ]
-PopulationsDefOrStr = Annotated[PopulationsDef, AllowStringsFrom(PopulationsDef)]
+PopulationsDefOrStr = Annotated[
+    PopulationsDef, AllowStringsFrom(PopulationsDef)
+]
 
 
 PopulationName = str
@@ -134,7 +148,9 @@ CellDistribution = Dict[LayerName, int]
 """Describes a volume extent"""
 LayerExtents = Dict[LayerName, List[ParametricCoordinate]]
 """Describes constraints on the distribution of neurons in a given layer."""
-CellConstraints = Optional[Dict[PopulationName, Dict[LayerName, Tuple[float, float]]]]
+CellConstraints = Optional[
+    Dict[PopulationName, Dict[LayerName, Tuple[float, float]]]
+]
 
 
 # Pydantic data models
@@ -153,7 +169,6 @@ class Mechanism(BaseModel):
     tau_rise: Optional[float] = None
     tau_decay: Optional[float] = None
     e: Optional[int] = None
-    
 
 
 class Synapse(BaseModel):

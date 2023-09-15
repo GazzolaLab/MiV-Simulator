@@ -144,7 +144,7 @@ def measure_distances(
             make_volume=make_network_volume,
             resolution=resolution,
             n_sample=n_sample,
-            alpha_radius=alpha_radius
+            alpha_radius=alpha_radius,
         )
         if rank == 0:
             if geometry_filepath is not None:

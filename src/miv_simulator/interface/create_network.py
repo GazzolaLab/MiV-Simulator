@@ -131,16 +131,3 @@ class CreateNetwork(Component):
             + normversion(version),
             uses=self,
         )
-
-    def input_features(self, version: VersionType = None):
-        return self.derive(
-            "miv_simulator.interface.input_features",
-            [
-                {
-                    "blueprint": self.config.blueprint,
-                    "coordinates": self.output_filepath,
-                }
-            ]
-            + normversion(version),
-            uses=self,
-        )

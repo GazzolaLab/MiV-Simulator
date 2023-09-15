@@ -4,7 +4,7 @@ import os
 import pathlib
 import sys
 
-import commandlib
+import subprocess
 import h5py
 from machinable import Component
 from neuroh5.io import read_population_names
@@ -18,7 +18,7 @@ def h5_copy_dataset(f_src, f_dst, dset_path):
 
 class PrepareData(Component):
     def output_filepath(self, path: str = "cells") -> str:
-        return self.local_directory(f"data/simulation/{path}.h5")
+        return self.local_directory(f"{path}.h5")
 
     def on_compute_predicate(self):
         def generate_uid(use):
@@ -27,7 +27,7 @@ class PrepareData(Component):
             return use.uuid
 
         return {
-            "uses*": sorted(
+            "uses": sorted(
                 map(
                     generate_uid,
                     self.uses,
@@ -36,33 +36,33 @@ class PrepareData(Component):
         }
 
     def __call__(self):
-        self.soma_coordinates = None
         self.network = None
         self.spike_trains = None
+        self.synapses = {}
         self.distance_connections = {}
         self.synapse_forest = {}
         for dependency in self.uses:
-            if dependency.module == "miv_simulator.interface.soma_coordinates":
-                self.soma_coordinates = dependency
-            elif dependency.module == "miv_simulator.interface.make_network":
+            if dependency.module == "miv_simulator.interface.create_network":
                 self.network = dependency
             elif (
                 dependency.module
-                == "miv_simulator.interface.derive_spike_trains"
+                == "miv_simulator.interface.legacy.derive_spike_trains"
             ):
                 self.spike_trains = dependency
             elif (
                 dependency.module
                 == "miv_simulator.interface.distance_connections"
             ):
-                populations = read_population_names(dependency.config.forest)
+                populations = read_population_names(
+                    dependency.config.forest_filepath
+                )
                 for p in populations:
                     if p in self.distance_connections:
                         # check for duplicates
                         raise ValueError(
                             f"Redundant distance connection specification for population {p}"
-                            f"Found duplicate in {dependency.config.forest}, while already "
-                            f"defined in {self.distance_connections[p].config.forest}"
+                            f"Found duplicate in {dependency.config.forest_filepath}, while already "
+                            f"defined in {self.distance_connections[p].config.forest_filepath}"
                         )
                     self.distance_connections[p] = dependency
             elif dependency.module == "miv_simulator.interface.synapse_forest":
@@ -74,10 +74,20 @@ class PrepareData(Component):
                         f"defined in {self.synapse_forest[dependency.config.population]}"
                     )
                 self.synapse_forest[dependency.config.population] = dependency
+            elif (
+                dependency.module
+                == "miv_simulator.interface.distribute_synapses"
+            ):
+                if dependency.config.population in self.synapses:
+                    # check for duplicates
+                    raise ValueError(
+                        f"Redundant specification for population {dependency.config.population}"
+                        f"Found duplicate in {dependency}, while already "
+                        f"defined in {self.synapses[dependency.config.population]}"
+                    )
+                self.synapses[dependency.config.population] = dependency
 
         print(f"Consolidating generated data files into unified H5")
-
-        self.local_directory("data/simulation", create=True)
 
         MiV_populations = ["PYR", "OLM", "PVBC", "STIM"]
         MiV_IN_populations = ["OLM", "PVBC"]
@@ -100,9 +110,7 @@ class PrepareData(Component):
                 coords_dset_path = f"/Populations/{p}/Generated Coordinates"
                 coords_output_path = f"/Populations/{p}/Coordinates"
                 distances_dset_path = f"/Populations/{p}/Arc Distances"
-                with h5py.File(
-                    self.soma_coordinates.output_filepath, "r"
-                ) as f_src:
+                with h5py.File(self.network.output_filepath, "r") as f_src:
                     h5_copy_dataset(f_src, f_dst, coords_dset_path)
                     h5_copy_dataset(f_src, f_dst, distances_dset_path)
 
@@ -111,12 +119,17 @@ class PrepareData(Component):
         def _run(commands):
             cmd = " ".join(commands)
             print(cmd)
+            import commandlib
+
             print(commandlib.Command(*commands).output())
+            return
+            subprocess.check_output(commands)
 
         for p in MiV_populations:
             if p not in ["OLM", "PVBC", "PYR"]:
                 continue
             forest_file = self.synapse_forest[p].output_filepath
+            synapses_file = self.synapses[p].output_filepath
             forest_syns_file = self.synapse_forest[p].output_filepath
             forest_dset_path = f"/Populations/{p}/Trees"
             forest_syns_dset_path = f"/Populations/{p}/Synapse Attributes"
@@ -143,7 +156,7 @@ class PrepareData(Component):
                 "-d",
                 forest_syns_dset_path,
                 "-i",
-                forest_file,
+                synapses_file,
                 "-o",
                 self.output_filepath(),
             ]

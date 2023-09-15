@@ -65,5 +65,5 @@ class DistanceConnections(Component):
             cache_size=self.config.cache_size,
             write_size=self.config.write_size,
             dry_run=False,
-            seeds=self.seed
+            seeds=self.seed,
         )

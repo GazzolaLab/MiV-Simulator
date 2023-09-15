@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, Dict
 from miv_simulator.utils import from_yaml
 
+
 class DistributeSynapses(Component):
     class Config(BaseModel):
         forest_filepath: str = Field("???")

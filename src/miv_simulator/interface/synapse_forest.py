@@ -35,27 +35,31 @@ class GenerateSynapseForest(Component):
         if not os.path.isfile(self.tree_output_filepath):
             _bin_check("neurotrees_import")
             assert (
-                subprocess.run([
-                    "neurotrees_import",
-                    self.config.population,
-                    self.tree_output_filepath,
-                    self.config.morphology,
-                ]).returncode
+                subprocess.run(
+                    [
+                        "neurotrees_import",
+                        self.config.population,
+                        self.tree_output_filepath,
+                        self.config.morphology,
+                    ]
+                ).returncode
                 == 0
             )
             assert (
-                subprocess.run([
-                    "h5copy",
-                    "-p",
-                    "-s",
-                    "/H5Types",
-                    "-d",
-                    "/H5Types",
-                    "-i",
-                    self.config.filepath,
-                    "-o",
-                    self.tree_output_filepath,
-                ]).returncode
+                subprocess.run(
+                    [
+                        "h5copy",
+                        "-p",
+                        "-s",
+                        "/H5Types",
+                        "-d",
+                        "/H5Types",
+                        "-i",
+                        self.config.filepath,
+                        "-o",
+                        self.tree_output_filepath,
+                    ]
+                ).returncode
                 == 0
             )
 
@@ -71,14 +75,16 @@ class GenerateSynapseForest(Component):
 
             _bin_check("neurotrees_copy")
             assert (
-                subprocess.run([
-                    "neurotrees_copy",
-                    "--fill",
-                    "--output",
-                    self.output_filepath,
-                    self.tree_output_filepath,
-                    self.config.population,
-                    str(offset),
-                ]).returncode
+                subprocess.run(
+                    [
+                        "neurotrees_copy",
+                        "--fill",
+                        "--output",
+                        self.output_filepath,
+                        self.tree_output_filepath,
+                        self.config.population,
+                        str(offset),
+                    ]
+                ).returncode
                 == 0
             )
