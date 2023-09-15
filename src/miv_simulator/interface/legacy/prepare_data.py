@@ -119,10 +119,6 @@ class PrepareData(Component):
         def _run(commands):
             cmd = " ".join(commands)
             print(cmd)
-            import commandlib
-
-            print(commandlib.Command(*commands).output())
-            return
             subprocess.check_output(commands)
 
         for p in MiV_populations:
