@@ -20,7 +20,7 @@ class RateEncoder:
         )
         self.time_window = time_window
         self.ndim = 1
-        
+
     def encode(self, signal: ndarray) -> ndarray:
         assert (
             len(signal.shape) == 2
@@ -28,13 +28,15 @@ class RateEncoder:
 
         nsamples = signal.shape[0]
         ndim = signal.shape[1]
-        assert ndim == self.ndim, f"input signal has dimension {ndim} but encoder has input dimension {self.ndim}" 
-        
+        assert (
+            ndim == self.ndim
+        ), f"input signal has dimension {ndim} but encoder has input dimension {self.ndim}"
+
         freq = np.interp(
-                signal,
-                [self.min_input, self.max_input],
-                [self.min_output, self.max_output],
-            )
+            signal,
+            [self.min_input, self.max_input],
+            [self.min_output, self.max_output],
+        )
         nz = np.argwhere(freq > 0)
         period = np.zeros(nsamples)
         period[nz] = (1 / freq[nz]) * 1000  # ms
@@ -68,7 +70,7 @@ class PoissonRateEncoder:
             generator = np.random
         self.generator = generator
         self.ndim = 1
-        
+
     def encode(self, signal: ndarray) -> ndarray:
         assert (
             len(signal.shape) == 2
@@ -76,7 +78,9 @@ class PoissonRateEncoder:
 
         nsamples = signal.shape[0]
         ndim = signal.shape[1]
-        assert ndim == self.ndim, f"input signal has dimension {ndim} but encoder has input dimension {self.ndim}" 
+        assert (
+            ndim == self.ndim
+        ), f"input signal has dimension {ndim} but encoder has input dimension {self.ndim}"
 
         spike_train = []
         freq = np.interp(

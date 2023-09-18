@@ -27,7 +27,6 @@ from io import TextIOWrapper
 import click
 import numpy as np
 import yaml
-from miv_simulator.config import path as config_path
 from mpi4py import MPI
 from numpy import float64, uint32
 from scipy import signal, sparse
@@ -316,19 +315,8 @@ class IncludeLoader(yaml.Loader):
         with open(filename) as f:
             return yaml.load(f, IncludeLoader)
 
-    def include_default(self, node: ScalarNode) -> Dict[str, Any]:
-        """
-
-        :param node:
-        :return:
-        """
-        filename = os.path.join(config_path(), self.construct_scalar(node))
-        with open(filename) as f:
-            return yaml.load(f, IncludeLoader)
-
 
 IncludeLoader.add_constructor("!include", IncludeLoader.include)
-IncludeLoader.add_constructor("!include_default", IncludeLoader.include_default)
 
 
 class ExplicitDumper(yaml.SafeDumper):

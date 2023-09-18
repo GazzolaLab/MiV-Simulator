@@ -2,23 +2,25 @@ from numpy.typing import NDArray
 import numpy as np
 from typing import Annotated as EventArray, Dict
 
-"""Potentially unsorted or scalar data that can be transformed into `SpikeTimes`"""
 SpikeTimesLike = EventArray[NDArray[np.float_], "SpikeTimesLike ..."]
+"""Potentially unsorted or scalar data that can be transformed into `SpikeTimes`"""
 
-"""Sorted array of absolute spike times"""
 SpikeTimes = EventArray[NDArray[np.float_], "SpikeTimes T ..."]
+"""Sorted array of absolute spike times"""
 
-# spike train encodings (RLE, delta encoding, variable time binning etc.)
 
-"""Binary data that can be cast to the `BinarySparseSpikeTrain` format"""
+# Spike train encodings (RLE, delta encoding, variable time binning etc.)
+
 BinarySparseSpikeTrainLike = EventArray[
     NDArray, "BinarySparseSpikeTrainLike ..."
 ]
+"""Binary data that can be cast to the `BinarySparseSpikeTrain` format"""
 
-"""Binary spike train representation for a given temporal resolution"""
+
 BinarySparseSpikeTrain = EventArray[
     NDArray[np.int8], "BinarySparseSpikeTrain t_bin ..."
 ]
+"""Binary spike train representation for a given temporal resolution"""
 
 
 def _inspect(type_) -> Dict:
