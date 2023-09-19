@@ -1,6 +1,5 @@
 from miv_simulator import coding as t
 import numpy as np
-import miv_simulator.typing as st
 
 
 def test_coding_spike_times_vs_binary_sparse_spike_train():
@@ -38,3 +37,11 @@ def test_coding_adjust_temporal_resolution():
     adjusted = t.adjust_temporal_resolution(spike_train, 2, 1)
     expected = np.array([1, 1], dtype=np.int8)
     assert np.array_equal(adjusted, expected)
+
+
+def test_coding_typing_cast():
+    assert t.cast_spike_times(0.5).shape == (1,)
+    assert t.cast_spike_times([0.5, 0.1])[1] == 0.5
+    assert t.cast_spike_times(int(1))[0] == float(1.0)
+
+    assert t.cast_binary_sparse_spike_train(0.1)[0] == 0
