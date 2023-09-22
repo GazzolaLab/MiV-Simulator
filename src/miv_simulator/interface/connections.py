@@ -4,14 +4,13 @@ import logging
 
 from machinable import Component
 from pydantic import BaseModel, Field
-from miv_simulator import config
+from miv_simulator import config, simulator
 from typing import Optional, Dict
-from miv_simulator.simulator import distance_connections
 from miv_simulator.utils import from_yaml
 from mpi4py import MPI
 
 
-class DistanceConnections(Component):
+class Connections(Component):
     class Config(BaseModel):
         filepath: str = Field("???")
         forest_filepath: str = Field("???")
@@ -44,7 +43,7 @@ class DistanceConnections(Component):
 
     def __call__(self):
         logging.basicConfig(level=logging.INFO)
-        distance_connections(
+        simulator.generate_connections(
             filepath=self.config.filepath,
             forest_filepath=self.config.forest_filepath,
             include_forest_populations=self.config.include_forest_populations,

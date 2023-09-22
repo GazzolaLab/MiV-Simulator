@@ -4,7 +4,7 @@ import arrow
 import numpy as np
 from machinable import Component
 from pydantic import Field, BaseModel
-from miv_simulator.simulator import (
+from miv_simulator.input_spike_trains import (
     generate_input_spike_trains,
     import_input_spike_train,
 )

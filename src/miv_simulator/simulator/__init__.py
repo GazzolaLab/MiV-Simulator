@@ -1,20 +1,12 @@
-from miv_simulator.simulator.distribute_synapse_locations import (
-    distribute_synapse_locations,
-    distribute_synapses,
-)
-from miv_simulator.simulator.generate_distance_connections import (
-    generate_distance_connections,
-    distance_connections,
-)
-from miv_simulator.simulator.generate_input_features import (
-    generate_input_features,
-)
-from miv_simulator.simulator.generate_input_spike_trains import (
-    generate_input_spike_trains,
-    import_input_spike_train,
-)
-from miv_simulator.simulator.soma_coordinates import generate_soma_coordinates
-from miv_simulator.simulator.measure_distances import measure_distances
+__doc__ = """Contains the end-user public API of the MiV-Simulator"""
 
-# !deprecated, use io_utils directly
-from miv_simulator.simulator.make_h5types import make_h5types
+from miv_simulator.utils.io import create_neural_h5
+from miv_simulator.simulator.generate_network_architecture import (
+    generate_network_architecture,
+)
+from miv_simulator.simulator.measure_distances import measure_distances
+from miv_simulator.simulator.generate_synapse_forest import (
+    generate_synapse_forest,
+)
+from miv_simulator.simulator.distribute_synapses import distribute_synapses
+from miv_simulator.simulator.generate_connections import generate_connections

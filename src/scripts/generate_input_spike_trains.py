@@ -3,7 +3,7 @@ import os
 import sys
 
 import click
-from miv_simulator.simulator import generate_input_spike_trains
+from miv_simulator.input_spike_trains import generate_input_spike_trains
 from miv_simulator.utils import list_find
 
 

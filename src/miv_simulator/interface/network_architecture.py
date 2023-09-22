@@ -5,17 +5,14 @@ import logging
 from machinable import Component
 from machinable.element import normversion
 from machinable.types import VersionType
-from miv_simulator import config
-from miv_simulator.simulator.soma_coordinates import (
-    generate as generate_soma_coordinates,
-)
+from miv_simulator import config, simulator
 from miv_simulator.utils import io as io_utils, from_yaml
 from mpi4py import MPI
 from pydantic import BaseModel, Field
 
 
-class CreateNetwork(Component):
-    """Creates neural H5 type definitions and soma coordinates within specified layer geometry."""
+class NetworkArchitecture(Component):
+    """Creates the network architecture by generating the soma coordinates within specified layer geometry."""
 
     class Config(BaseModel):
         filepath: str = Field("???")
@@ -45,7 +42,7 @@ class CreateNetwork(Component):
 
     def __call__(self) -> None:
         logging.basicConfig(level=logging.INFO)
-        generate_soma_coordinates(
+        simulator.generate_network_architecture(
             output_filepath=self.config.filepath,
             cell_distributions=self.config.cell_distributions,
             layer_extents=self.config.layer_extents,
@@ -67,7 +64,7 @@ class CreateNetwork(Component):
 
     def measure_distances(self, version: VersionType = None):
         return self.derive(
-            "miv_simulator.interface.measure_distances",
+            "miv_simulator.interface.distances",
             [
                 {
                     "filepath": self.config.filepath,
@@ -87,7 +84,9 @@ class CreateNetwork(Component):
             uses=self,
         )
 
-    def synapse_forest(self, version: VersionType = None) -> "Component":
+    def generate_synapse_forest(
+        self, version: VersionType = None
+    ) -> "Component":
         return self.derive(
             "miv_simulator.interface.synapse_forest",
             [
@@ -101,14 +100,14 @@ class CreateNetwork(Component):
 
     def distribute_synapses(self, version: VersionType = None):
         return self.derive(
-            "miv_simulator.interface.distribute_synapses",
+            "miv_simulator.interface.synapses",
             [] + normversion(version),
             uses=self,
         )
 
-    def distance_connections(self, version: VersionType = None):
+    def generate_connections(self, version: VersionType = None):
         return self.derive(
-            "miv_simulator.interface.distance_connections",
+            "miv_simulator.interface.connections",
             [
                 {
                     "filepath": self.config.filepath,

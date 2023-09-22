@@ -72,7 +72,7 @@ def generate_distance_connections(
         env.model_config["Random Seeds"]["Connectivity Clustering"]
     )
 
-    return distance_connections(
+    return generate_connections(
         filepath=coords_path,
         forest_filepath=forest_path,
         include_forest_populations=include,
@@ -98,7 +98,7 @@ def generate_distance_connections(
     )
 
 
-def distance_connections(
+def generate_connections(
     filepath: str,
     forest_filepath: str,
     include_forest_populations: Optional[list],

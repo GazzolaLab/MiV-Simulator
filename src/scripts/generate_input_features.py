@@ -3,7 +3,7 @@ import os
 import sys
 
 import click
-from miv_simulator.simulator import generate_input_features
+from miv_simulator.input_features import generate_input_features
 from miv_simulator.utils import list_find
 
 
