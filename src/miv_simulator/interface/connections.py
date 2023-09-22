@@ -18,10 +18,6 @@ class Connections(Component):
         synapses: config.Synapses = Field("???")
         include_forest_populations: Optional[list] = None
         template_path: str = "./templates"
-        use_coreneuron: bool = False
-        dt: float = 0.025
-        tstop: float = 0.0
-        celsius: Optional[float] = 35.0
         connectivity_namespace: str = "Connections"
         coordinates_namespace: str = "Coordinates"
         synapses_namespace: str = "Synapse Attributes"
@@ -50,10 +46,6 @@ class Connections(Component):
             synapses=self.config.synapses,
             axon_extents=self.config.axon_extents,
             template_path=self.config.template_path,
-            use_coreneuron=self.config.use_coreneuron,
-            dt=self.config.dt,
-            tstop=self.config.tstop,
-            celsius=self.config.celsius,
             output_filepath=self.output_filepath,
             connectivity_namespace=self.config.connectivity_namespace,
             coordinates_namespace=self.config.coordinates_namespace,

@@ -263,7 +263,6 @@ def mkgap(env: AbstractEnv, cell, gid, secpos, secidx, sgid, dgid, w):
     return gj
 
 
-# !deprecated, use load_template instead
 def load_cell_template(
     env: AbstractEnv, pop_name: str, bcast_template: bool = False
 ) -> "HocObject":
@@ -415,23 +414,26 @@ def configure_hoc_env(env: AbstractEnv, bcast_template: bool = False) -> None:
 
 
 def configure_hoc(
-    template_directory: str,
-    use_coreneuron: bool,
-    dt: float,
-    tstop: float,
-    celsius: Optional[float],
+    use_coreneuron: bool = False,
+    template_directory: Optional[str] = None,
+    force: bool = False,
+    **optional_attrs,
 ) -> Tuple[h.Vector, h.Vector, h.Vector]:
+    if not force and hasattr(h, "pc"):
+        # already configured
+        return
+
     h.load_file("stdrun.hoc")
     h.load_file("loadbal.hoc")
-    for template_dir in template_directory:
-        path = f"{template_dir}/rn.hoc"
-        if os.path.exists(path):
-            h.load_file(path)
+    if template_directory:
+        for template_dir in template_directory:
+            path = f"{template_dir}/rn.hoc"
+            if os.path.exists(path):
+                h.load_file(path)
     h.cvode.use_fast_imem(1)
     h.cvode.cache_efficient(1)
     h("objref pc, nc, nil")
     h("strdef dataset_path")
-    h.dataset_path = ""
     if use_coreneuron:
         from neuron import coreneuron
 
@@ -439,22 +441,17 @@ def configure_hoc(
         coreneuron.verbose = 0
     h.pc = h.ParallelContext()
     h.pc.gid_clear()
-    h.dt = dt
-    h.tstop = tstop
-    t_vec = h.Vector()  # Spike time of all cells on this host
-    id_vec = h.Vector()  # Ids of spike times on this host
-    t_rec = h.Vector()  # Timestamps of intracellular traces on this host
 
-    if celsius is not None:
-        h.celsius = celsius
+    # set optional settings like celsius, dt, etc.
+    for k, v in optional_attrs.items():
+        setattr(h, k, v)
+
     ## more accurate integration of synaptic discontinuities
     if hasattr(h, "nrn_netrec_state_adjust"):
         h.nrn_netrec_state_adjust = 1
     ## sparse parallel transfer
     if hasattr(h, "nrn_sparse_partrans"):
         h.nrn_sparse_partrans = 1
-
-    return (t_vec, id_vec, t_rec)
 
 
 # Code by Michael Hines from this discussion thread:
