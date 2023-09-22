@@ -1427,7 +1427,7 @@ def init_rate_dist_objfun(
             np.isclose(target_rate_vector, 0.0, atol=1e-3, rtol=1e-3)
         ] = 0.0
 
-    trj_x, trj_y, trj_d, trj_t = stimulus.read_stimulus(
+    trj_d, trj_t = stimulus.read_stimulus(
         input_features_path
         if input_features_path is not None
         else spike_events_path,
