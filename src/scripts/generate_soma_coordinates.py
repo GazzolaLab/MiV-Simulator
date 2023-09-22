@@ -7,7 +7,9 @@ import os
 import sys
 
 import click
-from miv_simulator.simulator import generate_soma_coordinates
+from miv_simulator.simulator.generate_network_architecture import (
+    generate_soma_coordinates,
+)
 from miv_simulator.utils import list_find
 
 

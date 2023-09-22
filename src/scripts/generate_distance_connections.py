@@ -9,7 +9,9 @@ import sys
 
 import click
 from miv_simulator import utils
-from miv_simulator.simulator import generate_distance_connections
+from miv_simulator.simulator.generate_connections import (
+    generate_distance_connections,
+)
 
 
 @click.command()

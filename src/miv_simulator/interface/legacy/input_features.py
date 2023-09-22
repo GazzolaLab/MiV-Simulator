@@ -4,7 +4,7 @@ from machinable import Component
 from pydantic import Field, BaseModel
 from machinable.element import normversion
 from machinable.types import VersionType
-from miv_simulator.simulator import generate_input_features
+from miv_simulator.input_features import generate_input_features
 
 
 class InputFeatures(Component):

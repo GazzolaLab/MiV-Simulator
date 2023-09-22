@@ -42,17 +42,17 @@ class PrepareData(Component):
         self.distance_connections = {}
         self.synapse_forest = {}
         for dependency in self.uses:
-            if dependency.module == "miv_simulator.interface.create_network":
+            if (
+                dependency.module
+                == "miv_simulator.interface.network_architecture"
+            ):
                 self.network = dependency
             elif (
                 dependency.module
                 == "miv_simulator.interface.legacy.derive_spike_trains"
             ):
                 self.spike_trains = dependency
-            elif (
-                dependency.module
-                == "miv_simulator.interface.distance_connections"
-            ):
+            elif dependency.module == "miv_simulator.interface.connections":
                 populations = read_population_names(
                     dependency.config.forest_filepath
                 )
@@ -74,10 +74,7 @@ class PrepareData(Component):
                         f"defined in {self.synapse_forest[dependency.config.population]}"
                     )
                 self.synapse_forest[dependency.config.population] = dependency
-            elif (
-                dependency.module
-                == "miv_simulator.interface.distribute_synapses"
-            ):
+            elif dependency.module == "miv_simulator.interface.synapses":
                 if dependency.config.population in self.synapses:
                     # check for duplicates
                     raise ValueError(

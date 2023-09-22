@@ -124,7 +124,7 @@ def gen_min_energy_nodes(
     return in_nodes
 
 
-# !deprecated, use generate() instead
+# !deprecated, use generate_network_architecture() instead
 def generate_soma_coordinates(
     config: str,
     types_path: str,
@@ -152,7 +152,7 @@ def generate_soma_coordinates(
     random_seed = int(env.model_config["Random Seeds"]["Soma Locations"])
     random.seed(random_seed)
 
-    return generate(
+    return generate_network_architecture(
         output_filepath=output_path,
         h5_types_filepath=types_path,
         layer_extents=env.geometry["Parametric Surface"]["Layer Extents"],
@@ -173,7 +173,7 @@ def generate_soma_coordinates(
     )
 
 
-def generate(
+def generate_network_architecture(
     output_filepath: str,
     cell_distributions: config.CellDistributions,
     layer_extents: config.LayerExtents,

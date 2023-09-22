@@ -5,8 +5,7 @@ from pydantic import BaseModel
 
 from machinable import Component
 from machinable.config import Field
-from miv_simulator.simulator import measure_distances
-from miv_simulator import config
+from miv_simulator import config, simulator
 from mpi4py import MPI
 
 
@@ -32,7 +31,7 @@ class MeasureDistances(Component):
 
     def __call__(self):
         logging.basicConfig(level=logging.INFO)
-        measure_distances(
+        simulator.measure_distances(
             filepath=self.config.filepath,
             geometry_filepath=self.config.geometry_filepath,
             coordinate_namespace=self.config.coordinate_namespace,

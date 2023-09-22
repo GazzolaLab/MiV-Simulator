@@ -8,7 +8,7 @@ import h5py
 import numpy as np
 from miv_simulator import cells, synapses, utils
 from miv_simulator.mechanisms import compile_and_load
-from miv_simulator.env import Env
+from neuron import h
 from miv_simulator import config
 from miv_simulator.utils.neuron import configure_hoc, load_template
 from mpi4py import MPI
@@ -203,12 +203,21 @@ def distribute_synapse_locations(
         mechanisms_path = "./mechanisms"
 
     utils.config_logging(verbose)
+    from miv_simulator.env import Env
 
     env = Env(
         comm=MPI.COMM_WORLD,
         config=config,
         template_paths=template_path,
         config_prefix=config_prefix,
+    )
+
+    configure_hoc(
+        template_directory=template_path,
+        use_coreneuron=env.use_coreneuron,
+        dt=env.dt,
+        tstop=env.tstop,
+        celsius=env.globals.get("celsius", None),
     )
 
     return distribute_synapses(
@@ -218,10 +227,6 @@ def distribute_synapse_locations(
         distribution=distribution,
         mechanisms_path=mechanisms_path,
         template_path=template_path,
-        use_coreneuron=env.use_coreneuron,
-        dt=env.dt,
-        tstop=env.tstop,
-        celsius=env.globals.get("celsius", None),
         io_size=io_size,
         output_filepath=output_path,
         write_size=write_size,
@@ -239,15 +244,11 @@ def distribute_synapses(
     distribution: Literal["uniform", "poisson"],
     mechanisms_path: str,
     template_path: str,
-    dt: float,
-    tstop: float,
-    celsius: Optional[float],
     output_filepath: Optional[str],
     io_size: int,
     write_size: int,
     chunk_size: int,
     value_chunk_size: int,
-    use_coreneuron: bool,
     seed: Optional[int],
     dry_run: bool,
 ):
@@ -261,13 +262,17 @@ def distribute_synapses(
 
     compile_and_load(mechanisms_path)
 
-    configure_hoc(
-        template_directory=template_path,
-        use_coreneuron=use_coreneuron,
-        dt=dt,
-        tstop=tstop,
-        celsius=celsius,
-    )
+    # check if neuron is loaded
+    if not hasattr(h, "pc"):
+        h.load_file("stdrun.hoc")
+        h.load_file("loadbal.hoc")
+        h("objref pc, nc, nil")
+        h.pc = h.ParallelContext()
+        h.pc.gid_clear()
+        if hasattr(h, "nrn_netrec_state_adjust"):
+            h.nrn_netrec_state_adjust = 1
+        if hasattr(h, "nrn_sparse_partrans"):
+            h.nrn_sparse_partrans = 1
 
     if io_size == -1:
         io_size = comm.size

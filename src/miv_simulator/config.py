@@ -13,6 +13,8 @@ from pydantic.functional_validators import AfterValidator, BeforeValidator
 
 # Definitions
 
+SWCFilePath = str
+
 
 class SWCTypesDef(IntEnum):
     soma = 1

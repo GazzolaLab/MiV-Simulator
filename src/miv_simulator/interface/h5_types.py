@@ -1,6 +1,4 @@
 from machinable import Component
-from machinable.element import normversion
-from machinable.types import VersionType
 from pydantic import BaseModel, Field
 from miv_simulator import config
 from mpi4py import MPI
@@ -8,7 +6,7 @@ from miv_simulator.utils import io as io_utils, from_yaml
 from typing import Dict
 
 
-class CreateH5(Component):
+class H5Types(Component):
     class Config(BaseModel):
         cell_distributions: config.CellDistributions = Field("???")
         synapses: config.Synapses = Field("???")
