@@ -61,6 +61,13 @@ def generate_distance_connections(
 
     env = Env(comm=MPI.COMM_WORLD, config=config, config_prefix=config_prefix)
 
+    configure_hoc(
+        use_coreneuron=env.use_coreneuron,
+        dt=env.dt,
+        tstop=env.tstop,
+        celsius=env.globals.get("celsius", None),
+    )
+
     synapse_seed = int(
         env.model_config["Random Seeds"]["Synapse Projection Partitions"]
     )
@@ -105,10 +112,6 @@ def generate_connections(
     synapses: config.Synapses,
     axon_extents: config.AxonExtents,
     template_path: str,
-    use_coreneuron: bool,
-    dt: float,
-    tstop: float,
-    celsius: Optional[float],
     output_filepath: Optional[str],
     connectivity_namespace: str,
     coordinates_namespace: str,
@@ -127,13 +130,7 @@ def generate_connections(
     comm = MPI.COMM_WORLD
     rank = comm.rank
 
-    configure_hoc(
-        template_directory=template_path,
-        use_coreneuron=use_coreneuron,
-        dt=dt,
-        tstop=tstop,
-        celsius=celsius,
-    )
+    configure_hoc()
 
     if (not dry_run) and (rank == 0):
         if not os.path.isfile(output_filepath):

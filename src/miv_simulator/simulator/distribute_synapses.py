@@ -8,7 +8,6 @@ import h5py
 import numpy as np
 from miv_simulator import cells, synapses, utils
 from miv_simulator.mechanisms import compile_and_load
-from neuron import h
 from miv_simulator import config
 from miv_simulator.utils.neuron import configure_hoc, load_template
 from mpi4py import MPI
@@ -262,17 +261,7 @@ def distribute_synapses(
 
     compile_and_load(mechanisms_path)
 
-    # check if neuron is loaded
-    if not hasattr(h, "pc"):
-        h.load_file("stdrun.hoc")
-        h.load_file("loadbal.hoc")
-        h("objref pc, nc, nil")
-        h.pc = h.ParallelContext()
-        h.pc.gid_clear()
-        if hasattr(h, "nrn_netrec_state_adjust"):
-            h.nrn_netrec_state_adjust = 1
-        if hasattr(h, "nrn_sparse_partrans"):
-            h.nrn_sparse_partrans = 1
+    configure_hoc()
 
     if io_size == -1:
         io_size = comm.size
