@@ -143,16 +143,20 @@ L_Coordinate = float
 ParametricCoordinate = Tuple[U_Coordinate, V_Coordinate, L_Coordinate]
 Rotation = Tuple[float, float, float]
 
-"""One of the layers defined in the LayersDef enum."""
+
 LayerName = str
-"""For a given neuron kind, this defines the distribution (i.e. numbers) of neurons accross the different layers."""
+"""One of the layers defined in the LayersDef enum."""
+
 CellDistribution = Dict[LayerName, int]
-"""Describes a volume extent"""
+"""For a given neuron kind, this defines the distribution (i.e. numbers) of neurons accross the different layers."""
+
 LayerExtents = Dict[LayerName, List[ParametricCoordinate]]
-"""Describes constraints on the distribution of neurons in a given layer."""
+"""Describes a volume extent"""
+
 CellConstraints = Optional[
     Dict[PopulationName, Dict[LayerName, Tuple[float, float]]]
 ]
+"""Describes constraints on the distribution of neurons in a given layer."""
 
 
 # Pydantic data models
@@ -264,7 +268,3 @@ Synapses = Dict[
 
 
 CellDistributions = Dict[PopulationName, CellDistribution]
-
-
-def path(*append) -> str:
-    return os.path.join(os.path.dirname(__file__), *append)
