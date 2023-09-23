@@ -11,3 +11,4 @@ from miv_simulator.simulator.generate_synapse_forest import (
 from miv_simulator.simulator.distribute_synapses import distribute_synapses
 from miv_simulator.simulator.generate_connections import generate_connections
 from miv_simulator.simulator import nh5
+from miv_simulator.utils.neuron import configure_hoc
