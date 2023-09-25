@@ -183,6 +183,7 @@ class Synapse(BaseModel):
     layers: conlist(LayersDefOrStr)
     proportions: conlist(float)
     mechanisms: Dict[SynapseMechanismsLiteral, Mechanism]
+    contacts: int = 1
 
 
 def _origin_value_to_callable(value: Union[str, float]) -> Callable:

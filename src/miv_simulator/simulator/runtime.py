@@ -1,7 +1,7 @@
 from typing import Optional
 from miv_simulator.utils import AbstractEnv
 from mpi4py import MPI
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from neuron import h
 import logging
 from miv_simulator.network import make_cells, connect_gjs, connect_cells
@@ -56,6 +56,10 @@ class Env(AbstractEnv):
         self.edge_count = defaultdict(dict)
         self.syns_set = defaultdict(set)
 
+        # --- State
+        self.cells_meta_data = None
+        self.connections_meta_data = None
+
         # --- Compat
 
         self.template_dict = {}
@@ -108,6 +112,57 @@ class Env(AbstractEnv):
         population_ranges = self.comm.bcast(population_ranges, root=0)
         population_names = self.comm.bcast(population_names, root=0)
         cell_attribute_info = self.comm.bcast(cell_attribute_info, root=0)
+
+        # TODO: refactor from declarative to imperative
+        celltypes = dict(cell_types)
+        typenames = sorted(celltypes.keys())
+        for k in typenames:
+            population_range = population_ranges.get(k, None)
+            if population_range is not None:
+                celltypes[k]["start"] = population_ranges[k][0]
+                celltypes[k]["num"] = population_ranges[k][1]
+                if "mechanism file" in celltypes[k]:
+                    if isinstance(celltypes[k]["mechanism file"], str):
+                        celltypes[k]["mech_file_path"] = celltypes[k][
+                            "mechanism file"
+                        ]
+                        mech_dict = None
+                        if rank == 0:
+                            mech_file_path = celltypes[k]["mech_file_path"]
+                            if self.config_prefix is not None:
+                                mech_file_path = os.path.join(
+                                    self.config_prefix, mech_file_path
+                                )
+                            mech_dict = read_from_yaml(mech_file_path)
+                    else:
+                        mech_dict = celltypes[k]["mechanism file"]
+                    mech_dict = self.comm.bcast(mech_dict, root=0)
+                    celltypes[k]["mech_dict"] = mech_dict
+                if "synapses" in celltypes[k]:
+                    synapses_dict = celltypes[k]["synapses"]
+                    if "weights" in synapses_dict:
+                        weights_config = synapses_dict["weights"]
+                        if isinstance(weights_config, list):
+                            weights_dicts = weights_config
+                        else:
+                            weights_dicts = [weights_config]
+                        for weights_dict in weights_dicts:
+                            if "expr" in weights_dict:
+                                expr = weights_dict["expr"]
+                                parameter = weights_dict["parameter"]
+                                const = weights_dict.get("const", {})
+                                clos = ExprClosure(parameter, expr, const)
+                                weights_dict["closure"] = clos
+                        synapses_dict["weights"] = weights_dicts
+
+        self.cells_meta_data = {
+            "source": filepath,
+            "cell_attribute_info": cell_attribute_info,
+            "population_ranges": population_ranges,
+            "population_names": population_names,
+            "celltypes": celltypes,
+        }
+
         comm0.Free()
 
         class _binding:
@@ -135,6 +190,7 @@ class Env(AbstractEnv):
                 "gapjunctions": None,  # TODO
                 "recording_profile": None,  # TODO
                 "dt": 0.025,  # TODO: understand the implications of this
+                "datasetName": "",
                 "gidset": self.gidset,
                 "SWC_Types": config.SWCTypesDef.__members__,
                 "template_paths": [templates],
@@ -152,6 +208,15 @@ class Env(AbstractEnv):
         )
 
         make_cells(this)
+
+        # HACK(frthjf): given its initial `None` primitive data type, the
+        #  env.node_allocation copy at the end of make_cells will
+        #  be lost when the local function stack is freed;
+        #  fortunately, gidid is heap-allocated so we can
+        #  simply repeat the set operation here
+        self.node_allocation = set()
+        for gid in self.gidset:
+            self.node_allocation.add(gid)
 
         self.mkcellstime = time.time() - st
         if self.rank == 0:
@@ -177,9 +242,12 @@ class Env(AbstractEnv):
         self,
         filepath: str,
         cell_filepath: str,
-        cell_types: config.CellTypes,
+        synapses: config.Synapses,
         io_size: int = 0,
     ):
+        if not self.cells_meta_data:
+            raise RuntimeError("Please load the cells first using load_cells()")
+
         st = time.time()
         if self.rank == 0:
             logger.info(f"*** Creating connections:")
@@ -208,7 +276,6 @@ class Env(AbstractEnv):
         this = _binding()
         this.__dict__.update(
             {
-                # bound
                 "pc": self.pc,
                 "connectivity_file_path": filepath,
                 "forest_file_path": cell_filepath,
@@ -216,22 +283,28 @@ class Env(AbstractEnv):
                 "comm": self.comm,
                 "node_allocation": self.node_allocation,
                 "edge_count": self.edge_count,
+                "biophys_cells": self.biophys_cells,
+                "gidset": self.gidset,
+                "recording_sets": self.recording_sets,
                 "microcircuit_inputs": False,
                 "use_cell_attr_gen": False,  # TODO
+                "cleanup": True,
                 "projection_dict": projection_dict,
                 "Populations": config.PopulationsDef.__members__,
+                "connection_config": synapses,
                 "connection_velocity": {  # TODO config
                     "PYR": 250,
                     "STIM": 250,
                     "PVBC": 250,
                     "OLM": 250,
                 },
-                "celltypes": cell_types,
+                "SWC_Types": config.SWCTypesDef.__members__,
+                "celltypes": self.cells_meta_data["celltypes"],
             }
         )
         self.synapse_attributes = SynapseAttributes(
             this,
-            # TODO: expose config through H5?
+            # TODO: expose config
             {
                 "AMPA": "LinExp2Syn",
                 "NMDA": "LinExp2SynNMDA",

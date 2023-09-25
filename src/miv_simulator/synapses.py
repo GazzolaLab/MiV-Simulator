@@ -1695,7 +1695,11 @@ def insert_hoc_cell_syns(
         if "default" in syn_params:
             mech_params = syn_params["default"]
         else:
-            mech_params = syn_params[swc_type]
+            try:
+                mech_params = syn_params[swc_type]
+            except:
+                # default
+                mech_params = syn_params
 
         for syn_name, params in mech_params.items():
             syn_mech = make_syn_mech(
@@ -2106,9 +2110,10 @@ def config_syn(
                     if not failed:
                         setattr(syn, param, val(*param_vals))
                 else:
-                    setattr(syn, param, val)
-                    mech_param = True
-                    failed = False
+                    if val is not None:
+                        setattr(syn, param, val)
+                        mech_param = True
+                        failed = False
 
         elif param in mech_rules["netcon_params"]:
             if nc is None:
@@ -2209,7 +2214,10 @@ def make_shared_synapse_mech(
     syn_mech = syn_in_seg(syn_name, seg, syns_dict)
     if syn_mech is None:
         if mech_names is not None:
-            mech_name = mech_names[syn_name]
+            try:
+                mech_name = mech_names[syn_name]
+            except:
+                raise ValueError([mech_names, syn_name])
         else:
             mech_name = syn_name
         syn_mech = make_syn_mech(mech_name, seg)
