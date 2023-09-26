@@ -5,7 +5,7 @@ from typing import Annotated as EventArray, Dict
 SpikeTimesLike = EventArray[NDArray[np.float_], "SpikeTimesLike ..."]
 """Potentially unsorted or scalar data that can be transformed into `SpikeTimes`"""
 
-SpikeTimes = EventArray[NDArray[np.float_], "SpikeTimes T ..."]
+SpikeTimes = EventArray[NDArray[np.float64], "SpikeTimes T ..."]
 """Sorted array of absolute spike times"""
 
 

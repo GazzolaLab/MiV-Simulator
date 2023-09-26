@@ -2112,8 +2112,8 @@ def config_syn(
                 else:
                     if val is not None:
                         setattr(syn, param, val)
-                        mech_param = True
-                        failed = False
+                    mech_param = True
+                    failed = False
 
         elif param in mech_rules["netcon_params"]:
             if nc is None:
@@ -2214,10 +2214,7 @@ def make_shared_synapse_mech(
     syn_mech = syn_in_seg(syn_name, seg, syns_dict)
     if syn_mech is None:
         if mech_names is not None:
-            try:
-                mech_name = mech_names[syn_name]
-            except:
-                raise ValueError([mech_names, syn_name])
+            mech_name = mech_names[syn_name]
         else:
             mech_name = syn_name
         syn_mech = make_syn_mech(mech_name, seg)
