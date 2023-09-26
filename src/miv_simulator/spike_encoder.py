@@ -1,6 +1,47 @@
 import numpy as np
 from numpy import ndarray
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Iterable, Iterator
+
+def rate_generator(
+    signal: Union[ndarray, Iterable[ndarray]],
+    time_window: int = 100,
+    dt: float = 0.02,
+    **kwargs,
+) -> Iterator[ndarray]:
+    """
+    Lazily invokes ``RateEncoder`` to iteratively encode a sequence of
+    data.
+
+    :param data: NDarray of shape ``[n_samples, n_1, ..., n_k]``.
+    :param time_window: Length of Poisson spike train per input variable.
+    :param dt: Spike generator time step.
+    :return: NDarray of shape ``[time, n_1, ..., n_k]`` of rate-encoded spikes.
+    """
+    encoder = RateEncoder(time_window=time_window, dt=dt)
+    for chunk in signal:
+        yield encoder.encode(chunk)
+
+
+def poisson_rate_generator(
+    signal: Union[ndarray, Iterable[ndarray]],
+    time_window: int = 100,
+    dt: float = 0.02,
+    **kwargs,
+) -> Iterator[ndarray]:
+    """
+    Lazily invokes ``PoissonEncoder`` to iteratively encode a sequence of
+    data.
+
+    :param data: NDarray of shape ``[n_samples, n_1, ..., n_k]``.
+    :param time_window: Length of Poisson spike train per input variable.
+    :param dt: Spike generator time step.
+    :return: NDarray of shape ``[time, n_1, ..., n_k]`` of Poisson-distributed spikes.
+    """
+    encoder = PoissonRateEncoder(time_window=time_window, dt=dt)
+    for chunk in signal:
+        yield encoder.encode(chunk)
+
+
 
 
 class RateEncoder:
