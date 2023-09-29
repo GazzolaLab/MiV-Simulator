@@ -2,6 +2,7 @@ import numpy as np
 from numpy import ndarray
 from typing import Tuple, Optional, Iterable, Iterator
 
+
 def rate_generator(
     signal: Union[ndarray, Iterable[ndarray]],
     time_window: int = 100,
@@ -40,8 +41,6 @@ def poisson_rate_generator(
     encoder = PoissonRateEncoder(time_window=time_window, dt=dt)
     for chunk in signal:
         yield encoder.encode(chunk)
-
-
 
 
 class RateEncoder:
