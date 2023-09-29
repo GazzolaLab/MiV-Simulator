@@ -7,7 +7,6 @@ from collections import defaultdict
 import h5py
 import numpy as np
 from miv_simulator import cells, synapses, utils
-from miv_simulator.mechanisms import compile_and_load
 from miv_simulator import config
 from miv_simulator.utils.neuron import configure_hoc, load_template
 from mpi4py import MPI
@@ -259,9 +258,7 @@ def distribute_synapses(
     if rank == 0:
         logger.info(f"{comm.size} ranks have been allocated")
 
-    compile_and_load(mechanisms_path)
-
-    configure_hoc()
+    configure_hoc(mechanisms_directory=mechanisms_path)
 
     if io_size == -1:
         io_size = comm.size

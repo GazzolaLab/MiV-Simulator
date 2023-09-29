@@ -64,6 +64,7 @@ class NeuroH5Graph(Component):
                 self.synapse_forest[p].output_filepath,
                 self.synapses[p].output_filepath,
             )
+        self.graph.copy_stim_coordinates()
 
         for p, c in self.connections.items():
             self.graph.import_projections(p, c.output_filepath)
@@ -83,7 +84,7 @@ class NeuroH5Graph(Component):
             )
         }
 
-    def files() -> Dict[str, str]:
+    def files(self) -> Dict[str, str]:
         return {
             "cells": self.graph.cells_filepath,
             "connections": self.graph.connections_filepath,
