@@ -20,8 +20,8 @@ from neuroh5.io import (
 logger = logging.getLogger(__name__)
 
 
-class Env(AbstractEnv):
-    """Manages the global state within a simulation rank"""
+class Runtime(AbstractEnv):
+    """Manages the runtime state within the rank"""
 
     def __init__(
         self,
