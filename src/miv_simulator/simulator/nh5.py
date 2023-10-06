@@ -114,3 +114,18 @@ class Graph:
             self.connections_filepath,
         ]
         _run(cmd)
+
+    def copy_stim_coordinates(self):
+        cmd = [
+            "h5copy",
+            "-p",
+            "-s",
+            "/Populations/STIM/Generated Coordinates",
+            "-d",
+            "/Populations/STIM/Coordinates",
+            "-i",
+            self.cells_filepath,
+            "-o",
+            self.cells_filepath,
+        ]
+        _run(cmd)

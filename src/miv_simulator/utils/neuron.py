@@ -2,7 +2,7 @@ import math
 import os
 import os.path
 from collections import namedtuple
-
+from miv_simulator.mechanisms import compile_and_load
 import numpy as np
 
 from mpi4py import MPI  # Must come before importing NEURON
@@ -416,9 +416,13 @@ def configure_hoc_env(env: AbstractEnv, bcast_template: bool = False) -> None:
 def configure_hoc(
     use_coreneuron: bool = False,
     template_directory: Optional[str] = None,
+    mechanisms_directory: Optional[str] = None,
     force: bool = False,
     **optional_attrs,
-) -> Tuple[h.Vector, h.Vector, h.Vector]:
+) -> "HocObject":
+    if mechanisms_directory is not None:
+        compile_and_load(directory=mechanisms_directory, force=force)
+
     if not force and hasattr(h, "pc"):
         # already configured
         return
@@ -426,10 +430,9 @@ def configure_hoc(
     h.load_file("stdrun.hoc")
     h.load_file("loadbal.hoc")
     if template_directory:
-        for template_dir in template_directory:
-            path = f"{template_dir}/rn.hoc"
-            if os.path.exists(path):
-                h.load_file(path)
+        path = f"{template_directory}/rn.hoc"
+        if os.path.exists(path):
+            h.load_file(path)
     h.cvode.use_fast_imem(1)
     h.cvode.cache_efficient(1)
     h("objref pc, nc, nil")
@@ -452,6 +455,8 @@ def configure_hoc(
     ## sparse parallel transfer
     if hasattr(h, "nrn_sparse_partrans"):
         h.nrn_sparse_partrans = 1
+
+    return h
 
 
 # Code by Michael Hines from this discussion thread:
