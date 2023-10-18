@@ -1,7 +1,7 @@
 from machinable import Component
-from miv_simulator import simulator
 from neuroh5.io import read_population_names
 from typing import Dict
+from miv_simulator.utils.io import H5FileManager
 
 
 class NeuroH5Graph(Component):
@@ -12,7 +12,7 @@ class NeuroH5Graph(Component):
     @property
     def graph(self) -> None:
         if self._graph is None:
-            self._graph = simulator.nh5.Graph(self.local_directory())
+            self._graph = H5FileManager(self.local_directory())
         return self._graph
 
     def __call__(self) -> None:

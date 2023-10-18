@@ -3,13 +3,14 @@ from pydantic import (
     BaseModel as _BaseModel,
     Field,
     conlist,
+    AfterValidator,
+    BeforeValidator,
 )
 from typing import Literal, Dict, Any, List, Tuple, Optional, Union, Callable
 from enum import IntEnum
 from collections import defaultdict
 import numpy as np
 from typing_extensions import Annotated
-from pydantic.functional_validators import AfterValidator, BeforeValidator
 
 # Definitions
 
