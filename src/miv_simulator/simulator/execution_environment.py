@@ -20,7 +20,7 @@ from neuroh5.io import (
 logger = logging.getLogger(__name__)
 
 
-class Runtime(AbstractEnv):
+class ExecutionEnvironment(AbstractEnv):
     """Manages the runtime state within the rank"""
 
     def __init__(
