@@ -1,7 +1,7 @@
 from typing import Optional, Tuple
 
 import logging
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from machinable import Component
 from machinable.config import Field
@@ -11,6 +11,8 @@ from mpi4py import MPI
 
 class MeasureDistances(Component):
     class Config(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
         filepath: str = Field("???")
         cell_distributions: config.CellDistributions = Field("???")
         layer_extents: config.LayerExtents = Field("???")

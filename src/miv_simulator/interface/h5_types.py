@@ -1,5 +1,5 @@
 from machinable import Component
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from miv_simulator import config
 from mpi4py import MPI
 from miv_simulator.utils import io as io_utils, from_yaml
@@ -8,6 +8,8 @@ from typing import Dict
 
 class H5Types(Component):
     class Config(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
         cell_distributions: config.CellDistributions = Field("???")
         synapses: config.Synapses = Field("???")
 

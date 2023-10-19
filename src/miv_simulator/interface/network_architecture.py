@@ -8,13 +8,15 @@ from machinable.types import VersionType
 from miv_simulator import config, simulator
 from miv_simulator.utils import io as io_utils, from_yaml
 from mpi4py import MPI
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class NetworkArchitecture(Component):
     """Creates the network architecture by generating the soma coordinates within specified layer geometry."""
 
     class Config(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
         filepath: str = Field("???")
         cell_distributions: config.CellDistributions = Field("???")
         synapses: config.Synapses = Field("???")

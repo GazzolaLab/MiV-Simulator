@@ -1,10 +1,12 @@
 from machinable import Component
 from miv_simulator import config, simulator
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class GenerateSynapseForest(Component):
     class Config(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
         filepath: str = Field("???")
         population: config.PopulationName = Field("???")
         morphology: config.SWCFilePath = Field("???")

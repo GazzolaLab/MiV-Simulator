@@ -3,7 +3,7 @@ import logging
 from machinable import Component
 from miv_simulator import config
 from miv_simulator import simulator
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, Dict
 from miv_simulator.utils import from_yaml
 from mpi4py import MPI
@@ -11,6 +11,8 @@ from mpi4py import MPI
 
 class Synapses(Component):
     class Config(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
         forest_filepath: str = Field("???")
         cell_types: config.CellTypes = Field("???")
         population: str = Field("???")
