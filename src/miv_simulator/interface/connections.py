@@ -3,7 +3,7 @@ from typing import List, Tuple
 import logging
 
 from machinable import Component
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from miv_simulator import config, simulator
 from typing import Optional, Dict
 from miv_simulator.utils import from_yaml
@@ -12,6 +12,8 @@ from mpi4py import MPI
 
 class Connections(Component):
     class Config(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
         filepath: str = Field("???")
         forest_filepath: str = Field("???")
         axon_extents: config.AxonExtents = Field("???")
