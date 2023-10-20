@@ -149,15 +149,46 @@ LayerName = str
 """One of the layers defined in the LayersDef enum."""
 
 CellDistribution = Dict[LayerName, int]
-"""For a given neuron kind, this defines the distribution (i.e. numbers) of neurons accross the different layers."""
+"""For a given neuron kind, this defines the distribution (i.e. numbers) of neurons accross the different layers.
+
+Example:
+```python
+{
+    "STIM": {"SO":  0, "SP":  64, "SR": 0, "SLM": 0},
+    "PYR":  {"SO":  0, "SP": 223, "SR": 0, "SLM": 0},
+    "PVBC": {"SO": 35, "SP":  50, "SR": 8, "SLM": 0},
+    "OLM":  {"SO": 21, "SP":   0, "SR": 0, "SLM": 0},
+}
+```
+"""
 
 LayerExtents = Dict[LayerName, List[ParametricCoordinate]]
-"""Describes a volume extent"""
+"""Describes a volume extent
+
+Example:
+```python
+{
+    "SO": [[0.0, 0.0, 0.0], [200.0, 200.0, 5.0]],
+    "SP": [[0.0, 0.0, 5.0], [200.0, 200.0, 50.0]],
+    "SR": [[0.0, 0.0, 50.0], [200.0, 200.0, 100.0]],
+    "SLM": [[0.0, 0.0, 100.0], [200.0, 200.0, 150.0]],
+}
+```
+"""
 
 CellConstraints = Optional[
     Dict[PopulationName, Dict[LayerName, Tuple[float, float]]]
 ]
-"""Describes constraints on the distribution of neurons in a given layer."""
+"""Describes constraints on the distribution of neurons in a given layer.
+
+Example:
+```python
+{
+    "PC": {"SP": [100, 120]},
+    "PVBC": {"SR": [150, 200]},
+}
+```
+"""
 
 
 # Pydantic data models

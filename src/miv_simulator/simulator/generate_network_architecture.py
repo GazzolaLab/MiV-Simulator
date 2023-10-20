@@ -99,6 +99,10 @@ def gen_min_energy_nodes(
                 )
             )
         ]
+        if len(nodes) != len(nodes1):
+            logger.info(
+                f"{len(nodes) - len(nodes1)} nodes out of {len(nodes)} were NaN"
+            )
 
         # remove nodes outside of the domain
         vert, smp = domain
@@ -113,6 +117,14 @@ def gen_min_energy_nodes(
                     and current_xyz[i][2] <= constraint[1]
                 ):
                     valid_idxs.append(i)
+            if len(valid_idxs) == 0:
+                logger.info(
+                    f"Warning: all in_nodes have been rejected due to constraint {constraint}!"
+                )
+            elif len(valid_idxs) != len(in_nodes):
+                logger.info(
+                    f"Removing {len(in_nodes)-len(valid_idxs)} out of {len(in_nodes)} nodes due to constraint {constraint}"
+                )
             in_nodes = in_nodes[valid_idxs]
         node_count = len(in_nodes)
         N = int(1.5 * N)
