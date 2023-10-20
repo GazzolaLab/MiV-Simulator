@@ -639,45 +639,55 @@ def distance_interpolant(
     ip_dist_u = None
     ip_dist_v = None
     if rank == 0:
-        from scipy.interpolate import RBFInterpolator
+        i = 2
+        while i > 0:
+            i = i - 1
+            # try with RBF first
+            try:
+                logger.info("Computing U volume distance interpolants...")
+                ip_dist_u = RBFInterpolant(
+                    obs_uvs,
+                    dist_us,
+                    order=interp_order,
+                    phi=interp_basis,
+                    sigma=interp_sigma,
+                )
+                logger.info("Computing V volume distance interpolants...")
+                ip_dist_v = RBFInterpolant(
+                    obs_uvs,
+                    dist_vs,
+                    order=interp_order,
+                    phi=interp_basis,
+                    sigma=interp_sigma,
+                )
+                i = 0
+            except:
+                # fall-back on scipy
+                logger.info(
+                    "RBFInterpolator failed, trying again with scipy ..."
+                )
 
-        # todo(frthf): does it make sense to use scipy's interpolator here?
-        def RBFInterpolant(
-            y,
-            d,
-            sigma=0.0,
-            phi="phs3",
-            eps=1.0,
-            order=None,
-            neighbors=None,
-            check_cond=True,
-        ):
-            return RBFInterpolator(
-                y=y,
-                d=d,
-                smoothing=sigma,
-                kernel="gaussian",
-                degree=order,
-                neighbors=neighbors,
-                epsilon=eps,
-            )
+                from scipy.interpolate import RBFInterpolator
 
-        logger.info("Computing U volume distance interpolants...")
-        ip_dist_u = RBFInterpolant(
-            obs_uvs,
-            dist_us,
-            order=interp_order,
-            phi=interp_basis,
-            sigma=interp_sigma,
-        )
-        logger.info("Computing V volume distance interpolants...")
-        ip_dist_v = RBFInterpolant(
-            obs_uvs,
-            dist_vs,
-            order=interp_order,
-            phi=interp_basis,
-            sigma=interp_sigma,
-        )
+                def RBFInterpolant(
+                    y,
+                    d,
+                    sigma=0.0,
+                    phi="phs3",
+                    eps=1.0,
+                    order=None,
+                    neighbors=None,
+                    check_cond=True,
+                ):
+                    return RBFInterpolator(
+                        y=y,
+                        d=d,
+                        smoothing=sigma,
+                        kernel="gaussian",
+                        degree=order,
+                        neighbors=neighbors,
+                        epsilon=eps,
+                    )
 
     origin_ranges = comm.bcast(origin_ranges, root=0)
     ip_dist_u = comm.bcast(ip_dist_u, root=0)
