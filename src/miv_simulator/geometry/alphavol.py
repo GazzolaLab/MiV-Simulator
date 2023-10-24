@@ -5,7 +5,8 @@ from collections import namedtuple
 
 import networkx as nx
 import numpy as np
-from numpy.core.umath_tests import inner1d
+
+# from numpy.core.umath_tests import inner1d
 from scipy.linalg import null_space
 from scipy.spatial import Delaunay
 
@@ -100,7 +101,9 @@ def volumes(simplices, points):
         ## 3D Volume
         D = np.subtract(points[simplices[:, 3], :], A)
         BxC = np.cross(B, C, axis=1)
-        vol = inner1d(BxC, D)
+        vol = np.einsum(
+            "...i, ...i", BxC, D, optimize="optimal"
+        )  # inner1d(BxC, D)
         vol = np.abs(vol) / 6.0
     else:
         ## 2D Area
