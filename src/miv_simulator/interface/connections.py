@@ -30,7 +30,7 @@ class Connections(Component):
         value_chunk_size: int = 1000
         cache_size: int = 1
         write_size: int = 1
-        ranks_: int = 8
+        ranks: int = 8
 
     def config_from_file(self, filename: str) -> Dict:
         return from_yaml(filename)

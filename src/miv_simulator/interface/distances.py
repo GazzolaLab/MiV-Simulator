@@ -29,7 +29,7 @@ class MeasureDistances(Component):
         chunk_size: int = 1000
         value_chunk_size: int = 1000
         cache_size: int = 50
-        ranks_: int = 8
+        ranks: int = 8
 
     def __call__(self):
         logging.basicConfig(level=logging.INFO)

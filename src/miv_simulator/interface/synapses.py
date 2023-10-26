@@ -23,8 +23,7 @@ class Synapses(Component):
         write_size: int = 1
         chunk_size: int = 1000
         value_chunk_size: int = 1000
-        ranks_: int = 8
-        nodes_: int = 1
+        ranks: int = 8
 
     def config_from_file(self, filename: str) -> Dict:
         return from_yaml(filename)

@@ -1,14 +1,26 @@
-from typing import Optional, Tuple, Dict
+from typing import Optional, Tuple, Dict, Union
 import os
 import logging
 
 from machinable import Component
 from machinable.element import normversion
-from machinable.types import VersionType
 from miv_simulator import config, simulator
 from miv_simulator.utils import io as io_utils, from_yaml
 from mpi4py import MPI
 from pydantic import BaseModel, Field, ConfigDict
+
+
+def _join(*args):
+    uses = []
+    for arg in args:
+        if arg is None:
+            continue
+        elif isinstance(arg, (list, tuple)):
+            uses.extend(arg)
+        else:
+            uses.append(arg)
+
+    return uses
 
 
 class NetworkArchitecture(Component):
@@ -34,7 +46,7 @@ class NetworkArchitecture(Component):
         io_size: int = -1
         chunk_size: int = 1000
         value_chunk_size: int = 1000
-        ranks_: int = 1
+        ranks: int = 8
 
     def config_from_file(self, filename: str) -> Dict:
         return from_yaml(filename)
@@ -64,7 +76,7 @@ class NetworkArchitecture(Component):
             value_chunk_size=self.config.value_chunk_size,
         )
 
-    def measure_distances(self, version: VersionType = None):
+    def measure_distances(self, version=None, uses=None):
         return self.derive(
             "miv_simulator.interface.distances",
             [
@@ -83,12 +95,10 @@ class NetworkArchitecture(Component):
                 }
             ]
             + normversion(version),
-            uses=self,
+            uses=_join(self, uses),
         )
 
-    def generate_synapse_forest(
-        self, version: VersionType = None
-    ) -> "Component":
+    def generate_synapse_forest(self, version=None, uses=None) -> "Component":
         return self.derive(
             "miv_simulator.interface.synapse_forest",
             [
@@ -97,17 +107,17 @@ class NetworkArchitecture(Component):
                 }
             ]
             + normversion(version),
-            uses=self,
+            uses=_join(self, uses),
         )
 
-    def distribute_synapses(self, version: VersionType = None):
+    def distribute_synapses(self, version=None, uses=None):
         return self.derive(
             "miv_simulator.interface.synapses",
             [] + normversion(version),
-            uses=self,
+            uses=_join(self, uses),
         )
 
-    def generate_connections(self, version: VersionType = None):
+    def generate_connections(self, version=None, uses=None):
         return self.derive(
             "miv_simulator.interface.connections",
             [
@@ -118,5 +128,5 @@ class NetworkArchitecture(Component):
                 }
             ]
             + normversion(version),
-            uses=self,
+            uses=_join(self, uses),
         )

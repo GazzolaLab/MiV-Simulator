@@ -27,3 +27,4 @@ class GenerateSynapseForest(Component):
             population=self.config.population,
             morphology=self.config.morphology,
         )
+        print("generate_synapse_forest() completed")
