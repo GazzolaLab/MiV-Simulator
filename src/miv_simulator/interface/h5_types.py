@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from miv_simulator import config
 from mpi4py import MPI
 from miv_simulator.utils import io as io_utils, from_yaml
-from typing import Dict
+from typing import Dict, List
 
 
 class H5Types(Component):
@@ -11,7 +11,10 @@ class H5Types(Component):
         model_config = ConfigDict(extra="forbid")
 
         cell_distributions: config.CellDistributions = Field("???")
-        synapses: config.Synapses = Field("???")
+        projections: Dict[
+            config.PostSynapticPopulationName,
+            List[config.PreSynapticPopulationName],
+        ] = Field("???")
 
     def config_from_file(self, filename: str) -> Dict:
         return from_yaml(filename)
@@ -25,6 +28,9 @@ class H5Types(Component):
             io_utils.create_neural_h5(
                 self.output_filepath,
                 self.config.cell_distributions,
-                self.config.synapses,
+                synapses={
+                    post: {pre: True for pre in v}
+                    for post, v in self.config.projections.items()
+                },
             )
         MPI.COMM_WORLD.barrier()

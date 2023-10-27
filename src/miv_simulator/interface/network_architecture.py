@@ -31,7 +31,6 @@ class NetworkArchitecture(Component):
 
         filepath: str = Field("???")
         cell_distributions: config.CellDistributions = Field("???")
-        synapses: config.Synapses = Field("???")
         layer_extents: config.LayerExtents = Field("???")
         rotation: config.Rotation = (0.0, 0.0, 0.0)
         cell_constraints: config.CellConstraints = {}
@@ -123,7 +122,6 @@ class NetworkArchitecture(Component):
             [
                 {
                     "filepath": self.config.filepath,
-                    "synapses": self.config.synapses,
                     "coordinates_namespace": self.config.coordinate_namespace,
                 }
             ]
