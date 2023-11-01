@@ -1695,7 +1695,11 @@ def insert_hoc_cell_syns(
         if "default" in syn_params:
             mech_params = syn_params["default"]
         else:
-            mech_params = syn_params[swc_type]
+            try:
+                mech_params = syn_params[swc_type]
+            except:
+                # default
+                mech_params = syn_params
 
         for syn_name, params in mech_params.items():
             syn_mech = make_syn_mech(
@@ -2106,7 +2110,8 @@ def config_syn(
                     if not failed:
                         setattr(syn, param, val(*param_vals))
                 else:
-                    setattr(syn, param, val)
+                    if val is not None:
+                        setattr(syn, param, val)
                     mech_param = True
                     failed = False
 

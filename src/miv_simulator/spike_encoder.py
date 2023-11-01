@@ -5,6 +5,7 @@ from typing import Tuple, Optional, Iterable, Iterator
 
 def rate_generator(
     signal: Union[ndarray, Iterable[ndarray]],
+    t_start: float = 0.0,
     time_window: int = 100,
     dt: float = 0.02,
     **kwargs,
@@ -18,13 +19,17 @@ def rate_generator(
     :param dt: Spike generator time step.
     :return: NDarray of shape ``[time, n_1, ..., n_k]`` of rate-encoded spikes.
     """
-    encoder = RateEncoder(time_window=time_window, dt=dt)
+    t_start_ = t_start
+    encoder = RateEncoder(time_window=time_window, dt=dt, **kwargs)
     for chunk in signal:
-        yield encoder.encode(chunk)
+        output, t_next = encoder.encode(chunk, t_start=t_start_)
+        yield output
+        t_start_ = t_next
 
 
 def poisson_rate_generator(
     signal: Union[ndarray, Iterable[ndarray]],
+    t_start: float = 0.0,
     time_window: int = 100,
     dt: float = 0.02,
     **kwargs,
@@ -38,14 +43,18 @@ def poisson_rate_generator(
     :param dt: Spike generator time step.
     :return: NDarray of shape ``[time, n_1, ..., n_k]`` of Poisson-distributed spikes.
     """
-    encoder = PoissonRateEncoder(time_window=time_window, dt=dt)
+    t_start_ = t_start
+    encoder = PoissonRateEncoder(time_window=time_window, dt=dt, **kwargs)
     for chunk in signal:
-        yield encoder.encode(chunk)
+        output, t_next = encoder.encode(chunk, t_start=t_start_)
+        yield output
+        t_start_ = t_next
 
 
 class RateEncoder:
     def __init__(
         self,
+        time_window: int = 100,
         dt: float = 0.02,
         input_range: Tuple[int, int] = (0, 255),
         output_freq_range: Tuple[int, int] = (0, 200),
@@ -60,8 +69,14 @@ class RateEncoder:
         )
         self.time_window = time_window
         self.ndim = 1
+        self.spike_array = None
 
-    def encode(self, signal: ndarray) -> ndarray:
+    def encode(
+        self,
+        signal: ndarray,
+        return_spike_array: bool = False,
+        t_start: Optional[float] = None,
+    ) -> ndarray:
         assert (
             len(signal.shape) == 2
         ), "encode requires input signal of shape number_samples x input_dimensions"
@@ -80,13 +95,45 @@ class RateEncoder:
         nz = np.argwhere(freq > 0)
         period = np.zeros(nsamples)
         period[nz] = (1 / freq[nz]) * 1000  # ms
-        spikes = np.zeros((nsamples, self.time_window))
+        if (
+            (self.spike_array is None)
+            or (self.spike_array.shape[0] != nsamples)
+            or (self.spike_array.shape[1] != ndim)
+        ):
+            self.spike_array = np.zeros(
+                (nsamples, self.time_window), dtype=bool
+            )
+        else:
+            self.spike_array.fill(0)
         for i in range(nsamples):
             if period[i] > 0:
                 stride = int(period[i])
-                spikes[i, 0 : self.time_window : stride] = 1
+                self.spike_array[i, 0 : self.time_window : stride] = 1
 
-        return spikes
+        t_next = None
+        if t_start is not None:
+            t_next = t_start + self.time_window * nsamples * self.dt
+
+        if return_spike_array:
+            return np.copy(self.spike_array), t_next
+        else:
+            if t_start is None:
+                t_start = 0.0
+            spike_times = []
+            spike_inds = np.argwhere[spike_array[i] == 1]
+            for i in range(nsamples):
+                this_spike_inds = spike_inds[
+                    np.argwhere(spike_inds[:, 0] == i).flat
+                ]
+                this_spike_times = []
+                if len(this_spike_inds) > 0:
+                    this_spike_times = (
+                        t_start
+                        + np.asarray(this_spike_inds[:, 1], dtype=np.float32)
+                        * self.dt
+                    )
+                spike_times.append(this_spike_times)
+            return spike_times, t_next
 
 
 class PoissonRateEncoder:
@@ -111,7 +158,12 @@ class PoissonRateEncoder:
         self.generator = generator
         self.ndim = 1
 
-    def encode(self, signal: ndarray) -> ndarray:
+    def encode(
+        self,
+        signal: ndarray,
+        return_spike_array: bool = False,
+        t_start: Optional[float] = None,
+    ) -> ndarray:
         assert (
             len(signal.shape) == 2
         ), "encode requires input signal of shape number_samples x input_dimensions"
@@ -129,12 +181,35 @@ class PoissonRateEncoder:
             [self.min_output, self.max_output],
         )
 
-        spikes = self.generator.uniform(
+        spike_array = self.generator.uniform(
             0, 1, nsamples * self.time_window
         ).reshape((nsamples, self.time_window))
         dt = 0.001  # second
         for i in range(nsamples):
-            spikes[i, np.where(spikes < freq[i] * dt)] = 1
-            spikes[i, np.where(spikes[i] != 1)] = 0
+            spike_array[i, np.where(spike_array < freq[i] * dt)] = 1
+            spike_array[i, np.where(spike_array[i] != 1)] = 0
 
-        return spikes
+        t_next = None
+        if t_start is not None:
+            t_next = t_start + self.time_window * nsamples * self.dt
+
+        if return_spike_array:
+            return np.copy(self.spike_array), t_next
+        else:
+            if t_start is None:
+                t_start = 0.0
+            spike_times = []
+            spike_inds = np.argwhere[spike_array[i] == 1]
+            for i in range(nsamples):
+                this_spike_inds = spike_inds[
+                    np.argwhere(spike_inds[:, 0] == i).flat
+                ]
+                this_spike_times = []
+                if len(this_spike_inds) > 0:
+                    this_spike_times = (
+                        t_start
+                        + np.asarray(this_spike_inds[:, 1], dtype=np.float32)
+                        * self.dt
+                    )
+                spike_times.append(this_spike_times)
+            return spike_times, t_next
