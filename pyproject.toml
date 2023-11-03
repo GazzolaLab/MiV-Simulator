@@ -28,6 +28,7 @@ matplotlib = "^3.6.0"
 quantities = "^0.13.0"
 pydantic = "^2.3.0"
 neuron = "^8.2.3"
+distgfs = {version = "^1.1.0", optional = true}
 
 
 [tool.poetry.dev-dependencies]
@@ -88,6 +89,7 @@ check-config = "scripts.tools.check_config:main"
 cut-slice = "scripts.tools.cut_slice:main"
 sample-cells = "scripts.tools.sample_cells:main"
 reposition-trees = "scripts.tools.reposition_trees:main"
+optimize-network = "scripts.optimization.optimize_network:main_cli"
 
 
 [build-system]

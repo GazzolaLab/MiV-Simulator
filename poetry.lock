@@ -661,6 +661,24 @@ files = [
 graph = ["objgraph (>=1.7.2)"]
 
 [[package]]
+name = "distgfs"
+version = "1.1.0"
+description = "Distributed global function search via dlib"
+optional = true
+python-versions = ">=3.8,<4.0"
+files = [
+    {file = "distgfs-1.1.0-py3-none-any.whl", hash = "sha256:3a872c8d0b9052ef70b040aafdafa8b7a7f94add19e73ad58ee592552ae514eb"},
+    {file = "distgfs-1.1.0.tar.gz", hash = "sha256:0771308c2c3b2f8bd06b2d09e6a945b5db9e0b72e02777a2a215d3c483799afc"},
+]
+
+[package.dependencies]
+distwq = ">=1.1.0"
+dlib = ">=19.24.0,<20.0.0"
+h5py = ">=3.7.0,<4.0.0"
+mpi4py = ">=3.1.3,<4.0.0"
+numpy = ">=1.23.3,<2.0.0"
+
+[[package]]
 name = "distlib"
 version = "0.3.7"
 description = "Distribution utilities"
@@ -669,6 +687,31 @@ python-versions = "*"
 files = [
     {file = "distlib-0.3.7-py2.py3-none-any.whl", hash = "sha256:2e24928bc811348f0feb63014e97aaae3037f2cf48712d51ae61df7fd6075057"},
     {file = "distlib-0.3.7.tar.gz", hash = "sha256:9dafe54b34a028eafd95039d5e5d4851a13734540f1331060d31c9916e7147a8"},
+]
+
+[[package]]
+name = "distwq"
+version = "1.1.0"
+description = "Distributed queue operations with mpi4py"
+optional = true
+python-versions = ">=3.8,<4.0"
+files = [
+    {file = "distwq-1.1.0-py3-none-any.whl", hash = "sha256:ca9297d2f512059b4035add868f2e6e3ebdf3f86cd0ea387567cb6b556e4d65b"},
+    {file = "distwq-1.1.0.tar.gz", hash = "sha256:ffe10d76da8ba87667e534d7b836026960487dec04fa0749670fb1172f0170b7"},
+]
+
+[package.dependencies]
+mpi4py = ">=3.1.3,<4.0.0"
+numpy = ">=1.23.1,<2.0.0"
+
+[[package]]
+name = "dlib"
+version = "19.24.2"
+description = "A toolkit for making real world machine learning and data analysis applications"
+optional = true
+python-versions = "*"
+files = [
+    {file = "dlib-19.24.2.tar.gz", hash = "sha256:2d4f618073bc6b297aa01ce05595a2d32b5b37e69cafd99f796e77346f6dcfb5"},
 ]
 
 [[package]]
@@ -3604,4 +3647,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.12"
-content-hash = "9523763e99913a68051401e39d1ac1555b0763eb78faea92a78dfb92bd6524d4"
+content-hash = "f07b0f840718a5b39f547fd4a7002f64caa0de9dd79e98948722d8e2fb073475"
