@@ -49,25 +49,24 @@ if hasattr(h, "nrnmpi_init"):
     h.nrnmpi_init()
 
 
-SynParam = namedtuple('SynParam',
-                      ('population',
-                       'source',
-                       'sec_type',
-                       'syn_name',
-                       'param_path',
-                       'param_range',
-                       'phenotype'),
-                      defaults=(None,
-                                None,
-                                None,
-                                None,
-                                None,
-                                None,
-                                None))
+SynParam = namedtuple(
+    "SynParam",
+    (
+        "population",
+        "source",
+        "sec_type",
+        "syn_name",
+        "param_path",
+        "param_range",
+        "phenotype",
+    ),
+    defaults=(None, None, None, None, None, None, None),
+)
+
 
 def syn_param_from_dict(d):
     return SynParam(*[d[key] for key in SynParam._fields])
-    
+
 
 def get_node_attribute(name, content, sec, secnodes, x=None):
     """
