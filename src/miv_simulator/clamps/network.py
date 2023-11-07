@@ -11,7 +11,7 @@ from collections import defaultdict
 import click
 import h5py
 import numpy as np
-from miv_simulator import spikedata, stimulus, synapses
+from miv_simulator import spikedata, stimulus, synapses, optimization
 from miv_simulator.opto.run import OptoStim
 from miv_simulator.clamps.cell import init_biophys_cell
 from miv_simulator.cells import (
@@ -44,6 +44,13 @@ from miv_simulator.utils import (
     write_to_yaml,
 )
 from miv_simulator.utils import io as io_utils
+from miv_simulator.optimization import (
+    SynParam,
+    ProblemRegime,
+    optimization_params,
+    opt_eval_fun,
+)
+
 from mpi4py import MPI
 from neuroh5.io import (
     bcast_cell_attributes,
