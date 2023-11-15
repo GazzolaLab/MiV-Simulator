@@ -538,7 +538,7 @@ def interp_soma_distances(
     return soma_distances
 
 
-# !deprecated, use distance interpolant
+# !for imperative API, use distance interpolant
 def make_distance_interpolant(
     comm, geometry_config, make_volume, resolution=[30, 30, 10], nsample=1000
 ):
@@ -696,7 +696,7 @@ def distance_interpolant(
     return origin_ranges, ip_dist_u, ip_dist_v
 
 
-# !deprecated, use measure_soma_distances
+# !for imperative API, use measure_soma_distances
 def measure_distances(
     comm,
     geometry_config,
