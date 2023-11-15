@@ -53,13 +53,13 @@ jobs:
       - name: Install background dependency (Ubuntu)
         if: startsWith(runner.os, 'Linux')
         run: |
-          sudo apt-get install -y libhdf5-mpi-dev # Install hdf5-mpi
+          sudo apt-get install -y libhdf5-mpi-dev python3-dev # Install hdf5-mpi
       - name: Install poetry dependencies
         if: steps.cached-python-dependencies.outputs.cache-hit != 'true'
         run: |
+          pip install numpy mpi4py
           poetry config virtualenvs.in-project false
           poetry install
-          poetry run pip install neuron
       - name: Check style
         run: |
           make check-codestyle
