@@ -2832,7 +2832,7 @@ test = ["sphinx", "sphinx_rtd_theme", "sphinxcontrib-napoleon"]
 type = "git"
 url = "https://github.com/frthjf/RBF.git"
 reference = "master"
-resolved_reference = "b5c8688304861b2c44527219f6c49c25cd73453a"
+resolved_reference = "cf4f7ec473b3888965e8aac581f7c31a57afcf1f"
 
 [[package]]
 name = "readthedocs-sphinx-search"
