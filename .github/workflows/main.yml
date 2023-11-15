@@ -57,7 +57,6 @@ jobs:
       - name: Install poetry dependencies
         if: steps.cached-python-dependencies.outputs.cache-hit != 'true'
         run: |
-          poetry config virtualenvs.in-project false
           poetry install
       - name: Check style
         run: |
