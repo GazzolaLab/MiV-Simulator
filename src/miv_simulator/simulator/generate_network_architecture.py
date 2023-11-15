@@ -136,7 +136,7 @@ def gen_min_energy_nodes(
     return in_nodes
 
 
-# !deprecated, use generate_network_architecture() instead
+# !for imperative API, use generate_network_architecture() instead
 def generate_soma_coordinates(
     config: str,
     types_path: str,

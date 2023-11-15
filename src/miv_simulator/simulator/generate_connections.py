@@ -34,7 +34,7 @@ def mpi_excepthook(type, value, traceback):
 sys.excepthook = mpi_excepthook
 
 
-# !deprecated, use distance connections instead
+# !for imperative API, use distance connections instead
 def generate_distance_connections(
     config,
     include,
@@ -209,7 +209,7 @@ def generate_connections(
             f"Generating connectivity for populations {destination_populations}..."
         )
 
-    # !deprecated, does not seem applicable any longer
+    # !for imperative API, does not seem applicable any longer
     # if len(soma_distances) == 0:
     #     (origin_ranges, ip_dist_u, ip_dist_v) = make_distance_interpolant(
     #         env, resolution=resolution, nsample=interp_chunk_size

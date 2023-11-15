@@ -370,7 +370,7 @@ def write_to_yaml(file_path, data, convert_scalars=False):
         )
 
 
-# !deprecated, use from_yaml instead
+# !for imperative API, use from_yaml instead
 def read_from_yaml(
     file_path: str, include_loader: None = None
 ) -> Dict[str, Dict[str, Dict[str, Union[Dict[str, float], Dict[str, int]]]]]:
