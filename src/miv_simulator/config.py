@@ -1,4 +1,4 @@
-import os
+import copy
 from pydantic import (
     BaseModel as _BaseModel,
     Field,
@@ -300,3 +300,70 @@ Synapses = Dict[
 
 
 CellDistributions = Dict[PopulationName, CellDistribution]
+
+SynapticProjections = Dict[
+    PostSynapticPopulationName,
+    List[PreSynapticPopulationName],
+]
+
+sentinel = object()
+
+
+class Config:
+    def __init__(self, data: Dict) -> None:
+        self._data = copy.deepcopy(data)
+
+        # compatibility
+        self.get("Cell Types.STIM", {}).setdefault("synapses", {})
+
+    @classmethod
+    def from_yaml(cls, filepath: str) -> "Config":
+        from miv_simulator.utils import from_yaml
+
+        return cls(from_yaml(filepath))
+
+    def get(self, path: str, default=sentinel, splitter: str = "."):
+        d = self._data
+        for key in path.split(splitter):
+            if key not in d:
+                if default is not sentinel:
+                    return default
+
+            d = d[key]
+
+        return d
+
+    @property
+    def cell_distributions(self) -> CellDistributions:
+        return self.get("Geometry.Cell Distribution")
+
+    @property
+    def layer_extents(self) -> LayerExtents:
+        return self.get("Geometry.Parametric Surface.Layer Extents")
+
+    @property
+    def geometry_rotation(self) -> Rotation:
+        return self.get("Geometry.Parametric Surface.Rotation", (0.0, 0.0, 0.0))
+
+    @property
+    def geometry_origin(self) -> Origin:
+        return self.get(
+            "Geometry.Parametric Surface.Origin",
+            {"U": "median", "V": "median", "L": "max"},
+        )
+
+    @property
+    def axon_extents(self) -> AxonExtents:
+        return self.get("Connection Generator.Axon Extent")
+
+    @property
+    def synapses(self) -> Synapses:
+        return self.get("Connection Generator.Synapses")
+
+    @property
+    def projections(self) -> SynapticProjections:
+        return {post: list(pre.keys()) for post, pre in self.synapses.items()}
+
+    @property
+    def cell_types(self) -> CellTypes:
+        return self.get("Cell Types")

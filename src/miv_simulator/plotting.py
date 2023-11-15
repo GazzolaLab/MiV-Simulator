@@ -401,7 +401,7 @@ def plot_coordinates(
     return ax
 
 
-# !deprecated, needs refactoring
+# !needs refactoring
 def plot_coords_in_volume(
     populations,
     coords_path,

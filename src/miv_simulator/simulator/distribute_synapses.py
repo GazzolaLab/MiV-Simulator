@@ -31,7 +31,7 @@ def mpi_excepthook(type, value, traceback):
 sys.excepthook = mpi_excepthook
 
 
-# !deprecated, use update_synapse_statistics instead
+# !for imperative API, use update_synapse_statistics instead
 def update_syn_stats(env, syn_stats_dict, syn_dict):
     return update_synapse_statistics(syn_dict, syn_stats_dict)
 
@@ -114,7 +114,7 @@ def local_syn_summary(syn_stats_dict):
     return str.join("\n", res)
 
 
-# !deprecated, use check_synapses instead
+# !for imperative API, use check_synapses instead
 def check_syns(
     gid,
     morph_dict,
@@ -179,7 +179,7 @@ def check_synapses(
         )
 
 
-# !deprecated, use distribute_synapses instead
+# !for imperative API, use distribute_synapses instead
 def distribute_synapse_locations(
     config,
     template_path,

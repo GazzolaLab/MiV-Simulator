@@ -11,10 +11,7 @@ class H5Types(Component):
         model_config = ConfigDict(extra="forbid")
 
         cell_distributions: config.CellDistributions = Field("???")
-        projections: Dict[
-            config.PostSynapticPopulationName,
-            List[config.PreSynapticPopulationName],
-        ] = Field("???")
+        projections: config.SynapticProjections = Field("???")
 
     def config_from_file(self, filename: str) -> Dict:
         return from_yaml(filename)
