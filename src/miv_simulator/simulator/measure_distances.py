@@ -42,6 +42,7 @@ def measure_distances_(
     populations,
     resolution,
     nsample,
+    alpha_radius,
     io_size,
     chunk_size,
     value_chunk_size,
@@ -52,15 +53,18 @@ def measure_distances_(
     utils.config_logging(verbose)
     env = Env(comm=MPI.COMM_WORLD, config=config, config_prefix=config_prefix)
 
+    parametric_surface = env.geometry["Parametric Surface"]
     return measure_distances(
         filepath=coords_path,
         geometry_filepath=geometry_path,
         coordinate_namespace=coords_namespace,
         populations=populations,
         cell_distributions=env.geometry["Cell Distribution"],
-        layer_extents=env.geometry["Layer Extents"],
-        rotation=env.geometry["Rotation"],
-        origin=env.geometry["Origin"],
+        layer_extents=parametric_surface["Layer Extents"],
+        rotation=parametric_surface["Rotation"],
+        origin=parametric_surface["Origin"],
+        resolution=resolution,
+        alpha_radius=alpha_radius,
         n_sample=nsample,
         io_size=io_size,
         chunk_size=chunk_size,

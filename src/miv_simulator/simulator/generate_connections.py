@@ -62,7 +62,6 @@ def generate_distance_connections(
     env = Env(comm=MPI.COMM_WORLD, config=config, config_prefix=config_prefix)
 
     configure_hoc(
-        use_coreneuron=env.use_coreneuron,
         dt=env.dt,
         tstop=env.tstop,
         celsius=env.globals.get("celsius", None),
@@ -85,11 +84,7 @@ def generate_distance_connections(
         include_forest_populations=include,
         synapses=env.connection_config,
         axon_extents=env.connection_extents,
-        template_path=env.template_path,
-        use_coreneuron=env.use_coreneuron,
-        dt=env.dt,
-        tstop=env.tstop,
-        celsius=env.celsius,
+        template_path=env.template_paths,
         output_filepath=connectivity_path,
         connectivity_namespace=connectivity_namespace,
         coordinates_namespace=coords_namespace,

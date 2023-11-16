@@ -611,7 +611,7 @@ def generate_uv_distance_connections(
             projection_config[source_population].layers,
             projection_config[source_population].sections,
             projection_config[source_population].proportions,
-            projection_config[source_population].get("contacts", 1),
+            projection_config[source_population].contacts,
         )
         for source_population in source_populations
     }
