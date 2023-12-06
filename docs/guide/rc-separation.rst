@@ -1,9 +1,9 @@
 Separation property of a reservoir culture
 ==========================================
 
-:::{note}
-This example uses the imperative interface.
-:::
+.. note::
+    This example uses the :doc:`imperative interface <../tutorial/imperative-interface>`.
+
 
 This example constructs a microcircuit reservoir simulation that
 reproduces a classic seperation property experiment by `Maass et
