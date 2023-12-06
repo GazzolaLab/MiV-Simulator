@@ -3,11 +3,7 @@ Guide/Examples
 
 .. toctree::
    :maxdepth: 2
-   :caption: Guide
+   :caption: Examples
 
-Indices and tables
-==================
+   ../tutorial/MiV-Simulator-Cases/3-interface-api/rc-separation
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

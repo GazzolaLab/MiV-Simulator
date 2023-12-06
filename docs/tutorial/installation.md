@@ -1,4 +1,4 @@
-# Installation: Generic from Source
+# From Source
 
 The installation consist two part: python-dependencies and external libraries.
 
