@@ -53,7 +53,29 @@ def compile(directory: str = "./mechanisms", force: bool = False) -> str:
     return compiled
 
 
-_compiled_and_loaded = {}
+_loaded = {}
+
+
+def load(directory: str = "./mechanisms", force: bool = False) -> str:
+    """
+    Load the output DLL file into NEURON.
+    """
+    if not force and directory in _loaded:
+        # already loaded
+        return _loaded[directory]
+
+    src = os.path.abspath(directory)
+    compiled = os.path.join(src, "compiled")
+
+    dll_path = os.path.join(compiled, "x86_64", ".libs", "libnrnmech.so")
+    assert os.path.exists(
+        dll_path
+    ), f"libnrnmech.so file is not found properly. {dll_path}"
+    h(f'nrn_load_dll("{dll_path}")')
+
+    _loaded[directory] = dll_path
+
+    return dll_path
 
 
 def compile_and_load(
@@ -61,26 +83,24 @@ def compile_and_load(
 ) -> str:
     """
     Compile mechanism file on the processor 0, and load the output DLL file into NEURON.
+
+    WARNING: The used MPI barriers might cause trouble if this
+             function is called within an MPI process.
     """
-    if not force and directory in _compiled_and_loaded:
+    if not force and directory in _loaded:
         # already loaded
-        return _compiled_and_loaded[directory]
+        return _loaded[directory]
 
     comm = MPI.COMM_WORLD
     rank = comm.rank
+
+    subcomm = comm.Split(color=rank == 0, key=rank)
+
     if rank == 0:
         src = compile(directory, force)
     else:
         src = None
-    comm.barrier()
-    src = comm.bcast(src, root=0)
+    subcomm.barrier()
+    src = subcomm.bcast(src, root=0)
 
-    dll_path = os.path.join(src, "x86_64", ".libs", "libnrnmech.so")
-    assert os.path.exists(
-        dll_path
-    ), f"libnrnmech.so file is not found properly. {dll_path}"
-    h(f'nrn_load_dll("{dll_path}")')
-
-    _compiled_and_loaded[directory] = dll_path
-
-    return dll_path
+    return load(directory, force)
