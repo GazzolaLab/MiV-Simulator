@@ -5,6 +5,7 @@ from glob import glob
 import subprocess
 from mpi4py import MPI
 from neuron import h
+import hashlib
 
 if hasattr(h, "nrnmpi_init"):
     h.nrnmpi_init()
@@ -12,43 +13,71 @@ if hasattr(h, "nrnmpi_init"):
 from typing import Optional
 
 
-def compile(directory: str = "./mechanisms", force: bool = False) -> str:
+def compile(
+    source: str = "./mechanisms",
+    output_path: str = "${source}/compiled",
+    force: bool = False,
+    recursive: bool = True,
+) -> str:
     """
     Compile NEURON NMODL files
 
     Parameters
     ----------
-    directory:
+    source:
         Directory for the mechanism source files. Defaults to ./mechanisms
-    force : bool
-        Force recompile
+    output_path:
+        Target directory. Defaults to `${source}/compiled`
+    force:
+        If True, recompile even if source is unchanged
+    recursive:
+        If True, subdirectories are included
 
     Returns
     -------
     str: compilation path
     """
-    src = os.path.abspath(directory)
+    src = os.path.abspath(source)
+    output_path = os.path.abspath(output_path.replace("${source}", source))
 
     if not os.path.isdir(src):
         raise FileNotFoundError(f"Mechanism directory does not exists at {src}")
 
+    # compute mechanism hash
+    hash_object = hashlib.sha256()
+    file_data = {}
+    for m in glob(os.path.join(src, "**/*.mod"), recursive=recursive):
+        with open(m, "r") as fm:
+            data = fm.read()
+            hash_object.update(data.encode())
+            file_data[m] = data
+    hex_dig = hash_object.hexdigest()
+    print(f"Computed mechanisms' hash = {hex_dig}")
+    compiled = os.path.join(output_path, hex_dig)
+
     # attempt to automatically compile
-    compiled = os.path.join(src, "compiled")
     if force and os.path.isdir(compiled):
         # remove compiled directory
         shutil.rmtree(compiled)
     if not os.path.isdir(compiled):
-        print("Attempting to compile *.mod files via nrnivmodl")
-        # move into compiled directory
-        os.makedirs(compiled)
-        for m in glob(os.path.join(src, "**/*.mod"), recursive=True):
-            shutil.copyfile(m, os.path.join(compiled, os.path.basename(m)))
-        # compile
         if not shutil.which("nrnivmodl"):
             raise ModuleNotFoundError(
                 "nrnivmodl not found. Did you add it to the PATH?"
             )
-        subprocess.run(["nrnivmodl"], cwd=compiled)
+
+        try:
+            print("Compiling *.mod files via nrnivmodl")
+            os.makedirs(compiled)
+            for m, data in file_data.items():
+                with open(
+                    os.path.join(compiled, os.path.basename(m)), "w"
+                ) as f:
+                    f.write(data)
+
+            subprocess.run(["nrnivmodl"], cwd=compiled, check=True)
+        except subprocess.CalledProcessError:
+            print("Compilation failed, reverting ...")
+            shutil.rmtree(compiled, ignore_errors=True)
 
     return compiled
 
@@ -56,7 +85,7 @@ def compile(directory: str = "./mechanisms", force: bool = False) -> str:
 _loaded = {}
 
 
-def load(directory: str = "./mechanisms", force: bool = False) -> str:
+def load(directory: str, force: bool = False) -> str:
     """
     Load the output DLL file into NEURON.
     """
@@ -64,13 +93,12 @@ def load(directory: str = "./mechanisms", force: bool = False) -> str:
         # already loaded
         return _loaded[directory]
 
-    src = os.path.abspath(directory)
-    compiled = os.path.join(src, "compiled")
+    dll_path = os.path.join(
+        os.path.abspath(directory), "x86_64", ".libs", "libnrnmech.so"
+    )
+    if not os.path.exists(dll_path):
+        raise FileNotFoundError(f"{dll_path} does not exists.")
 
-    dll_path = os.path.join(compiled, "x86_64", ".libs", "libnrnmech.so")
-    assert os.path.exists(
-        dll_path
-    ), f"libnrnmech.so file is not found properly. {dll_path}"
     h(f'nrn_load_dll("{dll_path}")')
 
     _loaded[directory] = dll_path
@@ -79,28 +107,25 @@ def load(directory: str = "./mechanisms", force: bool = False) -> str:
 
 
 def compile_and_load(
-    directory: str = "./mechanisms", force: bool = False
+    directory: str = "./mechanisms",
+    output_path: str = "${source}/compiled",
+    force: bool = False,
+    recursive: bool = True,
+    comm: Optional[MPI.Intracomm] = MPI.COMM_WORLD,
 ) -> str:
     """
     Compile mechanism file on the processor 0, and load the output DLL file into NEURON.
-
-    WARNING: The used MPI barriers might cause trouble if this
-             function is called within an MPI process.
     """
-    if not force and directory in _loaded:
-        # already loaded
-        return _loaded[directory]
+    if comm is None:
+        # no MPI
+        return load(compile(directory, output_path, force, recursive))
 
-    comm = MPI.COMM_WORLD
     rank = comm.rank
-
-    subcomm = comm.Split(color=rank == 0, key=rank)
-
     if rank == 0:
-        src = compile(directory, force)
+        compiled = compile(directory, output_path, force, recursive)
     else:
-        src = None
-    subcomm.barrier()
-    src = subcomm.bcast(src, root=0)
+        compiled = None
+    comm.barrier()
+    compiled = comm.bcast(compiled, root=0)
 
-    return load(directory, force)
+    return load(compiled)
