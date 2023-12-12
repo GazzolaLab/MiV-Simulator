@@ -46,7 +46,11 @@ def compile(
     # compute mechanism hash
     hash_object = hashlib.sha256()
     file_data = {}
-    for m in glob(os.path.join(src, "**/*.mod"), recursive=recursive):
+    if recursive:
+        mod_files = glob(os.path.join(src, "**/*.mod"), recursive=True)
+    else:
+        mod_files = glob(os.path.join(src, "*.mod"))
+    for m in mod_files:
         with open(m, "r") as fm:
             data = fm.read()
             hash_object.update(data.encode())
