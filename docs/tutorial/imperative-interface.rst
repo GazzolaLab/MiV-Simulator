@@ -29,7 +29,8 @@ chained as follows:
    :linenos:
    :lines: 14-112
 
-The ``graph.files()`` method in the last line returns the filepaths of the generated H5 files that are required to launch a simulation. 
+You are free to modify or entirely replace any step in the pipeline. Notably, machinable will automatically keep track of configuration changes to determine if generation steps need to be re-executed. This means that file geneneration is cached and managed behind the scences.
+You can access the resulting filepaths of the generated H5 files via ``graph.files()``.
 
 Launching the simulation
 ------------------------
