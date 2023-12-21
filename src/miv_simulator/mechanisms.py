@@ -10,8 +10,6 @@ import hashlib
 if hasattr(h, "nrnmpi_init"):
     h.nrnmpi_init()
 
-from typing import Optional
-
 
 def compile(
     source: str = "./mechanisms",
@@ -115,15 +113,11 @@ def compile_and_load(
     output_path: str = "${source}/compiled",
     force: bool = False,
     recursive: bool = True,
-    comm: Optional[MPI.Intracomm] = MPI.COMM_WORLD,
+    comm: MPI.Intracomm = MPI.COMM_WORLD,
 ) -> str:
     """
     Compile mechanism file on the processor 0, and load the output DLL file into NEURON.
     """
-    if comm is None:
-        # no MPI
-        return load(compile(directory, output_path, force, recursive))
-
     rank = comm.rank
     if rank == 0:
         compiled = compile(directory, output_path, force, recursive)
