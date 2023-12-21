@@ -7,6 +7,7 @@ import os.path
 import random
 import sys
 from collections import defaultdict
+import importlib
 
 import h5py
 import numpy as np
@@ -341,6 +342,26 @@ def generate_network_architecture(
                 if count <= 0:
                     continue
 
+                if layer.startswith("@"):
+                    # generate via callback
+                    module_path, _, obj_name = layer[1:].rpartition(".")
+                    if module_path == "__main__" or module_path == "":
+                        module = sys.modules["__main__"]
+                    else:
+                        module = importlib.import_module(module_path)
+                    callback = getattr(module, obj_name)
+
+                    nodes = callback(count, layer_extents[layer])
+
+                    if not len(nodes) == count:
+                        logger.error(
+                            f"Generator {layer} produced mismatch between actual count {len(nodes)} and configured count {count}"
+                        )
+
+                    xyz_coords_lst.append(nodes.reshape(-1, 3))
+
+                    continue
+
                 alpha = layer_alpha_shapes[layer]
 
                 vert = alpha.points
@@ -583,6 +604,12 @@ def generate_network_architecture(
                 for i in range(delta):
                     for layer, count in pop_layers.items():
                         if count > 0:
+                            if layer.startswith("@"):
+                                logger.warning(
+                                    f"Generator {layer} did not return the specified number of coordinates"
+                                )
+                                continue
+
                             min_extent = layer_extents[layer][0]
                             max_extent = layer_extents[layer][1]
                             coord_u = np.random.uniform(
