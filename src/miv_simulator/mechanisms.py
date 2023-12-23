@@ -16,6 +16,7 @@ def compile(
     output_path: str = "${source}/compiled",
     force: bool = False,
     recursive: bool = True,
+    return_hash: bool = False,
 ) -> str:
     """
     Compile NEURON NMODL files
@@ -80,6 +81,9 @@ def compile(
         except subprocess.CalledProcessError:
             print("Compilation failed, reverting ...")
             shutil.rmtree(compiled, ignore_errors=True)
+
+    if return_hash:
+        return hex_dig
 
     return compiled
 
