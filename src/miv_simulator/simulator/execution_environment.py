@@ -1,10 +1,11 @@
 from typing import Optional
 from miv_simulator.utils import AbstractEnv
 from mpi4py import MPI
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from neuron import h
 import logging
 from miv_simulator.network import make_cells, connect_gjs, connect_cells
+from miv_simulator.utils import from_yaml, ExprClosure
 import time
 import random
 from miv_simulator import config
@@ -113,7 +114,6 @@ class ExecutionEnvironment(AbstractEnv):
         population_names = self.comm.bcast(population_names, root=0)
         cell_attribute_info = self.comm.bcast(cell_attribute_info, root=0)
 
-        # TODO: refactor from declarative to imperative
         celltypes = dict(cell_types)
         typenames = sorted(celltypes.keys())
         for k in typenames:
@@ -121,23 +121,16 @@ class ExecutionEnvironment(AbstractEnv):
             if population_range is not None:
                 celltypes[k]["start"] = population_ranges[k][0]
                 celltypes[k]["num"] = population_ranges[k][1]
-                if "mechanism file" in celltypes[k]:
-                    if isinstance(celltypes[k]["mechanism file"], str):
-                        celltypes[k]["mech_file_path"] = celltypes[k][
-                            "mechanism file"
-                        ]
-                        mech_dict = None
+
+                if "mechanism" in celltypes[k]:
+                    mech_dict = celltypes[k]["mechanism"]
+                    if isinstance(mech_dict, str):
                         if rank == 0:
-                            mech_file_path = celltypes[k]["mech_file_path"]
-                            if self.config_prefix is not None:
-                                mech_file_path = os.path.join(
-                                    self.config_prefix, mech_file_path
-                                )
-                            mech_dict = read_from_yaml(mech_file_path)
-                    else:
-                        mech_dict = celltypes[k]["mechanism file"]
-                    mech_dict = self.comm.bcast(mech_dict, root=0)
+                            mech_dict = from_yaml(mech_dict)
+                        mech_dict = self.comm.bcast(mech_dict, root=0)
                     celltypes[k]["mech_dict"] = mech_dict
+                    celltypes[k]["mech_file_path"] = "$mechanism"
+
                 if "synapses" in celltypes[k]:
                     synapses_dict = celltypes[k]["synapses"]
                     if "weights" in synapses_dict:
@@ -198,7 +191,7 @@ class ExecutionEnvironment(AbstractEnv):
                 "dataset_prefix": "",
                 "template_dict": self.template_dict,
                 "cell_attribute_info": cell_attribute_info,
-                "celltypes": cell_types,
+                "celltypes": celltypes,
                 "model_config": {
                     "Random Seeds": {
                         "Intracellular Recording Sample": self.seed

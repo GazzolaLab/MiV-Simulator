@@ -245,6 +245,7 @@ class ParametricSurface(BaseModel):
 
 class CellType(BaseModel):
     template: str
+    mechanism: Union[str, Dict, None]
     synapses: Dict[
         Literal["density"],
         Dict[
