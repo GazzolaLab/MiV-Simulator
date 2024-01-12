@@ -31,6 +31,8 @@ def compile(
         If True, recompile even if source is unchanged
     recursive:
         If True, subdirectories are included
+    return_hash:
+        If True, only the compilation hash is being returned
 
     Returns
     -------
@@ -55,7 +57,7 @@ def compile(
             hash_object.update(data.encode())
             file_data[m] = data
     hex_dig = hash_object.hexdigest()
-    print(f"Computed mechanisms' hash = {hex_dig}")
+
     compiled = os.path.join(output_path, hex_dig)
 
     # attempt to automatically compile
