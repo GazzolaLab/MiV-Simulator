@@ -19,7 +19,6 @@ class Connections(Component):
         axon_extents: config.AxonExtents = Field("???")
         synapses: config.Synapses = Field("???")
         include_forest_populations: Optional[list] = None
-        template_path: str = "./templates"
         connectivity_namespace: str = "Connections"
         coordinates_namespace: str = "Coordinates"
         synapses_namespace: str = "Synapse Attributes"
@@ -47,7 +46,6 @@ class Connections(Component):
             include_forest_populations=self.config.include_forest_populations,
             synapses=self.config.synapses,
             axon_extents=self.config.axon_extents,
-            template_path=self.config.template_path,
             output_filepath=self.output_filepath,
             connectivity_namespace=self.config.connectivity_namespace,
             coordinates_namespace=self.config.coordinates_namespace,

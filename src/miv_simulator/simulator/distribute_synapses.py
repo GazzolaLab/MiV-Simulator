@@ -213,6 +213,7 @@ def distribute_synapse_locations(
     configure_hoc(
         template_directory=template_path,
         use_coreneuron=env.use_coreneuron,
+        mechanisms_directory=mechanisms_path,
         dt=env.dt,
         tstop=env.tstop,
         celsius=env.globals.get("celsius", None),
@@ -223,7 +224,6 @@ def distribute_synapse_locations(
         cell_types=env.celltypes,
         populations=populations,
         distribution=distribution,
-        mechanisms_path=mechanisms_path,
         template_path=template_path,
         io_size=io_size,
         output_filepath=output_path,
@@ -240,7 +240,6 @@ def distribute_synapses(
     cell_types: config.CellTypes,
     populations: Tuple[str, ...],
     distribution: Literal["uniform", "poisson"],
-    mechanisms_path: str,
     template_path: str,
     output_filepath: Optional[str],
     io_size: int,
@@ -258,7 +257,7 @@ def distribute_synapses(
     if rank == 0:
         logger.info(f"{comm.size} ranks have been allocated")
 
-    configure_hoc(mechanisms_directory=mechanisms_path)
+    configure_hoc()
 
     if io_size == -1:
         io_size = comm.size
