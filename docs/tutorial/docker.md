@@ -1,4 +1,4 @@
-# Installation: Docker Image
+# Docker Image
 
 :::{note}
 The docker image is not optimized for high-performance computing. The image file only provides necessary installation for users to quickly try-run a simple model.

@@ -42,7 +42,7 @@ class MeasureDistances(Component):
             cell_distributions=self.config.cell_distributions,
             layer_extents=self.config.layer_extents,
             rotation=self.config.rotation,
-            origin=self.config.origin,
+            origin=config.Origin(**self.config.origin).as_spec(),
             n_sample=self.config.n_sample,
             alpha_radius=self.config.alpha_radius,
             io_size=self.config.io_size,

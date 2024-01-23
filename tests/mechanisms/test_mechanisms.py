@@ -20,7 +20,7 @@ def test_mechanisms_compile(tmp_path):
     assert os.path.isdir(compile(d))
     # compile with -force
     compiled_path = compile(d, force=True)
-    assert os.path.basename(compiled_path) == "compiled"
+    assert len(os.path.basename(compiled_path)) == 64
 
 
 def test_mechanisms_compile_and_load(tmp_path):
