@@ -601,7 +601,7 @@ def distance_interpolant(
 
     vol_dist = get_volume_distances(
         ip_volume,
-        origin_spec=config.Origin(**origin).as_spec(),
+        origin_spec=origin,
         nsample=n_sample,
         comm=comm,
         alpha_radius=alpha_radius,

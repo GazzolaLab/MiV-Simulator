@@ -36,6 +36,7 @@ from miv_simulator.simulator.measure_distances import (
 @click.option("--populations", "-i", required=True, multiple=True, type=str)
 @click.option("--resolution", type=(int, int, int), default=(30, 30, 10))
 @click.option("--nsample", type=int, default=1000)
+@click.option("--alpha-radius", type=float, default=100)
 @click.option("--io-size", type=int, default=-1)
 @click.option("--chunk-size", type=int, default=1000)
 @click.option("--value-chunk-size", type=int, default=1000)
@@ -50,6 +51,7 @@ def main(
     populations,
     resolution,
     nsample,
+    alpha_radius,
     io_size,
     chunk_size,
     value_chunk_size,
@@ -64,6 +66,7 @@ def main(
         populations,
         resolution,
         nsample,
+        alpha_radius,
         io_size,
         chunk_size,
         value_chunk_size,

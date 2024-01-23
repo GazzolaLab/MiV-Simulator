@@ -215,19 +215,20 @@ class Synapse(BaseModel):
     layers: conlist(LayersDefOrStr)
     proportions: conlist(float)
     mechanisms: Dict[SynapseMechanismsLiteral, Mechanism]
+    contacts: int = 1
 
 
 def _origin_value_to_callable(value: Union[str, float]) -> Callable:
-    if isinstance(value, (float, int)):
+    if isinstance(value, float):
         return lambda _: value
 
     return getattr(np, value)
 
 
 class Origin(BaseModel):
-    U: Union[str, float, int]
-    V: Union[str, float, int]
-    L: Union[str, float, int]
+    U: Union[str, float]
+    V: Union[str, float]
+    L: Union[str, float]
 
     def as_spec(self):
         return {
@@ -245,7 +246,6 @@ class ParametricSurface(BaseModel):
 
 class CellType(BaseModel):
     template: str
-    mechanism: Union[str, Dict, None]
     synapses: Dict[
         Literal["density"],
         Dict[
