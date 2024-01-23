@@ -91,7 +91,7 @@ class OptoStim:
             rho_dict = self.pop_rho_dict[pop_name]
             mech = getattr(h, self.mechanisms[self.model.nStates])
 
-            expProb = self.rho_params["expProb"]
+            expProb = self.rho_params.get("expProb", 1.0)
 
             for gid in gid_set:
                 if not self.pc.gid_exists(gid):
