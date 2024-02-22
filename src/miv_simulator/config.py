@@ -318,11 +318,22 @@ class Config:
         # compatibility
         self.get("Cell Types.STIM", {}).setdefault("synapses", {})
 
+    @property
+    def data(self) -> Dict:
+        return self._data
+
     @classmethod
     def from_yaml(cls, filepath: str) -> "Config":
         from miv_simulator.utils import from_yaml
 
         return cls(from_yaml(filepath))
+
+    @classmethod
+    def from_json(cls, filepath: str) -> "Config":
+        import json
+
+        with open(filepath, "r") as f:
+            return cls(json.load(f))
 
     def get(self, path: str, default=sentinel, splitter: str = "."):
         d = self._data
