@@ -27,8 +27,8 @@ class NeuroH5Graph(Component):
             if name == "network_architecture":
                 self.network = u
             elif name == "connections":
-                populations = read_population_names(u.config.forest_filepath)
-                for p in populations:
+                for p in read_population_names(u.config.forest_filepath):
+                    populations.append(p)
                     if p in self.connections:
                         raise ValueError(
                             f"Redundant distance connection specification for population {p}"
