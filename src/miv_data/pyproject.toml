@@ -1,0 +1,14 @@
+[tool.poetry]
+name = "miv-data"
+version = "0.0.1"
+description = "Mind-in-Vitro data"
+readme = "README.md"
+authors = []
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.12"
+neuroh5 = {git = "https://github.com/iraikov/neuroh5.git"}
+
+[build-system]
+requires = ["poetry_core>=1.0.0", "cython"]
+build-backend = "poetry.core.masonry.api"
