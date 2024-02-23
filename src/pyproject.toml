@@ -2,11 +2,11 @@
 name = "miv-data"
 version = "0.0.1"
 description = "Mind-in-Vitro data"
-readme = "src/README.md" # root-relative, adjust later
+readme = "miv_data/README.md" # root-relative, adjust later
 authors = []
 
 packages = [
-    { include = "miv_data" },
+    { include = "miv_data", from = "." },
 ]
 
 [tool.poetry.dependencies]
