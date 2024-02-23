@@ -5,9 +5,8 @@ description = "Mind-in-Vitro data"
 readme = "README.md"
 authors = []
 
-packages = [
-    { include = "."},
-]
+[tool.setuptools]
+py-modules = []
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.12"
