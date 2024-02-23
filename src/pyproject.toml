@@ -2,7 +2,7 @@
 name = "miv-data"
 version = "0.0.1"
 description = "Mind-in-Vitro data"
-readme = "README.md"
+readme = "src/README.md" # root-relative, adjust later
 authors = []
 
 packages = [
