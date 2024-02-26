@@ -7,6 +7,7 @@ PreSynapticPopulationName = PopulationName
 
 class CellsMetaData(BaseModel):
     """Cells metadata"""
+
     population_names: list[PopulationName]
     population_ranges: dict[PopulationName, tuple[int, int]]
     cell_attribute_info: dict[PopulationName, dict[str, list[str]]]
@@ -17,6 +18,7 @@ class CellsMetaData(BaseModel):
 
 class Tree(BaseModel):
     """TBD"""
-    
+
+
 class Projection(BaseModel):
     """TBD"""
