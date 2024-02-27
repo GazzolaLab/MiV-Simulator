@@ -81,7 +81,7 @@ RUN env MPICC="mpicc --shared" pip install --no-cache-dir mpi4py
 RUN pip install --no-cache-dir numpy
 
 # h5py
-RUN CC="mpicc" HDF5_MPI="ON" HDF5_DIR=/opt/hdf5-${HDF5_VER}/build pip install --no-binary=h5py --no-deps h5py
+RUN CC="mpicc" HDF5_MPI="ON" HDF5_DIR=/opt/hdf5-${HDF5_VER}/build pip install --no-binary=h5py --no-deps h5py==3.7.0
 
 # NeuroH5
 RUN git clone https://github.com/iraikov/neuroh5.git
