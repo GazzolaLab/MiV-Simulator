@@ -51,7 +51,7 @@ def compile(
         mod_files = glob(os.path.join(src, "**/*.mod"), recursive=True)
     else:
         mod_files = glob(os.path.join(src, "*.mod"))
-    for m in mod_files:
+    for m in sorted(mod_files, key=lambda x: x.replace(src, "")):
         with open(m, "r") as fm:
             data = fm.read()
             hash_object.update(data.encode())
