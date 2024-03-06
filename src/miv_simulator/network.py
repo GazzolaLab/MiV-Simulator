@@ -2063,8 +2063,6 @@ def run(
 
     if rank == 0 and output:
         io_utils.lfpout(env, env.results_file_path)
-    if shutdown:
-        del env.cells
 
     comptime = env.pc.step_time()
     cwtime = comptime + env.pc.step_wait()

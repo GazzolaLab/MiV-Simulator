@@ -25,7 +25,7 @@ rbf = {git = "https://github.com/frthjf/RBF.git", rev = "master"}
 neuroh5 = {git = "https://github.com/iraikov/neuroh5.git"}
 future = "^0.18.3"
 matplotlib = "^3.6.0"
-quantities = "^0.13.0"
+quantities = "^0.15.0"
 pydantic = "^2.3.0"
 neuron = "^8.2.3"
 distgfs = {version = "^1.1.0", optional = true}

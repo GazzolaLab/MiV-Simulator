@@ -18,6 +18,7 @@ class NeuroH5Graph(Component):
     def __call__(self) -> None:
         print("Merging H5 data")
         self.network = None
+        self.distances = None
         self.synapses = {}
         self.synapse_forest = {}
         self.connections = {}
@@ -26,9 +27,11 @@ class NeuroH5Graph(Component):
             name = u.module.replace("miv_simulator.interface.", "")
             if name == "network_architecture":
                 self.network = u
+            elif name == "distances":
+                self.distances = u
             elif name == "connections":
-                populations = read_population_names(u.config.forest_filepath)
-                for p in populations:
+                for p in read_population_names(u.config.forest_filepath):
+                    populations.append(p)
                     if p in self.connections:
                         raise ValueError(
                             f"Redundant distance connection specification for population {p}"
@@ -68,6 +71,24 @@ class NeuroH5Graph(Component):
 
         for p, c in self.connections.items():
             self.graph.import_projections(p, c.output_filepath)
+
+        # serialize sources
+        self.save_file(
+            "graph.json",
+            {
+                "network": self.network.serialize(),
+                "distances": self.distances.serialize(),
+                "connections": {
+                    k: v.serialize() for k, v in self.connections.items()
+                },
+                "synapse_forest": {
+                    k: v.serialize() for k, v in self.synapse_forest.items()
+                },
+                "synapses": {
+                    k: v.serialize() for k, v in self.synapses.items()
+                },
+            },
+        )
 
     def on_compute_predicate(self):
         def generate_uid(use):
