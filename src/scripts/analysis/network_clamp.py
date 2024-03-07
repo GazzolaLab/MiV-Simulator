@@ -33,9 +33,7 @@ def cli():
     default="GC",
     help="target population",
 )
-@click.option(
-    "--gid", "-g", required=True, type=int, default=0, help="target cell gid"
-)
+@click.option("--gid", "-g", required=True, type=int, default=0, help="target cell gid")
 @click.option(
     "--arena-id",
     "-a",
@@ -219,9 +217,7 @@ def show(
     multiple=True,
     help="generate weights for the given presynaptic population",
 )
-@click.option(
-    "--t-max", "-t", type=float, default=150.0, help="simulation end time"
-)
+@click.option("--t-max", "-t", type=float, default=150.0, help="simulation end time")
 @click.option("--t-min", type=float)
 @click.option(
     "--template-paths",
@@ -343,9 +339,7 @@ def show(
     default="Network clamp default",
     help="recording profile to use",
 )
-@click.option(
-    "--input-seed", type=int, help="seed for generation of spike trains"
-)
+@click.option("--input-seed", type=int, help="seed for generation of spike trains")
 def go(
     config_file,
     config_prefix,
@@ -449,9 +443,7 @@ def go(
     help="file containing target cell gids",
 )
 @click.option("--arena-id", "-a", type=str, required=False, help="arena id")
-@click.option(
-    "--stimulus-id", "-s", type=str, required=False, help="stimulus id"
-)
+@click.option("--stimulus-id", "-s", type=str, required=False, help="stimulus id")
 @click.option(
     "--generate-weights",
     "-w",
@@ -460,9 +452,7 @@ def go(
     multiple=True,
     help="generate weights for the given presynaptic population",
 )
-@click.option(
-    "--t-max", "-t", type=float, default=150.0, help="simulation end time"
-)
+@click.option("--t-max", "-t", type=float, default=150.0, help="simulation end time")
 @click.option("--t-min", type=float)
 @click.option(
     "--nprocs-per-worker",
@@ -607,11 +597,6 @@ def go(
     help="optional filter for state values used for state optimization",
 )
 @click.option("--use-coreneuron", is_flag=True, help="enable use of CoreNEURON")
-@click.option(
-    "--cooperative-init",
-    is_flag=True,
-    help="use a single worker to read model data then send to the remaining workers",
-)
 @click.argument("target")  # help='rate, rate_dist, state'
 def optimize(
     config_file,
@@ -652,7 +637,6 @@ def optimize(
     target_state_variable,
     target_state_filter,
     use_coreneuron,
-    cooperative_init,
     target,
 ):
     network.optimize(
@@ -694,7 +678,6 @@ def optimize(
         target_state_variable,
         target_state_filter,
         use_coreneuron,
-        cooperative_init,
         target,
     )
 

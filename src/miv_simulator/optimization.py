@@ -67,16 +67,10 @@ def parse_optimization_param_dict(
 ):
     for source, source_dict in sorted(param_dict.items(), key=keyfun):
         for sec_type, sec_type_dict in sorted(source_dict.items(), key=keyfun):
-            for syn_name, syn_mech_dict in sorted(
-                sec_type_dict.items(), key=keyfun
-            ):
-                for param_fst, param_rst in sorted(
-                    syn_mech_dict.items(), key=keyfun
-                ):
+            for syn_name, syn_mech_dict in sorted(sec_type_dict.items(), key=keyfun):
+                for param_fst, param_rst in sorted(syn_mech_dict.items(), key=keyfun):
                     if isinstance(param_rst, dict):
-                        for const_name, const_range in sorted(
-                            param_rst.items()
-                        ):
+                        for const_name, const_range in sorted(param_rst.items()):
                             param_path = (param_fst, const_name)
                             param_tuples.append(
                                 SynParam(
@@ -147,9 +141,7 @@ def parse_optimization_param_dict(
                                 param_name,
                             )
 
-                        param_initial_value = (
-                            param_range[1] - param_range[0]
-                        ) / 2.0
+                        param_initial_value = (param_range[1] - param_range[0]) / 2.0
                         param_initial_dict[param_key] = param_initial_value
                         param_bounds[param_key] = param_range
                         param_names.append(param_key)
@@ -216,9 +208,7 @@ def parse_optimization_param_entries(
                             param_names=param_names,
                         )
     else:
-        raise RuntimeError(
-            f"Invalid optimization parameter object: {param_entries}"
-        )
+        raise RuntimeError(f"Invalid optimization parameter object: {param_entries}")
 
 
 def optimization_params(
@@ -308,9 +298,7 @@ def update_network_params(env, param_tuples):
 
             biophys_cell_dict = env.biophys_cells[population]
             for gid in biophys_cell_dict:
-                if (phenotype_dict is not None) and (
-                    param_phenotype is not None
-                ):
+                if (phenotype_dict is not None) and (param_phenotype is not None):
                     gid_phenotype = phenotype_dict.get(gid, None)
                     if gid_phenotype is not None:
                         if gid_phenotype != param_phenotype:
@@ -328,12 +316,8 @@ def update_network_params(env, param_tuples):
                         this_sec_type,
                         syn_name,
                         param_name=p,
-                        value={s: param_value}
-                        if (s is not None)
-                        else param_value,
-                        filters={"sources": sources}
-                        if sources is not None
-                        else None,
+                        value={s: param_value} if (s is not None) else param_value,
+                        filters={"sources": sources} if sources is not None else None,
                         origin=None if is_reduced else "soma",
                         update_targets=True,
                     )
@@ -384,12 +368,8 @@ def update_run_params(env, param_tuples):
                         this_sec_type,
                         syn_name,
                         param_name=p,
-                        value={s: param_value}
-                        if (s is not None)
-                        else param_value,
-                        filters={"sources": sources}
-                        if sources is not None
-                        else None,
+                        value={s: param_value} if (s is not None) else param_value,
+                        filters={"sources": sources} if sources is not None else None,
                         origin=None if is_reduced else "soma",
                         update_targets=True,
                     )
@@ -431,12 +411,8 @@ def network_features(
                 target_trj_rate_map = pop_target_trj_rate_map_dict[gid]
                 rate_map_len = len(target_trj_rate_map)
                 if gid in spike_density_dict:
-                    measured_rate = spike_density_dict[gid]["rate"][
-                        :rate_map_len
-                    ]
-                    ref_signal = target_trj_rate_map - np.mean(
-                        target_trj_rate_map
-                    )
+                    measured_rate = spike_density_dict[gid]["rate"][:rate_map_len]
+                    ref_signal = target_trj_rate_map - np.mean(target_trj_rate_map)
                     signal = measured_rate - np.mean(measured_rate)
                     noise = signal - ref_signal
                     snr = np.var(signal) / max(np.var(noise), 1e-6)
@@ -464,9 +440,7 @@ def distgfs_broker_bcast(broker, tag):
         nprocs = broker.nprocs_per_worker
         data_dict = {}
         while len(data_dict) < nprocs:
-            if broker.merged_comm.Iprobe(
-                source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG
-            ):
+            if broker.merged_comm.Iprobe(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG):
                 data = broker.merged_comm.recv(
                     source=MPI.ANY_SOURCE, tag=tag, status=status
                 )
@@ -508,19 +482,18 @@ def opt_reduce_every(xs):
 
 def opt_reduce_every_features(items):
     result = {}
-    for xd in items:
-        for k in xd:
-            yd, fd = xd[k]
-            result[k] = (yd, fd)
+    for yd, fd in items:
+        for k in yd:
+            result[k] = (yd[k], fd[k])
     return result
 
 
 def opt_reduce_every_features_constraints(items):
+    logger.info(f"items = {items}")
     result = {}
-    for xd in items:
-        for k in xd:
-            yd, fd, cd = xd[k]
-            result[k] = (yd, fd, cd)
+    for yd, fd, cd in items:
+        for k in yd:
+            result[k] = (yd[k], fd[k], cd[k])
     return result
 
 
@@ -574,17 +547,14 @@ def opt_reduce_max(xs):
     return {k: np.max(vs[k]) for k in ks}
 
 
-def opt_eval_fun(
-    problem_regime, cell_index_set, eval_problem_fun, feature_dtypes=None
-):
+def opt_eval_fun(problem_regime, cell_index_set, eval_problem_fun, feature_dtypes=None):
     problem_regime = ProblemRegime[problem_regime]
 
     def f(pp, **kwargs):
         if problem_regime == ProblemRegime.every:
             results_dict = eval_problem_fun(pp, **kwargs)
         elif (
-            problem_regime == ProblemRegime.mean
-            or problem_regime == ProblemRegime.max
+            problem_regime == ProblemRegime.mean or problem_regime == ProblemRegime.max
         ):
             mpp = {gid: pp for gid in cell_index_set}
             results_dict = eval_problem_fun(mpp, **kwargs)
