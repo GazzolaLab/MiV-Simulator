@@ -15,7 +15,12 @@ from neuron import h
 from miv_simulator import network, synapses, spikedata, stimulus, optimization
 from miv_simulator.env import Env
 from miv_simulator import cells, synapses, spikedata, stimulus
-from miv_simulator.utils import read_from_yaml, write_to_yaml, get_module_logger
+from miv_simulator.utils import (
+    read_from_yaml,
+    write_to_yaml,
+    get_module_logger,
+    get_script_logger,
+)
 from miv_simulator.synapses import (
     SynParam,
     syn_param_from_dict,
@@ -107,9 +112,7 @@ def dmosopt_get_best(file_path, opt_id):
         epochs=epochs,
         feasible=True,
     )
-    best_x_items = tuple(
-        (param_names[i], best_x[:, i]) for i in range(best_x.shape[1])
-    )
+    best_x_items = tuple((param_names[i], best_x[:, i]) for i in range(best_x.shape[1]))
     best_y_items = tuple(
         (objective_names[i], best_y[:, i]) for i in range(best_y.shape[1])
     )
@@ -135,8 +138,6 @@ def init_controller(subworld_size, use_coreneuron):
 
 def optimize_network(
     config_path,
-    target_features_path,
-    target_features_namespace,
     optimize_file_dir,
     optimize_file_name,
     nprocs_per_worker,
@@ -173,12 +174,6 @@ def optimize_network(
     operational_config = read_from_yaml(config_path)
     operational_config["run_ts"] = run_ts
     operational_config["nprocs_per_worker"] = nprocs_per_worker
-    if target_features_path is not None:
-        operational_config["target_features_path"] = target_features_path
-    if target_features_namespace is not None:
-        operational_config[
-            "target_features_namespace"
-        ] = target_features_namespace
 
     network_config.update(operational_config.get("kwargs", {}))
     env = Env(**network_config)
@@ -220,26 +215,20 @@ def optimize_network(
         resample_fraction = 0.1
 
     # Create an optimizer
-    feature_dtypes = [
-        (feature_name, np.float32) for feature_name in objective_names
-    ]
+    feature_dtypes = [(feature_name, np.float32) for feature_name in objective_names]
     constraint_names = [
-        f"{target_pop_name} positive rate"
-        for target_pop_name in target_populations
+        f"{target_pop_name} positive rate" for target_pop_name in target_populations
     ]
     dmosopt_params = {
-        "opt_id": "dentate.optimize_network",
-        "obj_fun_init_name": init_objfun,
-        "obj_fun_init_module": "dentate.optimize_network",
+        "opt_id": "miv_simulator.optimize_network",
+        "obj_fun_init_name": f"miv_simulator.optimize_network.{init_objfun}",
         "obj_fun_init_args": init_params,
-        "controller_init_fun_module": "dentate.optimize_network",
-        "controller_init_fun_name": "init_controller",
+        "controller_init_fun_name": "miv_simulator.optimize_network.init_controller",
         "controller_init_fun_args": {
             "subworld_size": nprocs_per_worker,
             "use_coreneuron": network_config.get("use_coreneuron", False),
         },
-        "reduce_fun_name": "compute_objectives",
-        "reduce_fun_module": "dentate.optimize_network",
+        "reduce_fun_name": "miv_simulator.optimize_network.compute_objectives",
         "reduce_fun_args": (operational_config, opt_targets),
         "problem_parameters": {},
         "space": hyperprm_space,
@@ -266,9 +255,7 @@ def optimize_network(
     }
 
     if get_best:
-        best = dmosopt_get_best(
-            dmosopt_params["file_path"], dmosopt_params["opt_id"]
-        )
+        best = dmosopt_get_best(dmosopt_params["file_path"], dmosopt_params["opt_id"])
     else:
         best = dmosopt.run(
             dmosopt_params,
@@ -282,7 +269,7 @@ def optimize_network(
 
     if best is not None:
         if optimize_file_dir is not None:
-            results_file_id = f"DG_optimize_network_{run_ts}"
+            results_file_id = f"optimize_network_{run_ts}"
             yaml_file_path = os.path.join(
                 optimize_file_dir, f"optimize_network.{results_file_id}.yaml"
             )
@@ -292,9 +279,7 @@ def optimize_network(
             results_config_dict = {}
             for i in range(n_res):
                 result_param_list = []
-                for param_pattern, param_tuple in zip(
-                    param_names, param_tuples
-                ):
+                for param_pattern, param_tuple in zip(param_names, param_tuples):
                     result_param_list.append(
                         (
                             param_tuple.population,
@@ -313,19 +298,15 @@ def optimize_network(
 def init_network_objfun(
     operational_config, opt_targets, param_names, param_tuples, worker, **kwargs
 ):
-    param_tuples = [
-        syn_param_from_dict(param_tuple) for param_tuple in param_tuples
-    ]
+    param_tuples = [syn_param_from_dict(param_tuple) for param_tuple in param_tuples]
 
     objective_names = operational_config["objective_names"]
     target_populations = operational_config["target_populations"]
-    target_features_path = operational_config["target_features_path"]
-    target_features_namespace = operational_config["target_features_namespace"]
     kwargs[
         "results_file_id"
-    ] = f"DG_optimize_network_{worker.worker_id}_{operational_config['run_ts']}"
+    ] = f"optimize_network_{worker.worker_id}_{operational_config['run_ts']}"
     nprocs_per_worker = operational_config["nprocs_per_worker"]
-    logger = utils.get_script_logger(os.path.basename(__file__))
+    logger = get_script_logger(os.path.basename(__file__))
     env = init_network(
         comm=worker.merged_comm, subworld_size=nprocs_per_worker, kwargs=kwargs
     )
@@ -337,24 +318,6 @@ def init_network_objfun(
     t_start = 50.0
     t_stop = env.tstop
     time_range = (t_start, t_stop)
-
-    target_trj_rate_map_dict = {}
-    target_features_arena = env.arena_id
-    target_features_trajectory = env.trajectory_id
-    for pop_name in target_populations:
-        if f"{pop_name} snr" not in objective_names:
-            continue
-        my_cell_index_set = set(env.biophys_cells[pop_name].keys())
-        trj_rate_maps = {}
-        trj_rate_maps = rate_maps_from_features(
-            env,
-            pop_name,
-            cell_index_set=list(my_cell_index_set),
-            input_features_path=target_features_path,
-            input_features_namespace=target_features_namespace,
-            time_range=time_range,
-        )
-        target_trj_rate_map_dict[pop_name] = trj_rate_maps
 
     def from_param_dict(params_dict):
         result = []
@@ -464,9 +427,7 @@ def compute_objectives(local_features, operational_config, opt_targets):
         constraints.append(rate_constr)
 
     objective_names = operational_config["objective_names"]
-    feature_dtypes = [
-        (feature_name, np.float32) for feature_name in objective_names
-    ]
+    feature_dtypes = [(feature_name, np.float32) for feature_name in objective_names]
 
     target_vals = opt_targets
     target_ranges = opt_targets

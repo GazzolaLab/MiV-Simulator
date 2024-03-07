@@ -18,19 +18,6 @@ from miv_simulator.optimize_network import optimize_network
     help="optimization configuration file name",
 )
 @click.option(
-    "--target-features-path",
-    required=False,
-    type=click.Path(),
-    help="path to neuroh5 file containing target rate maps used for rate optimization",
-)
-@click.option(
-    "--target-features-namespace",
-    type=str,
-    required=False,
-    default="Input Spikes",
-    help="namespace containing target rate maps used for rate optimization",
-)
-@click.option(
     "--optimize-file-dir",
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
     default="results",
@@ -56,8 +43,6 @@ from miv_simulator.optimize_network import optimize_network
 @click.option("--verbose", "-v", is_flag=True)
 def main_cli(
     config_path,
-    target_features_path,
-    target_features_namespace,
     optimize_file_dir,
     optimize_file_name,
     nprocs_per_worker,
@@ -78,8 +63,6 @@ def main_cli(
 ):
     optimize_network(
         config_path,
-        target_features_path,
-        target_features_namespace,
         optimize_file_dir,
         optimize_file_name,
         nprocs_per_worker,

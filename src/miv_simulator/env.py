@@ -46,9 +46,7 @@ NetclampConfig = namedtuple(
     ["template_params", "weight_generators", "optimize_parameters"],
 )
 
-ArenaConfig = namedtuple(
-    "Arena", ["name", "domain", "trajectories", "properties"]
-)
+ArenaConfig = namedtuple("Arena", ["name", "domain", "trajectories", "properties"])
 
 DomainConfig = namedtuple("Domain", ["vertices", "simplices"])
 
@@ -269,15 +267,11 @@ class Env(AbstractEnv):
 
         if "Definitions" in self.model_config:
             self.parse_definitions()
-            self.SWC_Type_index = {
-                item[1]: item[0] for item in self.SWC_Types.items()
-            }
+            self.SWC_Type_index = {item[1]: item[0] for item in self.SWC_Types.items()}
             self.Synapse_Type_index = {
                 item[1]: item[0] for item in self.Synapse_Types.items()
             }
-            self.layer_type_index = {
-                item[1]: item[0] for item in self.layers.items()
-            }
+            self.layer_type_index = {item[1]: item[0] for item in self.layers.items()}
 
         if "Global Parameters" in self.model_config:
             self.parse_globals()
@@ -290,6 +284,8 @@ class Env(AbstractEnv):
 
         self.celltypes = self.model_config["Cell Types"]
         self.cell_attribute_info = {}
+        self.phenotype_dict = {}
+        self.phenotype_ids = {}
 
         # The name of this model
         self.modelName = "Unnamed model"
@@ -321,9 +317,7 @@ class Env(AbstractEnv):
         self.spike_input_attribute_info = None
         if self.spike_input_path is not None:
             if rank == 0:
-                self.logger.info(
-                    f"env.spike_input_path = {str(self.spike_input_path)}"
-                )
+                self.logger.info(f"env.spike_input_path = {str(self.spike_input_path)}")
                 self.spike_input_attribute_info = read_cell_attribute_info(
                     self.spike_input_path,
                     sorted(self.Populations.keys()),
@@ -357,9 +351,7 @@ class Env(AbstractEnv):
             self.parse_gapjunction_config()
 
         if self.dataset_prefix is not None:
-            self.dataset_path = os.path.join(
-                self.dataset_prefix, self.datasetName
-            )
+            self.dataset_path = os.path.join(self.dataset_prefix, self.datasetName)
             if "Cell Data" in self.model_config:
                 self.data_file_path = os.path.join(
                     self.dataset_path, self.model_config["Cell Data"]
@@ -430,9 +422,7 @@ class Env(AbstractEnv):
                     ):
                         projection_dict[dst].append(src)
                 self.projection_dict = dict(projection_dict)
-                self.logger.info(
-                    f"projection_dict = {str(self.projection_dict)}"
-                )
+                self.logger.info(f"projection_dict = {str(self.projection_dict)}")
             self.projection_dict = self.comm.bcast(self.projection_dict, root=0)
 
         # If True, instantiate as spike source those cells that do not
@@ -453,20 +443,16 @@ class Env(AbstractEnv):
                     "nstates": int(config["nstates"]),
                     "opsin type": config["opsin type"],
                     "protocol": config["protocol"],
-                    "protocol parameters": config.get(
-                        "protocol parameters", dict()
-                    ),
+                    "protocol parameters": config.get("protocol parameters", dict()),
                     "rho parameters": config.get("rho parameters", dict()),
                 }
 
         # Configuration profile for recording intracellular quantities
         self.recording_profile = None
-        if ("Recording" in self.model_config) and (
-            recording_profile is not None
-        ):
-            self.recording_profile = self.model_config["Recording"][
-                "Intracellular"
-            ][recording_profile]
+        if ("Recording" in self.model_config) and (recording_profile is not None):
+            self.recording_profile = self.model_config["Recording"]["Intracellular"][
+                recording_profile
+            ]
             self.recording_profile["label"] = recording_profile
             for recvar, recdict in self.recording_profile.get(
                 "synaptic quantity", {}
@@ -562,10 +548,7 @@ class Env(AbstractEnv):
             if stimulus_id is None:
                 self.stimulus_id = None
             else:
-                if (
-                    stimulus_id
-                    in self.stimulus_config["Arena"][arena_id].trajectories
-                ):
+                if stimulus_id in self.stimulus_config["Arena"][arena_id].trajectories:
                     self.stimulus_id = stimulus_id
                 else:
                     raise RuntimeError(
@@ -588,9 +571,7 @@ class Env(AbstractEnv):
                         pop_selectivity_type_prob_dict[
                             int(self.selectivity_types[selectivity_type_name])
                         ] = float(selectivity_type_prob)
-                    selectivity_type_prob_dict[
-                        pop
-                    ] = pop_selectivity_type_prob_dict
+                    selectivity_type_prob_dict[pop] = pop_selectivity_type_prob_dict
                 stimulus_config[
                     "Selectivity Type Probabilities"
                 ] = selectivity_type_prob_dict
@@ -740,17 +721,13 @@ class Env(AbstractEnv):
                 if layer_name == "default":
                     pop_connection_extents[layer_name] = {
                         "width": extent_config[population][layer_name]["width"],
-                        "offset": extent_config[population][layer_name][
-                            "offset"
-                        ],
+                        "offset": extent_config[population][layer_name]["offset"],
                     }
                 else:
                     layer_index = self.layers[layer_name]
                     pop_connection_extents[layer_index] = {
                         "width": extent_config[population][layer_name]["width"],
-                        "offset": extent_config[population][layer_name][
-                            "offset"
-                        ],
+                        "offset": extent_config[population][layer_name]["offset"],
                     }
 
             self.connection_extents[population] = pop_connection_extents
@@ -789,9 +766,7 @@ class Env(AbstractEnv):
                 if swctype_mechparams_dict is not None:
                     for swc_type in swctype_mechparams_dict:
                         swc_type_index = self.SWC_Types[swc_type]
-                        res_mechparams[
-                            swc_type_index
-                        ] = self.parse_syn_mechparams(
+                        res_mechparams[swc_type_index] = self.parse_syn_mechparams(
                             swctype_mechparams_dict[swc_type]
                         )
                 else:
@@ -974,9 +949,7 @@ class Env(AbstractEnv):
         population_names = None
         if rank == 0:
             population_names = read_population_names(self.data_file_path, comm0)
-            (population_ranges, _) = read_population_ranges(
-                self.data_file_path, comm0
-            )
+            (population_ranges, _) = read_population_ranges(self.data_file_path, comm0)
             self.cell_attribute_info = read_cell_attribute_info(
                 self.data_file_path, population_names, comm=comm0
             )
@@ -985,9 +958,7 @@ class Env(AbstractEnv):
             self.logger.info(f"attribute info: {str(self.cell_attribute_info)}")
         population_ranges = self.comm.bcast(population_ranges, root=0)
         population_names = self.comm.bcast(population_names, root=0)
-        self.cell_attribute_info = self.comm.bcast(
-            self.cell_attribute_info, root=0
-        )
+        self.cell_attribute_info = self.comm.bcast(self.cell_attribute_info, root=0)
         comm0.Free()
 
         for k in typenames:
@@ -997,9 +968,7 @@ class Env(AbstractEnv):
                 celltypes[k]["num"] = population_ranges[k][1]
                 if "mechanism file" in celltypes[k]:
                     if isinstance(celltypes[k]["mechanism file"], str):
-                        celltypes[k]["mech_file_path"] = celltypes[k][
-                            "mechanism file"
-                        ]
+                        celltypes[k]["mech_file_path"] = celltypes[k]["mechanism file"]
                         mech_dict = None
                         if rank == 0:
                             mech_file_path = celltypes[k]["mech_file_path"]
