@@ -112,7 +112,9 @@ def generate_weights(env, weight_source_rules, this_syn_attrs):
                 weights_name = weight_rule["name"]
                 rule_params = weight_rule["params"]
                 fraction = rule_params["fraction"]
-                seed_offset = int(env.model_config["Random Seeds"]["Sparse Weights"])
+                seed_offset = int(
+                    env.model_config["Random Seeds"]["Sparse Weights"]
+                )
                 seed = int(seed_offset + 1)
                 weights_dict[presyn_id] = synapses.generate_sparse_weights(
                     weights_name, fraction, seed, source_syn_dict
@@ -137,7 +139,9 @@ def generate_weights(env, weight_source_rules, this_syn_attrs):
                 rule_params = weight_rule["params"]
                 mu = rule_params["mu"]
                 sigma = rule_params["sigma"]
-                seed_offset = int(env.model_config["Random Seeds"]["GC Normal Weights"])
+                seed_offset = int(
+                    env.model_config["Random Seeds"]["GC Normal Weights"]
+                )
                 seed = int(seed_offset + 1)
                 weights_dict[presyn_id] = synapses.generate_normal_weights(
                     weights_name, mu, sigma, seed, source_syn_dict
@@ -254,7 +258,9 @@ def init_inputs_from_features(
         if time_range[0] is None:
             time_range[0] = 0.0
 
-    equilibration_duration = float(env.stimulus_config["Equilibration Duration"])
+    equilibration_duration = float(
+        env.stimulus_config["Equilibration Duration"]
+    )
     spatial_resolution = float(env.stimulus_config["Spatial Resolution"])
     temporal_resolution = float(env.stimulus_config["Temporal Resolution"])
 
@@ -337,7 +343,9 @@ def init_inputs_from_features(
                 if phase_mod_config_dict is not None:
                     phase_mod_config = phase_mod_config_dict[gid]
 
-                spikes_attr_dict[gid] = stimulus.generate_stimulus_from_spike_trains(
+                spikes_attr_dict[
+                    gid
+                ] = stimulus.generate_stimulus_from_spike_trains(
                     env,
                     population,
                     selectivity_type_names,
@@ -354,7 +362,9 @@ def init_inputs_from_features(
                     comm=env.comm,
                     seed=seed,
                 )
-                spikes_attr_dict[gid][spike_train_attr_name] += equilibration_duration
+                spikes_attr_dict[gid][
+                    spike_train_attr_name
+                ] += equilibration_duration
 
         input_source_dict[pop_index] = {"spiketrains": spikes_attr_dict}
 
@@ -483,12 +493,17 @@ def init(
         )
         env.comm.barrier()
         if env.comm.rank == 0:
-            presyn_gid_rank_dict = {rank: set() for rank in range(env.comm.size)}
+            presyn_gid_rank_dict = {
+                rank: set() for rank in range(env.comm.size)
+            }
             for i, gid in enumerate(presyn_gid_set):
                 rank = i % env.comm.size
                 presyn_gid_rank_dict[rank].add(gid)
             presyn_sources[presyn_name] = env.comm.scatter(
-                [presyn_gid_rank_dict[rank] for rank in sorted(presyn_gid_rank_dict)],
+                [
+                    presyn_gid_rank_dict[rank]
+                    for rank in sorted(presyn_gid_rank_dict)
+                ],
                 root=0,
             )
         else:
@@ -503,12 +518,12 @@ def init(
             if env.comm.rank == 0:
                 with h5py.File(coords_path, "r") as coords_f:
                     reference_u_arc_distance_bounds = (
-                        coords_f["Populations"][population][distances_namespace].attrs[
-                            "Reference U Min"
-                        ],
-                        coords_f["Populations"][population][distances_namespace].attrs[
-                            "Reference U Max"
-                        ],
+                        coords_f["Populations"][population][
+                            distances_namespace
+                        ].attrs["Reference U Min"],
+                        coords_f["Populations"][population][
+                            distances_namespace
+                        ].attrs["Reference U Max"],
                     )
             env.comm.barrier()
             reference_u_arc_distance_bounds = env.comm.bcast(
@@ -596,7 +611,8 @@ def init(
             ## if spike_generator_dict contains an entry for the respective presynaptic population,
             ## then use the given generator to generate spikes.
             if not (
-                (presyn_gid in env.gidset) or (is_cell_registered(env, presyn_gid))
+                (presyn_gid in env.gidset)
+                or (is_cell_registered(env, presyn_gid))
             ):
                 cell = make_input_cell(
                     env,
@@ -745,7 +761,9 @@ def update_params(env, pop_param_dict):
                 syn_name = param_tuple.syn_name
                 param_path = param_tuple.param_path
 
-                if isinstance(param_path, list) or isinstance(param_path, tuple):
+                if isinstance(param_path, list) or isinstance(
+                    param_path, tuple
+                ):
                     p, s = param_path
                 else:
                     p, s = param_path, None
@@ -768,8 +786,12 @@ def update_params(env, pop_param_dict):
                         this_sec_type,
                         syn_name,
                         param_name=p,
-                        value={s: param_value} if (s is not None) else param_value,
-                        filters={"sources": sources} if sources is not None else None,
+                        value={s: param_value}
+                        if (s is not None)
+                        else param_value,
+                        filters={"sources": sources}
+                        if sources is not None
+                        else None,
                         update_targets=True,
                     )
 
@@ -923,7 +945,9 @@ def init_state_objfun(
     )
 
     time_step = env.stimulus_config["Temporal Resolution"]
-    equilibration_duration = float(env.stimulus_config["Equilibration Duration"])
+    equilibration_duration = float(
+        env.stimulus_config["Equilibration Duration"]
+    )
 
     opt_param_config = optimization_params(
         env.netclamp_config.optimize_parameters,
@@ -967,7 +991,9 @@ def init_state_objfun(
             for rec in state_recs:
                 vec = np.asarray(rec["vec"].to_python(), dtype=np.float32)
                 if filter_fun is None:
-                    data = np.asarray([np.mean(vec[t_inds]) for t_inds in t_trial_inds])
+                    data = np.asarray(
+                        [np.mean(vec[t_inds]) for t_inds in t_trial_inds]
+                    )
                 else:
                     data = np.asarray(
                         [
@@ -1003,12 +1029,18 @@ def init_state_objfun(
         elif trial_regime == "best":
             return {
                 gid: -(
-                    np.min(np.abs(np.asarray(state_values_dict[gid]) - target_value))
+                    np.min(
+                        np.abs(
+                            np.asarray(state_values_dict[gid]) - target_value
+                        )
+                    )
                 )
                 for gid in my_cell_index_set
             }
         else:
-            raise RuntimeError(f"state_objfun: unknown trial regime {trial_regime}")
+            raise RuntimeError(
+                f"state_objfun: unknown trial regime {trial_regime}"
+            )
 
     return opt_eval_fun(problem_regime, my_cell_index_set, eval_problem)
 
@@ -1105,8 +1137,12 @@ def init_rate_objfun(
             env, population, gid, recording_profile=recording_profile
         )
 
-    target_v_threshold = opt_targets[f"{population} state"]["v"].get("threshold", None)
-    target_v_margin = opt_targets[f"{population} state"]["v"].get("margin", -1.0)
+    target_v_threshold = opt_targets[f"{population} state"]["v"].get(
+        "threshold", None
+    )
+    target_v_margin = opt_targets[f"{population} state"]["v"].get(
+        "margin", -1.0
+    )
     if target_v_threshold is None:
         raise RuntimeError(
             f"network_clamp: network clamp optimization configuration for population {population} "
@@ -1211,7 +1247,9 @@ def init_rate_objfun(
                 for gid in my_cell_index_set
             }
         else:
-            raise RuntimeError(f"rate_objfun: unknown trial regime {trial_regime}")
+            raise RuntimeError(
+                f"rate_objfun: unknown trial regime {trial_regime}"
+            )
 
         N_objectives = 1
         opt_rate_feature_dtypes = [
@@ -1229,7 +1267,9 @@ def init_rate_objfun(
             )
             rates_array = np.asarray(firing_rates_dict[gid])
             nz_idxs = np.argwhere(
-                np.logical_not(np.isclose(rates_array, 0.0, rtol=1e-4, atol=1e-4))
+                np.logical_not(
+                    np.isclose(rates_array, 0.0, rtol=1e-4, atol=1e-4)
+                )
             )
             feature_array["mean_rate"] = 0.0
             if len(nz_idxs) > 0:
@@ -1334,7 +1374,9 @@ def init_rate_dist_objfun(
         ] = 0.0
 
     trj_d, trj_t = stimulus.read_stimulus(
-        input_features_path if input_features_path is not None else spike_events_path,
+        input_features_path
+        if input_features_path is not None
+        else spike_events_path,
         target_features_arena,
         target_features_stimulus,
     )
@@ -1372,7 +1414,9 @@ def init_rate_dist_objfun(
             )
             for gid in cell_index_set:
                 rate_vector = spike_density_dict[gid]["rate"]
-                idxs = np.where(np.isclose(rate_vector, 0.0, atol=1e-3, rtol=1e-3))[0]
+                idxs = np.where(
+                    np.isclose(rate_vector, 0.0, atol=1e-3, rtol=1e-3)
+                )[0]
                 rate_vector[idxs] = 0.0
                 rates_dict[gid].append(rate_vector)
             for gid in spkdict[population]:
@@ -1393,7 +1437,9 @@ def init_rate_dist_objfun(
             f"{np.min(mean_rate_vector):.02f} / {np.max(mean_rate_vector):.02f} Hz"
         )
 
-        return np.square(np.subtract(mean_rate_vectore, target_rate_vector)).mean()
+        return np.square(
+            np.subtract(mean_rate_vectore, target_rate_vector)
+        ).mean()
 
     def best_trial_rate_mse(gid, rate_vectors, target_rate_vector):
         mses = []
@@ -1443,7 +1489,9 @@ def init_rate_dist_objfun(
                 for gid in my_cell_index_set
             }
         else:
-            raise RuntimeError(f"firing_rate_dist: unknown trial regime {trial_regime}")
+            raise RuntimeError(
+                f"firing_rate_dist: unknown trial regime {trial_regime}"
+            )
 
     return opt_eval_fun(problem_regime, my_cell_index_set, eval_problem)
 
@@ -1500,9 +1548,7 @@ def optimize_run(
 
     if results_file is None:
         if env.results_path is not None:
-            file_path = (
-                f"{env.results_path}/distgfs.network_clamp.{env.results_file_id}.h5"
-            )
+            file_path = f"{env.results_path}/distgfs.network_clamp.{env.results_file_id}.h5"
         else:
             file_path = f"distgfs.network_clamp.{env.results_file_id}.h5"
     else:
@@ -1526,7 +1572,9 @@ def optimize_run(
         reduce_fun_name = "opt_reduce_max"
         feature_dtypes = None
     else:
-        raise RuntimeError(f"optimize_run: unknown problem regime {problem_regime}")
+        raise RuntimeError(
+            f"optimize_run: unknown problem regime {problem_regime}"
+        )
 
     distgfs_params = {
         "opt_id": "network_clamp.optimize",
@@ -1562,7 +1610,9 @@ def optimize_run(
                 params_dict = dict(opt_result[0])
                 result_value = opt_result[1]
                 results_config_tuples = []
-                for param_pattern, param_tuple in zip(param_names, param_tuples):
+                for param_pattern, param_tuple in zip(
+                    param_names, param_tuples
+                ):
                     results_config_tuples.append(
                         (
                             param_tuple.population,
@@ -1616,7 +1666,9 @@ def dist_ctrl(
         for this_param_path, pop_param_tuple_dict in zip(
             param_path, pop_param_tuple_dicts
         ):
-            params_basename = os.path.splitext(os.path.basename(this_param_path))[0]
+            params_basename = os.path.splitext(
+                os.path.basename(this_param_path)
+            )[0]
             this_results_file_id = f"{results_file_id}_{params_basename}"
             task_id = controller.submit_call(
                 "dist_run",
@@ -1889,7 +1941,9 @@ def go(
     pop_params_tuple_dicts = None
     if rank == 0:
         if results_file_id is None:
-            results_file_id = generate_results_file_id(population, seed=input_seed)
+            results_file_id = generate_results_file_id(
+                population, seed=input_seed
+            )
         if len(params_path) > 0:
             pop_params_tuple_dicts = []
             if len(params_id) == 0:
@@ -1907,7 +1961,9 @@ def go(
                         this_gid_params,
                     ) in this_pop_param_dict.items():
                         if this_param_id is not None:
-                            this_gid_params_list = this_gid_params[this_param_id]
+                            this_gid_params_list = this_gid_params[
+                                this_param_id
+                            ]
                         else:
                             this_gid_params_list = this_gid_params
                         for this_gid_param in this_gid_params_list:
@@ -1961,7 +2017,9 @@ def go(
                 comm=comm0,
             )
             cell_index = None
-            attr_name, attr_cell_index = next(iter(attr_info_dict[population]["Trees"]))
+            attr_name, attr_cell_index = next(
+                iter(attr_info_dict[population]["Trees"])
+            )
             cell_index_set = set(attr_cell_index)
         comm.barrier()
         cell_index_set = comm.bcast(cell_index_set, root=0)
@@ -2018,9 +2076,9 @@ def go(
             for this_params_path, pop_params_tuple_dict in zip(
                 params_path, pop_params_tuple_dicts
             ):
-                params_basename = os.path.splitext(os.path.basename(this_params_path))[
-                    0
-                ]
+                params_basename = os.path.splitext(
+                    os.path.basename(this_params_path)
+                )[0]
                 env.results_file_id = f"{results_file_id}_{params_basename}"
                 env.results_file_path = f"{env.results_path}/{env.modelName}_results_{env.results_file_id}.h5"
                 run_with(env, pop_params_tuple_dict)
@@ -2123,7 +2181,9 @@ def optimize(
                 comm=comm0,
             )
             cell_index = None
-            attr_name, attr_cell_index = next(iter(attr_info_dict[population]["Trees"]))
+            attr_name, attr_cell_index = next(
+                iter(attr_info_dict[population]["Trees"])
+            )
             cell_index_set = set(attr_cell_index)
         comm.barrier()
         cell_index_set = comm.bcast(cell_index_set, root=0)
@@ -2164,7 +2224,9 @@ def optimize(
         )
 
     if population in env.netclamp_config.optimize_parameters[param_type]:
-        opt_params = env.netclamp_config.optimize_parameters[param_type][population]
+        opt_params = env.netclamp_config.optimize_parameters[param_type][
+            population
+        ]
     else:
         raise RuntimeError(
             f"network_clamp.optimize: population {population} does not have optimization configuration"
@@ -2178,7 +2240,9 @@ def optimize(
         constraint_names = ["mean_v_below_threshold"]
     elif target == "state":
         assert target_state_variable is not None
-        opt_target = opt_params["Targets"]["state"][target_state_variable]["mean"]
+        opt_target = opt_params["Targets"]["state"][target_state_variable][
+            "mean"
+        ]
         init_params["target_value"] = opt_target
         init_params["state_variable"] = target_state_variable
         init_params["state_filter"] = target_state_filter
@@ -2215,6 +2279,8 @@ def optimize(
     )
     if results_config_dict is not None:
         if results_path is not None:
-            file_path = f"{results_path}/network_clamp.optimize.{results_file_id}.yaml"
+            file_path = (
+                f"{results_path}/network_clamp.optimize.{results_file_id}.yaml"
+            )
             write_to_yaml(file_path, results_config_dict)
     comm.barrier()

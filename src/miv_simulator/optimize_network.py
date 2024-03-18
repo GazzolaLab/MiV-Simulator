@@ -112,7 +112,9 @@ def dmosopt_get_best(file_path, opt_id):
         epochs=epochs,
         feasible=True,
     )
-    best_x_items = tuple((param_names[i], best_x[:, i]) for i in range(best_x.shape[1]))
+    best_x_items = tuple(
+        (param_names[i], best_x[:, i]) for i in range(best_x.shape[1])
+    )
     best_y_items = tuple(
         (objective_names[i], best_y[:, i]) for i in range(best_y.shape[1])
     )
@@ -215,9 +217,12 @@ def optimize_network(
         resample_fraction = 0.1
 
     # Create an optimizer
-    feature_dtypes = [(feature_name, np.float32) for feature_name in objective_names]
+    feature_dtypes = [
+        (feature_name, np.float32) for feature_name in objective_names
+    ]
     constraint_names = [
-        f"{target_pop_name} positive rate" for target_pop_name in target_populations
+        f"{target_pop_name} positive rate"
+        for target_pop_name in target_populations
     ]
     dmosopt_params = {
         "opt_id": "miv_simulator.optimize_network",
@@ -255,7 +260,9 @@ def optimize_network(
     }
 
     if get_best:
-        best = dmosopt_get_best(dmosopt_params["file_path"], dmosopt_params["opt_id"])
+        best = dmosopt_get_best(
+            dmosopt_params["file_path"], dmosopt_params["opt_id"]
+        )
     else:
         best = dmosopt.run(
             dmosopt_params,
@@ -279,7 +286,9 @@ def optimize_network(
             results_config_dict = {}
             for i in range(n_res):
                 result_param_list = []
-                for param_pattern, param_tuple in zip(param_names, param_tuples):
+                for param_pattern, param_tuple in zip(
+                    param_names, param_tuples
+                ):
                     result_param_list.append(
                         (
                             param_tuple.population,
@@ -298,7 +307,9 @@ def optimize_network(
 def init_network_objfun(
     operational_config, opt_targets, param_names, param_tuples, worker, **kwargs
 ):
-    param_tuples = [syn_param_from_dict(param_tuple) for param_tuple in param_tuples]
+    param_tuples = [
+        syn_param_from_dict(param_tuple) for param_tuple in param_tuples
+    ]
 
     objective_names = operational_config["objective_names"]
     target_populations = operational_config["target_populations"]
@@ -427,7 +438,9 @@ def compute_objectives(local_features, operational_config, opt_targets):
         constraints.append(rate_constr)
 
     objective_names = operational_config["objective_names"]
-    feature_dtypes = [(feature_name, np.float32) for feature_name in objective_names]
+    feature_dtypes = [
+        (feature_name, np.float32) for feature_name in objective_names
+    ]
 
     target_vals = opt_targets
     target_ranges = opt_targets
