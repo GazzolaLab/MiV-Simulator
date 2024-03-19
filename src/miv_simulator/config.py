@@ -246,7 +246,6 @@ class ParametricSurface(BaseModel):
 
 class CellType(BaseModel):
     template: str
-    mechanism: Optional[Dict]
     synapses: Dict[
         Literal["density"],
         Dict[
@@ -260,6 +259,7 @@ class CellType(BaseModel):
             ],
         ],
     ]
+    mechanism: Optional[Dict] = None
 
 
 CellTypes = Dict[PopulationsLiteral, CellType]
