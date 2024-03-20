@@ -9,6 +9,10 @@ def test_mechanisms_compile(tmp_path):
     d = str(tmp_path / "mechanisms")
     os.makedirs(d)
 
+    with open("tests/mechanisms/Gfluct3.mod", "r") as f:
+        with open(os.path.join(d, "Gfluct3.mod"), "w") as g:
+            g.write(f.read())
+
     # invalid directory
     with pytest.raises(FileNotFoundError):
         compile()
@@ -21,6 +25,10 @@ def test_mechanisms_compile(tmp_path):
     # compile with -force
     compiled_path = compile(d, force=True)
     assert len(os.path.basename(compiled_path)) == 64
+
+    h1 = compile(d, force=True, return_hash=True)
+    h2 = compile(d, force=True, return_hash=True)
+    assert h1 == h2
 
 
 def test_mechanisms_compile_and_load(tmp_path):
