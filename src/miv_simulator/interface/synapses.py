@@ -67,13 +67,13 @@ class Synapses(Component):
 
     def compute_context(self):
         context = super().compute_context()
-        del context['config']['forest_filepath']
-        del context['config']['template_path']
-        del context['config']['mechanisms_path']
-        del context['config']['io_size']
-        del context['config']['write_size']
-        del context['config']['chunk_size']
-        del context['config']['value_chunk_size']
-        del context['config']['ranks']
-        context['predicate']['uses'] = sorted([u.hash for u in self.uses])
+        del context["config"]["forest_filepath"]
+        del context["config"]["template_path"]
+        del context["config"]["mechanisms_path"]
+        del context["config"]["io_size"]
+        del context["config"]["write_size"]
+        del context["config"]["chunk_size"]
+        del context["config"]["value_chunk_size"]
+        del context["config"]["ranks"]
+        context["predicate"]["uses"] = sorted([u.hash for u in self.uses])
         return context

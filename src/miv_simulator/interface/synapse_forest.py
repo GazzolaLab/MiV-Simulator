@@ -3,6 +3,7 @@ from miv_simulator import config, simulator
 from pydantic import BaseModel, Field, ConfigDict
 from machinable.utils import file_hash
 
+
 class GenerateSynapseForest(Component):
     class Config(BaseModel):
         model_config = ConfigDict(extra="forbid")
@@ -32,7 +33,9 @@ class GenerateSynapseForest(Component):
     def compute_context(self):
         # remove filepath in favor of uses
         context = super().compute_context()
-        del context['config']['filepath']
-        context['config']['morphology'] = file_hash(context['config']['morphology'])
-        context['predicate']['uses'] = sorted([u.hash for u in self.uses])
+        del context["config"]["filepath"]
+        context["config"]["morphology"] = file_hash(
+            context["config"]["morphology"]
+        )
+        context["predicate"]["uses"] = sorted([u.hash for u in self.uses])
         return context

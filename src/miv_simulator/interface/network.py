@@ -105,5 +105,5 @@ class Network(Interface):
 
     def compute_context(self):
         context = super().compute_context()
-        del context['config']
+        del context["config"]
         return context

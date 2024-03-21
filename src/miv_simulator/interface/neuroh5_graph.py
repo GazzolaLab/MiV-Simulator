@@ -95,8 +95,8 @@ class NeuroH5Graph(Component):
             "cells": self.graph.cells_filepath,
             "connections": self.graph.connections_filepath,
         }
-        
+
     def compute_context(self):
         context = super().compute_context()
-        context['predicate']['uses'] = sorted([u.hash for u in self.uses])
+        context["predicate"]["uses"] = sorted([u.hash for u in self.uses])
         return context

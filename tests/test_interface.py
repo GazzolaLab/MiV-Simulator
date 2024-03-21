@@ -12,12 +12,12 @@ def test_interface(tmp_path):
 
     source = os.environ["MIV_SIMULATOR_TEST_INTERFACE_SRC"]
     wd = os.path.dirname(__file__)
-    
+
     debug = True
-    storage_directory = str(tmp_path / 'storage')
+    storage_directory = str(tmp_path / "storage")
     if debug:
         storage_directory = f"{wd}/_machinable/storage"
-    
+
     with get("machinable.index", storage_directory), get(
         "machinable.project", wd
     ):
@@ -31,9 +31,7 @@ def test_interface(tmp_path):
                     "morphology_path": f"{source}/morphology",
                 },
             ).launch()
-        
+
         for component in run.executables:
             print(component)
             assert component.cached()
-
-        
