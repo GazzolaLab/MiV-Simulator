@@ -49,6 +49,8 @@ def compile(
     file_data = {}
     if recursive:
         mod_files = glob(os.path.join(src, "**/*.mod"), recursive=True)
+        # ignore output_path if part of this directory
+        mod_files = [f for f in mod_files if output_path not in f]
     else:
         mod_files = glob(os.path.join(src, "*.mod"))
     for m in sorted(mod_files, key=lambda x: x.replace(src, "")):

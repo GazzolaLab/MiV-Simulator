@@ -1,4 +1,6 @@
 tests/**/compiled
+tests/_machinable/remotes
+tests/_machinable/storage
 examples/datasets
 
 # Byte-compiled / optimized / DLL files
