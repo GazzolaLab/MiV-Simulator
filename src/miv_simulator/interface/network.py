@@ -68,7 +68,7 @@ class Network(Interface):
                     "io_size": 1,
                     "write_size": 0,
                 },
-                uses=list(self.synapse_forest.values()),
+                uses=self.synapse_forest[population],
             ).launch()
             for population in config.synapses
         }
@@ -85,7 +85,7 @@ class Network(Interface):
                     "cache_size": 20,
                     "write_size": 100,
                 },
-                uses=list(self.synapses.values()),
+                uses=self.synapses[population],
             ).launch()
             for population in config.synapses
         }
@@ -102,3 +102,8 @@ class Network(Interface):
         ).launch()
 
         return self
+
+    def compute_context(self):
+        context = super().compute_context()
+        del context['config']
+        return context

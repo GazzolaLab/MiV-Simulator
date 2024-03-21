@@ -34,9 +34,9 @@ class NeuroH5Graph(Component):
                     populations.append(p)
                     if p in self.connections:
                         raise ValueError(
-                            f"Redundant distance connection specification for population {p}"
+                            f"Redundant distance connection specification for population {p}. "
                             f"Found duplicate in {u.config.forest_filepath}, while already "
-                            f"defined in {self.connections[p].config.forest_filepath}"
+                            f"defined in {self.connections[p].config.forest_filepath} ({populations})"
                         )
                     self.connections[p] = u
             elif name == "synapse_forest":
@@ -90,23 +90,13 @@ class NeuroH5Graph(Component):
             },
         )
 
-    def on_compute_predicate(self):
-        def generate_uid(use):
-            if getattr(use, "refreshed_at", None) is not None:
-                return f"{use.uuid}-{use.refreshed_at}"
-            return use.uuid
-
-        return {
-            "uses": sorted(
-                map(
-                    generate_uid,
-                    self.uses,
-                )
-            )
-        }
-
     def files(self) -> Dict[str, str]:
         return {
             "cells": self.graph.cells_filepath,
             "connections": self.graph.connections_filepath,
         }
+        
+    def compute_context(self):
+        context = super().compute_context()
+        context['predicate']['uses'] = sorted([u.hash for u in self.uses])
+        return context

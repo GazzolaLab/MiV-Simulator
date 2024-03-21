@@ -128,3 +128,13 @@ class NetworkArchitecture(Component):
             + normversion(version),
             uses=_join(self, uses),
         )
+
+    def compute_context(self):
+        context = super().compute_context()
+        del context['config']['filepath']
+        del context['config']['io_size']
+        del context['config']['chunk_size']
+        del context['config']['value_chunk_size']
+        del context['config']['ranks']
+        context['predicate']['uses'] = sorted([u.hash for u in self.uses])
+        return context
