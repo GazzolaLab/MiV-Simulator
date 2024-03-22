@@ -30,6 +30,7 @@ class Connections(Component):
         cache_size: int = 1
         write_size: int = 1
         ranks: int = 8
+        nodes: str = "1"
 
     def config_from_file(self, filename: str) -> Dict:
         return from_yaml(filename)
@@ -73,5 +74,6 @@ class Connections(Component):
         del context["config"]["cache_size"]
         del context["config"]["write_size"]
         del context["config"]["ranks"]
+        del context["config"]["nodes"]
         context["predicate"]["uses"] = sorted([u.hash for u in self.uses])
         return context

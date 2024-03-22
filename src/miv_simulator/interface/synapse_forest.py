@@ -13,6 +13,7 @@ class GenerateSynapseForest(Component):
         population: config.PopulationName = Field("???")
         morphology: config.SWCFilePath = Field("???")
         mpi: Optional[str] = None
+        nodes: str = "1"
 
     @property
     def tree_output_filepath(self) -> str:
@@ -36,6 +37,7 @@ class GenerateSynapseForest(Component):
         # remove filepath in favor of uses
         context = super().compute_context()
         del context["config"]["mpi"]
+        del context["config"]["nodes"]
         del context["config"]["filepath"]
         context["config"]["morphology"] = file_hash(
             context["config"]["morphology"]
