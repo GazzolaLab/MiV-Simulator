@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from miv_simulator import config
 from mpi4py import MPI
 from miv_simulator.utils import io as io_utils, from_yaml
-from typing import Dict, List
+from typing import Dict, Optional
 
 
 class H5Types(Component):
@@ -12,6 +12,7 @@ class H5Types(Component):
 
         cell_distributions: config.CellDistributions = Field("???")
         projections: config.SynapticProjections = Field("???")
+        mpi: Optional[str] = None
 
     def config_from_file(self, filename: str) -> Dict:
         return from_yaml(filename)
@@ -31,3 +32,8 @@ class H5Types(Component):
                 },
             )
         MPI.COMM_WORLD.barrier()
+
+    def compute_context(self):
+        context = super().compute_context()
+        del context["config"]["mpi"]
+        return context

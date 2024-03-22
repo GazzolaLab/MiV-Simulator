@@ -1,10 +1,13 @@
 from machinable import Component
 from neuroh5.io import read_population_names
-from typing import Dict
+from typing import Dict, Optional
 from miv_simulator.utils.io import H5FileManager
 
 
 class NeuroH5Graph(Component):
+    class Config:
+        mpi: Optional[str] = None
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._graph = None
@@ -98,5 +101,6 @@ class NeuroH5Graph(Component):
 
     def compute_context(self):
         context = super().compute_context()
+        del context["config"]["mpi"]
         context["predicate"]["uses"] = sorted([u.hash for u in self.uses])
         return context
