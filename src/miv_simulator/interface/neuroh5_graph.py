@@ -7,6 +7,7 @@ from miv_simulator.utils.io import H5FileManager
 class NeuroH5Graph(Component):
     class Config:
         mpi: Optional[str] = None
+        nodes: str = "1"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -102,5 +103,6 @@ class NeuroH5Graph(Component):
     def compute_context(self):
         context = super().compute_context()
         del context["config"]["mpi"]
+        del context["config"]["nodes"]
         context["predicate"]["uses"] = sorted([u.hash for u in self.uses])
         return context
