@@ -21,7 +21,7 @@ def test_interface(tmp_path):
     with get("machinable.index", storage_directory), get(
         "machinable.project", wd
     ):
-        with get("mpi", {"ranks": -1}) as run:
+        with get("mpi") as run:
             get(
                 "miv_simulator.interface.network",
                 {

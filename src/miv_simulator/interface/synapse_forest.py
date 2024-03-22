@@ -2,6 +2,7 @@ from machinable import Component
 from miv_simulator import config, simulator
 from pydantic import BaseModel, Field, ConfigDict
 from machinable.utils import file_hash
+from typing import Optional
 
 
 class GenerateSynapseForest(Component):
@@ -11,6 +12,7 @@ class GenerateSynapseForest(Component):
         filepath: str = Field("???")
         population: config.PopulationName = Field("???")
         morphology: config.SWCFilePath = Field("???")
+        mpi: Optional[str] = None
 
     @property
     def tree_output_filepath(self) -> str:
@@ -33,6 +35,7 @@ class GenerateSynapseForest(Component):
     def compute_context(self):
         # remove filepath in favor of uses
         context = super().compute_context()
+        del context["config"]["mpi"]
         del context["config"]["filepath"]
         context["config"]["morphology"] = file_hash(
             context["config"]["morphology"]
