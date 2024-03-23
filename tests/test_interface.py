@@ -16,7 +16,7 @@ def test_interface(tmp_path):
     debug = True
     storage_directory = str(tmp_path / "storage")
     if debug:
-        storage_directory = f"{wd}/_machinable/storage"
+        storage_directory = f"{wd}/interface/storage"
 
     with get("machinable.index", storage_directory), get(
         "machinable.project", wd
