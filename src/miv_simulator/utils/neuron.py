@@ -194,9 +194,7 @@ def init_nseg(sec: Section, spatial_res: int = 0, verbose: bool = True) -> None:
     sugg_nseg = d_lambda_nseg(sec)
     sugg_nseg *= 3**spatial_res
     if verbose:
-        logger.info(
-            f"init_nseg: changed {sec.hname()}.nseg {sec.nseg} --> {sugg_nseg}"
-        )
+        logger.info(f"init_nseg: changed {sec.hname()}.nseg {sec.nseg} --> {sugg_nseg}")
     sec.nseg = int(sugg_nseg)
 
 
@@ -273,9 +271,7 @@ def load_cell_template(
         return env.template_dict[pop_name]
     rank = env.comm.Get_rank()
     if not (pop_name in env.celltypes):
-        raise KeyError(
-            f"load_cell_templates: unrecognized cell population: {pop_name}"
-        )
+        raise KeyError(f"load_cell_templates: unrecognized cell population: {pop_name}")
 
     template_name = env.celltypes[pop_name]["template"]
     if "template file" in env.celltypes[pop_name]:
@@ -372,7 +368,9 @@ def find_template(
         )
 
 
-def configure_hoc_env(env: AbstractEnv, bcast_template: bool = False) -> None:
+def configure_hoc_env(
+    env: AbstractEnv, subworld_size: Optional[int] = None, bcast_template: bool = False
+) -> None:
     """
     :param env: :class:'Env'
     """
@@ -387,15 +385,15 @@ def configure_hoc_env(env: AbstractEnv, bcast_template: bool = False) -> None:
     h("objref pc, nc, nil")
     h("strdef dataset_path")
     if hasattr(env, "dataset_path"):
-        h.dataset_path = (
-            env.dataset_path if env.dataset_path is not None else ""
-        )
+        h.dataset_path = env.dataset_path if env.dataset_path is not None else ""
     if env.use_coreneuron:
         from neuron import coreneuron
 
         coreneuron.enable = True
         coreneuron.verbose = 1 if env.verbose else 0
     h.pc = h.ParallelContext()
+    if subworld_size is not None:
+        h.pc.subworlds(subworld_size)
     h.pc.gid_clear()
     env.pc = h.pc
     h.dt = env.dt
@@ -585,9 +583,7 @@ def make_rec(
             loc = seg.x
             sec = seg.sec
             origin = (
-                list(cell.soma_list)[0]
-                if hasattr(cell, "soma_list")
-                else cell.soma
+                list(cell.soma_list)[0] if hasattr(cell, "soma_list") else cell.soma
             )
             distance = h.distance(origin(0.5), seg)
             ri = h.ri(loc, sec=sec)
@@ -596,16 +592,12 @@ def make_rec(
             ri = None
     elif (sec is not None) and (loc is not None):
         hocobj = sec(loc)
-        origin = (
-            list(cell.soma_list)[0] if hasattr(cell, "soma_list") else cell.soma
-        )
+        origin = list(cell.soma_list)[0] if hasattr(cell, "soma_list") else cell.soma
         h.distance(sec=origin)
         distance = h.distance(loc, sec=sec)
         ri = h.ri(loc, sec=sec)
     else:
-        raise RuntimeError(
-            "make_rec: either sec and loc or ps must be specified"
-        )
+        raise RuntimeError("make_rec: either sec and loc or ps must be specified")
     section_index = None
     if sec is not None:
         for i, this_section in enumerate(cell.sections):
