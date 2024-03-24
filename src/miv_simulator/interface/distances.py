@@ -29,6 +29,7 @@ class MeasureDistances(Component):
         value_chunk_size: int = 1000
         cache_size: int = 50
         ranks: int = 8
+        nodes: str = "1"
 
     def __call__(self):
         logging.basicConfig(level=logging.INFO)
@@ -61,5 +62,6 @@ class MeasureDistances(Component):
         del context["config"]["value_chunk_size"]
         del context["config"]["cache_size"]
         del context["config"]["ranks"]
+        del context["config"]["nodes"]
         context["predicate"]["uses"] = sorted([u.hash for u in self.uses])
         return context

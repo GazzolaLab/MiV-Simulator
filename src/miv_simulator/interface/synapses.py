@@ -25,6 +25,7 @@ class Synapses(Component):
         chunk_size: int = 1000
         value_chunk_size: int = 1000
         ranks: int = 8
+        nodes: str = "1"
 
         @field_validator("cell_types")
         @classmethod
@@ -75,5 +76,6 @@ class Synapses(Component):
         del context["config"]["chunk_size"]
         del context["config"]["value_chunk_size"]
         del context["config"]["ranks"]
+        del context["config"]["nodes"]
         context["predicate"]["uses"] = sorted([u.hash for u in self.uses])
         return context
