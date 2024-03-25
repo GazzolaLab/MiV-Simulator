@@ -341,7 +341,6 @@ def init_network_objfun(
         env,
         operational_config,
         opt_targets,
-        target_trj_rate_map_dict,
         from_param_dict,
         t_start,
         t_stop,
@@ -360,7 +359,6 @@ def network_objfun(
     env,
     operational_config,
     opt_targets,
-    target_trj_rate_map_dict,
     from_param_dict,
     t_start,
     t_stop,
@@ -371,11 +369,9 @@ def network_objfun(
     update_network_params(env, param_tuple_values)
 
     env.tstop = t_stop
-    network.run(env, output=False, shutdown=False)
+    network.run(env, output=False)
 
-    return network_features(
-        env, target_trj_rate_map_dict, t_start, t_stop, target_populations
-    )
+    return network_features(env, t_start, t_stop, target_populations)
 
 
 def compute_objectives(local_features, operational_config, opt_targets):

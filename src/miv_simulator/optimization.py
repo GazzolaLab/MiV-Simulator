@@ -317,6 +317,7 @@ def update_network_params(env, param_tuples):
                             continue
 
                 biophys_cell = biophys_cell_dict[gid]
+                biophys_cell.pop_name = population
                 is_reduced = False
                 if hasattr(biophys_cell, "is_reduced"):
                     is_reduced = biophys_cell.is_reduced
@@ -334,7 +335,7 @@ def update_network_params(env, param_tuples):
                         filters={"sources": sources}
                         if sources is not None
                         else None,
-                        origin=None if is_reduced else "soma",
+                        # origin=None if is_reduced else "soma",
                         update_targets=True,
                     )
 
@@ -395,9 +396,7 @@ def update_run_params(env, param_tuples):
                     )
 
 
-def network_features(
-    env, target_trj_rate_map_dict, t_start, t_stop, target_populations
-):
+def network_features(env, t_start, t_stop, target_populations):
     features_dict = dict()
 
     temporal_resolution = float(env.stimulus_config["Temporal Resolution"])
@@ -406,8 +405,6 @@ def network_features(
     pop_spike_dict = spikedata.get_env_spike_dict(env, include_artificial=False)
 
     for pop_name in target_populations:
-        has_target_trj_rate_map = pop_name in target_trj_rate_map_dict
-
         n_active = 0
         sum_mean_rate = 0.0
         spike_density_dict = spikedata.spike_density_estimate(
@@ -423,27 +420,6 @@ def network_features(
 
         n_target_rate_map = 0
         sum_snr = None
-        if has_target_trj_rate_map:
-            pop_target_trj_rate_map_dict = target_trj_rate_map_dict[pop_name]
-            n_target_rate_map = len(pop_target_trj_rate_map_dict)
-            snrs = []
-            for gid in pop_target_trj_rate_map_dict:
-                target_trj_rate_map = pop_target_trj_rate_map_dict[gid]
-                rate_map_len = len(target_trj_rate_map)
-                if gid in spike_density_dict:
-                    measured_rate = spike_density_dict[gid]["rate"][
-                        :rate_map_len
-                    ]
-                    ref_signal = target_trj_rate_map - np.mean(
-                        target_trj_rate_map
-                    )
-                    signal = measured_rate - np.mean(measured_rate)
-                    noise = signal - ref_signal
-                    snr = np.var(signal) / max(np.var(noise), 1e-6)
-                else:
-                    snr = 0.0
-                snrs.append(snr)
-            sum_snr = np.sum(snrs)
 
         pop_features_dict = {}
         pop_features_dict["n_total"] = n_total
