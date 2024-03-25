@@ -21,7 +21,7 @@ class NeuroH5Graph(Component):
 
     def __call__(self) -> None:
         print("Merging H5 data")
-        self.network = None
+        self.architecture = None
         self.distances = None
         self.synapses = {}
         self.synapse_forest = {}
@@ -29,8 +29,8 @@ class NeuroH5Graph(Component):
         populations = []
         for u in self.uses:
             name = u.module.replace("miv_simulator.interface.", "")
-            if name == "network_architecture":
-                self.network = u
+            if name == "architecture":
+                self.architecture = u
             elif name == "distances":
                 self.distances = u
             elif name == "connections":
@@ -60,9 +60,9 @@ class NeuroH5Graph(Component):
                     )
                 self.synapses[u.config.population] = u
 
-        self.graph.import_h5types(self.network.config.filepath)
+        self.graph.import_h5types(self.architecture.config.filepath)
         self.graph.import_soma_coordinates(
-            self.network.config.filepath,
+            self.architecture.config.filepath,
             populations=list(populations) + ["STIM"],
         )
         for p in self.synapse_forest.keys():
@@ -80,7 +80,7 @@ class NeuroH5Graph(Component):
         self.save_file(
             "graph.json",
             {
-                "network": self.network.serialize(),
+                "architecture": self.architecture.serialize(),
                 "distances": self.distances.serialize(),
                 "connections": {
                     k: v.serialize() for k, v in self.connections.items()

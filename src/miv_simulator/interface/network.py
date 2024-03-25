@@ -15,7 +15,9 @@ class Network(Interface):
         morphology_path: str = "./morphology"
 
     def launch(self):
-        config = Config.from_yaml(self.config.config_filepath)
+        self.source_config = config = Config.from_yaml(
+            self.config.config_filepath
+        )
 
         self.h5_types = get(
             "miv_simulator.interface.h5_types",
@@ -27,8 +29,8 @@ class Network(Interface):
             ],
         ).launch()
 
-        self.network = get(
-            "miv_simulator.interface.network_architecture",
+        self.architecture = get(
+            "miv_simulator.interface.architecture",
             [
                 {
                     "filepath": self.h5_types.output_filepath,
@@ -39,10 +41,10 @@ class Network(Interface):
             uses=self.h5_types,
         ).launch()
 
-        self.distances = self.network.measure_distances().launch()
+        self.distances = self.architecture.measure_distances().launch()
 
         self.synapse_forest = {
-            population: self.network.generate_synapse_forest(
+            population: self.architecture.generate_synapse_forest(
                 {
                     "population": population,
                     "morphology": os.path.join(
@@ -55,7 +57,7 @@ class Network(Interface):
         }
 
         self.synapses = {
-            population: self.network.distribute_synapses(
+            population: self.architecture.distribute_synapses(
                 {
                     "forest_filepath": self.synapse_forest[
                         population
@@ -74,7 +76,7 @@ class Network(Interface):
         }
 
         self.connections = {
-            population: self.network.generate_connections(
+            population: self.architecture.generate_connections(
                 {
                     "synapses": config.synapses,
                     "forest_filepath": self.synapses[
@@ -93,7 +95,7 @@ class Network(Interface):
         self.neural_h5 = get(
             "miv_simulator.interface.neuroh5_graph",
             uses=[
-                self.network,
+                self.architecture,
                 self.distances,
                 *self.synapse_forest.values(),
                 *self.synapses.values(),

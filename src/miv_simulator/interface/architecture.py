@@ -23,7 +23,7 @@ def _join(*args):
     return uses
 
 
-class NetworkArchitecture(Component):
+class Architecture(Component):
     """Creates the network architecture by generating the soma coordinates within specified layer geometry."""
 
     class Config(BaseModel):
