@@ -1666,7 +1666,9 @@ def insert_hoc_cell_syns(
         py_sections = [sec for sec in cell.sections]
     is_reduced = False
     if hasattr(cell, "is_reduced"):
-        is_reduced = cell.is_reduced
+        is_reduced = cell.is_reduced()
+        if isinstance(is_reduced, float):
+            is_reduced = is_reduced > 0.0
 
     cell_soma = None
     cell_dendrite = None
@@ -1674,7 +1676,7 @@ def insert_hoc_cell_syns(
     if is_reduced:
         for swc_type_name in env.SWC_Types:
             for layer_name in env.layers:
-                swc_layer_key = f"{swc_type_name}_{layer_name}"
+                swc_layer_key = f"{swc_type_name}_{layer_name}_list"
                 sec_list = getattr(cell, swc_layer_key, None)
                 if sec_list is not None:
                     reduced_section_dict[swc_layer_key] = list(sec_list)
@@ -1716,7 +1718,6 @@ def insert_hoc_cell_syns(
                 current_sec_list = reduced_section_dict.get(sec_list_key, None)
                 sec_pos = 0.0
                 sec_dx = 0.0
-            logger.info(f"current_sec_list = {current_sec_list}")
             if current_sec_list is not None:
                 if sec_pos >= 1:
                     sec = current_sec_list.pop(0)

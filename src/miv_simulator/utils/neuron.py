@@ -613,8 +613,13 @@ def make_rec(
             "make_rec: either sec and loc or ps must be specified"
         )
     section_index = None
+    sections = []
+    if hasattr(cell, "sections"):
+        sections = list(cell.sections)
+    elif hasattr(cell, "all"):
+        sections = list(cell.all)
     if sec is not None:
-        for i, this_section in enumerate(cell.sections):
+        for i, this_section in enumerate(sections):
             if this_section == sec:
                 section_index = i
                 break
