@@ -47,7 +47,6 @@ class ClampOptimize(Component):
         target_state_variable: Optional[str] = None
         target_state_filter: Optional[str] = None
         use_coreneuron: bool = False
-        cooperative_init: bool = False
         target: str = "rate"
 
     def __call__(self):
@@ -90,6 +89,5 @@ class ClampOptimize(Component):
             target_state_variable=self.config.target_state_variable,
             target_state_filter=self.config.target_state_filter,
             use_coreneuron=self.config.use_coreneuron,
-            cooperative_init=self.config.cooperative_init,
             target=self.config.target,
         )

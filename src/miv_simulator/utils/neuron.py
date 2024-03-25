@@ -372,7 +372,11 @@ def find_template(
         )
 
 
-def configure_hoc_env(env: AbstractEnv, bcast_template: bool = False) -> None:
+def configure_hoc_env(
+    env: AbstractEnv,
+    subworld_size: Optional[int] = None,
+    bcast_template: bool = False,
+) -> None:
     """
     :param env: :class:'Env'
     """
@@ -396,6 +400,8 @@ def configure_hoc_env(env: AbstractEnv, bcast_template: bool = False) -> None:
         coreneuron.enable = True
         coreneuron.verbose = 1 if env.verbose else 0
     h.pc = h.ParallelContext()
+    if subworld_size is not None:
+        h.pc.subworlds(subworld_size)
     h.pc.gid_clear()
     env.pc = h.pc
     h.dt = env.dt
@@ -607,8 +613,13 @@ def make_rec(
             "make_rec: either sec and loc or ps must be specified"
         )
     section_index = None
+    sections = []
+    if hasattr(cell, "sections"):
+        sections = list(cell.sections)
+    elif hasattr(cell, "all"):
+        sections = list(cell.all)
     if sec is not None:
-        for i, this_section in enumerate(cell.sections):
+        for i, this_section in enumerate(sections):
             if this_section == sec:
                 section_index = i
                 break

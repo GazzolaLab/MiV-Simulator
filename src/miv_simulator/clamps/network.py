@@ -11,7 +11,7 @@ from collections import defaultdict
 import click
 import h5py
 import numpy as np
-from miv_simulator import spikedata, stimulus, synapses
+from miv_simulator import spikedata, stimulus, synapses, optimization
 from miv_simulator.opto.run import OptoStim
 from miv_simulator.clamps.cell import init_biophys_cell
 from miv_simulator.cells import (
@@ -44,6 +44,13 @@ from miv_simulator.utils import (
     write_to_yaml,
 )
 from miv_simulator.utils import io as io_utils
+from miv_simulator.optimization import (
+    SynParam,
+    ProblemRegime,
+    optimization_params,
+    opt_eval_fun,
+)
+
 from mpi4py import MPI
 from neuroh5.io import (
     bcast_cell_attributes,
@@ -385,7 +392,6 @@ def init(
     write_cell=False,
     plot_cell=False,
     input_seed=None,
-    cooperative_init=False,
     worker=None,
 ):
     """
@@ -431,21 +437,7 @@ def init(
     data_dict = None
     cell_dict = None
 
-    if (worker is not None) and cooperative_init:
-        if worker.worker_id == 1:
-            cell_dict = load_biophys_cell_dicts(
-                env, pop_name, my_cell_index_set
-            )
-            req = worker.merged_comm.isend(
-                cell_dict, tag=InitMessageTag["cell"].value, dest=0
-            )
-            req.wait()
-        else:
-            cell_dict = worker.merged_comm.recv(
-                source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG
-            )
-    else:
-        cell_dict = load_biophys_cell_dicts(env, pop_name, my_cell_index_set)
+    cell_dict = load_biophys_cell_dicts(env, pop_name, my_cell_index_set)
 
     ## Load cell gid and its synaptic attributes and connection data
     for gid in my_cell_index_set:
@@ -570,80 +562,38 @@ def init(
             logger.info("*** Opsin configuration instantiated")
 
     input_source_dict = None
-    if (worker is not None) and cooperative_init:
-        if worker.worker_id == 1:
-            if spike_events_path is not None:
-                input_source_dict = init_inputs_from_spikes(
-                    env,
-                    presyn_sources,
-                    t_range,
-                    spike_events_path,
-                    spike_events_namespace,
-                    arena_id,
-                    stimulus_id,
-                    spike_train_attr_name,
-                    n_trials,
-                )
-            elif input_features_path is not None:
-                input_source_dict = init_inputs_from_features(
-                    env,
-                    presyn_sources,
-                    t_range,
-                    input_features_path,
-                    input_features_namespaces,
-                    arena_id=arena_id,
-                    stimulus_id=stimulus_id,
-                    spike_train_attr_name=spike_train_attr_name,
-                    n_trials=n_trials,
-                    seed=input_seed,
-                    phase_mod=phase_mod,
-                    soma_positions_dict=soma_positions_dict,
-                )
-            else:
-                raise RuntimeError(
-                    "network_clamp.init: neither input spikes nor input features are provided"
-                )
-            req = worker.merged_comm.isend(
-                input_source_dict, tag=InitMessageTag["input"].value, dest=0
-            )
-            req.wait()
-        else:
-            input_source_dict = worker.merged_comm.recv(
-                source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG
-            )
-    else:
-        if spike_events_path is not None:
-            input_source_dict = init_inputs_from_spikes(
-                env,
-                presyn_sources,
-                t_range,
-                spike_events_path,
-                spike_events_namespace,
-                arena_id,
-                stimulus_id,
-                spike_train_attr_name,
-                n_trials,
-            )
-        elif input_features_path is not None:
-            input_source_dict = init_inputs_from_features(
-                env,
-                presyn_sources,
-                t_range,
-                input_features_path,
-                input_features_namespaces,
-                arena_id=arena_id,
-                stimulus_id=stimulus_id,
-                spike_train_attr_name=spike_train_attr_name,
-                n_trials=n_trials,
-                seed=input_seed,
-                phase_mod=phase_mod,
-                soma_positions_dict=soma_positions_dict,
-            )
+    if spike_events_path is not None:
+        input_source_dict = init_inputs_from_spikes(
+            env,
+            presyn_sources,
+            t_range,
+            spike_events_path,
+            spike_events_namespace,
+            arena_id,
+            stimulus_id,
+            spike_train_attr_name,
+            n_trials,
+        )
+    elif input_features_path is not None:
+        input_source_dict = init_inputs_from_features(
+            env,
+            presyn_sources,
+            t_range,
+            input_features_path,
+            input_features_namespaces,
+            arena_id=arena_id,
+            stimulus_id=stimulus_id,
+            spike_train_attr_name=spike_train_attr_name,
+            n_trials=n_trials,
+            seed=input_seed,
+            phase_mod=phase_mod,
+            soma_positions_dict=soma_positions_dict,
+        )
 
-        else:
-            raise RuntimeError(
-                "network_clamp.init: neither input spikes nor input features are provided"
-            )
+    else:
+        raise RuntimeError(
+            "network_clamp.init: neither input spikes nor input features are provided"
+        )
 
     if t_range is not None:
         env.tstart = t_range[0]
@@ -842,7 +792,6 @@ def update_params(env, pop_param_dict):
                         filters={"sources": sources}
                         if sources is not None
                         else None,
-                        origin=None if is_reduced else "soma",
                         update_targets=True,
                     )
 
@@ -934,6 +883,7 @@ def run_with(env, param_dict, cvode=False, pc_runworker=False):
 
 def init_state_objfun(
     config_file,
+    config_prefix,
     population,
     cell_index_set,
     arena_id,
@@ -963,7 +913,6 @@ def init_state_objfun(
     state_filter,
     target_value,
     use_coreneuron,
-    cooperative_init,
     dt,
     worker,
     **kwargs,
@@ -992,7 +941,6 @@ def init_state_objfun(
         generate_weights_pops=set(generate_weights),
         t_min=t_min,
         t_max=t_max,
-        cooperative_init=cooperative_init,
         worker=worker,
     )
 
@@ -1099,6 +1047,7 @@ def init_state_objfun(
 
 def init_rate_objfun(
     config_file,
+    config_prefix,
     population,
     cell_index_set,
     arena_id,
@@ -1126,7 +1075,6 @@ def init_rate_objfun(
     recording_profile,
     target_rate,
     use_coreneuron,
-    cooperative_init,
     dt,
     worker,
     **kwargs,
@@ -1155,7 +1103,6 @@ def init_rate_objfun(
         generate_weights_pops=set(generate_weights),
         t_min=t_min,
         t_max=t_max,
-        cooperative_init=cooperative_init,
         worker=worker,
     )
 
@@ -1348,6 +1295,7 @@ def init_rate_objfun(
 
 def init_rate_dist_objfun(
     config_file,
+    config_prefix,
     population,
     cell_index_set,
     arena_id,
@@ -1378,7 +1326,6 @@ def init_rate_dist_objfun(
     target_features_arena,
     target_features_stimulus,
     use_coreneuron,
-    cooperative_init,
     dt,
     worker,
     **kwargs,
@@ -1407,7 +1354,6 @@ def init_rate_dist_objfun(
         generate_weights_pops=set(generate_weights),
         t_min=t_min,
         t_max=t_max,
-        cooperative_init=cooperative_init,
         worker=worker,
     )
 
@@ -1565,7 +1511,6 @@ def optimize_run(
     feature_dtypes=None,
     constraint_names=None,
     results_file=None,
-    cooperative_init=False,
     verbose=False,
 ):
     import distgfs
@@ -1635,7 +1580,7 @@ def optimize_run(
         "opt_id": "network_clamp.optimize",
         "problem_ids": problem_ids,
         "obj_fun_init_name": init_objfun,
-        "obj_fun_init_module": "miv_simulator.network_clamp",
+        "obj_fun_init_module": "miv_simulator.clamps.network",
         "obj_fun_init_args": init_params,
         "reduce_fun_name": reduce_fun_name,
         "reduce_fun_module": "miv_simulator.optimization",
@@ -1650,10 +1595,6 @@ def optimize_run(
         "solver_epsilon": solver_epsilon,
         "metadata": problem_metadata,
     }
-
-    if cooperative_init:
-        distgfs_params["broker_fun_name"] = "distgfs_broker_init"
-        distgfs_params["broker_module_name"] = "miv_simulator.optimization"
 
     opt_results = distgfs.run(
         distgfs_params,
@@ -1731,7 +1672,7 @@ def dist_ctrl(
             this_results_file_id = f"{results_file_id}_{params_basename}"
             task_id = controller.submit_call(
                 "dist_run",
-                module_name="miv_simulator.network_clamp",
+                module_name="miv_simulator.clamps.network",
                 args=(
                     init_params,
                     cell_index_set,
@@ -1743,7 +1684,7 @@ def dist_ctrl(
     else:
         task_id = controller.submit_call(
             "dist_run",
-            module_name="miv_simulator.network_clamp",
+            module_name="miv_simulator.clamps.network",
             args=(init_params, cell_index_set, None, None),
         )
         task_ids.append(task_id)
@@ -2091,7 +2032,7 @@ def go(
         if distwq.is_controller:
             distwq.run(
                 fun_name="dist_ctrl",
-                module_name="miv_simulator.network_clamp",
+                module_name="miv_simulator.clamps.network",
                 verbose=True,
                 args=(
                     init_params,
@@ -2189,7 +2130,6 @@ def optimize(
     target_state_variable,
     target_state_filter,
     use_coreneuron,
-    cooperative_init,
     target,
 ):
     """
@@ -2335,7 +2275,6 @@ def optimize(
         constraint_names=constraint_names,
         results_file=results_file,
         nprocs_per_worker=nprocs_per_worker,
-        cooperative_init=cooperative_init,
         verbose=verbose,
     )
     if results_config_dict is not None:

@@ -607,11 +607,6 @@ def go(
     help="optional filter for state values used for state optimization",
 )
 @click.option("--use-coreneuron", is_flag=True, help="enable use of CoreNEURON")
-@click.option(
-    "--cooperative-init",
-    is_flag=True,
-    help="use a single worker to read model data then send to the remaining workers",
-)
 @click.argument("target")  # help='rate, rate_dist, state'
 def optimize(
     config_file,
@@ -652,7 +647,6 @@ def optimize(
     target_state_variable,
     target_state_filter,
     use_coreneuron,
-    cooperative_init,
     target,
 ):
     network.optimize(
@@ -694,7 +688,6 @@ def optimize(
         target_state_variable,
         target_state_filter,
         use_coreneuron,
-        cooperative_init,
         target,
     )
 
