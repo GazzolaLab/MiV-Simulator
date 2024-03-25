@@ -380,3 +380,7 @@ class Config:
     @property
     def cell_types(self) -> CellTypes:
         return self.get("Cell Types")
+
+    @property
+    def clamp(self) -> Optional[Dict]:
+        return self.get("Network Clamp", None)
