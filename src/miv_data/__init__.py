@@ -1,4 +1,7 @@
 from typing import Iterator
+import os
+import json
+from functools import cached_property
 
 from neuroh5.io import (
     read_population_names,
@@ -83,3 +86,71 @@ def read_projections(
     )
 
     yield from graph[post][pre]
+
+
+class NeuroH5Graph:
+    def __init__(self, directory):
+        self.directory = os.path.abspath(directory)
+
+    def local_directory(self, *args):
+        return os.path.join(self.directory, *args)
+
+    @property
+    def cells_filepath(self):
+        return self.local_directory("cells.h5")
+
+    @property
+    def connections_filepath(self):
+        return self.local_directory("connections.h5")
+
+    @cached_property
+    def elements(self):
+        try:
+            from machinable import Element, schema
+        except ImportError:
+            Element = None
+
+        with open(self.local_directory("graph.json")) as f:
+            graph = json.load(f)
+
+        def _load_element(model):
+            if "uuid" not in model:
+                return {k: _load_element(v) for k, v in model.items()}
+
+            if not Element:
+                return model
+
+            element = Element()
+            element.__model__ = schema.Element(**model)
+            return element
+
+        for k in graph:
+            graph[k] = _load_element(graph[k])
+
+        return graph
+
+    @property
+    def architecture(self):
+        return self.elements["architecture"]
+
+    @property
+    def distances(self):
+        return self.elements["distances"]
+
+    @property
+    def synapse_forest(self):
+        return self.elements["synapse_forest"]
+
+    @property
+    def synapses(self):
+        return self.elements["synapses"]
+
+    @property
+    def connections(self):
+        return self.elements["connections"]
+
+    def files(self) -> dict[str, str]:
+        return {
+            "cells": self.cells_filepath,
+            "connections": self.connections_filepath,
+        }
