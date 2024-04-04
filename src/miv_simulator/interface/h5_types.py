@@ -12,7 +12,7 @@ class H5Types(Component):
 
         cell_distributions: config.CellDistributions = Field("???")
         projections: config.SynapticProjections = Field("???")
-        mpi: Optional[str] = None
+        mpi_args: str = "-n 1"
         nodes: str = "1"
 
     def config_from_file(self, filename: str) -> Dict:
@@ -36,6 +36,6 @@ class H5Types(Component):
 
     def compute_context(self):
         context = super().compute_context()
-        del context["config"]["mpi"]
+        del context["config"]["mpi_args"]
         del context["config"]["nodes"]
         return context

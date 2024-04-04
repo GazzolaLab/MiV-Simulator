@@ -27,7 +27,10 @@ class Network(Interface):
                     "cell_distributions": config.cell_distributions,
                 },
             ],
-        ).launch()
+        )
+        # eager execute to avoid scheduling overheads
+        if not self.h5_types.cached():
+            self.h5_types.commit().dispatch()
 
         self.architecture = get(
             "miv_simulator.interface.architecture",

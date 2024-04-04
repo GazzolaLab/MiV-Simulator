@@ -3,6 +3,7 @@ from typing import Any, List, Optional, Union, Dict, Tuple
 import gc
 import pathlib
 import os
+import shlex
 import subprocess
 from collections import defaultdict
 from miv_simulator import config
@@ -1133,10 +1134,12 @@ def query_cell_attributes(input_file, population_names, namespace_ids=None):
     return namespace_id_lst, attr_info_dict
 
 
-def _run(commands):
+def _run(commands, spawn_process=False):
     cmd = " ".join(commands)
     print(cmd)
-    subprocess.check_output(commands)
+    if not spawn_process:
+        return os.system(" ".join([shlex.quote(cmd) for cmd in commands]))
+    return subprocess.check_output(commands)
 
 
 def copy_dataset(f_src: h5py.File, f_dst: h5py.File, dset_path: str) -> None:
