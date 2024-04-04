@@ -388,9 +388,9 @@ def connect_cells(env: Env) -> None:
                     lambda edgeset: presyn_input_sources.update(edgeset[1][0]),
                     edge_iter,
                 )
-                env.microcircuit_input_sources[presyn_name] = (
-                    presyn_input_sources
-                )
+                env.microcircuit_input_sources[
+                    presyn_name
+                ] = presyn_input_sources
             else:
                 syn_edge_iter = edge_iter
             syn_attrs.init_edge_attrs_from_iter(
@@ -739,9 +739,9 @@ def connect_cell_selection(env):
                 syn_attrs.init_edge_attrs_from_iter(
                     postsyn_name, presyn_name, a, syn_edge_iter
                 )
-                env.microcircuit_input_sources[presyn_name] = (
-                    presyn_input_sources
-                )
+                env.microcircuit_input_sources[
+                    presyn_name
+                ] = presyn_input_sources
                 del graph[postsyn_name][presyn_name]
 
         first_gid = None

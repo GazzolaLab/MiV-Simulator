@@ -1786,9 +1786,9 @@ def init_circuit_context(
                         cell_weights_dict,
                     ) in cell_weights_iter:
                         assert cell_weights_gid == gid
-                        cell_weights_dicts[weights_namespace] = (
-                            cell_weights_dict
-                        )
+                        cell_weights_dicts[
+                            weights_namespace
+                        ] = cell_weights_dict
 
             else:
                 raise RuntimeError(
