@@ -1,5 +1,6 @@
 import os
 import shutil
+import shlex
 import subprocess
 
 import h5py
@@ -11,7 +12,10 @@ def _bin_check(bin: str) -> None:
         raise FileNotFoundError(f"{bin} not found. Did you add it to the PATH?")
 
 
-def _run(cmd):
+def _sh(cmd, spawn_process=True):
+    if not spawn_process:
+        return os.system(" ".join([shlex.quote(c) for c in cmd]))
+
     try:
         subprocess.check_output(
             cmd,
@@ -33,6 +37,7 @@ def generate_synapse_forest(
     output_filepath: str,
     population: config.PopulationName,
     morphology: config.SWCFilePath,
+    _run=_sh,
 ) -> None:
     # create tree
     if not os.path.isfile(tree_output_filepath):
