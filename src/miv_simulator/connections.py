@@ -282,6 +282,9 @@ def choose_synapse_projection(
             )
             for ord_index in ord_indices:
                 if syn_layer == syn_config_layers[ord_index]:
+                    if k not in population_dict:
+                        raise RuntimeError(f"Key {k} is not in population_dict; "
+                                           f" population_dict is {population_dict}")
                     projection_lst.append(population_dict[k])
                     projection_prob_lst.append(
                         syn_config_proportions[ord_index]

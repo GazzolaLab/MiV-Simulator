@@ -270,10 +270,8 @@ def create_neural_h5(
     cell_distributions: config.CellDistributions,
     synapses: config.Synapses,
     gap_junctions: Optional[Dict] = None,
-    populations: Optional[Dict[str, config.PopulationsDef]] = None,
+    populations: Optional[Dict[str, int]] = None,
 ) -> None:
-    if populations is None:
-        populations = config.PopulationsDef.__members__
     _populations = []
     for pop_name, pop_idx in populations.items():
         layer_counts = cell_distributions[pop_name]

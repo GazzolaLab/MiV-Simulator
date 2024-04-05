@@ -18,7 +18,7 @@ from neuroh5.io import (
     read_population_names,
     read_population_ranges,
 )
-from typing import Optional, Union, Tuple
+from typing import Optional, Union, Tuple, Dict
 
 sys_excepthook = sys.excepthook
 
@@ -84,8 +84,6 @@ def generate_distance_connections(
         include_forest_populations=include,
         synapses=env.connection_config,
         axon_extents=env.connection_extents,
-        template_path=env.template_paths,
-        use_coreneuron=env.use_coreneuron,
         output_filepath=connectivity_path,
         connectivity_namespace=connectivity_namespace,
         coordinates_namespace=coords_namespace,
