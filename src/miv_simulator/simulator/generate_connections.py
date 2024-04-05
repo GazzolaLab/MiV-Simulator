@@ -91,6 +91,7 @@ def generate_distance_connections(
         coordinates_namespace=coords_namespace,
         synapses_namespace=synapses_namespace,
         distances_namespace=distances_namespace,
+        populations_dict=env.Populations,
         io_size=io_size,
         chunk_size=chunk_size,
         value_chunk_size=value_chunk_size,
@@ -112,6 +113,7 @@ def generate_connections(
     coordinates_namespace: str,
     synapses_namespace: str,
     distances_namespace: str,
+    populations_dict: Dict[str, int],
     io_size: int,
     chunk_size: int,
     value_chunk_size: int,
@@ -236,7 +238,6 @@ def generate_connections(
             r = random.Random(seeds)
             seeds = [r.randint(0, 2**32 - 1) for _ in range(3)]
 
-        populations_dict = config.PopulationsDef.__members__
         generate_uv_distance_connections(
             comm,
             populations_dict,

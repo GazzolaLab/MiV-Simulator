@@ -66,34 +66,9 @@ class LayersDef(IntEnum):
     SLM = 9  # Lacunosum-moleculare
 
 
-LayersLiteral = Literal[
-    "default",
-    "Hilus",
-    "GCL",
-    "IML",
-    "MML",
-    "OML",
-    "SO",
-    "SP",
-    "SL",
-    "SR",
-    "SLM",
-]
-
-
 class InputSelectivityTypesDef(IntEnum):
     random = 0
     constant = 1
-
-
-class PopulationsDef(IntEnum):
-    STIM = 0  # Stimulus
-    PYR = 100  # PYR distal dendrites
-    PVBC = 101  # Basket cells expressing parvalbumin
-    OLM = 102  # GABAergic oriens-lacunosum/moleculare
-
-
-PopulationsLiteral = Literal["STIM", "PYR", "PVBC", "OLM"]
 
 
 def AllowStringsFrom(enum):
@@ -118,13 +93,10 @@ SynapseTypesDefOrStr = Annotated[
     SynapseTypesDef, AllowStringsFrom(SynapseTypesDef)
 ]
 SWCTypesDefOrStr = Annotated[SWCTypesDef, AllowStringsFrom(SWCTypesDef)]
-LayersDefOrStr = Annotated[LayersDef, AllowStringsFrom(LayersDef)]
 SynapseMechanismsDefOrStr = Annotated[
     SynapseMechanismsDef, AllowStringsFrom(SynapseMechanismsDef)
 ]
-PopulationsDefOrStr = Annotated[
-    PopulationsDef, AllowStringsFrom(PopulationsDef)
-]
+LayersDefOrStr = Annotated[LayersDef, AllowStringsFrom(LayersDef)]
 
 
 PopulationName = str
@@ -253,7 +225,7 @@ class CellType(BaseModel):
             Dict[
                 SynapseTypesLiteral,
                 Dict[
-                    LayersLiteral,
+                    str,
                     Dict[Literal["mean", "variance"], float],
                 ],
             ],
@@ -262,7 +234,7 @@ class CellType(BaseModel):
     mechanism: Optional[Dict] = None
 
 
-CellTypes = Dict[PopulationsLiteral, CellType]
+CellTypes = Dict[str, CellType]
 
 
 class AxonExtent(BaseModel):
@@ -270,7 +242,7 @@ class AxonExtent(BaseModel):
     offset: Tuple[float, float]
 
 
-AxonExtents = Dict[PopulationsLiteral, Dict[LayerName, AxonExtent]]
+AxonExtents = Dict[str, Dict[LayerName, AxonExtent]]
 
 
 def probabilities_sum_to_one(x):
