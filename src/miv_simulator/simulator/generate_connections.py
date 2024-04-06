@@ -18,7 +18,7 @@ from neuroh5.io import (
     read_population_names,
     read_population_ranges,
 )
-from typing import Optional, Union, Tuple
+from typing import Optional, Union, Tuple, Dict
 
 sys_excepthook = sys.excepthook
 

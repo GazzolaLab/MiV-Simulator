@@ -269,32 +269,34 @@ def create_neural_h5(
     output_filepath: str,
     cell_distributions: config.CellDistributions,
     synapses: config.Synapses,
+    population_definitions: Dict[str, int],
     gap_junctions: Optional[Dict] = None,
-    populations: Optional[Dict[str, config.PopulationsDef]] = None,
 ) -> None:
-    if populations is None:
-        populations = config.PopulationsDef.__members__
-    _populations = []
-    for pop_name, pop_idx in populations.items():
+    populations = []
+    for pop_name, pop_idx in population_definitions.items():
         layer_counts = cell_distributions[pop_name]
         pop_count = 0
         for layer_name, layer_count in layer_counts.items():
             pop_count += layer_count
-        _populations.append((pop_name, pop_idx, pop_count))
-    _populations.sort(key=lambda x: x[1])
-    min_pop_idx = _populations[0][1]
+        populations.append((pop_name, pop_idx, pop_count))
+    populations.sort(key=lambda x: x[1])
+    min_pop_idx = populations[0][1]
 
     projections = []
     if gap_junctions:
         for (post, pre), connection_dict in gap_junctions.items():
-            projections.append((populations[pre], populations[post]))
+            projections.append(
+                (population_definitions[pre], population_definitions[post])
+            )
     else:
         for post, connection_dict in synapses.items():
             for pre, _ in connection_dict.items():
-                projections.append((populations[pre], populations[post]))
+                projections.append(
+                    (population_definitions[pre], population_definitions[post])
+                )
 
     # create an HDF5 enumerated type for the population label
-    mapping = {name: idx for name, idx in populations.items()}
+    mapping = {name: idx for name, idx in population_definitions.items()}
     dt_population_labels = h5py.special_dtype(enum=(np.uint16, mapping))
 
     with h5py.File(output_filepath, "a") as h5:
@@ -315,12 +317,12 @@ def create_neural_h5(
         g = h5_get_group(h5, grp_h5types)
 
         dset = h5_get_dataset(
-            g, grp_populations, maxshape=(len(_populations),), dtype=dt
+            g, grp_populations, maxshape=(len(populations),), dtype=dt
         )
-        dset.resize((len(_populations),))
-        a = np.zeros(len(_populations), dtype=dt)
+        dset.resize((len(populations),))
+        a = np.zeros(len(populations), dtype=dt)
         start = 0
-        for enum_id, (name, idx, count) in enumerate(_populations):
+        for enum_id, (name, idx, count) in enumerate(populations):
             a[enum_id]["Start"] = start
             a[enum_id]["Count"] = count
             a[enum_id]["Population"] = idx

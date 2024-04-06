@@ -12,7 +12,8 @@ class H5Types(Component):
 
         cell_distributions: config.CellDistributions = Field("???")
         projections: config.SynapticProjections = Field("???")
-        mpi_args: str = "-n 1"
+        population_definitions: Dict[str, int] = Field("???")
+        ranks: int = 1
         nodes: str = "1"
 
     def config_from_file(self, filename: str) -> Dict:
@@ -31,11 +32,12 @@ class H5Types(Component):
                     post: {pre: True for pre in v}
                     for post, v in self.config.projections.items()
                 },
+                population_definitions=self.config.population_definitions,
             )
         MPI.COMM_WORLD.barrier()
 
     def compute_context(self):
         context = super().compute_context()
-        del context["config"]["mpi_args"]
+        del context["config"]["ranks"]
         del context["config"]["nodes"]
         return context

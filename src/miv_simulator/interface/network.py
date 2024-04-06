@@ -25,6 +25,7 @@ class Network(Interface):
                 {
                     "projections": config.projections,
                     "cell_distributions": config.cell_distributions,
+                    "population_definitions": config.definitions.populations,
                 },
             ],
         )
@@ -67,6 +68,7 @@ class Network(Interface):
                     ].output_filepath,
                     "cell_types": config.cell_types,
                     "population": population,
+                    "layer_definitions": config.definitions.layers,
                     "distribution": "poisson",
                     "mechanisms_path": self.config.mechanisms_path,
                     "template_path": self.config.template_path,
@@ -86,6 +88,8 @@ class Network(Interface):
                         population
                     ].output_filepath,
                     "axon_extents": config.axon_extents,
+                    "population_definitions": config.definitions.populations,
+                    "layer_definitions": config.definitions.layers,
                     "io_size": 1,
                     "cache_size": 20,
                     "write_size": 100,
