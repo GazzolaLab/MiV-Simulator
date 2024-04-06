@@ -119,8 +119,8 @@ class BaseModel(_BaseModel):
 
 
 class Mechanism(BaseModel):
-    g_unit: float
-    weight: float
+    g_unit: Optional[float] = None
+    weight: Optional[float] = None
     tau_rise: Optional[float] = None
     tau_decay: Optional[float] = None
     e: Optional[int] = None
@@ -131,7 +131,7 @@ class Synapse(BaseModel):
     sections: List[SWCTypesLiteral]
     layers: List[LayerName]
     proportions: list[float]
-    mechanisms: Dict[SynapseMechanismName, Mechanism]
+    mechanisms: Dict[SynapseMechanismName, Dict[Union[str, int], Mechanism]]
     contacts: int = 1
 
     def to_config(self, layer_definitions: Dict[LayerName, int]):
@@ -314,7 +314,21 @@ class Config:
 
     @property
     def synapses(self) -> Synapses:
-        return self.get("Connection Generator.Synapses")
+        synapses = {}
+        for post, v in self.get("Connection Generator.Synapses").items():
+            synapses[post] = {}
+            for pre, syn in v.items():
+                synapse = copy.copy(syn)
+                if "swctype mechanisms" in synapse:
+                    synapse["mechanisms"] = {
+                        SWCTypesDef.__members__[swc_type]: c
+                        for swc_type, c in synapse["swctype mechanisms"].items()
+                    }
+                    del synapse["swctype mechanisms"]
+                elif "mechanisms" in synapse:
+                    synapse["mechanisms"] = {"default": synapse["mechanisms"]}
+                synapses[post][pre] = synapse
+        return synapses
 
     @property
     def projections(self) -> SynapticProjections:
