@@ -274,7 +274,9 @@ def create_neural_h5(
 ) -> None:
     populations = []
     for pop_name, pop_idx in population_definitions.items():
-        layer_counts = cell_distributions.get(pop_name, {})
+        if pop_name not in cell_distributions:
+            continue
+        layer_counts = cell_distributions[pop_name]
         pop_count = 0
         for layer_name, layer_count in layer_counts.items():
             pop_count += layer_count
