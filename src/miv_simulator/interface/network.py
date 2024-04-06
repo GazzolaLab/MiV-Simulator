@@ -3,6 +3,7 @@ import os
 from pydantic import BaseModel, Field, ConfigDict
 from machinable import Interface, get
 from miv_simulator.config import Config
+from miv_simulator import mechanisms
 
 
 class Network(Interface):
@@ -111,6 +112,15 @@ class Network(Interface):
         ).launch()
 
         return self
+
+    def version_from_config(self, config_filepath: str):
+        source = os.path.dirname(os.path.dirname(config_filepath))
+        return {
+            "config_filepath": f"{config_filepath}",
+            "mechanisms_path": mechanisms.compile(f"{source}/mechanisms"),
+            "template_path": f"{source}/templates",
+            "morphology_path": f"{source}/morphology",
+        }
 
     def compute_context(self):
         context = super().compute_context()
