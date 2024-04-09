@@ -275,7 +275,9 @@ def create_neural_h5(
     populations = []
     for pop_name, pop_idx in population_definitions.items():
         if pop_name not in cell_distributions:
-            continue
+            raise ValueError(
+                f"Definitions contain a population '{pop_name}' that is not specified in the cell distribution populations ({', '.join([p for p in cell_distributions])})"
+            )
         layer_counts = cell_distributions[pop_name]
         pop_count = 0
         for layer_name, layer_count in layer_counts.items():
