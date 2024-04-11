@@ -707,6 +707,7 @@ def generate_uv_distance_connections(
                     projection_dict,
                     io_size=io_size,
                     comm=comm,
+                    chunk_size=value_chunk_size,
                 )
                 if rank == 0:
                     if connection_dict:
@@ -730,7 +731,12 @@ def generate_uv_distance_connections(
         projection_dict = {}
     if not dry_run:
         append_graph(
-            connectivity_path, projection_dict, io_size=io_size, comm=comm
+            connectivity_path, 
+            projection_dict, 
+            io_size=io_size, 
+            comm=comm,
+            chunk_size=value_chunk_size,
+
         )
         if rank == 0:
             if connection_dict:
