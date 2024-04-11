@@ -18,6 +18,8 @@ class Connections(Component):
         forest_filepath: str = Field("???")
         axon_extents: config.AxonExtents = Field("???")
         synapses: config.Synapses = Field("???")
+        population_definitions: Dict[str, int] = Field("???")
+        layer_definitions: Dict[str, int] = Field("???")
         include_forest_populations: Optional[list] = None
         connectivity_namespace: str = "Connections"
         coordinates_namespace: str = "Coordinates"
@@ -45,13 +47,22 @@ class Connections(Component):
             filepath=self.config.filepath,
             forest_filepath=self.config.forest_filepath,
             include_forest_populations=self.config.include_forest_populations,
-            synapses=self.config.synapses,
+            synapses={
+                post: {
+                    pre: config.Synapse(**syn).to_config(
+                        self.config.layer_definitions
+                    )
+                    for pre, syn in v.items()
+                }
+                for post, v in self.config.synapses.items()
+            },
             axon_extents=self.config.axon_extents,
             output_filepath=self.output_filepath,
             connectivity_namespace=self.config.connectivity_namespace,
             coordinates_namespace=self.config.coordinates_namespace,
             synapses_namespace=self.config.synapses_namespace,
             distances_namespace=self.config.distances_namespace,
+            populations_dict=self.config.population_definitions,
             io_size=self.config.io_size,
             chunk_size=self.config.chunk_size,
             value_chunk_size=self.config.value_chunk_size,

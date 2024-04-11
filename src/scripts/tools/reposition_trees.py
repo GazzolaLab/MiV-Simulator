@@ -228,28 +228,34 @@ def main(
         iter_count += 1
 
         if (
-                (not dry_run)
-                and (write_size > 0)
-                and (iter_count % write_size == 0)
-            ):
+            (not dry_run)
+            and (write_size > 0)
+            and (iter_count % write_size == 0)
+        ):
             if rank == 0:
                 logger.info(f"Appending repositioned trees to {output_path}...")
             append_cell_trees(
-                output_path, population, new_trees_dict, io_size=io_size, 
-                chunk_size=chunk_size, value_chunk_size=value_chunk_size,
-                comm=comm
+                output_path,
+                population,
+                new_trees_dict,
+                io_size=io_size,
+                chunk_size=chunk_size,
+                value_chunk_size=value_chunk_size,
+                comm=comm,
             )
             new_trees_dict = {}
-            
-
 
     if not dry_run:
-        if (rank == 0):
+        if rank == 0:
             logger.info(f"Appending repositioned trees to {output_path}...")
         append_cell_trees(
-            output_path, population, new_trees_dict, io_size=io_size, 
-            chunk_size=chunk_size, value_chunk_size=value_chunk_size,
-            comm=comm
+            output_path,
+            population,
+            new_trees_dict,
+            io_size=io_size,
+            chunk_size=chunk_size,
+            value_chunk_size=value_chunk_size,
+            comm=comm,
         )
 
     comm.barrier()
@@ -258,6 +264,7 @@ def main(
             f"Appended {len(new_trees_dict)} repositioned trees to {output_path}"
         )
     MPI.Finalize()
+
 
 if __name__ == "__main__":
     main(

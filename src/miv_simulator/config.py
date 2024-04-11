@@ -1,12 +1,9 @@
 import copy
 from pydantic import (
     BaseModel as _BaseModel,
-    Field,
-    conlist,
     AfterValidator,
-    BeforeValidator,
 )
-from typing import Literal, Dict, Any, List, Tuple, Optional, Union, Callable
+from typing import Literal, Dict, List, Tuple, Optional, Union, Callable
 from enum import IntEnum
 from collections import defaultdict
 import numpy as np
@@ -41,63 +38,11 @@ class SynapseTypesDef(IntEnum):
 
 SynapseTypesLiteral = Literal["excitatory", "inhibitory", "modulatory"]
 
+# Synapses
 
-class SynapseMechanismsDef(IntEnum):
-    AMPA = 0
-    GABA_A = 1
-    GABA_B = 2
-    NMDA = 30
-
-
-SynapseMechanismsLiteral = Literal["AMPA", "GABA_A", "GABA_B", "NMDA"]
-
-
-class LayersDef(IntEnum):
-    default = -1
-    Hilus = 0
-    GCL = 1  # Granule cell
-    IML = 2  # Inner molecular
-    MML = 3  # Middle molecular
-    OML = 4  # Outer molecular
-    SO = 5  # Oriens
-    SP = 6  # Pyramidale
-    SL = 7  # Lucidum
-    SR = 8  # Radiatum
-    SLM = 9  # Lacunosum-moleculare
-
-
-class InputSelectivityTypesDef(IntEnum):
-    random = 0
-    constant = 1
-
-
-def AllowStringsFrom(enum):
-    """For convenience, allows users to specify enum values using their string name"""
-
-    def _cast(v) -> int:
-        if isinstance(v, str):
-            try:
-                return enum.__members__[v]
-            except KeyError:
-                raise ValueError(
-                    f"'{v}'. Must be one of {tuple(enum.__members__.keys())}"
-                )
-        return v
-
-    return BeforeValidator(_cast)
-
+SynapseMechanismName = str
 
 # Population
-
-SynapseTypesDefOrStr = Annotated[
-    SynapseTypesDef, AllowStringsFrom(SynapseTypesDef)
-]
-SWCTypesDefOrStr = Annotated[SWCTypesDef, AllowStringsFrom(SWCTypesDef)]
-SynapseMechanismsDefOrStr = Annotated[
-    SynapseMechanismsDef, AllowStringsFrom(SynapseMechanismsDef)
-]
-LayersDefOrStr = Annotated[LayersDef, AllowStringsFrom(LayersDef)]
-
 
 PopulationName = str
 PostSynapticPopulationName = PopulationName
@@ -174,20 +119,36 @@ class BaseModel(_BaseModel):
 
 
 class Mechanism(BaseModel):
-    g_unit: float
-    weight: float
+    g_unit: Optional[float] = None
+    weight: Optional[float] = None
     tau_rise: Optional[float] = None
     tau_decay: Optional[float] = None
     e: Optional[int] = None
 
 
 class Synapse(BaseModel):
-    type: SynapseTypesDefOrStr
-    sections: conlist(SWCTypesDefOrStr)
-    layers: conlist(LayersDefOrStr)
-    proportions: conlist(float)
-    mechanisms: Dict[SynapseMechanismsLiteral, Mechanism]
+    type: SynapseTypesLiteral
+    sections: List[SWCTypesLiteral]
+    layers: List[LayerName]
+    proportions: list[float]
+    mechanisms: Dict[SynapseMechanismName, Dict[Union[str, int], Mechanism]]
     contacts: int = 1
+
+    def to_config(self, layer_definitions: Dict[LayerName, int]):
+        return type(
+            "SynapseConfig",
+            (),
+            {
+                "type": SynapseTypesDef.__members__[self.type],
+                "sections": list(
+                    map(SWCTypesDef.__members__.get, self.sections)
+                ),
+                "layers": list(map(layer_definitions.get, self.layers)),
+                "proportions": self.proportions,
+                "mechanisms": self.mechanisms,
+                "contacts": self.contacts,
+            },
+        )
 
 
 def _origin_value_to_callable(value: Union[str, float]) -> Callable:
@@ -283,9 +244,19 @@ SynapticProjections = Dict[
 sentinel = object()
 
 
+class Definitions(BaseModel):
+    swc_types: Dict[str, int]
+    synapse_types: Dict[str, int]
+    synapse_mechanisms: Dict[str, int]
+    layers: Dict[str, int]
+    populations: Dict[str, int]
+    input_selectivity_types: Dict[str, int]
+
+
 class Config:
     def __init__(self, data: Dict) -> None:
         self._data = copy.deepcopy(data)
+        self._definitions = None
 
         # compatibility
         self.get("Cell Types.STIM", {}).setdefault("synapses", {})
@@ -343,7 +314,21 @@ class Config:
 
     @property
     def synapses(self) -> Synapses:
-        return self.get("Connection Generator.Synapses")
+        synapses = {}
+        for post, v in self.get("Connection Generator.Synapses").items():
+            synapses[post] = {}
+            for pre, syn in v.items():
+                synapse = copy.copy(syn)
+                if "swctype mechanisms" in synapse:
+                    synapse["mechanisms"] = {
+                        SWCTypesDef.__members__[swc_type]: c
+                        for swc_type, c in synapse["swctype mechanisms"].items()
+                    }
+                    del synapse["swctype mechanisms"]
+                elif "mechanisms" in synapse:
+                    synapse["mechanisms"] = {"default": synapse["mechanisms"]}
+                synapses[post][pre] = synapse
+        return synapses
 
     @property
     def projections(self) -> SynapticProjections:
@@ -356,3 +341,20 @@ class Config:
     @property
     def clamp(self) -> Optional[Dict]:
         return self.get("Network Clamp", None)
+
+    @property
+    def definitions(self) -> Definitions:
+        if self._definitions is None:
+            self._definitions = Definitions(
+                swc_types=self.get("Definitions.SWC Types", {}),
+                synapse_types=self.get("Definitions.Synapse Types", {}),
+                synapse_mechanisms=self.get(
+                    "Definitions.Synapse Mechanisms", {}
+                ),
+                layers=self.get("Definitions.Layers", {}),
+                populations=self.get("Definitions.Populations", {}),
+                input_selectivity_types=self.get(
+                    "Definitions.Input Selectivity Types", {}
+                ),
+            )
+        return self._definitions
