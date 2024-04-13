@@ -12,7 +12,8 @@ class GenerateSynapseForest(Component):
         filepath: str = Field("???")
         population: config.PopulationName = Field("???")
         morphology: config.SWCFilePath = Field("???")
-        mpi_args: Optional[str] = "-n 1"
+        # ranks: int = 1
+        mpi: Optional[str] = None
         nodes: str = "1"
 
     @property
@@ -62,7 +63,7 @@ class GenerateSynapseForest(Component):
 
     def compute_context(self):
         context = super().compute_context()
-        del context["config"]["mpi_args"]
+        del context["config"]["mpi"]
         del context["config"]["nodes"]
         del context["config"]["filepath"]
         context["config"]["morphology"] = file_hash(

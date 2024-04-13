@@ -16,8 +16,8 @@ def make_h5types(
         output_file,
         env.geometry["Cell Distribution"],
         env.connection_config,
-        env.gapjunctions if gap_junctions else None,
         env.Populations,
+        env.gapjunctions if gap_junctions else None,
     )
 
 

@@ -15,7 +15,7 @@ from neuroh5.io import (
     append_cell_attributes,
     read_population_ranges,
 )
-from typing import Optional, Tuple, Literal
+from typing import Optional, Tuple, Literal, Dict
 
 sys_excepthook = sys.excepthook
 
@@ -132,6 +132,7 @@ def check_syns(
         seg_density_per_sec,
         layer_set_dict,
         swc_set_dict,
+        env.layers,
         logger,
     )
 
@@ -143,30 +144,39 @@ def check_synapses(
     seg_density_per_sec,
     layer_set_dict,
     swc_set_dict,
+    swc_defs,
+    layer_defs,
     logger,
 ):
     layer_stats = syn_stats_dict["layer"]
     swc_stats = syn_stats_dict["swc_type"]
 
     warning_flag = False
+    incomplete_layers = []
     for syn_type, layer_set in list(layer_set_dict.items()):
         for layer in layer_set:
-            if layer in layer_stats:
-                if layer_stats[layer][syn_type] <= 0:
+            layer_index = layer_defs[layer]
+            if layer_index in layer_stats:
+                if layer_stats[layer_index][syn_type] <= 0:
+                    incomplete_layers.append(layer)
                     warning_flag = True
             else:
+                incomplete_layers.append(layer)
                 warning_flag = True
     if warning_flag:
         logger.warning(
-            f"Rank {MPI.COMM_WORLD.Get_rank()}: incomplete synapse layer set for cell {gid}: {layer_stats}"
+            f"Rank {MPI.COMM_WORLD.Get_rank()}: incomplete synapse layer set for cell {gid}: "
+            f"  incomplete layers: {incomplete_layers}\n"
+            f"  populated layers: {layer_stats}\n"
             f"  layer_set_dict: {layer_set_dict}\n"
             f"  seg_density_per_sec: {seg_density_per_sec}\n"
             f"  morph_dict: {morph_dict}"
         )
     for syn_type, swc_set in swc_set_dict.items():
         for swc_type in swc_set:
-            if swc_type in swc_stats:
-                if swc_stats[swc_type][syn_type] <= 0:
+            swc_type_index = swc_defs[swc_type]
+            if swc_type_index in swc_stats:
+                if swc_stats[swc_type_index][syn_type] <= 0:
                     warning_flag = True
             else:
                 warning_flag = True
@@ -222,6 +232,9 @@ def distribute_synapse_locations(
     return distribute_synapses(
         forest_filepath=forest_path,
         cell_types=env.celltypes,
+        swc_defs=env.SWC_Types,
+        synapse_defs=env.Synapse_Types,
+        layer_defs=env.layers,
         populations=populations,
         distribution=distribution,
         template_path=template_path,
@@ -238,6 +251,9 @@ def distribute_synapse_locations(
 def distribute_synapses(
     forest_filepath: str,
     cell_types: config.CellTypes,
+    swc_defs: Dict[str, int],
+    synapse_defs: Dict[str, int],
+    layer_defs: Dict[str, int],
     populations: Tuple[str, ...],
     distribution: Literal["uniform", "poisson"],
     template_path: str,
@@ -349,9 +365,9 @@ def distribute_synapses(
                         seg_density_per_sec,
                     ) = synapses.distribute_uniform_synapses(
                         random_seed,
-                        config.SynapseTypesDef.__members__,
-                        config.SWCTypesDef.__members__,
-                        config.LayersDef.__members__,
+                        synapse_defs,
+                        swc_defs,
+                        layer_defs,
                         density_dict,
                         morph_dict,
                         cell_sec_dict,
@@ -364,9 +380,9 @@ def distribute_synapses(
                         seg_density_per_sec,
                     ) = synapses.distribute_poisson_synapses(
                         random_seed,
-                        config.SynapseTypesDef.__members__,
-                        config.SWCTypesDef.__members__,
-                        config.LayersDef.__members__,
+                        synapse_defs,
+                        swc_defs,
+                        layer_defs,
                         density_dict,
                         morph_dict,
                         cell_sec_dict,
@@ -388,6 +404,8 @@ def distribute_synapses(
                     seg_density_per_sec,
                     layer_set_dict,
                     swc_set_dict,
+                    swc_defs,
+                    layer_defs,
                     logger,
                 )
 

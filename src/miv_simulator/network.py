@@ -321,19 +321,21 @@ def connect_cells(env: Env) -> None:
                                     syn_name,
                                     zip_longest(
                                         weights_syn_ids,
-                                        [
-                                            {
-                                                "weight": Promise(
-                                                    expr_closure, [x]
-                                                )
-                                            }
-                                            for x in weights_values
-                                        ]
-                                        if expr_closure
-                                        else [
-                                            {"weight": x}
-                                            for x in weights_values
-                                        ],
+                                        (
+                                            [
+                                                {
+                                                    "weight": Promise(
+                                                        expr_closure, [x]
+                                                    )
+                                                }
+                                                for x in weights_values
+                                            ]
+                                            if expr_closure
+                                            else [
+                                                {"weight": x}
+                                                for x in weights_values
+                                            ]
+                                        ),
                                     ),
                                     multiple=multiple_weights,
                                     append=append_weights,
@@ -466,9 +468,11 @@ def connect_cells(env: Env) -> None:
             env,
             gid,
             postsyn_name,
-            cell=postsyn_cell.hoc_cell
-            if hasattr(postsyn_cell, "hoc_cell")
-            else postsyn_cell,
+            cell=(
+                postsyn_cell.hoc_cell
+                if hasattr(postsyn_cell, "hoc_cell")
+                else postsyn_cell
+            ),
             unique=unique,
             insert=True,
             insert_netcons=True,
@@ -679,19 +683,21 @@ def connect_cell_selection(env):
                                     syn_name,
                                     zip_longest(
                                         weights_syn_ids,
-                                        [
-                                            {
-                                                "weight": Promise(
-                                                    expr_closure, [x]
-                                                )
-                                            }
-                                            for x in weights_values
-                                        ]
-                                        if expr_closure
-                                        else [
-                                            {"weight": x}
-                                            for x in weights_values
-                                        ],
+                                        (
+                                            [
+                                                {
+                                                    "weight": Promise(
+                                                        expr_closure, [x]
+                                                    )
+                                                }
+                                                for x in weights_values
+                                            ]
+                                            if expr_closure
+                                            else [
+                                                {"weight": x}
+                                                for x in weights_values
+                                            ]
+                                        ),
                                     ),
                                     multiple=multiple_weights,
                                     append=append_weights,
@@ -956,10 +962,7 @@ def make_cells(env: Env) -> None:
                     f"*** Mechanism file for population {pop_name} is {mech_file_path}"
                 )
 
-        is_BRK = template_name.lower() == "brk_nrn"
-        is_PR = template_name.lower() == "pr_nrn"
-        is_SC = template_name.lower() == "sc_nrn"
-        is_reduced = is_BRK or is_PR or is_SC
+        reduced_cons = cells.get_reduced_cell_constructor(template_name)
 
         num_cells = 0
         if (pop_name in env.cell_attribute_info) and (
@@ -991,16 +994,8 @@ def make_cells(env: Env) -> None:
                 if first_gid is None:
                     first_gid = gid
 
-                if is_SC:
-                    cell = cells.make_SC_cell(
-                        gid=gid, pop_name=pop_name, env=env, mech_dict=mech_dict
-                    )
-                elif is_PR:
-                    cell = cells.make_PR_cell(
-                        gid=gid, pop_name=pop_name, env=env, mech_dict=mech_dict
-                    )
-                elif is_BRK:
-                    cell = cells.make_BRK_cell(
+                if reduced_cons:
+                    cell = reduced_cons(
                         gid=gid, pop_name=pop_name, env=env, mech_dict=mech_dict
                     )
                 else:
@@ -1025,7 +1020,7 @@ def make_cells(env: Env) -> None:
                             f"*** make_cells: population: {pop_name}; gid: {gid}; loaded biophysics from path: {mech_file_path}"
                         )
 
-                if is_reduced:
+                if reduced_cons is not None:
                     soma_xyz = cells.get_soma_xyz(tree, env.SWC_Types)
                     cell.position(soma_xyz[0], soma_xyz[1], soma_xyz[2])
                 if rank == 0 and first_gid == gid:
@@ -1084,16 +1079,8 @@ def make_cells(env: Env) -> None:
                 cell_z = cell_coords[z_index][0]
 
                 cell = None
-                if is_SC:
-                    cell = cells.make_SC_cell(
-                        gid=gid, pop_name=pop_name, env=env, mech_dict=mech_dict
-                    )
-                elif is_PR:
-                    cell = cells.make_PR_cell(
-                        gid=gid, pop_name=pop_name, env=env, mech_dict=mech_dict
-                    )
-                elif is_BRK:
-                    cell = cells.make_BRK_cell(
+                if reduced_cons:
+                    cell = reduced_cons(
                         gid=gid, pop_name=pop_name, env=env, mech_dict=mech_dict
                     )
                 else:
@@ -1180,10 +1167,7 @@ def make_cell_selection(env):
         else:
             mech_dict = None
 
-        is_BRK = template_name.lower() == "brk_nrn"
-        is_PR = template_name.lower() == "pr_nrn"
-        is_SC = template_name.lower() == "sc_nrn"
-        is_reduced = is_BRK or is_PR or is_SC
+        reduced_cons = cells.get_reduced_cell_constructor(template_name)
 
         num_cells = 0
         if (pop_name in env.cell_attribute_info) and (
@@ -1206,22 +1190,8 @@ def make_cell_selection(env):
                 if first_gid == None:
                     first_gid = gid
 
-                if is_SC:
-                    cell = cells.make_SC_cell(
-                        gid=gid,
-                        pop_name=pop_name,
-                        env=env,
-                        param_dict=mech_dict,
-                    )
-                elif is_PR:
-                    cell = cells.make_PR_cell(
-                        gid=gid,
-                        pop_name=pop_name,
-                        env=env,
-                        param_dict=mech_dict,
-                    )
-                elif is_BRK:
-                    cell = cells.make_BRK_cell(
+                if reduced_cons is not None:
+                    cell = reduced_cons(
                         gid=gid,
                         pop_name=pop_name,
                         env=env,
@@ -1248,7 +1218,7 @@ def make_cell_selection(env):
                                 f"*** make_cell_selection: population: {pop_name}; gid: {gid}; loaded biophysics from path: {mech_file_path}"
                             )
 
-                if is_reduced:
+                if reduced_cons is not None:
                     soma_xyz = cells.get_soma_xyz(tree, env.SWC_Types)
                     cell.position(soma_xyz[0], soma_xyz[1], soma_xyz[2])
 
@@ -1768,14 +1738,14 @@ def init_input_cells(env: Env) -> None:
     gc.collect()
 
 
-def init(env: Env) -> None:
+def init(env: Env, subworld_size: Optional[int] = None) -> None:
     """
     Initializes the network by calling make_cells, init_input_cells, connect_cells, connect_gjs.
     If env.optldbal or env.optlptbal are specified, performs load balancing.
 
     :param env: an instance of the `miv_simulator.Env` class
     """
-    neuron_utils.configure_hoc_env(env)
+    neuron_utils.configure_hoc_env(env, subworld_size=subworld_size)
 
     assert env.data_file_path
     assert env.connectivity_file_path
@@ -2063,8 +2033,6 @@ def run(
 
     if rank == 0 and output:
         io_utils.lfpout(env, env.results_file_path)
-    if shutdown:
-        del env.cells
 
     comptime = env.pc.step_time()
     cwtime = comptime + env.pc.step_wait()

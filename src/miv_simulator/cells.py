@@ -315,7 +315,6 @@ class BRKneuron:
         self.random.seed(self.gid)
         self.spike_detector = None
         self.spike_onset_delay = 0.0
-        self.is_reduced = True
         if not isinstance(cell_config, BRKconfig):
             raise RuntimeError(
                 "BRKneuron: argument cell_attrs must be of type BRKconfig"
@@ -422,6 +421,10 @@ class BRKneuron:
     def hillock(self):
         return self.nodes["hillock"]
 
+    @property
+    def is_reduced(self):
+        return True
+
 
 class PRneuron:
     """
@@ -458,7 +461,6 @@ class PRneuron:
         self.random.seed(self.gid)
         self.spike_detector = None
         self.spike_onset_delay = 0.0
-        self.is_reduced = True
         if not isinstance(cell_config, PRconfig):
             raise RuntimeError(
                 "PRneuron: argument cell_attrs must be of type PRconfig"
@@ -558,6 +560,10 @@ class PRneuron:
     def hillock(self):
         return self.nodes["hillock"]
 
+    @property
+    def is_reduced(self):
+        return True
+
 
 class SCneuron:
     """
@@ -611,7 +617,6 @@ class SCneuron:
         self.random.seed(self.gid)
         self.spike_detector = None
         self.spike_onset_delay = 0.0
-        self.is_reduced = True
 
         SC_nrn = h.SC_nrn()
 
@@ -677,6 +682,10 @@ class SCneuron:
     @property
     def hillock(self):
         return self.nodes["hillock"]
+
+    @property
+    def is_reduced(self):
+        return True
 
 
 class BiophysCell:
@@ -951,20 +960,18 @@ def import_morphology_from_hoc(
     sec_info_dict = {}
     root_sec = None
     for sec_type, sec_index_list in default_hoc_sec_lists.items():
-        hoc_sec_attr_name = sec_type
+        hoc_sec_attr_name = f"{sec_type}_list"
         if not hasattr(hoc_cell, hoc_sec_attr_name):
-            hoc_sec_attr_name = f"{sec_type}_list"
+            hoc_sec_attr_name = sec_type
         if hasattr(hoc_cell, hoc_sec_attr_name) and (
             getattr(hoc_cell, hoc_sec_attr_name) is not None
         ):
             sec_list = list(getattr(hoc_cell, hoc_sec_attr_name))
+            hoc_obj = getattr(hoc_cell, hoc_sec_attr_name)
             if hasattr(hoc_cell, sec_index_list):
                 sec_indexes = list(getattr(hoc_cell, sec_index_list))
             else:
-                raise AttributeError(
-                    "import_morphology_from_hoc: %s is not an attribute of the hoc cell"
-                    % sec_index_list
-                )
+                sec_indexes = list(range(len(sec_list)))
             if sec_type == "soma":
                 root_sec = sec_list[0]
             for sec, index in zip(sec_list, sec_indexes):
@@ -1353,6 +1360,34 @@ def filter_nodes(
     ]
 
     return result
+
+
+def get_mech_rules_dict(cell, **rules):
+    """
+    Used by modify_mech_param. Takes in a series of arguments and constructs a validated rules dictionary that will be
+    used to update a cell's mechanism dictionary.
+    :param cell: :class:'BiophysCell'
+    :param rules: dict
+    :return: dict
+    """
+    rules_dict = {
+        name: rules[name]
+        for name in (
+            name
+            for name in ["value", "origin"]
+            if name in rules and rules[name] is not None
+        )
+    }
+    if "origin" in rules_dict:
+        origin_type = rules_dict["origin"]
+        valid_sec_types = [
+            sec_type for sec_type in cell.nodes if len(cell.nodes[sec_type]) > 0
+        ]
+        if origin_type not in valid_sec_types + ["parent", "branch_origin"]:
+            raise ValueError(
+                f"get_mech_rules_dict: cannot inherit from invalid origin type: {origin_type}"
+            )
+    return rules_dict
 
 
 def report_topology(
@@ -1782,12 +1817,14 @@ def init_circuit_context(
                             syn_name,
                             zip_longest(
                                 weights_syn_ids,
-                                [
-                                    {"weight": Promise(expr_closure, [x])}
-                                    for x in weights_values
-                                ]
-                                if expr_closure
-                                else [{"weight": x} for x in weights_values],
+                                (
+                                    [
+                                        {"weight": Promise(expr_closure, [x])}
+                                        for x in weights_values
+                                    ]
+                                    if expr_closure
+                                    else [{"weight": x} for x in weights_values]
+                                ),
                             ),
                             multiple=multiple_weights,
                             append=append_weights,
@@ -2058,11 +2095,16 @@ def make_biophys_cell(
         )
         _, tree_dict = next(tree_attr_iter)
 
+    hoc_cell = make_hoc_cell(
+        env, population_name, gid, neurotree_dict=tree_dict
+    )
+
     cell = BiophysCell(
+        env=env,
         gid=gid,
         population_name=population_name,
+        hoc_cell=hoc_cell,
         neurotree_dict=tree_dict,
-        env=env,
         mech_file_path=mech_file_path,
         mech_dict=mech_dict,
     )
@@ -2474,3 +2516,14 @@ def record_cell(
                             recs.append(rec)
 
     return recs
+
+
+default_reduced_cell_constructors = {
+    "pr_nrn": make_PR_cell,
+    "brk_nrn": make_BRK_cell,
+    "sc_nrn": make_SC_cell,
+}
+
+
+def get_reduced_cell_constructor(template_name):
+    return default_reduced_cell_constructors.get(template_name.lower(), None)

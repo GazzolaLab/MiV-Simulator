@@ -12,23 +12,25 @@ def _bin_check(bin: str) -> None:
         raise FileNotFoundError(f"{bin} not found. Did you add it to the PATH?")
 
 
-def _sh(cmd, spawn_process=True):
-    if not spawn_process:
-        return os.system(" ".join([shlex.quote(c) for c in cmd]))
-
-    try:
-        subprocess.check_output(
-            cmd,
-            stderr=subprocess.STDOUT,
-        )
-    except subprocess.CalledProcessError as e:
-        error_message = e.output.decode()
-        print(f"{os.getcwd()}$:")
-        print(" ".join(cmd))
-        print("Error:", error_message)
-        raise subprocess.CalledProcessError(
-            e.returncode, e.cmd, output=error_message
-        )
+def _sh(cmd, spawn_process=False):
+    if spawn_process:
+        try:
+            subprocess.check_output(
+                cmd,
+                stderr=subprocess.STDOUT,
+            )
+        except subprocess.CalledProcessError as e:
+            error_message = e.output.decode()
+            print(f"{os.getcwd()}$:")
+            print(" ".join(cmd))
+            print("Error:", error_message)
+            raise subprocess.CalledProcessError(
+                e.returncode, e.cmd, output=error_message
+            )
+    else:
+        cmdq = " ".join([shlex.quote(c) for c in cmd])
+        if os.system(cmdq) != 0:
+            raise RuntimeError(f"Error running {cmdq}")
 
 
 def generate_synapse_forest(

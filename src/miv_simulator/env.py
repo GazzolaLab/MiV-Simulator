@@ -290,6 +290,8 @@ class Env(AbstractEnv):
 
         self.celltypes = self.model_config["Cell Types"]
         self.cell_attribute_info = {}
+        self.phenotype_dict = {}
+        self.phenotype_ids = {}
 
         # The name of this model
         self.modelName = "Unnamed model"

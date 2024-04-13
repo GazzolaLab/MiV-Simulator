@@ -18,7 +18,7 @@ from neuroh5.io import (
     read_population_names,
     read_population_ranges,
 )
-from typing import Optional, Union, Tuple
+from typing import Optional, Union, Tuple, Dict
 
 sys_excepthook = sys.excepthook
 
@@ -62,7 +62,6 @@ def generate_distance_connections(
     env = Env(comm=MPI.COMM_WORLD, config=config, config_prefix=config_prefix)
 
     configure_hoc(
-        use_coreneuron=env.use_coreneuron,
         dt=env.dt,
         tstop=env.tstop,
         celsius=env.globals.get("celsius", None),
@@ -85,12 +84,12 @@ def generate_distance_connections(
         include_forest_populations=include,
         synapses=env.connection_config,
         axon_extents=env.connection_extents,
-        use_coreneuron=env.use_coreneuron,
         output_filepath=connectivity_path,
         connectivity_namespace=connectivity_namespace,
         coordinates_namespace=coords_namespace,
         synapses_namespace=synapses_namespace,
         distances_namespace=distances_namespace,
+        populations_dict=env.Populations,
         io_size=io_size,
         chunk_size=chunk_size,
         value_chunk_size=value_chunk_size,
@@ -112,6 +111,7 @@ def generate_connections(
     coordinates_namespace: str,
     synapses_namespace: str,
     distances_namespace: str,
+    populations_dict: Dict[str, int],
     io_size: int,
     chunk_size: int,
     value_chunk_size: int,
@@ -236,7 +236,6 @@ def generate_connections(
             r = random.Random(seeds)
             seeds = [r.randint(0, 2**32 - 1) for _ in range(3)]
 
-        populations_dict = config.PopulationsDef.__members__
         generate_uv_distance_connections(
             comm,
             populations_dict,

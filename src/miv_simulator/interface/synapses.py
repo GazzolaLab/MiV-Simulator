@@ -17,6 +17,7 @@ class Synapses(Component):
         forest_filepath: str = Field("???")
         cell_types: config.CellTypes = Field("???")
         population: str = Field("???")
+        layer_definitions: Dict[str, int] = Field("???")
         distribution: str = "uniform"
         mechanisms_path: str = "./mechanisms/compiled"
         template_path: str = "./templates"
@@ -51,6 +52,9 @@ class Synapses(Component):
         simulator.distribute_synapses(
             forest_filepath=self.config.forest_filepath,
             cell_types=self.config.cell_types,
+            swc_defs=config.SWCTypesDef.__members__,
+            synapse_defs=config.SynapseTypesDef.__members__,
+            layer_defs=self.config.layer_definitions,
             populations=(self.config.population,),
             distribution=self.config.distribution,
             template_path=self.config.template_path,

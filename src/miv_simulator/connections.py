@@ -282,6 +282,9 @@ def choose_synapse_projection(
             )
             for ord_index in ord_indices:
                 if syn_layer == syn_config_layers[ord_index]:
+                    if k not in population_dict:
+                        raise RuntimeError(f"Key {k} is not in population_dict; "
+                                           f" population_dict is {population_dict}")
                     projection_lst.append(population_dict[k])
                     projection_prob_lst.append(
                         syn_config_proportions[ord_index]
@@ -704,6 +707,7 @@ def generate_uv_distance_connections(
                     projection_dict,
                     io_size=io_size,
                     comm=comm,
+                    chunk_size=value_chunk_size,
                 )
                 if rank == 0:
                     if connection_dict:
@@ -727,7 +731,12 @@ def generate_uv_distance_connections(
         projection_dict = {}
     if not dry_run:
         append_graph(
-            connectivity_path, projection_dict, io_size=io_size, comm=comm
+            connectivity_path, 
+            projection_dict, 
+            io_size=io_size, 
+            comm=comm,
+            chunk_size=value_chunk_size,
+
         )
         if rank == 0:
             if connection_dict:

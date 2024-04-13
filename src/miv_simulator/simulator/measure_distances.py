@@ -17,7 +17,7 @@ from miv_simulator.volume import make_network_volume
 from mpi4py import MPI
 from neuroh5.io import (
     append_cell_attributes,
-    bcast_cell_attributes,
+    read_cell_attributes,
     read_population_ranges,
 )
 
@@ -95,29 +95,40 @@ def measure_distances(
     comm = MPI.COMM_WORLD
     rank = comm.rank
 
-    soma_coords = {}
-
     if rank == 0:
         logger.info("Reading population coordinates...")
 
     if not populations:
         populations = read_population_ranges(filepath, comm)[0].keys()
 
-    for population in sorted(populations):
-        coords = bcast_cell_attributes(
-            filepath, population, 0, namespace=coordinate_namespace, comm=comm
-        )
+    if rank == 0:
+        color = 1
+    else:
+        color = 0
+    ## comm0 includes only rank 0
+    comm0 = comm.Split(color, 0)
 
-        soma_coords[population] = {
-            k: (
-                v["U Coordinate"][0],
-                v["V Coordinate"][0],
-                v["L Coordinate"][0],
+    soma_coords = {}
+    if rank == 0:
+        for population in sorted(populations):
+            coords_iter = read_cell_attributes(
+                filepath,
+                population,
+                mask={"U Coordinate", "V Coordinate", "L Coordinate"},
+                namespace=coordinate_namespace,
+                comm=comm0,
             )
-            for (k, v) in coords
-        }
-        del coords
-        gc.collect()
+
+            soma_coords[population] = {
+                k: (
+                    v["U Coordinate"][0],
+                    v["V Coordinate"][0],
+                    v["L Coordinate"][0],
+                )
+                for (k, v) in coords_iter
+            }
+    comm.barrier()
+    soma_coords = comm.bcast(soma_coords, root=0)
 
     has_ip_dist = False
     origin_ranges = None
@@ -135,7 +146,7 @@ def measure_distances(
                     base64.b64decode(ip_dist_dset[()])
                 )
             f.close()
-    has_ip_dist = MPI.COMM_WORLD.bcast(has_ip_dist, root=0)
+    has_ip_dist = comm.bcast(has_ip_dist, root=0)
 
     if not has_ip_dist:
         if rank == 0:

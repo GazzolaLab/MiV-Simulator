@@ -8,18 +8,24 @@ from typing import (
     Tuple,
     Union,
 )
-
 import copy
 import itertools
 import math
 import sys
 import time
 import traceback
-from collections import defaultdict
+import uuid
+from collections import defaultdict, namedtuple
 from functools import reduce
 
 import numpy as np
-from miv_simulator.cells import BiophysCell, SCneuron, make_section_graph
+from miv_simulator.cells import (
+    BiophysCell,
+    SCneuron,
+    make_section_graph,
+    get_mech_rules_dict,
+    get_distance_to_node,
+)
 from miv_simulator.utils import (
     AbstractEnv,
     ExprClosure,
@@ -47,6 +53,25 @@ if TYPE_CHECKING:
 logger = get_module_logger(__name__)
 if hasattr(h, "nrnmpi_init"):
     h.nrnmpi_init()
+
+
+SynParam = namedtuple(
+    "SynParam",
+    (
+        "population",
+        "source",
+        "sec_type",
+        "syn_name",
+        "param_path",
+        "param_range",
+        "phenotype",
+    ),
+    defaults=(None, None, None, None, None, None, None),
+)
+
+
+def syn_param_from_dict(d):
+    return SynParam(*[d[key] for key in SynParam._fields])
 
 
 def get_node_attribute(name, content, sec, secnodes, x=None):
@@ -1625,6 +1650,8 @@ def insert_hoc_cell_syns(
     syns_dict_soma = defaultdict(
         lambda: defaultdict(lambda: defaultdict(lambda: None))
     )
+    layer_name_dict = dict({v: k for k, v in env.layers.items()})
+    swc_name_dict = dict({v: k for k, v in env.SWC_Types.items()})
 
     syns_dict_by_type = {
         swc_type_apical: syns_dict_dend,
@@ -1639,17 +1666,27 @@ def insert_hoc_cell_syns(
         py_sections = [sec for sec in cell.sections]
     is_reduced = False
     if hasattr(cell, "is_reduced"):
-        is_reduced = cell.is_reduced
+        is_reduced = cell.is_reduced()
+        if isinstance(is_reduced, float):
+            is_reduced = is_reduced > 0.0
 
     cell_soma = None
     cell_dendrite = None
+    reduced_section_dict = {}
     if is_reduced:
-        if hasattr(cell, "soma"):
-            cell_soma = cell.soma
-            if isinstance(cell_soma, list):
-                cell_soma = cell_soma[0]
-        if hasattr(cell, "dend"):
-            cell_dendrite = cell.dend
+        for swc_type_name in env.SWC_Types:
+            for layer_name in env.layers:
+                swc_layer_key = f"{swc_type_name}_{layer_name}_list"
+                sec_list = getattr(cell, swc_layer_key, None)
+                if sec_list is not None:
+                    reduced_section_dict[swc_layer_key] = list(sec_list)
+        if len(reduced_section_dict) == 0:
+            if hasattr(cell, "soma"):
+                cell_soma = cell.soma
+                if isinstance(cell_soma, list):
+                    cell_soma = cell_soma[0]
+            if hasattr(cell, "dend"):
+                cell_dendrite = cell.dend
 
     syn_attrs = env.synapse_attributes
     syn_id_attr_dict = syn_attrs.syn_id_attr_dict[gid]
@@ -1661,14 +1698,36 @@ def insert_hoc_cell_syns(
     syn_count = 0
     nc_count = 0
     mech_count = 0
+    sec_dx = 0.0
+    sec_pos = 0.0
+    current_sec_list = None
+    current_sec_list_key = None
     for syn_id in syn_ids:
         syn = syn_id_attr_dict[syn_id]
         swc_type = syn.swc_type
+        swc_type_name = swc_name_dict[swc_type]
         syn_loc = syn.syn_loc
         syn_section = syn.syn_section
+        syn_layer = syn.syn_layer
+        syn_layer_name = layer_name_dict[syn_layer]
 
         if is_reduced:
-            if (swc_type == swc_type_soma) and (cell_soma is not None):
+            sec_list_key = f"{swc_type_name}_{syn_layer_name}_list"
+            if sec_list_key != current_sec_list_key:
+                current_sec_list_key = sec_list_key
+                current_sec_list = reduced_section_dict.get(sec_list_key, None)
+                sec_pos = 0.0
+                sec_dx = 0.0
+            if current_sec_list is not None:
+                if sec_pos >= 1:
+                    sec = current_sec_list.pop(0)
+                    current_sec_list.append(sec)
+                    sec_pos = 0.0
+                    sec_dx = 0.0
+                sec = current_sec_list[0]
+                sec_dx = syn_loc - sec_dx
+                sec_pos += sec_dx
+            elif (swc_type == swc_type_soma) and (cell_soma is not None):
                 sec = cell_soma
             elif (swc_type == swc_type_axon) and (cell_soma is not None):
                 sec = cell_soma
@@ -2374,7 +2433,6 @@ def modify_syn_param(
     value=None,
     append=False,
     filters=None,
-    origin_filters=None,
     update_targets=False,
     verbose=False,
 ):
@@ -2397,7 +2455,6 @@ def modify_syn_param(
     :param value: float
     :param append: bool
     :param filters: dict
-    :param origin_filters: dict
     :param update_targets: bool
     :param verbose: bool
     """
@@ -2425,10 +2482,6 @@ def modify_syn_param(
     if filters is not None:
         syn_filters = get_syn_filter_dict(env, filters)
         rules["filters"] = syn_filters
-
-    if origin_filters is not None:
-        origin_syn_filters = get_syn_filter_dict(env, origin_filters)
-        rules["origin_filters"] = origin_syn_filters
 
     backup_mech_dict = copy.deepcopy(cell.mech_dict)
 
@@ -2489,18 +2542,16 @@ def update_syn_mech_by_sec_type(
     :param verbose: bool
     """
     for param_name, param_content in mech_content.items():
-        mech_param_contents = param_content
-        for param_content_entry in mech_param_contents:
-            update_syn_mech_param_by_sec_type(
-                cell,
-                env,
-                sec_type,
-                syn_name,
-                param_name,
-                param_content_entry,
-                update_targets,
-                verbose,
-            )
+        update_syn_mech_param_by_sec_type(
+            cell,
+            env,
+            sec_type,
+            syn_name,
+            param_name,
+            param_content,
+            update_targets,
+            verbose,
+        )
 
 
 def update_syn_mech_param_by_sec_type(
@@ -2536,7 +2587,7 @@ def update_syn_mech_param_by_sec_type(
         )
         del new_rules["filters"]
     else:
-        synapse_filters = None
+        synapse_filters = {}
 
     is_reduced = False
     if hasattr(cell, "is_reduced"):
@@ -2551,7 +2602,6 @@ def update_syn_mech_param_by_sec_type(
             param_name,
             new_rules,
             synapse_filters=synapse_filters,
-            origin_filters=origin_filters,
             update_targets=update_targets,
             verbose=verbose,
         )
@@ -2614,11 +2664,11 @@ def apply_syn_mech_rules(
         if len(filtered_syns) == 0:
             return
         syn_distances = []
+        sec_roots = list([n for n, d in cell.tree.in_degree() if d == 0])
+        sec_root = sec_roots[0]
         for syn_id, syn in filtered_syns.items():
             syn_distances.append(
-                get_distance_to_node(
-                    cell, cell.tree.root, node, loc=syn.syn_loc
-                )
+                get_distance_to_node(cell, node, sec_root, loc=syn.syn_loc)
             )
         target_distance = min(syn_distances)
         syn_ids = list(filtered_syns.keys())

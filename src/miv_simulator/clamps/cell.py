@@ -111,23 +111,11 @@ def init_biophys_cell(
     else:
         correct_for_spines_flag = False
 
+    reduced_cons = cells.get_reduced_cell_constructor(template_name)
+
     ## Load cell gid and its synaptic attributes and connection data
-    if template_name.lower() == "pr_nrn":
-        cell = cells.make_PR_cell(
-            env,
-            pop_name,
-            gid,
-            tree_dict=cell_dict.get("morph", None),
-            synapses_dict=cell_dict.get("synapse", None),
-            connection_graph=cell_dict.get("connectivity", None),
-            weight_dict=cell_dict.get("weight", None),
-            mech_dict=mech_dict,
-            load_synapses=True,
-            load_weights=load_weights,
-            load_edges=load_connections,
-        )
-    elif template_name.lower() == "sc_nrn":
-        cell = cells.make_SC_cell(
+    if reduced_cons is not None:
+        cell = reduced_cons(
             env,
             pop_name,
             gid,

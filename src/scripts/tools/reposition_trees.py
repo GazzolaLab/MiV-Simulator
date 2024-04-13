@@ -110,6 +110,7 @@ sys.excepthook = mpi_excepthook
 @click.option("--chunk-size", type=int, default=1000)
 @click.option("--value-chunk-size", type=int, default=1000)
 @click.option("--cache-size", type=int, default=50)
+@click.option("--write-size", type=int, default=-1)
 @click.option("--dry-run", is_flag=True)
 @click.option("--verbose", "-v", is_flag=True)
 def main(
@@ -125,6 +126,7 @@ def main(
     chunk_size,
     value_chunk_size,
     cache_size,
+    write_size,
     dry_run,
     verbose,
 ):
@@ -152,7 +154,7 @@ def main(
 
     env = Env(
         comm=comm,
-        config_file=config,
+        config=config,
         config_prefix=config_prefix,
         template_paths=template_path,
     )
@@ -207,6 +209,7 @@ def main(
     soma_coords = comm.bcast(soma_coords, root=0)
 
     new_trees_dict = {}
+    iter_count = 0
     for gid, tree_dict in NeuroH5TreeGen(
         forest_path,
         population,
@@ -222,12 +225,37 @@ def main(
                 tree_dict, cell_coords, env.SWC_Types
             )
             new_trees_dict[gid] = new_tree_dict
+        iter_count += 1
+
+        if (
+            (not dry_run)
+            and (write_size > 0)
+            and (iter_count % write_size == 0)
+        ):
+            if rank == 0:
+                logger.info(f"Appending repositioned trees to {output_path}...")
+            append_cell_trees(
+                output_path,
+                population,
+                new_trees_dict,
+                io_size=io_size,
+                chunk_size=chunk_size,
+                value_chunk_size=value_chunk_size,
+                comm=comm,
+            )
+            new_trees_dict = {}
 
     if not dry_run:
-        if (not dry_run) and (rank == 0):
+        if rank == 0:
             logger.info(f"Appending repositioned trees to {output_path}...")
         append_cell_trees(
-            output_path, population, new_trees_dict, io_size=io_size, comm=comm
+            output_path,
+            population,
+            new_trees_dict,
+            io_size=io_size,
+            chunk_size=chunk_size,
+            value_chunk_size=value_chunk_size,
+            comm=comm,
         )
 
     comm.barrier()
@@ -235,6 +263,7 @@ def main(
         logger.info(
             f"Appended {len(new_trees_dict)} repositioned trees to {output_path}"
         )
+    MPI.Finalize()
 
 
 if __name__ == "__main__":
