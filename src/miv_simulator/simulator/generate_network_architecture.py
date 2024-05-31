@@ -352,8 +352,7 @@ def generate_network_architecture(
                     callback = getattr(module, obj_name)
 
                     nodes = callback(count, layer_extents[layer])
-
-                    if not len(nodes) == count:
+                    if len(nodes) != count:
                         logger.error(
                             f"Generator {layer} produced mismatch between actual count {len(nodes)} and configured count {count}"
                         )
@@ -488,6 +487,7 @@ def generate_network_architecture(
             if i % size == rank:
                 uvl_coords = all_uvl_coords_interp[coord_ind, :].ravel()
                 xyz_coords1 = all_xyz_coords_interp[coord_ind, :].ravel()
+
                 if uvl_in_bounds(
                     all_uvl_coords_interp[coord_ind, :],
                     layer_extents,
@@ -539,7 +539,6 @@ def generate_network_architecture(
 
         total_xyz_error = np.zeros((3,))
         comm.Allreduce(xyz_error, total_xyz_error, op=MPI.SUM)
-
         coords_count = 0
         coords_count = np.sum(np.asarray(comm.allgather(len(coords))))
 
@@ -555,6 +554,7 @@ def generate_network_architecture(
             )
 
         pop_coords_dict[population] = coords
+
         coords_offset += gen_coords_count
 
         if rank == 0:
@@ -644,7 +644,6 @@ def generate_network_architecture(
                                     coord_l,
                                 )
                             )
-
             sampled_coords = random_subset(all_coords, int(pop_count))
             sampled_coords.sort(
                 key=lambda coord: coord[3]
