@@ -51,11 +51,6 @@ class GenerateSynapseForest(Component):
         self.__call__(cmds.append)
         lines = [" ".join(cmd) for cmd in cmds]
 
-        if isinstance(python, str):
-            runner, _, python = python.rpartition(" ")
-            if runner:
-                lines = [runner + " " + line for line in lines]
-
         cache_marker = self.local_directory("cached")
         lines.append(f'echo "finished" > {cache_marker}')
 

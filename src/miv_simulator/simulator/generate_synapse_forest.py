@@ -46,7 +46,7 @@ def generate_synapse_forest(
         _bin_check("neurotrees_import")
         _run(
             [
-                "neurotrees_import",
+                "mpirun -n 1 neurotrees_import",
                 population,
                 tree_output_filepath,
                 morphology,
@@ -83,7 +83,7 @@ def generate_synapse_forest(
         _bin_check("neurotrees_copy")
         _run(
             [
-                "neurotrees_copy",
+                "mpirun -n 1 neurotrees_copy",
                 "--fill",
                 "--output",
                 output_filepath,
