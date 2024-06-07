@@ -84,6 +84,7 @@ def generate_synapse_forest(
         _run(
             [
                 "mpirun -n 1 neurotrees_copy",
+                "--write-size 1000",
                 "--fill",
                 "--output",
                 output_filepath,
