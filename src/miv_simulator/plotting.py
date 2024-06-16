@@ -1233,9 +1233,11 @@ def plot_spike_histogram(
         if quantity == "rate":
             hist_y = np.asarray(
                 [
-                    (bin_dict[ibin]["rates"] / bin_dict[ibin]["active"])
-                    if bin_dict[ibin]["active"] > 0
-                    else 0.0
+                    (
+                        (bin_dict[ibin]["rates"] / bin_dict[ibin]["active"])
+                        if bin_dict[ibin]["active"] > 0
+                        else 0.0
+                    )
                     for ibin in range(0, len(time_bins))
                 ]
             )
@@ -3162,6 +3164,149 @@ def plot_single_vertex_dist(
             else:
                 filename = f"Connection distance {direction} {source} to {destination} gid {target_gid}.{fig_options.figFormat}"
                 plt.savefig(filename)
+
+    comm.barrier()
+
+
+def plot_vertex_distribution(
+    connectivity_path,
+    coords_path,
+    distances_namespace,
+    destination,
+    sources,
+    bin_size=20.0,
+    cache_size=100,
+    comm=None,
+    **kwargs,
+):
+    """
+    Plot vertex distribution with respect to septo-temporal distance
+
+    :param connectivity_path:
+    :param coords_path:
+    :param distances_namespace:
+    :param destination:
+    :param source:
+
+    """
+    fig_options = copy.copy(default_fig_options)
+    fig_options.update(kwargs)
+
+    if comm is None:
+        comm = MPI.COMM_WORLD
+
+    rank = comm.Get_rank()
+
+    has_vertex_dist_metrics = False
+    if rank == 0:
+        f = h5py.File(connectivity_path, "r")
+        if "Vertex Distribution" in f:
+            has_vertex_dist_metrics = True
+            vertex_distribution_dict = {
+                dist_type: {destination: {}}
+                for dist_type in ["Total distance", "U distance", "V distance"]
+            }
+            for source in sources:
+                dist_hist_array = f["Vertex Distribution"]["Total distance"][
+                    destination
+                ][source]
+                dist_u_hist_array = f["Vertex Distribution"]["U distance"][
+                    destination
+                ][source]
+                dist_v_hist_array = f["Vertex Distribution"]["V distance"][
+                    destination
+                ][source]
+                vertex_distribution_dict["Total distance"][destination][
+                    source
+                ] = dist_hist_array[()]
+                vertex_distribution_dict["U distance"][destination][source] = (
+                    dist_u_hist_array[()]
+                )
+                vertex_distribution_dict["V distance"][destination][source] = (
+                    dist_v_hist_array[()]
+                )
+        f.close()
+
+    has_vertex_dist_metrics = comm.bcast(has_vertex_dist_metrics, root=0)
+
+    if not has_vertex_dist_metrics:
+        vertex_distribution_dict = vertex_distribution(
+            connectivity_path,
+            coords_path,
+            distances_namespace,
+            destination,
+            sources,
+            bin_size,
+            cache_size,
+            comm=comm,
+        )
+
+    if rank == 0:
+        for source in sources:
+            if has_vertex_dist_metrics:
+                dist_hist_array = vertex_distribution_dict["Total distance"][
+                    destination
+                ][source]
+                dist_u_hist_array = vertex_distribution_dict["U distance"][
+                    destination
+                ][source]
+                dist_v_hist_array = vertex_distribution_dict["V distance"][
+                    destination
+                ][source]
+                dist_hist_vals = dist_hist_array[0, :]
+                dist_bin_edges = dist_hist_array[1, :]
+                dist_u_hist_vals = dist_u_hist_array[0, :]
+                dist_u_bin_edges = dist_u_hist_array[1, :]
+                dist_v_hist_vals = dist_v_hist_array[0, :]
+                dist_v_bin_edges = dist_v_hist_array[1, :]
+            else:
+                dist_hist_vals, dist_bin_edges = vertex_distribution_dict[
+                    "Total distance"
+                ][destination][source]
+                dist_u_hist_vals, dist_u_bin_edges = vertex_distribution_dict[
+                    "U distance"
+                ][destination][source]
+                dist_v_hist_vals, dist_v_bin_edges = vertex_distribution_dict[
+                    "V distance"
+                ][destination][source]
+
+            fig, (ax2, ax3) = plt.subplots(1, 2, figsize=fig_options.figSize)
+            fig.suptitle(
+                "Distribution of connection distances for projection %s -> %s"
+                % (source, destination),
+                fontsize=fig_options.fontSize,
+            )
+
+            # ax1.fill_between(dist_bin_edges, dist_hist_vals, alpha=0.5)
+            # ax1.set_xlabel('Total distance (um)', fontsize=fig_options.fontSize)
+            # ax1.set_ylabel('Number of connections', fontsize=fig_options.fontSize)
+            # ax1.tick_params(labelsize=fig_options.fontSize)
+
+            ax2.fill_between(dist_u_bin_edges, dist_u_hist_vals, alpha=0.5)
+            ax2.set_xlabel(
+                "Septal - temporal (um)", fontsize=fig_options.fontSize
+            )
+            ax3.fill_between(dist_v_bin_edges, dist_v_hist_vals, alpha=0.5)
+            ax3.set_xlabel(
+                "Supra - infrapyramidal (um)", fontsize=fig_options.fontSize
+            )
+
+            ax2.tick_params(labelsize=fig_options.fontSize)
+            ax3.tick_params(labelsize=fig_options.fontSize)
+
+            if fig_options.saveFig:
+                if isinstance(fig_options.saveFig, str):
+                    filename = fig_options.saveFig
+                else:
+                    filename = "Connection distance %s to %s.%s" % (
+                        source,
+                        destination,
+                        fig_options.figFormat,
+                    )
+                    plt.savefig(filename)
+
+            if fig_options.showFig:
+                show_figure()
 
     comm.barrier()
 
