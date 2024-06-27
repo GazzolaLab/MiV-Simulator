@@ -294,8 +294,6 @@ def choose_synapse_projection(
     if len(projection_lst) > 1:
         candidate_projections = np.asarray(projection_lst)
         candidate_probs = np.asarray(projection_prob_lst)
-        if log:
-            logger.info(f"{candidate_projections=} {candidate_probs=}")
         projection = ranstream_syn.choice(
             candidate_projections, 1, p=candidate_probs
         )[0]
@@ -374,11 +372,11 @@ def generate_synaptic_connections(
         if log_flag:
             logger.info(
                 f"generate_synaptic_connections: gid {gid}: iteration {it}: "
-                f"source_populations = {source_populations} "
-                f"synapse_prj_counts = {synapse_prj_counts}"
+                f"source_populations = {source_populations}\n"
+                f"synapse_prj_counts = {synapse_prj_counts}\n"
+                f"number of synapses in synapse_dict = {len(synapse_dict['syn_ids'])}"
             )
-        if debug_flag:
-            logger.info(f"synapse_dict = {synapse_dict}")
+
         synapse_prj_counts.fill(0)
         synapse_prj_partition.clear()
         for syn_id, syn_cdist, syn_type, swc_type, syn_layer in zip(
@@ -402,13 +400,13 @@ def generate_synaptic_connections(
                 logger.info(
                     f"generate_synaptic_connections: {gid=}: "
                     f"{syn_id=} {syn_type=} {swc_type=} "
-                    f"{syn_layer=} {projection=}"
+                    f"{syn_layer=} {projection=} "
                     f"{ranstream_syn=}"
                 )
             log_flag = False
             assert (
                 projection is not None
-            ), f"generate_synaptic_connections: {gid=}: {syn_id=} {syn_type=} {swc_type=} {syn_layer=} {projection=} {ranstream_syn=} {population_dict=} {projection_synapse_dict=}\n{synapse_dict['syn_types']=}"
+            ), f"generate_synaptic_connections: {gid=}: {syn_id=} {syn_type=} {swc_type=} {syn_layer=} {projection=} {ranstream_syn=} {population_dict=} {projection_synapse_dict=}\n {synapse_dict['syn_types']=}"
             synapse_prj_counts[prj_pop_index[projection]] += 1
             synapse_prj_partition[projection][syn_layer].append(syn_id)
         it += 1
@@ -475,7 +473,7 @@ def generate_synaptic_connections(
                 if len(source_gid_counts) == 0:
                     logger.warning(
                         f"Rank {rank}: source vertices list is empty for gid: {destination_gid} "
-                        f"source: {projection} layer: layer? "
+                        f"source: {projection} layer: {prj_layer} "
                         f"source probs: {source_probs} distances_u: {distances_u} distances_v: {distances_v}"
                     )
 
@@ -648,12 +646,13 @@ def generate_uv_distance_connections(
             last_gid_time = time.time()
 
             projection_prob_dict = {}
+
             for source_population in source_populations:
                 source_layers = projection_config[source_population].layers
-                projection_prob_dict[
-                    source_population
-                ] = connection_prob.get_prob(
-                    destination_gid, source_population, source_layers
+                projection_prob_dict[source_population] = (
+                    connection_prob.get_prob(
+                        destination_gid, source_population, source_layers
+                    )
                 )
 
                 for layer, (
