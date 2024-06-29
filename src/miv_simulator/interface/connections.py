@@ -31,7 +31,7 @@ class Connections(Component):
         value_chunk_size: int = 1000
         cache_size: int = 1
         write_size: int = 1
-        ranks: int = 8
+        ranks: int = -1
         nodes: str = "1"
 
     def config_from_file(self, filename: str) -> Dict:
@@ -69,7 +69,7 @@ class Connections(Component):
             cache_size=self.config.cache_size,
             write_size=self.config.write_size,
             dry_run=False,
-            seeds=self.seed,
+            seeds=[18000000, 2000000, 1500000],
         )
 
     def on_write_meta_data(self):
