@@ -188,7 +188,7 @@ class Network(Interface):
                 },
                 uses=self.synapses[population],
             ).launch()
-            for population in config.synapses
+            for population in self.synapses
         }
 
         self.neural_h5 = get(
