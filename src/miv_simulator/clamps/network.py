@@ -28,6 +28,11 @@ from miv_simulator.utils.neuron import configure_hoc_env, h
 from miv_simulator.stimulus import (
     oscillation_phase_mod_config,
     rate_maps_from_features,
+    get_2D_arena_spatial_mesh,
+    generate_linear_trajectory,
+    get_equilibration,
+    generate_input_spike_trains,
+    read_stimulus,
 )
 from miv_simulator.utils import (
     Struct,
@@ -285,13 +290,13 @@ def init_inputs_from_features(
     selectivity_type_names = {i: n for n, i in env.selectivity_types.items()}
 
     arena = env.stimulus_config["Arena"][arena_id]
-    arena_x, arena_y = stimulus.get_2D_arena_spatial_mesh(
+    arena_x, arena_y = get_2D_arena_spatial_mesh(
         arena=arena, spatial_resolution=spatial_resolution
     )
 
-    stimulus = arena.trajectories[stimulus_id]
-    t, x, y, d = stimulus.generate_linear_trajectory(
-        stimulus,
+    stimulus_spec = arena.trajectories[stimulus_id]
+    t, x, y, d = generate_linear_trajectory(
+        stimulus_spec,
         temporal_resolution=temporal_resolution,
         equilibration_duration=equilibration_duration,
     )
@@ -305,7 +310,7 @@ def init_inputs_from_features(
         d = d[t_range_inds]
     stimulus = t, x, y, d
 
-    equilibrate = stimulus.get_equilibration(env)
+    equilibrate = get_equilibration(env)
 
     input_source_dict = {}
     for population in populations:
@@ -343,9 +348,7 @@ def init_inputs_from_features(
                 if phase_mod_config_dict is not None:
                     phase_mod_config = phase_mod_config_dict[gid]
 
-                spikes_attr_dict[
-                    gid
-                ] = stimulus.generate_stimulus_from_spike_trains(
+                spikes_attr_dict[gid] = generate_input_spike_trains(
                     env,
                     population,
                     selectivity_type_names,
@@ -786,12 +789,14 @@ def update_params(env, pop_param_dict):
                         this_sec_type,
                         syn_name,
                         param_name=p,
-                        value={s: param_value}
-                        if (s is not None)
-                        else param_value,
-                        filters={"sources": sources}
-                        if sources is not None
-                        else None,
+                        value=(
+                            {s: param_value} if (s is not None) else param_value
+                        ),
+                        filters=(
+                            {"sources": sources}
+                            if sources is not None
+                            else None
+                        ),
                         update_targets=True,
                     )
 
@@ -1373,10 +1378,12 @@ def init_rate_dist_objfun(
             np.isclose(target_rate_vector, 0.0, atol=1e-3, rtol=1e-3)
         ] = 0.0
 
-    trj_d, trj_t = stimulus.read_stimulus(
-        input_features_path
-        if input_features_path is not None
-        else spike_events_path,
+    trj_d, trj_t = read_stimulus(
+        (
+            input_features_path
+            if input_features_path is not None
+            else spike_events_path
+        ),
         target_features_arena,
         target_features_stimulus,
     )
