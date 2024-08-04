@@ -1233,9 +1233,11 @@ def plot_spike_histogram(
         if quantity == "rate":
             hist_y = np.asarray(
                 [
-                    (bin_dict[ibin]["rates"] / bin_dict[ibin]["active"])
-                    if bin_dict[ibin]["active"] > 0
-                    else 0.0
+                    (
+                        (bin_dict[ibin]["rates"] / bin_dict[ibin]["active"])
+                        if bin_dict[ibin]["active"] > 0
+                        else 0.0
+                    )
                     for ibin in range(0, len(time_bins))
                 ]
             )
@@ -2820,7 +2822,6 @@ def plot_network_clamp(
                     this_trial_spkts[spk_inds],
                     [0.5] * len(spk_inds),
                     markerfmt=" ",
-                    use_line_collection=True,
                 )
             ax_spk.set_yticks([])
         sprate = spk_count / n_trials / tsecs
