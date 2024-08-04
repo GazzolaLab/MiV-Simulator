@@ -649,10 +649,10 @@ def generate_uv_distance_connections(
 
             for source_population in source_populations:
                 source_layers = projection_config[source_population].layers
-                projection_prob_dict[source_population] = (
-                    connection_prob.get_prob(
-                        destination_gid, source_population, source_layers
-                    )
+                projection_prob_dict[
+                    source_population
+                ] = connection_prob.get_prob(
+                    destination_gid, source_population, source_layers
                 )
 
                 for layer, (

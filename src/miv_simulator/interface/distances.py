@@ -28,7 +28,7 @@ class MeasureDistances(Component):
         chunk_size: int = 1000
         value_chunk_size: int = 1000
         cache_size: int = 50
-        ranks: int = 8
+        ranks: int = -1
         nodes: str = "1"
 
     def __call__(self):

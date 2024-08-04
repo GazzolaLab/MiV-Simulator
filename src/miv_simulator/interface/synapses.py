@@ -25,7 +25,7 @@ class Synapses(Component):
         write_size: int = 1
         chunk_size: int = 1000
         value_chunk_size: int = 1000
-        ranks: int = 8
+        ranks: int = -1
         nodes: str = "1"
 
         @field_validator("cell_types")
@@ -63,7 +63,7 @@ class Synapses(Component):
             write_size=self.config.write_size,
             chunk_size=self.config.chunk_size,
             value_chunk_size=self.config.value_chunk_size,
-            seed=self.seed,
+            seed=None,
             dry_run=False,
         )
 

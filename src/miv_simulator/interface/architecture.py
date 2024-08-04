@@ -45,7 +45,7 @@ class Architecture(Component):
         io_size: int = -1
         chunk_size: int = 1000
         value_chunk_size: int = 1000
-        ranks: int = 8
+        ranks: int = -1
         nodes: str = "1"
 
     def config_from_file(self, filename: str) -> Dict:

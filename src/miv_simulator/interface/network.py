@@ -1,9 +1,18 @@
 import os
 
+from typing import Optional
+
 from pydantic import BaseModel, Field, ConfigDict
 from machinable import Interface, get
 from miv_simulator.config import Config
 from miv_simulator import mechanisms
+
+
+def _lp(x1, x2, y1, y2, x) -> int:
+    q = ((y2 - y1) * x + x2 * y1 - x1 * y2) / (x2 - x1)
+    q = max(x1, q)
+    q = min(x2, q)
+    return int(q)
 
 
 class Network(Interface):
@@ -14,11 +23,16 @@ class Network(Interface):
         mechanisms_path: str = ("./mechanisms",)
         template_path: str = ("./templates",)
         morphology_path: str = "./morphology"
+        populations: Optional[list[str]] = None
 
     def launch(self):
         self.source_config = config = Config.from_yaml(
             self.config.config_filepath
         )
+
+        populations = self.config.populations
+        if populations is None:
+            populations = list(config.synapses.keys())
 
         self.h5_types = get(
             "miv_simulator.interface.h5_types",
@@ -58,7 +72,7 @@ class Network(Interface):
                 },
                 uses=self.distances,
             ).launch()
-            for population in config.synapses
+            for population in [p for p in config.synapses if p in populations]
         }
 
         self.synapses = {
@@ -73,12 +87,48 @@ class Network(Interface):
                     "distribution": "poisson",
                     "mechanisms_path": self.config.mechanisms_path,
                     "template_path": self.config.template_path,
-                    "io_size": 1,
-                    "write_size": 0,
+                    # apply heuristic based on number of cells
+                    "io_size": _lp(
+                        0,
+                        5e5,
+                        1,
+                        30,
+                        sum(config.cell_distributions[population].values()),
+                    ),
+                    "write_size": _lp(
+                        0,
+                        5e5,
+                        1,
+                        100,
+                        sum(config.cell_distributions[population].values()),
+                    ),
+                    "chunk_size": _lp(
+                        0,
+                        5e5,
+                        1000,
+                        10000,
+                        sum(config.cell_distributions[population].values()),
+                    ),
+                    "value_chunk_size": _lp(
+                        0,
+                        5e5,
+                        1000,
+                        200000,
+                        sum(config.cell_distributions[population].values()),
+                    ),
+                    "nodes": str(
+                        _lp(
+                            0,
+                            5e5,
+                            1,
+                            25,
+                            sum(config.cell_distributions[population].values()),
+                        )
+                    ),
                 },
                 uses=self.synapse_forest[population],
             ).launch()
-            for population in config.synapses
+            for population in self.synapse_forest
         }
 
         self.connections = {
@@ -91,13 +141,54 @@ class Network(Interface):
                     "axon_extents": config.axon_extents,
                     "population_definitions": config.definitions.populations,
                     "layer_definitions": config.definitions.layers,
-                    "io_size": 1,
-                    "cache_size": 20,
-                    "write_size": 100,
+                    "io_size": _lp(
+                        0,
+                        5e5,
+                        1,
+                        40,
+                        sum(config.cell_distributions[population].values()),
+                    ),
+                    "cache_size": _lp(
+                        0,
+                        5e5,
+                        1,
+                        20,
+                        sum(config.cell_distributions[population].values()),
+                    ),
+                    "write_size": _lp(
+                        0,
+                        5e5,
+                        1,
+                        250,
+                        sum(config.cell_distributions[population].values()),
+                    ),
+                    "chunk_size": _lp(
+                        0,
+                        5e5,
+                        1000,
+                        10000,
+                        sum(config.cell_distributions[population].values()),
+                    ),
+                    "value_chunk_size": _lp(
+                        0,
+                        5e5,
+                        1000,
+                        640000,
+                        sum(config.cell_distributions[population].values()),
+                    ),
+                    "nodes": str(
+                        _lp(
+                            0,
+                            5e5,
+                            1,
+                            64,
+                            sum(config.cell_distributions[population].values()),
+                        )
+                    ),
                 },
                 uses=self.synapses[population],
             ).launch()
-            for population in config.synapses
+            for population in self.synapses
         }
 
         self.neural_h5 = get(
