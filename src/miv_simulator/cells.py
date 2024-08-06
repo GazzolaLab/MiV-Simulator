@@ -806,6 +806,13 @@ class BiophysCell:
     def hillock(self):
         return self.nodes["hillock"]
 
+    @property
+    def is_reduced(self):
+        if self.hoc_cell is not None:
+            return getattr(self.hoc_cell, "is_reduced", False)
+        else:
+            return False
+
 
 def get_distance_to_node(
     cell: BiophysCell,

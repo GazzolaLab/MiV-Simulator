@@ -150,6 +150,11 @@ def init_biophys_cell(
     is_reduced = False
     if hasattr(cell, "is_reduced"):
         is_reduced = cell.is_reduced
+        if callable(is_reduced):
+            is_reduced = is_reduced()
+        if isinstance(is_reduced, float):
+            is_reduced = is_reduced > 0.0
+
     if not is_reduced:
         cells.report_topology(env, cell)
 
@@ -373,7 +378,6 @@ def measure_passive(
         "tau0": np.asarray([tau0], dtype=np.float32),
     }
 
-    logger.info(f"results = {results}")
     env.synapse_attributes.del_syn_id_attr_dict(gid)
     if gid in env.biophys_cells[pop_name]:
         del env.biophys_cells[pop_name][gid]

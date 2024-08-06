@@ -1666,7 +1666,9 @@ def insert_hoc_cell_syns(
         py_sections = [sec for sec in cell.sections]
     is_reduced = False
     if hasattr(cell, "is_reduced"):
-        is_reduced = cell.is_reduced()
+        is_reduced = cell.is_reduced
+        if callable(is_reduced):
+            is_reduced = is_reduced()
         if isinstance(is_reduced, float):
             is_reduced = is_reduced > 0.0
 
@@ -1677,9 +1679,16 @@ def insert_hoc_cell_syns(
         for swc_type_name in env.SWC_Types:
             for layer_name in env.layers:
                 swc_layer_key = f"{swc_type_name}_{layer_name}_list"
+                swc_layer_index_key = f"{swc_type_name}_{layer_name}_index"
                 sec_list = getattr(cell, swc_layer_key, None)
+                sec_index = getattr(cell, swc_layer_index_key, None)
                 if sec_list is not None:
-                    reduced_section_dict[swc_layer_key] = list(sec_list)
+                    reduced_section_dict[swc_layer_key] = list(
+                        zip(
+                            np.asarray(sec_index, dtype=np.uint16),
+                            list(sec_list),
+                        )
+                    )
         if len(reduced_section_dict) == 0:
             if hasattr(cell, "soma"):
                 cell_soma = cell.soma
@@ -1712,6 +1721,7 @@ def insert_hoc_cell_syns(
         syn_layer_name = layer_name_dict[syn_layer]
 
         if is_reduced:
+            sec_index = 0
             sec_list_key = f"{swc_type_name}_{syn_layer_name}_list"
             if sec_list_key != current_sec_list_key:
                 current_sec_list_key = sec_list_key
@@ -1719,12 +1729,12 @@ def insert_hoc_cell_syns(
                 sec_pos = 0.0
                 sec_dx = 0.0
             if current_sec_list is not None:
-                if sec_pos >= 1:
-                    sec = current_sec_list.pop(0)
-                    current_sec_list.append(sec)
+                if sec_pos >= 1.0:
+                    sec_index, sec = current_sec_list.pop(0)
+                    current_sec_list.append((sec_index, sec))
                     sec_pos = 0.0
                     sec_dx = 0.0
-                sec = current_sec_list[0]
+                sec_index, sec = current_sec_list[0]
                 sec_dx = syn_loc - sec_dx
                 sec_pos += sec_dx
             elif (swc_type == swc_type_soma) and (cell_soma is not None):
@@ -2592,6 +2602,10 @@ def update_syn_mech_param_by_sec_type(
     is_reduced = False
     if hasattr(cell, "is_reduced"):
         is_reduced = cell.is_reduced
+        if callable(is_reduced):
+            is_reduced = is_reduced()
+        if isinstance(is_reduced, float):
+            is_reduced = is_reduced > 0.0
 
     if is_reduced:
         synapse_filters["swc_types"] = [env.SWC_Types[sec_type]]
