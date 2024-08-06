@@ -104,13 +104,6 @@ def init_biophys_cell(
     if "mech_file_path" in env.celltypes[pop_name]:
         mech_dict = env.celltypes[pop_name]["mech_dict"]
 
-    ## Determine if correct_for_spines flag has been specified for this cell type
-    synapse_config = env.celltypes[pop_name]["synapses"]
-    if "correct_for_spines" in synapse_config:
-        correct_for_spines_flag = synapse_config["correct_for_spines"]
-    else:
-        correct_for_spines_flag = False
-
     reduced_cons = cells.get_reduced_cell_constructor(template_name)
 
     ## Load cell gid and its synaptic attributes and connection data
@@ -147,8 +140,6 @@ def init_biophys_cell(
     cells.init_biophysics(
         cell,
         reset_cable=True,
-        correct_cm=correct_for_spines_flag,
-        correct_g_pas=correct_for_spines_flag,
         env=env,
     )
     synapses.init_syn_mech_attrs(cell, env)
