@@ -136,8 +136,6 @@ def main(
     cells.init_biophysics(
         biophys_cell,
         reset_cable=True,
-        correct_cm=False,
-        correct_g_pas=False,
         env=env,
     )
     if load_synapses:
