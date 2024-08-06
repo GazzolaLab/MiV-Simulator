@@ -449,7 +449,7 @@ def generate_input_spike_trains(
             velocity=velocity if phase_mod_config is not None else None,
             initial_phase=initial_phase,
         )
-        if (selectivity_type_name != "constant") and (equilibrate is not None):
+        if equilibrate is not None:
             equilibrate_filter, equilibrate_len = equilibrate
             rate_map[:equilibrate_len] = np.multiply(
                 rate_map[:equilibrate_len], equilibrate_filter
