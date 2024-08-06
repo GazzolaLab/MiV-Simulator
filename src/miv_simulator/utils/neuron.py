@@ -150,10 +150,25 @@ def lambda_f(sec: Section, f: int = freq) -> float:
     :param f: int
     :return: int
     """
-    diam = np.mean([seg.diam for seg in sec])
     Ra = sec.Ra
-    cm = np.mean([seg.cm for seg in sec])
-    return 1e5 * math.sqrt(diam / (4.0 * math.pi * f * Ra * cm))
+    cm = sec.cm
+    if sec.n3d() < 2:
+        return 1.0e5 * math.sqrt(sec(0).diam / (4 * math.pi * f * Ra * cm))
+
+    x1 = sec.arc3d(0)
+    d1 = sec.diam3d(0)
+    lam = 0
+    for i in range(1, sec.n3d()):
+        x2 = sec.arc3d(i)
+        d2 = sec.diam3d(i)
+        lam += (x2 - x1) / math.sqrt(d1 + d2)
+        x1 = x2
+        d1 = d2
+
+    ## length of the section in units of lambda
+    lam *= math.sqrt(2) * 1.0e-5 * math.sqrt(4 * math.pi * f * Ra * cm)
+
+    return sec.L / lam
 
 
 def d_lambda_nseg(sec: Section, lam: float = d_lambda, f: int = freq) -> int:
@@ -197,7 +212,8 @@ def init_nseg(sec: Section, spatial_res: int = 0, verbose: bool = True) -> None:
         logger.info(
             f"init_nseg: changed {sec.hname()}.nseg {sec.nseg} --> {sugg_nseg}"
         )
-    sec.nseg = int(sugg_nseg)
+    if sec.nseg < sugg_nseg:
+        sec.nseg = int(sugg_nseg)
 
 
 def mknetcon(
