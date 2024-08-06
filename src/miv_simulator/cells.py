@@ -1786,9 +1786,9 @@ def init_circuit_context(
                         cell_weights_dict,
                     ) in cell_weights_iter:
                         assert cell_weights_gid == gid
-                        cell_weights_dicts[
-                            weights_namespace
-                        ] = cell_weights_dict
+                        cell_weights_dicts[weights_namespace] = (
+                            cell_weights_dict
+                        )
 
             else:
                 raise RuntimeError(
@@ -1892,8 +1892,6 @@ def init_biophysics(
     cell: Union[BiophysCell, SCneuron],
     env: Optional[AbstractEnv] = None,
     reset_cable: bool = True,
-    correct_cm: bool = False,
-    correct_g_pas: bool = False,
     reset_mech_dict: bool = False,
     verbose: bool = True,
 ) -> None:
@@ -1905,17 +1903,10 @@ def init_biophysics(
     :param cell: :class:'BiophysCell'
     :param env: :class:'Env'
     :param reset_cable: bool
-    :param correct_cm: bool
-    :param correct_g_pas: bool
     :param reset_mech_dict: bool
     :param verbose: bool
     """
 
-    if (correct_cm or correct_g_pas) and env is None:
-        raise ValueError(
-            "init_biophysics: missing Env object; required to parse network configuration and count "
-            "synapses."
-        )
     if reset_mech_dict:
         cell.mech_dict = copy.deepcopy(cell.init_mech_dict)
     if reset_cable:
@@ -1923,115 +1914,10 @@ def init_biophysics(
             if sec_type in cell.mech_dict and sec_type in cell.nodes:
                 for node in cell.nodes[sec_type]:
                     reset_cable_by_node(cell, node, verbose=verbose)
-    if correct_cm:
-        correct_cell_for_spines_cm(cell, env, verbose=verbose)
-    else:
-        for sec_type in default_ordered_sec_types:
-            if sec_type in cell.mech_dict and sec_type in cell.nodes:
-                if cell.nodes[sec_type]:
-                    update_biophysics_by_sec_type(cell, sec_type)
-    if correct_g_pas:
-        correct_cell_for_spines_g_pas(cell, env, verbose=verbose)
-
-
-def correct_node_for_spines_g_pas(
-    node, env: AbstractEnv, gid, soma_g_pas, verbose=True
-):
-    """
-    If not explicitly modeling spine compartments for excitatory synapses, this method scales g_pas in this
-    dendritic section proportional to the number of excitatory synapses contained in the section.
-    :param node: :class:'SHocNode'
-    :param env: :class:'Env'
-    :param gid: int
-    :param soma_g_pas: float
-    :param verbose: bool
-    """
-    SA_spine = math.pi * (1.58 * 0.077 + 0.5 * 0.5)
-    if len(node.spine_count) != node.sec.nseg:
-        count_spines_per_seg(node, env, gid)
-    for i, segment in enumerate(node.sec):
-        SA_seg = segment.area()
-        num_spines = node.spine_count[i]
-
-        g_pas_correction_factor = (
-            SA_seg * node.sec(segment.x).g_pas
-            + num_spines * SA_spine * soma_g_pas
-        ) / (SA_seg * node.sec(segment.x).g_pas)
-        node.sec(segment.x).g_pas *= g_pas_correction_factor
-        if verbose:
-            logger.info(
-                "g_pas_correction_factor for gid: %i; %s seg %i: %.3f"
-                % (gid, node.name, i, g_pas_correction_factor)
-            )
-
-
-def correct_node_for_spines_cm(node, env: AbstractEnv, gid, verbose=True):
-    """
-    If not explicitly modeling spine compartments for excitatory synapses, this method scales cm in this
-    dendritic section proportional to the number of excitatory synapses contained in the section.
-    :param node: :class:'SHocNode'
-    :param env:  :class:'Env'
-    :param gid: int
-    :param verbose: bool
-    """
-    # arrived at via optimization. spine neck appears to shield dendrite from spine head contribution to membrane
-    # capacitance and time constant:
-    cm_fraction = 0.40
-    SA_spine = math.pi * (1.58 * 0.077 + 0.5 * 0.5)
-    if len(node.spine_count) != node.sec.nseg:
-        count_spines_per_seg(node, env, gid)
-    for i, segment in enumerate(node.sec):
-        SA_seg = segment.area()
-        num_spines = node.spine_count[i]
-        cm_correction_factor = (
-            SA_seg + cm_fraction * num_spines * SA_spine
-        ) / SA_seg
-        node.sec(segment.x).cm *= cm_correction_factor
-        if verbose:
-            logger.info(
-                "cm_correction_factor for gid: %i; %s seg %i: %.3f"
-                % (gid, node.name, i, cm_correction_factor)
-            )
-
-
-def correct_cell_for_spines_g_pas(cell, env: AbstractEnv, verbose=False):
-    """
-    If not explicitly modeling spine compartments for excitatory synapses, this method scales g_pas in all
-    dendritic sections proportional to the number of excitatory synapses contained in each section.
-    :param cell: :class:'BiophysCell'
-    :param env: :class:'Env'
-    :param verbose: bool
-    """
-    if "soma" in cell.mech_dict:
-        soma_g_pas = cell.mech_dict["soma"]["pas"]["g"]["value"]
-    elif hasattr(cell, "hoc_cell"):
-        soma_g_pas = getattr(list(cell.hoc_cell.soma_list)[0], "g_pas")
-    else:
-        raise RuntimeError("unable to determine soma g_pas")
-    for sec_type in ["basal", "trunk", "apical", "tuft"]:
-        for node in cell.nodes[sec_type]:
-            correct_node_for_spines_g_pas(
-                node, env, cell.gid, soma_g_pas, verbose=verbose
-            )
-
-
-def correct_cell_for_spines_cm(cell, env: AbstractEnv, verbose=False):
-    """
-
-    :param cell: :class:'BiophysCell'
-    :param env: :class:'Env'
-    :param verbose: bool
-    """
-    loop = 0
-    while loop < 2:
-        for sec_type in ["basal", "trunk", "apical", "tuft"]:
-            for node in cell.nodes[sec_type]:
-                correct_node_for_spines_cm(node, env, cell.gid, verbose=verbose)
-                if loop == 0:
-                    init_nseg(node.sec, verbose=verbose)
-                    node.reinit_diam()
-        loop += 1
-    init_biophysics(cell, env, reset_cable=False, verbose=verbose)
+    for sec_type in default_ordered_sec_types:
+        if sec_type in cell.mech_dict and sec_type in cell.nodes:
+            if cell.nodes[sec_type]:
+                update_biophysics_by_sec_type(cell, sec_type)
 
 
 def make_biophys_cell(
