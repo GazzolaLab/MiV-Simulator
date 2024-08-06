@@ -124,10 +124,6 @@ def connect_cells(env: Env) -> None:
             logger.info(f"*** Reading projections of population {postsyn_name}")
 
         synapse_config = env.celltypes[postsyn_name]["synapses"]
-        if "correct_for_spines" in synapse_config:
-            correct_for_spines = synapse_config["correct_for_spines"]
-        else:
-            correct_for_spines = False
 
         if "unique" in synapse_config:
             unique = synapse_config["unique"]
@@ -388,9 +384,9 @@ def connect_cells(env: Env) -> None:
                     lambda edgeset: presyn_input_sources.update(edgeset[1][0]),
                     edge_iter,
                 )
-                env.microcircuit_input_sources[
-                    presyn_name
-                ] = presyn_input_sources
+                env.microcircuit_input_sources[presyn_name] = (
+                    presyn_input_sources
+                )
             else:
                 syn_edge_iter = edge_iter
             syn_attrs.init_edge_attrs_from_iter(
@@ -415,8 +411,6 @@ def connect_cells(env: Env) -> None:
                         biophys_cell,
                         env=env,
                         reset_cable=True,
-                        correct_cm=correct_for_spines,
-                        correct_g_pas=correct_for_spines,
                         verbose=((rank == 0) and (first_gid == gid)),
                     )
                     synapses.init_syn_mech_attrs(biophys_cell, env)
@@ -581,10 +575,6 @@ def connect_cell_selection(env):
         ]
 
         synapse_config = env.celltypes[postsyn_name]["synapses"]
-        if "correct_for_spines" in synapse_config:
-            correct_for_spines = synapse_config["correct_for_spines"]
-        else:
-            correct_for_spines = False
 
         if "unique" in synapse_config:
             unique = synapse_config["unique"]
@@ -739,9 +729,9 @@ def connect_cell_selection(env):
                 syn_attrs.init_edge_attrs_from_iter(
                     postsyn_name, presyn_name, a, syn_edge_iter
                 )
-                env.microcircuit_input_sources[
-                    presyn_name
-                ] = presyn_input_sources
+                env.microcircuit_input_sources[presyn_name] = (
+                    presyn_input_sources
+                )
                 del graph[postsyn_name][presyn_name]
 
         first_gid = None
@@ -758,8 +748,6 @@ def connect_cell_selection(env):
                         cells.init_biophysics(
                             biophys_cell,
                             reset_cable=True,
-                            correct_cm=correct_for_spines,
-                            correct_g_pas=correct_for_spines,
                             env=env,
                             verbose=((rank == 0) and (first_gid == gid)),
                         )
