@@ -17,6 +17,7 @@ from miv_simulator.utils import (
 from miv_simulator.utils.neuron import (
     BRKconfig,
     PRconfig,
+    PRNconfig,
     default_hoc_sec_lists,
     default_ordered_sec_types,
     h,
@@ -433,14 +434,20 @@ class PRneuron:
     """
 
     def __init__(
-        self, gid, pop_name, env=None, cell_config=None, mech_dict=None
+        self,
+        gid,
+        pop_name,
+        env=None,
+        cell_config=None,
+        mech_dict=None,
+        template_name="PR_nrn",
     ):
         """
 
         :param gid: int
         :param pop_name: str
         :param env: :class:'Env'
-        :param cell_config: :namedtuple:'PRconfig'
+        :param cell_config: :namedtuple:'PRconfig' or :namedtuple:'PRNconfig'
         """
         self._gid = gid
         self._pop_name = pop_name
@@ -461,30 +468,51 @@ class PRneuron:
         self.random.seed(self.gid)
         self.spike_detector = None
         self.spike_onset_delay = 0.0
-        if not isinstance(cell_config, PRconfig):
+        if not isinstance(cell_config, (PRconfig, PRNconfig)):
             raise RuntimeError(
-                "PRneuron: argument cell_attrs must be of type PRconfig"
+                "PRneuron: argument cell_attrs must be of type PRconfig or PRNconfig"
             )
 
-        param_dict = {
-            "pp": cell_config.pp,
-            "Ltotal": cell_config.Ltotal,
-            "gc": cell_config.gc,
-            "soma_gmax_Na": cell_config.soma_gmax_Na,
-            "soma_gmax_K": cell_config.soma_gmax_K,
-            "soma_g_pas": cell_config.soma_g_pas,
-            "dend_gmax_Ca": cell_config.dend_gmax_Ca,
-            "dend_gmax_KCa": cell_config.dend_gmax_KCa,
-            "dend_gmax_KAHP": cell_config.dend_gmax_KAHP,
-            "dend_g_pas": cell_config.dend_g_pas,
-            "dend_d_Caconc": cell_config.dend_d_Caconc,
-            "cm_ratio": cell_config.cm_ratio,
-            "global_cm": cell_config.global_cm,
-            "global_diam": cell_config.global_diam,
-            "e_pas": cell_config.e_pas,
-        }
+        param_dict = None
+        if isinstance(cell_config, PRconfig):
+            param_dict = {
+                "pp": cell_config.pp,
+                "Ltotal": cell_config.Ltotal,
+                "gc": cell_config.gc,
+                "soma_gmax_Na": cell_config.soma_gmax_Na,
+                "soma_gmax_K": cell_config.soma_gmax_K,
+                "soma_g_pas": cell_config.soma_g_pas,
+                "dend_beta_Caconc": cell_config.dend_beta_Caconc,
+                "dend_gmax_Ca": cell_config.dend_gmax_Ca,
+                "dend_gmax_KCa": cell_config.dend_gmax_KCa,
+                "dend_gmax_KAHP": cell_config.dend_gmax_KAHP,
+                "dend_g_pas": cell_config.dend_g_pas,
+                "dend_d_Caconc": cell_config.dend_d_Caconc,
+                "cm_ratio": cell_config.cm_ratio,
+                "global_cm": cell_config.global_cm,
+                "global_diam": cell_config.global_diam,
+                "e_pas": cell_config.e_pas,
+            }
+        elif isinstance(cell_config, PRNconfig):
+            param_dict = {
+                "pp": cell_config.pp,
+                "Ltotal": cell_config.Ltotal,
+                "gc": cell_config.gc,
+                "soma_gmax_Na": cell_config.soma_gmax_Na,
+                "soma_gmax_K": cell_config.soma_gmax_K,
+                "soma_g_pas": cell_config.soma_g_pas,
+                "dend_beta_Caconc": cell_config.dend_beta_Caconc,
+                "dend_gmax_Ca": cell_config.dend_gmax_Ca,
+                "dend_gmax_KCa": cell_config.dend_gmax_KCa,
+                "dend_g_pas": cell_config.dend_g_pas,
+                "dend_d_Caconc": cell_config.dend_d_Caconc,
+                "cm_ratio": cell_config.cm_ratio,
+                "global_cm": cell_config.global_cm,
+                "global_diam": cell_config.global_diam,
+                "e_pas": cell_config.e_pas,
+            }
 
-        PR_nrn = h.PR_nrn(param_dict)
+        PR_nrn = getattr(h, template_name)(param_dict)
         PR_nrn.soma.ic_constant = cell_config.ic_constant
 
         self.hoc_cell = PR_nrn
@@ -2183,6 +2211,83 @@ def make_PR_cell(
     return cell
 
 
+def make_PRN_cell(
+    env: AbstractEnv,
+    pop_name,
+    gid,
+    mech_file_path=None,
+    mech_dict=None,
+    tree_dict=None,
+    load_synapses=False,
+    synapses_dict=None,
+    load_edges=False,
+    connection_graph=None,
+    load_weights=False,
+    weight_dict=None,
+    set_edge_delays=True,
+    bcast_template=True,
+    **kwargs,
+):
+    """
+    :param env: :class:'Env'
+    :param pop_name: str
+    :param gid: int
+    :param mech_file_path: str (path)
+    :param mech_dict: dict
+    :param synapses_dict: dict
+    :param weight_dicts: list of dict
+    :param load_synapses: bool
+    :param load_edges: bool
+    :param load_weights: bool
+    :param set_edge_delays: bool
+    :return: :class:'PRneuron'
+    """
+    load_cell_template(env, pop_name, bcast_template=bcast_template)
+
+    if mech_dict is None and mech_file_path is None:
+        raise RuntimeError(
+            "make_PR_cell: mech_dict or mech_file_path must be specified"
+        )
+
+    if mech_dict is None and mech_file_path is not None:
+        mech_dict = read_from_yaml(mech_file_path)
+
+    cell = PRneuron(
+        gid=gid,
+        pop_name=pop_name,
+        env=env,
+        cell_config=PRNconfig(**mech_dict["PinskyRinzel"]),
+        mech_dict={k: mech_dict[k] for k in mech_dict if k != "PinskyRinzel"},
+        template_name="PRN_nrn",
+    )
+
+    circuit_flag = (
+        load_edges
+        or load_weights
+        or load_synapses
+        or synapses_dict
+        or weight_dict
+        or connection_graph
+    )
+    if circuit_flag:
+        init_circuit_context(
+            env,
+            pop_name,
+            gid,
+            load_synapses=load_synapses,
+            synapses_dict=synapses_dict,
+            load_edges=load_edges,
+            connection_graph=connection_graph,
+            load_weights=load_weights,
+            weight_dict=weight_dict,
+            set_edge_delays=set_edge_delays,
+            **kwargs,
+        )
+
+    env.biophys_cells[pop_name][gid] = cell
+    return cell
+
+
 def make_SC_cell(
     env: AbstractEnv,
     pop_name: str,
@@ -2413,6 +2518,7 @@ def record_cell(
 
 default_reduced_cell_constructors = {
     "pr_nrn": make_PR_cell,
+    "prn_nrn": make_PRN_cell,
     "brk_nrn": make_BRK_cell,
     "sc_nrn": make_SC_cell,
 }
