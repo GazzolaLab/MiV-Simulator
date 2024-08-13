@@ -60,6 +60,8 @@ PRconfig = namedtuple(
         "dend_gmax_Ca",
         "dend_gmax_KCa",
         "dend_gmax_KAHP",
+        "dend_aqs_KAHP",
+        "dend_bq_KAHP",
         "dend_g_pas",
         "dend_d_Caconc",
         "dend_beta_Caconc",
