@@ -10,7 +10,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.12"
+python = ">=3.9,<3.13"
 neuroh5 = {git = "https://github.com/iraikov/neuroh5.git"}
 
 [build-system]
