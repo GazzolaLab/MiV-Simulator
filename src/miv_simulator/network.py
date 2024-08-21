@@ -1022,7 +1022,7 @@ def make_cells(env: Env) -> None:
             del trees
 
         elif (pop_name in env.cell_attribute_info) and (
-            "Coordinates" in env.cell_attribute_info[pop_name]
+            env.coordinates_ns in env.cell_attribute_info[pop_name]
         ):
             if rank == 0:
                 logger.info(
@@ -1033,7 +1033,7 @@ def make_cells(env: Env) -> None:
                 cell_attr_dict = scatter_read_cell_attributes(
                     data_file_path,
                     pop_name,
-                    namespaces=["Coordinates"],
+                    namespaces=[env.coordinates_ns],
                     comm=env.comm,
                     io_size=env.io_size,
                     return_type="tuple",
@@ -1042,7 +1042,7 @@ def make_cells(env: Env) -> None:
                 cell_attr_dict = scatter_read_cell_attributes(
                     data_file_path,
                     pop_name,
-                    namespaces=["Coordinates"],
+                    namespaces=[env.coordinates_ns],
                     node_allocation=env.node_allocation,
                     comm=env.comm,
                     io_size=env.io_size,
@@ -1053,7 +1053,7 @@ def make_cells(env: Env) -> None:
                     f"*** Done reading coordinates for population {pop_name}"
                 )
 
-            coords_iter, coords_attr_info = cell_attr_dict["Coordinates"]
+            coords_iter, coords_attr_info = cell_attr_dict[env.coordinates_ns]
 
             x_index = coords_attr_info.get("X Coordinate", None)
             y_index = coords_attr_info.get("Y Coordinate", None)
@@ -1221,7 +1221,7 @@ def make_cell_selection(env):
                 num_cells += 1
 
         elif (pop_name in env.cell_attribute_info) and (
-            "Coordinates" in env.cell_attribute_info[pop_name]
+            env.coordinates_ns in env.cell_attribute_info[pop_name]
         ):
             if rank == 0:
                 logger.info(
@@ -1232,7 +1232,7 @@ def make_cell_selection(env):
                 data_file_path,
                 pop_name,
                 selection=gid_range,
-                namespace="Coordinates",
+                namespace=env.coordinates_ns,
                 comm=env.comm,
                 return_type="tuple",
             )

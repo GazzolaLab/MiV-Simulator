@@ -94,6 +94,7 @@ class Env(AbstractEnv):
         spike_input_path: None = None,
         spike_input_namespace: None = None,
         spike_input_attr: None = None,
+        coordinates_namespace: str = "Coordinates",
         cleanup: bool = True,
         cache_queries: bool = False,
         profile_memory: bool = False,
@@ -288,6 +289,7 @@ class Env(AbstractEnv):
             if "Origin" in self.geometry["Parametric Surface"]:
                 self.parse_origin_coords()
 
+        self.coordinates_ns = coordinates_namespace
         self.celltypes = self.model_config["Cell Types"]
         self.cell_attribute_info = {}
         self.phenotype_dict = {}

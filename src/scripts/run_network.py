@@ -200,6 +200,12 @@ sys.excepthook = mpi_excepthook
     type=str,
     help="attribute name for input spikes when cell selection is specified",
 )
+@click.option(
+    "--coordinates-namespace",
+    required=False,
+    type=str,
+    help="namespace for coordinates when cells without morphologies are instantiated",
+)
 @click.option("--dt", type=float, default=0.025, help="")
 @click.option(
     "--ldbal",
@@ -268,6 +274,7 @@ def main(
     spike_input_path,
     spike_input_namespace,
     spike_input_attr,
+    coordinates_namespace,
     dt,
     ldbal,
     lptbal,
