@@ -848,7 +848,7 @@ class SynapseAttributes:
 
             if syn.source.gid is not None:
                 raise RuntimeError(
-                    "init_edge_attrs: gid {gid}: synapse id {edge_syn_id} has already been initialized with edge attributes"
+                    f"init_edge_attrs: gid {gid}: synapse id {edge_syn_id} has already been initialized with edge attributes"
                 )
 
             syn.source.gid = presyn_gid
