@@ -1,18 +1,24 @@
-[tool.poetry]
-name = "miv-data"
-version = "0.0.1"
+[project]
+name = "miv_data"
+version = "0.1.0"
 description = "Mind-in-Vitro data"
-readme = "miv_data/README.md" # root-relative, adjust later
-authors = []
-
-packages = [
-    { include = "miv_data", from = "." },
+authors = [
+    { name = "Frithjof Gressmann", email = "fg14@illinois.edu" }
 ]
-
-[tool.poetry.dependencies]
-python = ">=3.9,<3.13"
-neuroh5 = {git = "https://github.com/iraikov/neuroh5.git"}
+dependencies = []
+readme = "README.md"
+requires-python = ">= 3.12"
 
 [build-system]
-requires = ["poetry_core>=1.0.0", "cython"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = []
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["miv_data"]
