@@ -50,7 +50,7 @@ mpmath==1.3.0
     # via sympy
 networkx==3.3
     # via miv-simulator
-neuroh5 @ git+https://github.com/iraikov/neuroh5.git@b7c3e5e1c0bbba90e3872fd8de8d605a318ab327
+neuroh5 @ git+https://github.com/iraikov/neuroh5.git@a91f0b2036072de833f64c7abb88d236a6d56399
     # via miv-simulator
 neuron==8.2.6
     # via miv-simulator
