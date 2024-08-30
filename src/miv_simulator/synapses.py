@@ -2744,14 +2744,14 @@ def set_syn_mech_param(
     syn_attrs = env.synapse_attributes
     for syn_id in syn_ids:
         syn_attrs.modify_mech_attrs(
-            cell.pop_name, cell.gid, syn_id, syn_name, {param_name: baseline}
+            cell.population_name, cell.gid, syn_id, syn_name, {param_name: baseline}
         )
 
     if update_targets:
         config_biophys_cell_syns(
             env,
             cell.gid,
-            cell.pop_name,
+            cell.population_name,
             syn_ids=syn_ids,
             insert=False,
             verbose=verbose,
