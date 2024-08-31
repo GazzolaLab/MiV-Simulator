@@ -375,8 +375,8 @@ class BRKneuron:
         return self._gid
 
     @property
-    def pop_name(self):
-        return self._pop_name
+    def population_name(self):
+        return self._population_name
 
     @property
     def soma(self):
@@ -450,7 +450,7 @@ class PRneuron:
         :param cell_config: :namedtuple:'PRconfig' or :namedtuple:'PRNconfig'
         """
         self._gid = gid
-        self._pop_name = pop_name
+        self._population_name = pop_name
         self.tree = nx.DiGraph()
         self.count = 0  # Keep track of number of nodes
         if env is not None:
@@ -541,8 +541,8 @@ class PRneuron:
         return self._gid
 
     @property
-    def pop_name(self):
-        return self._pop_name
+    def population_name(self):
+        return self._population_name
 
     @property
     def soma(self):
@@ -664,8 +664,8 @@ class SCneuron:
         return self._gid
 
     @property
-    def pop_name(self):
-        return self._pop_name
+    def population_name(self):
+        return self._population_name
 
     @property
     def soma(self) -> List[SectionNode]:
