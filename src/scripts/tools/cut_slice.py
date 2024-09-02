@@ -46,6 +46,7 @@ sys.excepthook = mpi_excepthook
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
     help="path to directory containing required neuroh5 data files",
 )
+@click.option("--coordinates-namespace", "-n", type=str, default="Coordinates")
 @click.option("--distances-namespace", "-n", type=str, default="Arc Distances")
 @click.option("--distance-limits", type=(float, float))
 @click.option(
@@ -86,6 +87,7 @@ def main(
     config,
     config_prefix,
     dataset_prefix,
+    coordinates_namespace,
     distances_namespace,
     distance_limits,
     spike_input_path,
@@ -117,6 +119,7 @@ def main(
         spike_input_path=spike_input_path,
         spike_input_namespace=spike_input_namespace,
         spike_input_attr=spike_input_attr,
+        coordinates_namespace=coordinates_namespace,
         arena_id=arena_id,
         trajectory_id=trajectory_id,
         io_size=io_size,
@@ -195,7 +198,7 @@ def main(
             }
 
         yaml_output_dict = {}
-        for k, v in utils.viewitems(selection_dict):
+        for k, v in selection_dict.items():
             yaml_output_dict[k] = list(v)
 
         yaml_output_path = f"{output_path}/DG_slice.yaml"

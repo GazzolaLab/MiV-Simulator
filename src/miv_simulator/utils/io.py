@@ -757,7 +757,7 @@ def write_cell_selection(
             assert len(trees_output_dict) == len(gid_range)
 
         elif (pop_name in env.cell_attribute_info) and (
-            "Coordinates" in env.cell_attribute_info[pop_name]
+            env.coordinates_ns in env.cell_attribute_info[pop_name]
         ):
             if rank == 0:
                 logger.info(
@@ -768,7 +768,7 @@ def write_cell_selection(
                 data_file_path,
                 pop_name,
                 selection=gid_range,
-                namespace="Coordinates",
+                namespace=env.coordinates_ns,
                 comm=env.comm,
                 io_size=env.io_size,
             )
@@ -793,7 +793,7 @@ def write_cell_selection(
             write_selection_file_path,
             pop_name,
             coords_output_dict,
-            namespace="Coordinates",
+            namespace=env.coordinates_ns,
             **write_kwds,
         )
         env.comm.barrier()
