@@ -2160,7 +2160,9 @@ def config_syn(
     nc_param = False
     mech_param = False
 
+    
     for param, val in params.items():
+        
         failed = True
         if param in mech_rules["mech_params"]:
             if syn is None:
@@ -2206,12 +2208,14 @@ def config_syn(
                     else:
                         if val is None:
                             raise AttributeError(
-                                f"config_syn: netcon attribute {param} is None for synaptic mechanism: {mech_name}"
+                                f"config_syn: netcon attribute {param} is None for synapse {syn_name} "
+                                f"synaptic mechanism: {mech_name}; params are {params}"
                             )
                         if isinstance(val, list):
                             if len(val) > 1:
                                 raise AttributeError(
-                                    "config_syn: netcon attribute {param} is list of length > 1 for synaptic mechanism: {mech_name}"
+                                    f"config_syn: netcon attribute {param} is list of length > 1 for synapse {syn_name} "
+                                    f"synaptic mechanism: {mech_name}"
                                 )
                             new = val[0]
                         else:
@@ -2221,7 +2225,8 @@ def config_syn(
                         failed = False
         if failed:
             raise AttributeError(
-                f"config_syn: problem setting attribute: {param} for synaptic mechanism: {mech_name}"
+                f"config_syn: problem setting attribute: {param} for synapse {syn_name} "
+                f"synaptic mechanism: {mech_name}"
             )
     return (mech_param, nc_param)
 
