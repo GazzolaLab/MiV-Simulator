@@ -486,6 +486,8 @@ class PRneuron:
                 "dend_gmax_Ca": cell_config.dend_gmax_Ca,
                 "dend_gmax_KCa": cell_config.dend_gmax_KCa,
                 "dend_gmax_KAHP": cell_config.dend_gmax_KAHP,
+                "dend_aqs_KAHP": cell_config.dend_aqs_KAHP,
+                "dend_bq_KAHP": cell_config.dend_bq_KAHP,
                 "dend_g_pas": cell_config.dend_g_pas,
                 "dend_d_Caconc": cell_config.dend_d_Caconc,
                 "cm_ratio": cell_config.cm_ratio,
