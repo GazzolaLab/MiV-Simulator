@@ -25,9 +25,7 @@ class SimTimeEvent:
         dt_checksimtime: float = 10.0,
     ) -> None:
         if int(pc.id()) == 0:
-            logger.info(
-                f"*** allocated wall time is {max_walltime_hours:.2f} hours"
-            )
+            logger.info(f"*** allocated wall time is {max_walltime_hours:.2f} hours")
         wt = time.time()
         self.pc = pc
         self.tstop = tstop
@@ -80,9 +78,7 @@ class SimTimeEvent:
             trem = self.tstop - h.t
             ## remaining wall time
             walltime_rem = self.walltime_max - self.tcsum
-            walltime_rem_min = self.pc.allreduce(
-                walltime_rem, 3
-            )  ## minimum value
+            walltime_rem_min = self.pc.allreduce(walltime_rem, 3)  ## minimum value
             ## wall time necessary to complete the simulation
             walltime_needed = (
                 trem / self.dt_checksimtime

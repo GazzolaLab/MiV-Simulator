@@ -1,22 +1,16 @@
-"""Simulation of opsin receptors at the channel, cell, and network level. 
+"""Simulation of opsin receptors at the channel, cell, and network level.
 Based on code from the PyRhO: A Multiscale Optogenetics Simulation Platform
 https://github.com/ProjectPyRhO/PyRhO.git
 """
 
-from typing import TYPE_CHECKING, Dict, Set, Tuple
-from collections import OrderedDict, defaultdict
-import abc
-import copy
-import logging
-import math
+from typing import TYPE_CHECKING
 import numpy as np
-from neuron import h
 from miv_simulator.utils import (
     get_module_logger,
 )
 
 if TYPE_CHECKING:
-    from neuron.hoc import HocObject
+    pass
 
 logger = get_module_logger(__name__)
 

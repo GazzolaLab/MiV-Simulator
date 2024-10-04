@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 
-import os
-import sys
 
 import click
-from miv_simulator import utils
 from miv_simulator.clamps.cell import cell_clamps
 
 
@@ -33,9 +30,7 @@ from miv_simulator.clamps.cell import cell_clamps
     help="target population",
 )
 @click.option("--presyn-name", type=str, help="presynaptic population")
-@click.option(
-    "--gid", "-g", required=True, type=int, default=0, help="target cell gid"
-)
+@click.option("--gid", "-g", required=True, type=int, default=0, help="target cell gid")
 @click.option("--load-weights", "-w", is_flag=True)
 @click.option(
     "--measurements",
@@ -93,9 +88,7 @@ from miv_simulator.clamps.cell import cell_clamps
     default=-75.0,
     help="initialization membrane potential (mV)",
 )
-@click.option(
-    "--dt", type=float, default=0.025, help="simulation timestep (ms)"
-)
+@click.option("--dt", type=float, default=0.025, help="simulation timestep (ms)")
 @click.option("--use-cvode", is_flag=True)
 @click.option("--verbose", "-v", is_flag=True)
 def main(

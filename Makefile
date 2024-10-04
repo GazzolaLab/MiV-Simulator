@@ -2,21 +2,10 @@
 PYTHON := python
 PYTHONPATH := `pwd`
 
-#* Poetry
-.PHONY: poetry-download
-poetry-download:
-	curl -sSL https://install.python-poetry.org/ | $(PYTHON) -
-
-.PHONY: poetry-remove
-poetry-remove:
-	curl -sSL https://install.python-poetry.org/ | $(PYTHON) - --uninstall
-
 #* Installation
 .PHONY: install
 install:
-	poetry lock -n && poetry export --without-hashes > requirements.txt
-	poetry install -n
-	-poetry run mypy --install-types --non-interactive ./
+	uv sync
 
 .PHONY: pre-commit-install
 pre-commit-install:
@@ -25,9 +14,8 @@ pre-commit-install:
 #* Formatters
 .PHONY: codestyle
 codestyle:
-	poetry run pyupgrade --exit-zero-even-if-changed --py38-plus **/*.py
-	#poetry run isort --settings-path pyproject.toml ./
-	poetry run black --config pyproject.toml ./
+	ruff format .
+	ruff check .
 
 .PHONY: formatting
 formatting: codestyle
@@ -39,20 +27,8 @@ test:
 
 .PHONY: check-codestyle
 check-codestyle:
-	poetry run pyupgrade --py38-plus **/*.py
-	#poetry run isort --diff --check-only --settings-path pyproject.toml ./
-	poetry run black --diff --check --config pyproject.toml ./
-
-.PHONY: mypy
-mypy:
-	poetry run mypy --config-file pyproject.toml ./
-
-.PHONY: lint
-lint: test check-codestyle mypy check-safety
-
-.PHONY: update-dev-deps
-update-dev-deps:
-	poetry add -D "isort[colors]@latest" mypy@latest pre-commit@latest pydocstyle@latest pylint@latest pytest@latest pyupgrade@latest coverage@latest pytest-html@latest pytest-cov@latest black@latest
+	ruff format . --check
+	ruff check . --check
 
 .PHONY: update-submodules
 update-submodules:

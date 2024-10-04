@@ -1,8 +1,5 @@
-from typing import List
 
-import os
 import pathlib
-import sys
 
 import subprocess
 import h5py
@@ -42,10 +39,7 @@ class PrepareData(Component):
         self.distance_connections = {}
         self.synapse_forest = {}
         for dependency in self.uses:
-            if (
-                dependency.module
-                == "miv_simulator.interface.network_architecture"
-            ):
+            if dependency.module == "miv_simulator.interface.network_architecture":
                 self.network = dependency
             elif (
                 dependency.module
@@ -53,9 +47,7 @@ class PrepareData(Component):
             ):
                 self.spike_trains = dependency
             elif dependency.module == "miv_simulator.interface.connections":
-                populations = read_population_names(
-                    dependency.config.forest_filepath
-                )
+                populations = read_population_names(dependency.config.forest_filepath)
                 for p in populations:
                     if p in self.distance_connections:
                         # check for duplicates
@@ -84,7 +76,7 @@ class PrepareData(Component):
                     )
                 self.synapses[dependency.config.population] = dependency
 
-        print(f"Consolidating generated data files into unified H5")
+        print("Consolidating generated data files into unified H5")
 
         MiV_populations = ["PYR", "OLM", "PVBC", "STIM"]
         MiV_IN_populations = ["OLM", "PVBC"]

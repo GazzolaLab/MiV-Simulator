@@ -76,9 +76,7 @@ def compile(
             print("Compiling *.mod files via nrnivmodl")
             os.makedirs(compiled)
             for m, data in file_data.items():
-                with open(
-                    os.path.join(compiled, os.path.basename(m)), "w"
-                ) as f:
+                with open(os.path.join(compiled, os.path.basename(m)), "w") as f:
                     f.write(data)
 
             subprocess.run(["nrnivmodl"], cwd=compiled, check=True)

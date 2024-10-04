@@ -71,9 +71,9 @@ def generate_synapse_forest(
     if not os.path.isfile(output_filepath):
         # determine population ranges
         with h5py.File(filepath, "r") as f:
-            h5type_num = f["H5Types"]["Population labels"].dtype.metadata[
-                "enum"
-            ][population]
+            h5type_num = f["H5Types"]["Population labels"].dtype.metadata["enum"][
+                population
+            ]
             population_range = [
                 p for p in f["H5Types"]["Populations"] if p[2] == h5type_num
             ]

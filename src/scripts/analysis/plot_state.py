@@ -50,9 +50,7 @@ def main(
     logger = utils.get_script_logger(script_name)
 
     if reduce and distance:
-        raise RuntimeError(
-            "Options --reduce and --distance are mutually exclusive"
-        )
+        raise RuntimeError("Options --reduce and --distance are mutually exclusive")
 
     if t_max is None:
         time_range = None
@@ -67,18 +65,14 @@ def main(
     else:
         populations = list(populations)
 
-    namespace_id_lst, attr_info_dict = statedata.query_state(
-        state_path, populations
-    )
+    namespace_id_lst, attr_info_dict = statedata.query_state(state_path, populations)
 
     if query:
         for population in populations:
             for this_namespace_id in namespace_id_lst:
                 if this_namespace_id not in attr_info_dict[population]:
                     continue
-                print(
-                    f"Population {population}; Namespace: {str(this_namespace_id)}"
-                )
+                print(f"Population {population}; Namespace: {str(this_namespace_id)}")
                 for attr_name, attr_cell_index in attr_info_dict[population][
                     this_namespace_id
                 ]:
@@ -126,9 +120,7 @@ if __name__ == "__main__":
     main(
         args=sys.argv[
             (
-                utils.list_find(
-                    lambda x: os.path.basename(x) == script_name, sys.argv
-                )
+                utils.list_find(lambda x: os.path.basename(x) == script_name, sys.argv)
                 + 1
             ) :
         ]

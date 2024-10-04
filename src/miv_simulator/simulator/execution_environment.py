@@ -193,9 +193,7 @@ class ExecutionEnvironment(AbstractEnv):
                 "cell_attribute_info": cell_attribute_info,
                 "celltypes": celltypes,
                 "model_config": {
-                    "Random Seeds": {
-                        "Intracellular Recording Sample": self.seed
-                    }
+                    "Random Seeds": {"Intracellular Recording Sample": self.seed}
                 },
             }
         )
@@ -225,9 +223,7 @@ class ExecutionEnvironment(AbstractEnv):
         self.pc.setup_transfer()
         self.connectgjstime = time.time() - st
         if rank == 0:
-            logger.info(
-                f"*** Gap junctions created in {self.connectgjstime:.02f} s"
-            )
+            logger.info(f"*** Gap junctions created in {self.connectgjstime:.02f} s")
 
     # -- user-space OptoStim and LFP etc.
 
@@ -243,7 +239,7 @@ class ExecutionEnvironment(AbstractEnv):
 
         st = time.time()
         if self.rank == 0:
-            logger.info(f"*** Creating connections:")
+            logger.info("*** Creating connections:")
 
         rank = self.comm.Get_rank()
         if rank == 0:

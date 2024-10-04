@@ -1,6 +1,6 @@
 from machinable import Component
 from neuroh5.io import read_population_names
-from typing import Dict, Optional
+from typing import Dict
 from miv_simulator.utils.io import H5FileManager
 
 
@@ -82,15 +82,11 @@ class NeuroH5Graph(Component):
             {
                 "architecture": self.architecture.serialize(),
                 "distances": self.distances.serialize(),
-                "connections": {
-                    k: v.serialize() for k, v in self.connections.items()
-                },
+                "connections": {k: v.serialize() for k, v in self.connections.items()},
                 "synapse_forest": {
                     k: v.serialize() for k, v in self.synapse_forest.items()
                 },
-                "synapses": {
-                    k: v.serialize() for k, v in self.synapses.items()
-                },
+                "synapses": {k: v.serialize() for k, v in self.synapses.items()},
             },
         )
 

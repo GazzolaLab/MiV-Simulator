@@ -18,9 +18,7 @@ def test_interface(tmp_path):
     if debug:
         storage_directory = f"{wd}/interface/storage"
 
-    with get("machinable.index", storage_directory), get(
-        "machinable.project", wd
-    ):
+    with get("machinable.index", storage_directory), get("machinable.project", wd):
         with get("mpi") as run:
             get(
                 "miv_simulator.interface.network",

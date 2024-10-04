@@ -9,8 +9,6 @@ https://github.com/ProjectPyRhO/PyRhO.git
 """
 
 import warnings
-import logging
-import os
 import abc
 from collections import OrderedDict
 import numpy as np
@@ -86,9 +84,7 @@ class Protocol(Struct):
             if np.isscalar(self.cycles[0]):
                 self.cycles = [self.cycles]  # Assume only one pulse
         else:
-            raise TypeError(
-                "Unexpected type for cycles - expected a list or array!"
-            )
+            raise TypeError("Unexpected type for cycles - expected a list or array!")
 
         self.cycles = np.asarray(self.cycles)
         self.nPulses = self.cycles.shape[0]
@@ -127,10 +123,7 @@ class Protocol(Struct):
         if genPulse is None:  # Default to square pulse generator
             genPulse = self.genPulse
         phi_ts = [
-            [
-                [None for pulse in range(self.nPulses)]
-                for phi in range(self.nPhis)
-            ]
+            [[None for pulse in range(self.nPulses)] for phi in range(self.nPhis)]
             for run in range(self.nRuns)
         ]
         for run in range(self.nRuns):
@@ -348,9 +341,7 @@ class ProtDelta(Protocol):
         self.Dt_ons = [
             row[1] - row[0] for row in self.pulses
         ]  # pulses[:,1] - pulses[:,0]   # Pulse Durations
-        self.Dt_offs = (
-            np.append(self.pulses[1:, 0], self.Dt_total) - self.pulses[:, 1]
-        )
+        self.Dt_offs = np.append(self.pulses[1:, 0], self.Dt_total) - self.pulses[:, 1]
 
         if np.isscalar(self.phis):
             self.phis = np.asarray([self.phis])
@@ -442,9 +433,7 @@ class ProtRecovery(Protocol):
 
         self.t_start = 0
         self.t_end = self.Dt_total
-        IPIminD = (
-            max(self.Dt_delays) + (2 * max(self.Dt_ons)) + max(self.Dt_IPIs)
-        )
+        IPIminD = max(self.Dt_delays) + (2 * max(self.Dt_ons)) + max(self.Dt_IPIs)
         if self.t_end < IPIminD:
             warnings.warn("Insufficient run time for all stimulation periods!")
         else:
@@ -460,8 +449,7 @@ class ProtRecovery(Protocol):
 
         self.phi_ts = self.genPulseSet()
         self.runLabels = [
-            r"$\mathrm{{IPI}}={}\mathrm{{ms}}$ ".format(IPI)
-            for IPI in self.Dt_IPIs
+            r"$\mathrm{{IPI}}={}\mathrm{{ms}}$ ".format(IPI) for IPI in self.Dt_IPIs
         ]
 
     def getRunCycles(self, run):

@@ -1,4 +1,4 @@
-"""Procedures related to gap junction connectivity generation. """
+"""Procedures related to gap junction connectivity generation."""
 
 import time
 from collections import defaultdict
@@ -197,24 +197,16 @@ def generate_gap_junctions(
                 np.asarray(gids_b, dtype=np.uint32),
                 {
                     "Location": {
-                        "Source section": np.asarray(
-                            sections_a, dtype=np.uint32
-                        ),
-                        "Source position": np.asarray(
-                            positions_a, dtype=np.float32
-                        ),
-                        "Destination section": np.asarray(
-                            sections_b, dtype=np.uint32
-                        ),
+                        "Source section": np.asarray(sections_a, dtype=np.uint32),
+                        "Source position": np.asarray(positions_a, dtype=np.float32),
+                        "Destination section": np.asarray(sections_b, dtype=np.uint32),
                         "Destination position": np.asarray(
                             positions_b, dtype=np.float32
                         ),
                     },
                     "Coupling strength": {
                         "Source": np.asarray(couplings_a, dtype=np.float32),
-                        "Destination": np.asarray(
-                            couplings_b, dtype=np.float32
-                        ),
+                        "Destination": np.asarray(couplings_b, dtype=np.float32),
                     },
                 },
             )
@@ -393,9 +385,7 @@ def generate_gj_connections(
         gj_graph_dict = {pp[0]: {pp[1]: gj_dict}}
 
         if not dry_run:
-            append_graph(
-                connectivity_path, gj_graph_dict, io_size=io_size, comm=comm
-            )
+            append_graph(connectivity_path, gj_graph_dict, io_size=io_size, comm=comm)
 
         total_count += count
 

@@ -1,4 +1,4 @@
-from typing import List, Optional, Any, Tuple
+from typing import List, Optional, Tuple
 import copy
 import sys
 import time
@@ -151,9 +151,7 @@ raster_colors = [
 
 def hex2rgb(hexcode):
     if hasattr(hexcode, "decode"):
-        return tuple(
-            float(b) / 255.0 for b in map(ord, hexcode[1:].decode("hex"))
-        )
+        return tuple(float(b) / 255.0 for b in map(ord, hexcode[1:].decode("hex")))
     else:
         import codecs
 
@@ -238,7 +236,7 @@ def clean_axes(axes, left=True, right=False):
     :param left: bool
     :param right: bool
     """
-    if not type(axes) in [np.ndarray, list]:
+    if type(axes) not in [np.ndarray, list]:
         axes = [axes]
     elif type(axes) == np.ndarray:
         axes = axes.flatten()
@@ -278,9 +276,7 @@ def plot_spatial_bin_graph(graph_dict, **kwargs):
 
     edges = {}
     for source in sources:
-        edges[source] = [
-            (u, v, d) for u, v, d in GU.edges(data=True) if v[0] == source
-        ]
+        edges[source] = [(u, v, d) for u, v, d in GU.edges(data=True) if v[0] == source]
 
     nodes_cmap = dict()
     nodes_cmap[destination] = "blue"
@@ -319,9 +315,7 @@ def plot_coordinates(
     fig_options = copy.copy(default_fig_options)
     fig_options.update(kwargs)
 
-    soma_coords = read_cell_attributes(
-        coords_path, population, namespace=namespace
-    )
+    soma_coords = read_cell_attributes(coords_path, population, namespace=namespace)
 
     fig = plt.figure(1, figsize=plt.figaspect(1.0) * 2.0)
     ax = plt.gca()
@@ -375,9 +369,7 @@ def plot_coordinates(
         ax.set_xlabel("X coordinate (um)", fontsize=fig_options.fontSize)
         ax.set_ylabel("Y coordinate (um)", fontsize=fig_options.fontSize)
     else:
-        ax.set_xlabel(
-            "U coordinate (septal - temporal)", fontsize=fig_options.fontSize
-        )
+        ax.set_xlabel("U coordinate (septal - temporal)", fontsize=fig_options.fontSize)
         ax.set_ylabel(
             "V coordinate (supra - infrapyramidal)",
             fontsize=fig_options.fontSize,
@@ -684,9 +676,7 @@ def plot_cell_tree(
         )
         # produce a legend with the unique colors from the scatter
         legend_elements = sct.legend_elements()
-        layer_legend = ax.legend(
-            *legend_elements, loc="upper right", title="Layer"
-        )
+        layer_legend = ax.legend(*legend_elements, loc="upper right", title="Layer")
         ax.add_artist(layer_legend)
 
         for i, j in g.edges:
@@ -702,9 +692,7 @@ def plot_cell_tree(
             if isinstance(fig_options.saveFig, str):
                 filename = fig_options.saveFig
             else:
-                filename = (
-                    f"{population}_{gid}_cell_tree.{fig_options.figFormat}"
-                )
+                filename = f"{population}_{gid}_cell_tree.{fig_options.figFormat}"
             plt.savefig(filename)
             print(f"Save figure: {filename}")
 
@@ -802,9 +790,7 @@ def plot_spike_raster(
         sphist_y = None
         bin_edges = None
         if len(spktlst) > 0:
-            all_spkts = np.concatenate(
-                [np.concatenate(lst, axis=0) for lst in spktlst]
-            )
+            all_spkts = np.concatenate([np.concatenate(lst, axis=0) for lst in spktlst])
             sphist_y, bin_edges = np.histogram(
                 all_spkts,
                 bins=np.arange(time_range[0], time_range[1], spike_hist_bin),
@@ -826,9 +812,7 @@ def plot_spike_raster(
             if num_cell_spks[pop_name] == 0:
                 avg_rates[pop_name] = 0
             else:
-                avg_rates[pop_name] = (
-                    num_cell_spks[pop_name] / pop_num
-                ) / tsecs
+                avg_rates[pop_name] = (num_cell_spks[pop_name] / pop_num) / tsecs
 
     pop_colors = {
         pop_name: dflt_colors[ipop % len(raster_colors)]
@@ -837,9 +821,7 @@ def plot_spike_raster(
 
     pop_spk_dict = {
         pop_name: (pop_spkinds, pop_spkts)
-        for (pop_name, pop_spkinds, pop_spkts) in zip(
-            spkpoplst, spkindlst, spktlst
-        )
+        for (pop_name, pop_spkinds, pop_spkts) in zip(spkpoplst, spkindlst, spktlst)
     }
 
     n_subplots = 1
@@ -1023,22 +1005,14 @@ def plot_spike_raster(
             # Create offset transform in x direction
             dx = -80 / 72.0
             dy = 0 / 72.0
-            offset = mpl.transforms.ScaledTranslation(
-                dx, dy, fig.dpi_scale_trans
-            )
+            offset = mpl.transforms.ScaledTranslation(dx, dy, fig.dpi_scale_trans)
             # apply offset transform to labels.
-            yticklabels[0].set_transform(
-                yticklabels[0].get_transform() + offset
-            )
+            yticklabels[0].set_transform(yticklabels[0].get_transform() + offset)
             dx = -80 / 72.0
             dy = 0 / 72.0
-            offset = mpl.transforms.ScaledTranslation(
-                dx, dy, fig.dpi_scale_trans
-            )
+            offset = mpl.transforms.ScaledTranslation(dx, dy, fig.dpi_scale_trans)
             yticklabels[1].set_ha("left")
-            yticklabels[1].set_transform(
-                yticklabels[1].get_transform() + offset
-            )
+            yticklabels[1].set_transform(yticklabels[1].get_transform() + offset)
 
     plt.subplots_adjust(wspace=0.2, hspace=0.2)
 
@@ -1165,9 +1139,7 @@ def plot_spike_histogram(
                 if num_cell_spks[pop_name] == 0:
                     avg_rates[pop_name] = 0
                 else:
-                    avg_rates[pop_name] = (
-                        num_cell_spks[pop_name] / pop_num
-                    ) / tsecs
+                    avg_rates[pop_name] = (num_cell_spks[pop_name] / pop_num) / tsecs
 
     # Y-axis label
     if quantity == "rate":
@@ -1304,9 +1276,7 @@ def plot_spike_histogram(
     # Add legend
     if overlay:
         for i, subset in enumerate(spkpoplst):
-            plt.plot(
-                0, 0, color=dflt_colors[i % len(dflt_colors)], label=str(subset)
-            )
+            plt.plot(0, 0, color=dflt_colors[i % len(dflt_colors)], label=str(subset))
         plt.legend(
             fontsize=fig_options.fontSize,
             bbox_to_anchor=(1.04, 1),
@@ -1363,9 +1333,7 @@ def plot_lfp(
     if compute_psd:
         ncols += 1
 
-    gs = gridspec.GridSpec(
-        nrows, ncols, width_ratios=[3, 1] if ncols > 1 else [1]
-    )
+    gs = gridspec.GridSpec(nrows, ncols, width_ratios=[3, 1] if ncols > 1 else [1])
     fig = plt.figure(figsize=fig_options.figSize)
     if env is None:
         lfp_array = np.loadtxt(
@@ -1386,9 +1354,7 @@ def plot_lfp(
             v = np.asarray(vlst)
 
         if dt is None:
-            raise RuntimeError(
-                "plot_lfp: dt must be provided when config_path is None"
-            )
+            raise RuntimeError("plot_lfp: dt must be provided when config_path is None")
         Fs = 1000.0 / dt
 
         if compute_psd:
@@ -1452,9 +1418,7 @@ def plot_lfp(
             show_figure()
 
     else:
-        for iplot, (lfp_label, lfp_config_dict) in enumerate(
-            env.LFP_config.items()
-        ):
+        for iplot, (lfp_label, lfp_config_dict) in enumerate(env.LFP_config.items()):
             namespace_id = f"Local Field Potential {str(lfp_label)}"
             import h5py
 
@@ -1469,9 +1433,7 @@ def plot_lfp(
             else:
                 tlst = []
                 vlst = []
-                for t, v in zip(
-                    infile[namespace_id]["t"], infile[namespace_id]["v"]
-                ):
+                for t, v in zip(infile[namespace_id]["t"], infile[namespace_id]["v"]):
                     if time_range[0] <= t <= time_range[1]:
                         tlst.append(t)
                         vlst.append(v)
@@ -1575,9 +1537,7 @@ def plot_lfp_spectrogram(
         nrows = len(env.LFP_config)
 
     ncols = 1
-    gs = gridspec.GridSpec(
-        nrows, ncols, width_ratios=[3, 1] if ncols > 1 else [1]
-    )
+    gs = gridspec.GridSpec(nrows, ncols, width_ratios=[3, 1] if ncols > 1 else [1])
     fig = plt.figure(figsize=fig_options.figSize)
     if env is None:
         lfp_array = np.loadtxt(
@@ -1635,9 +1595,7 @@ def plot_lfp_spectrogram(
             show_figure()
 
     else:
-        for iplot, (lfp_label, lfp_config_dict) in enumerate(
-            env.LFP_config.items()
-        ):
+        for iplot, (lfp_label, lfp_config_dict) in enumerate(env.LFP_config.items()):
             namespace_id = f"Local Field Potential {str(lfp_label)}"
             import h5py
 
@@ -1650,9 +1608,7 @@ def plot_lfp_spectrogram(
             else:
                 tlst = []
                 vlst = []
-                for t, v in zip(
-                    infile[namespace_id]["t"], infile[namespace_id]["v"]
-                ):
+                for t, v in zip(infile[namespace_id]["t"], infile[namespace_id]["v"]):
                     if time_range[0] <= t <= time_range[1]:
                         tlst.append(t)
                         vlst.append(v)
@@ -1663,9 +1619,7 @@ def plot_lfp_spectrogram(
 
             Fs = int(1000.0 / dt)
 
-            freqs, t, Sxx = signal_power_spectrogram(
-                v, Fs, window_size, overlap
-            )
+            freqs, t, Sxx = signal_power_spectrogram(v, Fs, window_size, overlap)
             freqinds = np.where(
                 (freqs >= frequency_range[0]) & (freqs <= frequency_range[1])
             )
@@ -1716,18 +1670,14 @@ def plot_biophys_cell_tree(
     fig_options = copy.copy(default_fig_options)
     fig_options.update(kwargs)
 
-    morph_graph = cells.make_morph_graph(
-        biophys_cell, node_filters=node_filters
-    )
+    morph_graph = cells.make_morph_graph(biophys_cell, node_filters=node_filters)
 
     gid = biophys_cell.gid
     population = biophys_cell.population_name
 
     # Obtain synapse xyz locations
     syn_attrs = env.synapse_attributes
-    synapse_filters = synapses.get_syn_filter_dict(
-        env, synapse_filters, convert=True
-    )
+    synapse_filters = synapses.get_syn_filter_dict(env, synapse_filters, convert=True)
     syns_dict = syn_attrs.filter_synapses(biophys_cell.gid, **synapse_filters)
     syn_sec_dict = defaultdict(list)
     if (syn_source_threshold is not None) and (syn_source_threshold > 0.0):
@@ -1860,9 +1810,7 @@ def plot_biophys_cell_tree(
         )
         # produce a legend with the unique colors from the scatter
         legend_elements = sct.legend_elements()
-        layer_legend = ax.legend(
-            *legend_elements, loc="upper right", title="Layer"
-        )
+        layer_legend = ax.legend(*legend_elements, loc="upper right", title="Layer")
         ax.add_artist(layer_legend)
 
         for i, j in morph_graph.edges:
@@ -1912,9 +1860,7 @@ def plot_biophys_cell_tree(
             sec.v = 0
         h.topology()
         h.psection(list(sl)[0])
-        ps = h.PlotShape(
-            sl, False
-        )  # False tells h.PlotShape not to use NEURON's gui
+        ps = h.PlotShape(sl, False)  # False tells h.PlotShape not to use NEURON's gui
         ax = ps.plot(plt)
         plt.show()
 
@@ -1991,9 +1937,7 @@ def plot_2D_rate_map(
     y_max = np.max(y)
 
     ax = fig.add_subplot(gs[0, 0])
-    pc = ax.pcolor(
-        x, y, rate_map, vmin=0.0, vmax=peak_rate, cmap=fig_options.colormap
-    )
+    pc = ax.pcolor(x, y, rate_map, vmin=0.0, vmax=peak_rate, cmap=fig_options.colormap)
     cbar = fig.colorbar(pc, ax=ax, fraction=0.046, pad=0.04)
     cbar.set_label(
         "Firing Rate (Hz)",
@@ -2017,9 +1961,7 @@ def plot_2D_rate_map(
     ax.set_xlim(x_min, x_max)
     ax.set_ylim(y_min, y_max)
     psd2D = np.abs(
-        np.fft.fftshift(
-            np.fft.fft2(rate_map - np.mean(rate_map)) / rate_map.shape[0]
-        )
+        np.fft.fftshift(np.fft.fft2(rate_map - np.mean(rate_map)) / rate_map.shape[0])
     )
     im = ax.imshow(
         psd2D,
@@ -2102,9 +2044,7 @@ def plot_2D_histogram(
         pcm_cmap = mpl.colors.ListedColormap(pcm_colors[:-1], "")
         pcm_cmap.set_under(pcm_colors[0], alpha=0.0)
 
-    pcm = axes.pcolormesh(
-        x_edges, y_edges, H.T, vmin=vmin, vmax=vmax, cmap=pcm_cmap
-    )
+    pcm = axes.pcolormesh(x_edges, y_edges, H.T, vmin=vmin, vmax=vmax, cmap=pcm_cmap)
 
     axes.set_aspect("equal")
     axes.tick_params(labelsize=fig_options.fontSize)
@@ -2233,14 +2173,10 @@ def plot_intracellular_state(
     if gid_set is None:
         for population in include:
             for namespace in namespace_ids:
-                if (population in state_info) and (
-                    namespace in state_info[population]
-                ):
+                if (population in state_info) and (namespace in state_info[population]):
                     ns_state_info_dict = dict(state_info[population][namespace])
                     if state_variable in ns_state_info_dict:
-                        gid_set = list(ns_state_info_dict[state_variable])[
-                            :max_units
-                        ]
+                        gid_set = list(ns_state_info_dict[state_variable])[:max_units]
                         break
                     else:
                         raise RuntimeError(
@@ -2283,9 +2219,7 @@ def plot_intracellular_state(
                 ],
                 dtype=np.float32,
             )
-            cell_state_distances = [
-                cell_state_dict[ns]["distance"] for ns in nss
-            ]
+            cell_state_distances = [cell_state_dict[ns]["distance"] for ns in nss]
             cell_state_ri = [cell_state_dict[ns]["ri"] for ns in nss]
             cell_state_labels = [f"{ns} {state_variable}" for ns in nss]
             pop_state_mat_dict[pop_name][gid] = (
@@ -2300,17 +2234,13 @@ def plot_intracellular_state(
 
     fig, ax, ax_lowpass = None, None, None
     if lowpass_plot is None:
-        fig, ax = plt.subplots(
-            figsize=fig_options.figSize, sharex="all", sharey="all"
-        )
+        fig, ax = plt.subplots(figsize=fig_options.figSize, sharex="all", sharey="all")
     elif lowpass_plot == "subplot":
         fig, (ax, ax_lowpass) = plt.subplots(
             nrows=2, figsize=fig_options.figSize, sharex="all", sharey="all"
         )
     else:
-        fig, ax = plt.subplots(
-            figsize=fig_options.figSize, sharex="all", sharey="all"
-        )
+        fig, ax = plt.subplots(figsize=fig_options.figSize, sharex="all", sharey="all")
         ax_lowpass = ax
 
     legend_labels = []
@@ -2328,23 +2258,18 @@ def plot_intracellular_state(
                 state_rows = []
                 for i in range(0, m):
                     j = distance_rank_descending[i]
-                    state_rows.append(
-                        np.asarray(cell_state_mat[1][j, :]).reshape((n,))
-                    )
+                    state_rows.append(np.asarray(cell_state_mat[1][j, :]).reshape((n,)))
                 state_mat = np.row_stack(state_rows)
                 d = np.asarray(cell_state_distances)[distance_rank_descending]
                 ri = np.asarray(cell_state_ri)[distance_rank_descending]
-                pcm = ax.pcolormesh(
-                    st_x, d, state_mat, cmap=fig_options.colormap
-                )
+                pcm = ax.pcolormesh(st_x, d, state_mat, cmap=fig_options.colormap)
                 cb = fig.colorbar(pcm, ax=ax, shrink=0.9, aspect=20)
                 stplots.append(pcm)
                 legend_labels.append(f"{pop_name} {gid}")
 
             else:
                 cell_states = [
-                    np.asarray(cell_state_mat[1][i, :]).reshape((n,))
-                    for i in range(m)
+                    np.asarray(cell_state_mat[1][i, :]).reshape((n,)) for i in range(m)
                 ]
 
                 if reduce:
@@ -2382,9 +2307,7 @@ def plot_intracellular_state(
                             get_low_pass_filtered_trace(cell_state, st_x)
                             for cell_state in cell_states
                         ]
-                        mean_filtered_cell_state = np.mean(
-                            filtered_cell_states, axis=0
-                        )
+                        mean_filtered_cell_state = np.mean(filtered_cell_states, axis=0)
                         ax_lowpass.plot(
                             st_x,
                             mean_filtered_cell_state,
@@ -2397,9 +2320,7 @@ def plot_intracellular_state(
 
             ax.set_xlabel("Time [ms]", fontsize=fig_options.fontSize)
             if distance:
-                ax.set_ylabel(
-                    "distance from soma [um]", fontsize=fig_options.fontSize
-                )
+                ax.set_ylabel("distance from soma [um]", fontsize=fig_options.fontSize)
             else:
                 ax.set_ylabel(state_variable, fontsize=fig_options.fontSize)
             # ax.legend()
@@ -2581,9 +2502,7 @@ def plot_network_clamp(
         or time_range[0] == float("inf")
         or time_range[1] == float("inf")
     ):
-        raise RuntimeError(
-            f"plot_network_clamp: invalid time_range: {time_range}"
-        )
+        raise RuntimeError(f"plot_network_clamp: invalid time_range: {time_range}")
     time_bins = np.arange(time_range[0], time_range[1], spike_hist_bin)
 
     baks_config = copy.copy(kwargs)
@@ -2617,9 +2536,7 @@ def plot_network_clamp(
             include_time=True,
         )
         target_rate_time, target_rate = target_trj_rate_maps[gid]
-        target_rate_ip = interpolate.Akima1DInterpolator(
-            target_rate_time, target_rate
-        )
+        target_rate_ip = interpolate.Akima1DInterpolator(target_rate_time, target_rate)
 
     maxN = 0
     minN = N
@@ -2645,9 +2562,7 @@ def plot_network_clamp(
 
     pop_spk_dict = {
         pop_name: (pop_spkinds, pop_spkts)
-        for (pop_name, pop_spkinds, pop_spkts) in zip(
-            spkpoplst, spkindlst, spktlst
-        )
+        for (pop_name, pop_spkinds, pop_spkts) in zip(spkpoplst, spkindlst, spktlst)
     }
     N = pop_num_cells[pop_name]
     S = pop_start_inds[pop_name]
@@ -2689,10 +2604,7 @@ def plot_network_clamp(
                 bins=np.arange(time_range[0], time_range[1], spike_hist_bin),
             )
             trial_sphist_ys = np.array(
-                [
-                    np.histogram(spkts, bins=bin_edges)[0]
-                    for spkts in trial_spkts
-                ]
+                [np.histogram(spkts, bins=bin_edges)[0] for spkts in trial_spkts]
             )
             sphist_y = np.mean(trial_sphist_ys, axis=0)
 
@@ -2771,13 +2683,12 @@ def plot_network_clamp(
                 for trial_i, this_trial_spkts in enumerate(pop_spkts):
                     all_trial_spkts[trial_i].append(this_trial_spkts)
             merged_trial_spkts = [
-                np.concatenate(trial_spkts, axis=0)
-                for trial_spkts in all_trial_spkts
+                np.concatenate(trial_spkts, axis=0) for trial_spkts in all_trial_spkts
             ]
             sphist_x, sphist_y = sphist(merged_trial_spkts)
-            sprate = np.sum(
-                avg_rates[pop_name] for pop_name in avg_rates
-            ) / len(avg_rates)
+            sprate = np.sum(avg_rates[pop_name] for pop_name in avg_rates) / len(
+                avg_rates
+            )
             ax_spk = axes[i_ax]
             ax_spk.plot(sphist_x, sphist_y, linewidth=1.0)
             ax_spk.set_xlabel("Time (ms)", fontsize=fig_options.fontSize)
@@ -2799,9 +2710,7 @@ def plot_network_clamp(
         trial_sdf_ips = []
         spk_count = 0
         ax_spk = axes[i_ax]
-        for this_trial_spkinds, this_trial_spkts in zip_longest(
-            pop_spkinds, pop_spkts
-        ):
+        for this_trial_spkinds, this_trial_spkts in zip_longest(pop_spkinds, pop_spkts):
             spk_inds = np.argwhere(this_trial_spkinds == gid)
             spk_count += len(spk_inds)
             if target_rate_ip is not None:
@@ -2955,8 +2864,7 @@ def plot_network_clamp(
             filename = fig_options.saveFig
         else:
             filename = (
-                "Network Clamp %s %i.%s"
-                % (state_pop_name, gid, fig_options.figFormat)
+                "Network Clamp %s %i.%s" % (state_pop_name, gid, fig_options.figFormat)
                 if opt_seed is None
                 else "NetworkClamp_{!s}_{:d}_{!s}_{:08d}.{!s}".format(
                     state_pop_name, gid, ts, opt_seed, fig_options.figFormat
@@ -3134,9 +3042,7 @@ def plot_single_vertex_dist(
         pcm = ax.pcolormesh(X, Y, H.T, cmap=pcm_cmap)
 
         clb_label = (
-            "Normalized number of connections"
-            if normed
-            else "Number of connections"
+            "Normalized number of connections" if normed else "Number of connections"
         )
         clb = fig.colorbar(pcm, ax=ax, shrink=0.5, label=clb_label)
         clb.ax.tick_params(labelsize=fig_options.fontSize)
@@ -3144,9 +3050,7 @@ def plot_single_vertex_dist(
         ax.set_aspect("equal")
         ax.set_facecolor(pcm_colors[0])
         ax.tick_params(labelsize=fig_options.fontSize)
-        ax.set_xlabel(
-            "Longitudinal position (um)", fontsize=fig_options.fontSize
-        )
+        ax.set_xlabel("Longitudinal position (um)", fontsize=fig_options.fontSize)
         ax.set_ylabel("Transverse position (um)", fontsize=fig_options.fontSize)
         ax.set_title(
             f"Connectivity distribution ({direction}) of "
@@ -3185,9 +3089,7 @@ def update_spatial_rasters(
         for p, (pop_name, spkinds, spkts) in enumerate(data):
             distances_U = distances_U_dict[pop_name]
             distances_V = distances_V_dict[pop_name]
-            rinds = np.where(
-                np.logical_and(spkts[trial] >= t0, spkts[trial] <= t1)
-            )
+            rinds = np.where(np.logical_and(spkts[trial] >= t0, spkts[trial] <= t1))
             cinds = spkinds[trial][rinds]
             x = np.asarray([distances_U[ind] for ind in cinds])
             y = np.asarray([distances_V[ind] for ind in cinds])

@@ -2,12 +2,11 @@
 ## The conductances are sampled from a Gaussian distribution where
 ## negative values are replaced with 0.
 
-from neuron import h, gui
+from neuron import h
 from miv_simulator.mechanisms import compile_and_load
 
 import numpy as np
 
-import pytest
 
 
 def test_run_with_Gfluct3():

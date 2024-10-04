@@ -106,9 +106,7 @@ def merge_rate_map_dict(m1, m2, datatype):
             if selectivity_type_name in merged_rate_map_dict[population]:
                 merged_rate_map_dict[population][selectivity_type_name] += srm
             else:
-                merged_rate_map_dict[population][
-                    selectivity_type_name
-                ] = srm.copy()
+                merged_rate_map_dict[population][selectivity_type_name] = srm.copy()
     for population in m2:
         if population not in merged_rate_map_dict:
             merged_rate_map_dict[population] = {}
@@ -117,18 +115,14 @@ def merge_rate_map_dict(m1, m2, datatype):
             if selectivity_type_name in merged_rate_map_dict[population]:
                 merged_rate_map_dict[population][selectivity_type_name] += srm
             else:
-                merged_rate_map_dict[population][
-                    selectivity_type_name
-                ] = srm.copy()
+                merged_rate_map_dict[population][selectivity_type_name] = srm.copy()
     return merged_rate_map_dict
 
 
 mpi_op_merge_dict = MPI.Op.Create(merge_dict, commute=True)
 mpi_op_merge_count_dict = MPI.Op.Create(merge_count_dict, commute=True)
 mpi_op_merge_rate_map_dict = MPI.Op.Create(merge_rate_map_dict, commute=True)
-mpi_op_concatenate_ndarray_dict = MPI.Op.Create(
-    concatenate_ndarray_dict, commute=True
-)
+mpi_op_concatenate_ndarray_dict = MPI.Op.Create(concatenate_ndarray_dict, commute=True)
 
 
 def generate_input_features(
@@ -244,10 +238,7 @@ def generate_input_features(
                     "generate_input_features: specified population: %s not found in "
                     "provided coords_path: %s" % (population, coords_path)
                 )
-            if (
-                population
-                not in env.stimulus_config["Selectivity Type Probabilities"]
-            ):
+            if population not in env.stimulus_config["Selectivity Type Probabilities"]:
                 raise RuntimeError(
                     f"generate_input_features: selectivity type not specified for "
                     f"population: {population}"
@@ -256,9 +247,9 @@ def generate_input_features(
                 pop_size = population_ranges[population][1]
                 unique_gid_count = len(
                     set(
-                        coords_f["Populations"][population][
-                            distances_namespace
-                        ]["U Distance"]["Cell Index"][:]
+                        coords_f["Populations"][population][distances_namespace][
+                            "U Distance"
+                        ]["Cell Index"][:]
                     )
                 )
                 if pop_size != unique_gid_count:
@@ -269,12 +260,12 @@ def generate_input_features(
                     )
                 try:
                     reference_u_arc_distance_bounds_dict[population] = (
-                        coords_f["Populations"][population][
-                            distances_namespace
-                        ].attrs["Reference U Min"],
-                        coords_f["Populations"][population][
-                            distances_namespace
-                        ].attrs["Reference U Max"],
+                        coords_f["Populations"][population][distances_namespace].attrs[
+                            "Reference U Min"
+                        ],
+                        coords_f["Populations"][population][distances_namespace].attrs[
+                            "Reference U Max"
+                        ],
                     )
                 except Exception:
                     raise RuntimeError(
@@ -288,14 +279,10 @@ def generate_input_features(
         reference_u_arc_distance_bounds_dict, root=0
     )
 
-    selectivity_type_names = {
-        val: key for (key, val) in env.selectivity_types.items()
-    }
+    selectivity_type_names = {val: key for (key, val) in env.selectivity_types.items()}
     selectivity_type_namespaces = dict()
     for this_selectivity_type in selectivity_type_names:
-        this_selectivity_type_name = selectivity_type_names[
-            this_selectivity_type
-        ]
+        this_selectivity_type_name = selectivity_type_names[this_selectivity_type]
         chars = list(this_selectivity_type_name)
         chars[0] = chars[0].upper()
         selectivity_type_namespaces[this_selectivity_type_name] = (
@@ -317,9 +304,7 @@ def generate_input_features(
     arena_y_mesh = comm.bcast(arena_y_mesh, root=0)
 
     local_random = np.random.RandomState()
-    selectivity_seed_offset = int(
-        env.model_config["Random Seeds"]["Input Selectivity"]
-    )
+    selectivity_seed_offset = int(env.model_config["Random Seeds"]["Input Selectivity"])
     local_random.seed(selectivity_seed_offset - 1)
 
     if (debug or interactive) and rank == 0:
@@ -356,9 +341,7 @@ def generate_input_features(
         )
 
         selectivity_attr_dict = {key: dict() for key in env.selectivity_types}
-        for iter_count, (gid, distances_attr_dict) in enumerate(
-            distances_attr_gen
-        ):
+        for iter_count, (gid, distances_attr_dict) in enumerate(distances_attr_gen):
             req = comm.Ibarrier()
             if gid is not None:
                 if rank == 0:
@@ -395,9 +378,9 @@ def generate_input_features(
                 if "X Offset" in this_selectivity_attr_dict:
                     this_x0_list.append(this_selectivity_attr_dict["X Offset"])
                     this_y0_list.append(this_selectivity_attr_dict["Y Offset"])
-                selectivity_attr_dict[this_selectivity_type_name][
-                    gid
-                ] = this_selectivity_attr_dict
+                selectivity_attr_dict[this_selectivity_type_name][gid] = (
+                    this_selectivity_attr_dict
+                )
                 gid_count[this_selectivity_type_name] += 1
             req.wait()
 
@@ -413,9 +396,7 @@ def generate_input_features(
                 req.wait()
                 if rank == 0:
                     for selectivity_type_name in selectivity_gid_count:
-                        total_gid_count += selectivity_gid_count[
-                            selectivity_type_name
-                        ]
+                        total_gid_count += selectivity_gid_count[selectivity_type_name]
                     for selectivity_type_name in selectivity_gid_count:
                         logger.info(
                             "generated selectivity features for %i/%i %s %s cells in %.2f s"
@@ -429,17 +410,15 @@ def generate_input_features(
                         )
 
                 if not dry_run:
-                    for selectivity_type_name in sorted(
-                        selectivity_attr_dict.keys()
-                    ):
+                    for selectivity_type_name in sorted(selectivity_attr_dict.keys()):
                         req = comm.Ibarrier()
                         if rank == 0:
                             logger.info(
                                 f"writing selectivity features for {population} [{selectivity_type_name}]..."
                             )
-                        selectivity_type_namespace = (
-                            selectivity_type_namespaces[selectivity_type_name]
-                        )
+                        selectivity_type_namespace = selectivity_type_namespaces[
+                            selectivity_type_name
+                        ]
                         append_cell_attributes(
                             output_path,
                             population,
@@ -524,12 +503,8 @@ def generate_input_features(
         merged_rate_map_sum = comm.reduce(
             rate_map_sum, root=0, op=mpi_op_merge_rate_map_dict
         )
-        merged_x0 = comm.reduce(
-            x0_dict, root=0, op=mpi_op_concatenate_ndarray_dict
-        )
-        merged_y0 = comm.reduce(
-            y0_dict, root=0, op=mpi_op_concatenate_ndarray_dict
-        )
+        merged_x0 = comm.reduce(x0_dict, root=0, op=mpi_op_concatenate_ndarray_dict)
+        merged_y0 = comm.reduce(y0_dict, root=0, op=mpi_op_concatenate_ndarray_dict)
         if rank == 0:
             if plot:
                 for population in merged_pop_norm_distances:
@@ -553,9 +528,7 @@ def generate_input_features(
                         fig.show()
                     close_figure(fig)
                 for population in merged_rate_map_sum:
-                    for selectivity_type_name in merged_rate_map_sum[
-                        population
-                    ]:
+                    for selectivity_type_name in merged_rate_map_sum[population]:
                         fig_title = f"{population} {this_selectivity_type_name} summed rate maps"
                         if save_fig is not None:
                             fig_options.saveFig = f"{save_fig} {fig_title}"
@@ -577,9 +550,7 @@ def generate_input_features(
                     fig, axes = plt.subplots(1)
                     axes.scatter(x0, y0)
                     if save_fig is not None:
-                        save_figure(
-                            f"{save_fig} {fig_title}", fig=fig, **fig_options()
-                        )
+                        save_figure(f"{save_fig} {fig_title}", fig=fig, **fig_options())
                     if fig_options.showFig:
                         fig.show()
                     close_figure(fig)

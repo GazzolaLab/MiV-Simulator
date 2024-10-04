@@ -1,5 +1,4 @@
 import base64
-import gc
 import pickle
 import sys
 
@@ -208,18 +207,18 @@ def measure_distances(
         )
         if rank == 0:
             f = h5py.File(filepath, "a")
-            f["Populations"][population]["Arc Distances"].attrs[
-                "Reference U Min"
-            ] = origin_ranges[0][0]
-            f["Populations"][population]["Arc Distances"].attrs[
-                "Reference U Max"
-            ] = origin_ranges[0][1]
-            f["Populations"][population]["Arc Distances"].attrs[
-                "Reference V Min"
-            ] = origin_ranges[1][0]
-            f["Populations"][population]["Arc Distances"].attrs[
-                "Reference V Max"
-            ] = origin_ranges[1][1]
+            f["Populations"][population]["Arc Distances"].attrs["Reference U Min"] = (
+                origin_ranges[0][0]
+            )
+            f["Populations"][population]["Arc Distances"].attrs["Reference U Max"] = (
+                origin_ranges[0][1]
+            )
+            f["Populations"][population]["Arc Distances"].attrs["Reference V Min"] = (
+                origin_ranges[1][0]
+            )
+            f["Populations"][population]["Arc Distances"].attrs["Reference V Max"] = (
+                origin_ranges[1][1]
+            )
             f.close()
 
     comm.Barrier()

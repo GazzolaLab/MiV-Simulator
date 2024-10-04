@@ -117,9 +117,7 @@ def points_plane_fit(points, equation=False):
 ## Skew-symmetric cross-product of a 3d vector:
 ##
 def ssc(v):
-    return np.stack(
-        ([0.0, -v[2], v[1]], [v[2], 0.0, -v[0]], [-v[1], v[0], 0.0])
-    )
+    return np.stack(([0.0, -v[2], v[1]], [v[2], 0.0, -v[0]], [-v[1], v[0], 0.0]))
 
 
 ##
@@ -135,7 +133,5 @@ def rotvector3d(A, B):
             3,
         )
         + ssc(AxB)
-        + old_div(
-            np.linalg.matrix_power(ssc(AxB), 2) * (1.0 - np.dot(A, B)), (s**2)
-        )
+        + old_div(np.linalg.matrix_power(ssc(AxB), 2) * (1.0 - np.dot(A, B)), (s**2))
     )

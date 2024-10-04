@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from miv_simulator import config
 from mpi4py import MPI
 from miv_simulator.utils import io as io_utils, from_yaml
-from typing import Dict, Optional
+from typing import Dict
 
 
 class H5Types(Component):

@@ -57,10 +57,13 @@ def read_coordinates(
     y_index = coords_attr_info.get("Y Coordinate", None)
     z_index = coords_attr_info.get("Z Coordinate", None)
     for gid, cell_coords in coords_iter:
-        yield gid, (
-            cell_coords[x_index][0],
-            cell_coords[y_index][0],
-            cell_coords[z_index][0],
+        yield (
+            gid,
+            (
+                cell_coords[x_index][0],
+                cell_coords[y_index][0],
+                cell_coords[z_index][0],
+            ),
         )
 
 

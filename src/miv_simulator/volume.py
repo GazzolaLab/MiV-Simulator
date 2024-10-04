@@ -67,9 +67,7 @@ def test_mplot_volume():
     extent_v = [0.0, 1250.0]
     extent_l = [0.0, 100.0]
 
-    vol = make_network_volume(
-        extent_u, extent_v, extent_l, resolution=[3, 3, 3]
-    )
+    vol = make_network_volume(extent_u, extent_v, extent_l, resolution=[3, 3, 3])
 
     from mayavi import mlab
 
@@ -83,9 +81,7 @@ def test_tri():
     extent_v = [0.0, 1250.0]
     extent_l = [0.0, 100.0]
 
-    vol = make_network_volume(
-        extent_u, extent_v, extent_l, resolution=[3, 3, 3]
-    )
+    vol = make_network_volume(extent_u, extent_v, extent_l, resolution=[3, 3, 3])
 
     tri = vol.create_triangulation(ures=1, vres=1, lres=1)
 
@@ -97,9 +93,7 @@ def test_alpha_shape():
     extent_v = [0.0, 1250.0]
     extent_l = [0.0, 100.0]
 
-    vol = make_network_volume(
-        extent_u, extent_v, extent_l, resolution=[3, 3, 3]
-    )
+    vol = make_network_volume(extent_u, extent_v, extent_l, resolution=[3, 3, 3])
 
     alpha = make_alpha_shape(vol, alpha_radius=1200.0)
 

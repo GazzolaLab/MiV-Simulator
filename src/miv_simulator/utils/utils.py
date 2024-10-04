@@ -4,7 +4,6 @@ from typing import (
     Dict,
     Iterator,
     List,
-    Mapping,
     Optional,
     Tuple,
     Union,
@@ -65,7 +64,7 @@ class Struct:
         return f"Struct({self.__dict__})"
 
     def __str__(self):
-        return f"<Struct>"
+        return "<Struct>"
 
 
 class ExprClosure:
@@ -75,9 +74,7 @@ class ExprClosure:
 
     def __init__(self, parameters, expr, consts=None, formals=None):
         self.sympy = importlib.import_module("sympy")
-        self.sympy_parser = importlib.import_module(
-            "sympy.parsing.sympy_parser"
-        )
+        self.sympy_parser = importlib.import_module("sympy.parsing.sympy_parser")
         self.sympy_abc = importlib.import_module("sympy.abc")
         self.parameters = parameters
         self.formals = formals
@@ -174,7 +171,7 @@ class Context:
         return f"Context({self.__dict__})"
 
     def __str__(self):
-        return f"<Context>"
+        return "<Context>"
 
 
 class RunningStats:
@@ -248,9 +245,7 @@ class RunningStats:
         combined.m2 = a.m2 + b.m2 + delta2 * a.n * b.n / combined.n
 
         combined.m3 = (
-            a.m3
-            + b.m3
-            + delta3 * a.n * b.n * (a.n - b.n) / (combined.n * combined.n)
+            a.m3 + b.m3 + delta3 * a.n * b.n * (a.n - b.n) / (combined.n * combined.n)
         )
         combined.m3 += 3.0 * delta * (a.n * b.m2 - b.n * a.m2) / combined.n
 
@@ -288,9 +283,7 @@ class EnumChoice(click.Choice):
         result = super().convert(value, param, ctx)
         # Find the original case in the enum
         if not self.case_sensitive and result not in self.choices:
-            result = next(
-                c for c in self.choices if result.lower() == c.lower()
-            )
+            result = next(c for c in self.choices if result.lower() == c.lower())
         if self.use_value:
             return next(e for e in self.enum if str(e.value) == result)
         return self.enum[result]
@@ -365,9 +358,7 @@ def write_to_yaml(file_path, data, convert_scalars=False):
     with open(file_path, "w") as outfile:
         if convert_scalars:
             data = yaml_convert_scalars(data)
-        yaml.dump(
-            data, outfile, default_flow_style=False, Dumper=ExplicitDumper
-        )
+        yaml.dump(data, outfile, default_flow_style=False, Dumper=ExplicitDumper)
 
 
 # !for imperative API, use from_yaml instead
@@ -546,7 +537,7 @@ def consecutive(data):
 
 def ifilternone(iterable):
     for x in iterable:
-        if not (x is None):
+        if x is not None:
             yield x
 
 
@@ -665,9 +656,7 @@ def make_random_clusters(
 
     if isinstance(centers, numbers.Integral):
         centers = np.sort(
-            rng.uniform(
-                center_box[0], center_box[1], size=(centers, n_features)
-            ),
+            rng.uniform(center_box[0], center_box[1], size=(centers, n_features)),
             axis=0,
         )
     else:
@@ -759,9 +748,7 @@ def rejection_sampling(gen, n, clip):
         samples = []
         while remaining > 0:
             sample = gen(remaining)
-            filtered = sample[
-                np.where((sample >= clip_min) & (sample <= clip_max))
-            ]
+            filtered = sample[np.where((sample >= clip_min) & (sample <= clip_max))]
             samples.append(filtered)
             remaining -= len(filtered)
         result = np.concatenate(tuple(samples))
@@ -793,8 +780,7 @@ def partitionn(
     """
     tees = itertools.tee(((predicate(item), item) for item in items), n)
     return (
-        (lambda i: (item for pred, item in tees[i] if pred == i))(x)
-        for x in range(n)
+        (lambda i: (item for pred, item in tees[i] if pred == i))(x) for x in range(n)
     )
 
 
@@ -868,8 +854,7 @@ def finalize_bins(bins, binsize):
     else:
         grid = np.zeros(dims)
     bin_edges = [
-        [binsize * k for k in range(imin, imax + 1)]
-        for imin, imax in bin_ranges
+        [binsize * k for k in range(imin, imax + 1)] for imin, imax in bin_ranges
     ]
     for i in bins:
         idx = tuple(int(ii - imin) for ii, (imin, imax) in zip(i, bin_ranges))
@@ -925,18 +910,14 @@ def baks(spktimes, time, a=1.5, b=None):
 
     for i in range(n):
         numerator = (((time - spktimes[i]) ** 2) / 2.0 + 1.0 / b) ** (-a)
-        denominator = (((time - spktimes[i]) ** 2) / 2.0 + 1.0 / b) ** (
-            -a - 0.5
-        )
+        denominator = (((time - spktimes[i]) ** 2) / 2.0 + 1.0 / b) ** (-a - 0.5)
         sumnum = sumnum + numerator
         sumdenom = sumdenom + denominator
 
     h = (gamma(a) / gamma(a + 0.5)) * (sumnum / sumdenom)
     rate = np.zeros((len(time),))
     for j in range(n):
-        x = np.asarray(
-            -((time - spktimes[j]) ** 2) / (2.0 * h**2), dtype=np.float128
-        )
+        x = np.asarray(-((time - spktimes[j]) ** 2) / (2.0 * h**2), dtype=np.float128)
         K = (1.0 / (np.sqrt(2.0 * np.pi) * h)) * np.exp(x)
         rate = rate + K
 
@@ -975,9 +956,7 @@ def mvcorrcoef(X, y):
     Xm = np.reshape(np.mean(X, axis=1), (X.shape[0], 1))
     ym = np.mean(y)
     r_num = np.sum(np.multiply(X - Xm, y - ym), axis=1)
-    r_den = np.sqrt(
-        np.sum(np.square(X - Xm), axis=1) * np.sum(np.square(y - ym))
-    )
+    r_den = np.sqrt(np.sum(np.square(X - Xm), axis=1) * np.sum(np.square(y - ym)))
     with np.errstate(divide="ignore", invalid="ignore"):
         r = np.true_divide(r_num, r_den)
         r[r == np.inf] = 0
@@ -1013,10 +992,7 @@ def apply_filter(data, sos):
 def gauss2d(x=0, y=0, mx=0, my=0, sx=1, sy=1, A=1.0):
     ## prevent exp underflow/overflow
     exparg = np.clip(
-        (
-            (x - mx) ** 2.0 / (2.0 * sx**2.0)
-            + (y - my) ** 2.0 / (2.0 * sy**2.0)
-        ),
+        ((x - mx) ** 2.0 / (2.0 * sx**2.0) + (y - my) ** 2.0 / (2.0 * sy**2.0)),
         -500.0,
         500.0,
     )
@@ -1043,9 +1019,7 @@ def get_low_pass_filtered_trace(trace, t, down_dt=0.5, window_len_ms=2000.0):
     padded_trace[pad_len:-pad_len] = down_sampled
     padded_trace[:pad_len] = down_sampled[::-1][-pad_len:]
     padded_trace[-pad_len:] = down_sampled[::-1][:pad_len]
-    down_filtered = signal.filtfilt(
-        ramp_filter, [1.0], padded_trace, padlen=pad_len
-    )
+    down_filtered = signal.filtfilt(ramp_filter, [1.0], padded_trace, padlen=pad_len)
     down_filtered = down_filtered[pad_len:-pad_len]
     filtered = np.interp(t, down_t, down_filtered)
 
@@ -1074,9 +1048,7 @@ def get_trial_time_indices(time_vec, n_trials, t_offset=0.0):
         for i in range(n_trials)
     ]
     t_trial_inds = [
-        np.where(
-            (time_vec >= (t_trial_start + t_offset)) & (time_vec < t_trial_end)
-        )[0]
+        np.where((time_vec >= (t_trial_start + t_offset)) & (time_vec < t_trial_end))[0]
         for t_trial_start, t_trial_end in t_trial_ranges
     ]
     return t_trial_inds
@@ -1147,9 +1119,7 @@ def signal_power_spectrogram(signal, fs, window_size, window_overlap):
     win = get_window("hann", nperseg)
     noverlap = int(window_overlap * nperseg)
 
-    f, t, sxx = spectrogram(
-        x=signal, fs=fs, window=win, noverlap=noverlap, mode="psd"
-    )
+    f, t, sxx = spectrogram(x=signal, fs=fs, window=win, noverlap=noverlap, mode="psd")
 
     return f, t, sxx
 
@@ -1169,9 +1139,7 @@ def signal_psd(s, Fs, frequency_range=(0, 500), window_size=4096, overlap=0.9):
         return_onesided=True,
     )
 
-    freqinds = np.where(
-        (freqs >= frequency_range[0]) & (freqs <= frequency_range[1])
-    )
+    freqinds = np.where((freqs >= frequency_range[0]) & (freqs <= frequency_range[1]))
 
     freqs = freqs[freqinds]
     psd = psd[freqinds]
@@ -1212,18 +1180,14 @@ def baks(spktimes, time, a=1.5, b=None):
 
     for i in range(n):
         numerator = (((time - spktimes[i]) ** 2) / 2.0 + 1.0 / b) ** (-a)
-        denominator = (((time - spktimes[i]) ** 2) / 2.0 + 1.0 / b) ** (
-            -a - 0.5
-        )
+        denominator = (((time - spktimes[i]) ** 2) / 2.0 + 1.0 / b) ** (-a - 0.5)
         sumnum = sumnum + numerator
         sumdenom = sumdenom + denominator
 
     h = (gamma(a) / gamma(a + 0.5)) * (sumnum / sumdenom)
     rate = np.zeros((len(time),))
     for j in range(n):
-        x = np.asarray(
-            -((time - spktimes[j]) ** 2) / (2.0 * h**2), dtype=np.float128
-        )
+        x = np.asarray(-((time - spktimes[j]) ** 2) / (2.0 * h**2), dtype=np.float128)
         K = (1.0 / (np.sqrt(2.0 * np.pi) * h)) * np.exp(x)
         rate = rate + K
 

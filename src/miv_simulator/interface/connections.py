@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import Tuple
 
 import logging
 
@@ -49,9 +49,7 @@ class Connections(Component):
             include_forest_populations=self.config.include_forest_populations,
             synapses={
                 post: {
-                    pre: config.Synapse(**syn).to_config(
-                        self.config.layer_definitions
-                    )
+                    pre: config.Synapse(**syn).to_config(self.config.layer_definitions)
                     for pre, syn in v.items()
                 }
                 for post, v in self.config.synapses.items()

@@ -2,7 +2,6 @@ __doc__ = """
 Network model simulation script.
 """
 
-import os
 import sys
 
 import click
@@ -10,7 +9,7 @@ import numpy as np
 from miv_simulator import network
 from miv_simulator.mechanisms import compile_and_load
 from miv_simulator.env import Env
-from miv_simulator.utils import config_logging, list_find
+from miv_simulator.utils import config_logging
 from mpi4py import MPI
 
 
@@ -133,15 +132,9 @@ sys.excepthook = mpi_excepthook
     is_flag=True,
     help="record the per-cell number of spikes received from each pre-synaptic source",
 )
-@click.option(
-    "--use-coreneuron", is_flag=True, help="use CoreNEURON for simulation"
-)
-@click.option(
-    "--stimulus-id", required=False, type=str, help="name of input stimulus"
-)
-@click.option(
-    "--tstop", type=int, default=1, help="physical time to simulate (ms)"
-)
+@click.option("--use-coreneuron", is_flag=True, help="use CoreNEURON for simulation")
+@click.option("--stimulus-id", required=False, type=str, help="name of input stimulus")
+@click.option("--tstop", type=int, default=1, help="physical time to simulate (ms)")
 @click.option(
     "--v-init",
     type=float,
@@ -299,13 +292,9 @@ def main(
     if profile_time:
         import cProfile
 
-        cProfile.runctx(
-            "init(env)", None, locals(), filename="MiV_profile_init"
-        )
+        cProfile.runctx("init(env)", None, locals(), filename="MiV_profile_init")
         if not dry_run:
-            cProfile.runctx(
-                "run(env)", None, locals(), filename="MiV_profile_run"
-            )
+            cProfile.runctx("run(env)", None, locals(), filename="MiV_profile_run")
     else:
         network.init(env)
         if not dry_run:

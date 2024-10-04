@@ -1,6 +1,5 @@
 import pytest
 import os
-import shutil
 
 from miv_simulator.mechanisms import compile, compile_and_load
 

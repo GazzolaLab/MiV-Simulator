@@ -368,9 +368,7 @@ class RBFVolume:
 
         c = input_axes
 
-        ordered_axes = [
-            np.sort(c[i]) if i == axis else c[i] for i in range(0, 3)
-        ]
+        ordered_axes = [np.sort(c[i]) if i == axis else c[i] for i in range(0, 3)]
 
         aidx = list(range(0, 3))
         aidx.remove(axis)
@@ -394,9 +392,7 @@ class RBFVolume:
                 cdist = np.zeros((split_pts[0].shape[0], 1))
                 distances.append(cdist)
                 if return_coords:
-                    cind = np.lexsort(
-                        tuple(split_pts_coords[0][i] for i in aidx)
-                    )
+                    cind = np.lexsort(tuple(split_pts_coords[0][i] for i in aidx))
                     coords.append(split_pts_coords[0][cind])
                 for i in range(0, npts - 1):
                     a = split_pts[i + 1]
@@ -567,7 +563,7 @@ class RBFVolume:
         from matplotlib.colors import ColorConverter
         from mayavi import mlab
 
-        if not "color" in kwargs:
+        if "color" not in kwargs:
             # Generate random color
             cvec = np.random.rand(3)
             cvec /= math.sqrt(cvec.dot(cvec))
@@ -620,7 +616,7 @@ class RBFVolume:
         from matplotlib.colors import ColorConverter
         from mayavi import mlab
 
-        if not "color" in kwargs:
+        if "color" not in kwargs:
             # Generate random color
             cvec = np.random.rand(3)
             cvec /= math.sqrt(cvec.dot(cvec))
@@ -692,9 +688,7 @@ class RBFVolume:
         keep = np.ones(len(tri.simplices), dtype=bool)
         for i, t in enumerate(tri.simplices):
             if (
-                abs(
-                    np.linalg.det(np.hstack((volpts[t], np.ones([1, N + 1]).T)))
-                )
+                abs(np.linalg.det(np.hstack((volpts[t], np.ones([1, N + 1]).T))))
                 < 1e-12
             ):
                 keep[i] = False  # Point is coplanar, we don't want to keep it
@@ -718,17 +712,12 @@ class RBFVolume:
 def test_surface(u, v, l):
     import numpy as np
 
-    x = np.array(
-        -500.0 * np.cos(u) * (5.3 - np.sin(u) + (1.0 + 0.138 * l) * np.cos(v))
-    )
+    x = np.array(-500.0 * np.cos(u) * (5.3 - np.sin(u) + (1.0 + 0.138 * l) * np.cos(v)))
     y = np.array(
-        750.0
-        * np.sin(u)
-        * (5.5 - 2.0 * np.sin(u) + (0.9 + 0.114 * l) * np.cos(v))
+        750.0 * np.sin(u) * (5.5 - 2.0 * np.sin(u) + (0.9 + 0.114 * l) * np.cos(v))
     )
     z = np.array(
-        2500.0 * np.sin(u)
-        + (663.0 + 114.0 * l) * np.sin(v - 0.13 * (np.pi - u))
+        2500.0 * np.sin(u) + (663.0 + 114.0 * l) * np.sin(v - 0.13 * (np.pi - u))
     )
 
     pts = np.array([x, y, z]).reshape(3, u.size)

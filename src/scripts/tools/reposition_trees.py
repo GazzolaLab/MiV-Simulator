@@ -1,4 +1,5 @@
-import os, sys, gc, logging, random
+import os
+import sys
 import click
 import numpy as np
 from mpi4py import MPI
@@ -6,7 +7,6 @@ from miv_simulator.utils import config_logging, get_script_logger, list_find
 from miv_simulator.env import Env
 from neuroh5.io import (
     NeuroH5TreeGen,
-    append_cell_attributes,
     append_cell_trees,
     scatter_read_cell_attributes,
     read_population_ranges,
@@ -45,9 +45,7 @@ def reposition_tree(neurotree_dict, cell_coords, swc_type_defs):
     sec_dst = copy.deepcopy(neurotree_dict["dst"])
     soma_pts = np.where(pt_swc_types == swc_type_defs["soma"])[0]
 
-    soma_coords = np.column_stack(
-        (pt_xs[soma_pts], pt_ys[soma_pts], pt_zs[soma_pts])
-    )
+    soma_coords = np.column_stack((pt_xs[soma_pts], pt_ys[soma_pts], pt_zs[soma_pts]))
     pos_delta = (
         soma_coords[np.argmin(cdist(soma_coords, cell_coords))] - cell_coords
     ).reshape((-1,))
@@ -169,9 +167,7 @@ def main(
     comm.barrier()
 
     (forest_pop_ranges, _) = read_population_ranges(forest_path)
-    (forest_population_start, forest_population_count) = forest_pop_ranges[
-        population
-    ]
+    (forest_population_start, forest_population_count) = forest_pop_ranges[population]
 
     (pop_ranges, _) = read_population_ranges(output_path)
 
@@ -221,17 +217,11 @@ def main(
         if gid is not None:
             logger.info("Rank %d received gid %d" % (rank, gid))
             cell_coords = soma_coords[population][gid]
-            new_tree_dict = reposition_tree(
-                tree_dict, cell_coords, env.SWC_Types
-            )
+            new_tree_dict = reposition_tree(tree_dict, cell_coords, env.SWC_Types)
             new_trees_dict[gid] = new_tree_dict
         iter_count += 1
 
-        if (
-            (not dry_run)
-            and (write_size > 0)
-            and (iter_count % write_size == 0)
-        ):
+        if (not dry_run) and (write_size > 0) and (iter_count % write_size == 0):
             if rank == 0:
                 logger.info(f"Appending repositioned trees to {output_path}...")
             append_cell_trees(
