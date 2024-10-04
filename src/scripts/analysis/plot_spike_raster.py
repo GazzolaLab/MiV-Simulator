@@ -11,9 +11,7 @@ script_name = os.path.basename(__file__)
 
 @click.command()
 @click.option("--spike-events-path", "-p", required=True, type=click.Path())
-@click.option(
-    "--spike-events-namespace", "-n", type=str, default="Spike Events"
-)
+@click.option("--spike-events-namespace", "-n", type=str, default="Spike Events")
 @click.option("--populations", "-i", type=str, multiple=True)
 @click.option("--max-spikes", type=int, default=int(1e6))
 @click.option("--spike-hist-bin", type=float, default=5.0)
@@ -24,9 +22,7 @@ script_name = os.path.basename(__file__)
 @click.option("--fig-size", type=(float, float), default=(15, 8))
 @click.option("--labels", type=str, default="legend")
 @click.option("--save-format", type=str, default="png")
-@click.option(
-    "--include-artificial/--exclude-artificial", default=True, is_flag=True
-)
+@click.option("--include-artificial/--exclude-artificial", default=True, is_flag=True)
 @click.option("--verbose", "-v", type=bool, default=False, is_flag=True)
 def main(
     spike_events_path,
@@ -80,9 +76,7 @@ if __name__ == "__main__":
     main(
         args=sys.argv[
             (
-                utils.list_find(
-                    lambda x: os.path.basename(x) == script_name, sys.argv
-                )
+                utils.list_find(lambda x: os.path.basename(x) == script_name, sys.argv)
                 + 1
             ) :
         ]

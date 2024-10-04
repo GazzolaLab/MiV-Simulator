@@ -1,6 +1,5 @@
-from typing import Optional, Dict
+from typing import Optional
 
-import os
 import pathlib
 import sys
 
@@ -68,8 +67,7 @@ class RunNetwork(Component):
                     "spike train": {
                         "namespace": self.config.spike_input_namespace
                         or "Input Spikes",
-                        "attribute": self.config.spike_input_attr
-                        or "Spike Train",
+                        "attribute": self.config.spike_input_attr or "Spike Train",
                     }
                 }
             },
@@ -127,9 +125,7 @@ class RunNetwork(Component):
         )
 
         if self.on_write_meta_data() is not False:
-            self.save_file(
-                f"data/timing_summary_rank{int(env.pc.id())}.json", summary
-            )
+            self.save_file(f"data/timing_summary_rank{int(env.pc.id())}.json", summary)
 
     def on_write_meta_data(self):
         return MPI.COMM_WORLD.Get_rank() == 0

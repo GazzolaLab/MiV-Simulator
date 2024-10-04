@@ -23,9 +23,7 @@ context = Context()
 @click.option("--spike-namespace", type=str, default="Spike Events")
 @click.option("--state-namespace", type=str, default="Intracellular soma")
 @click.option("--populations", "-i", type=str, multiple=True)
-@click.option(
-    "--include-artificial/--exclude-artificial", default=True, is_flag=True
-)
+@click.option("--include-artificial/--exclude-artificial", default=True, is_flag=True)
 @click.option(
     "--target-input-features-path",
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
@@ -126,9 +124,7 @@ if __name__ == "__main__":
     main(
         args=sys.argv[
             (
-                utils.list_find(
-                    lambda x: os.path.basename(x) == script_name, sys.argv
-                )
+                utils.list_find(lambda x: os.path.basename(x) == script_name, sys.argv)
                 + 1
             ) :
         ],

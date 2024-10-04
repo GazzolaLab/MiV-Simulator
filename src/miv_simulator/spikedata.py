@@ -18,9 +18,7 @@ from numpy import ndarray, uint32
 ## which is created in module env
 logger = get_module_logger(__name__)
 
-default_baks_analysis_options = Struct(
-    **{"BAKS Alpha": 4.77, "BAKS Beta": None}
-)
+default_baks_analysis_options = Struct(**{"BAKS Alpha": 4.77, "BAKS Beta": None})
 
 
 def get_env_spike_dict(
@@ -29,17 +27,13 @@ def get_env_spike_dict(
     """
     Constructs  a dictionary with per-gid per-trial spike times from the output vectors with spike times and gids contained in env.
     """
-    equilibration_duration = float(
-        env.stimulus_config["Equilibration Duration"]
-    )
+    equilibration_duration = float(env.stimulus_config["Equilibration Duration"])
     n_trials = env.n_trials
 
     t_vec = np.array(env.t_vec.to_python(), dtype=np.float32)
     id_vec = np.array(env.id_vec.to_python(), dtype=np.uint32)
 
-    trial_time_ranges = get_trial_time_ranges(
-        env.t_rec.to_python(), env.n_trials
-    )
+    trial_time_ranges = get_trial_time_ranges(env.t_rec.to_python(), env.n_trials)
     trial_time_bins = [
         t_trial_start for t_trial_start, t_trial_end in trial_time_ranges
     ]
@@ -65,9 +59,7 @@ def get_env_spike_dict(
             for j in range(0, len(ids)):
                 gid = ids[j]
                 t = ts[j]
-                if (not include_artificial) and (
-                    gid in env.artificial_cells[pop_name]
-                ):
+                if (not include_artificial) and (gid in env.artificial_cells[pop_name]):
                     continue
                 if gid in spkdict:
                     spkdict[gid].append(t)
@@ -176,9 +168,7 @@ def read_spike_events(
         for spkind, spkattrs in spkiter:
             is_artificial_flag = spkattrs.get(artificial_attr, None)
             is_artificial = (
-                (is_artificial_flag[0] > 0)
-                if is_artificial_flag is not None
-                else None
+                (is_artificial_flag[0] > 0) if is_artificial_flag is not None else None
             )
             if is_artificial is not None:
                 if is_artificial and (not include_artificial):
@@ -190,12 +180,8 @@ def read_spike_events(
             )
             if n_trials == -1:
                 n_trials = len(set(trial_ind))
-            filtered_spk_idxs_by_trial = np.argwhere(
-                trial_ind <= n_trials
-            ).ravel()
-            filtered_spkts = spkattrs[spike_train_attr_name][
-                filtered_spk_idxs_by_trial
-            ]
+            filtered_spk_idxs_by_trial = np.argwhere(trial_ind <= n_trials).ravel()
+            filtered_spkts = spkattrs[spike_train_attr_name][filtered_spk_idxs_by_trial]
             filtered_trial_ind = trial_ind[filtered_spk_idxs_by_trial]
             if time_range is not None:
                 filtered_spk_idxs_by_time = np.argwhere(
@@ -205,9 +191,7 @@ def read_spike_events(
                     )
                 ).ravel()
                 filtered_spkts = filtered_spkts[filtered_spk_idxs_by_time]
-                filtered_trial_ind = filtered_trial_ind[
-                    filtered_spk_idxs_by_time
-                ]
+                filtered_trial_ind = filtered_trial_ind[filtered_spk_idxs_by_time]
             pop_spkindlst.append(
                 np.repeat([spkind], len(filtered_spkts)).astype(np.uint32)
             )
@@ -254,9 +238,7 @@ def read_spike_events(
         for trial_i in range(n_trials):
             trial_idxs = np.where(pop_spktrials == trial_i)[0]
             sorted_trial_idxs = np.argsort(pop_spkts[trial_idxs])
-            pop_trial_spktlst.append(
-                np.take(pop_spkts[trial_idxs], sorted_trial_idxs)
-            )
+            pop_trial_spktlst.append(np.take(pop_spkts[trial_idxs], sorted_trial_idxs))
             pop_trial_spkindlst.append(
                 np.take(pop_spkinds[trial_idxs], sorted_trial_idxs)
             )
@@ -343,8 +325,7 @@ def spike_density_estimate(
     t_stop = time_bins[-1]
 
     spktrains = {
-        ind: make_spktrain(lst, t_start, t_stop)
-        for (ind, lst) in spkdict.items()
+        ind: make_spktrain(lst, t_start, t_stop) for (ind, lst) in spkdict.items()
     }
     baks_args = dict()
     baks_args["a"] = analysis_options["BAKS Alpha"]
@@ -356,9 +337,7 @@ def spike_density_estimate(
         seq = spktrains.items()
 
     spk_rate_dict = {
-        ind: baks(spkts / 1000.0, time_bins / 1000.0, **baks_args)[0].reshape(
-            (-1,)
-        )
+        ind: baks(spkts / 1000.0, time_bins / 1000.0, **baks_args)[0].reshape((-1,))
         if len(spkts) > 1
         else np.zeros(time_bins.shape)
         for ind, spkts in seq
@@ -373,9 +352,7 @@ def spike_density_estimate(
         namespace = f"Spike Density Function {arena_id} {trajectory_id}"
         attr_dict = {
             ind: {
-                inferred_rate_attr_name: np.asarray(
-                    spk_rate_dict[ind], dtype="float32"
-                )
+                inferred_rate_attr_name: np.asarray(spk_rate_dict[ind], dtype="float32")
             }
             for ind in spk_rate_dict
         }
@@ -384,13 +361,11 @@ def spike_density_estimate(
         )
 
     result = {
-        ind: {"rate": rate, "time": time_bins}
-        for ind, rate in spk_rate_dict.items()
+        ind: {"rate": rate, "time": time_bins} for ind, rate in spk_rate_dict.items()
     }
 
     result = {
-        ind: {"rate": rate, "time": time_bins}
-        for ind, rate in spk_rate_dict.items()
+        ind: {"rate": rate, "time": time_bins} for ind, rate in spk_rate_dict.items()
     }
 
     return result

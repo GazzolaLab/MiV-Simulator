@@ -60,9 +60,7 @@ def read_state(
     for pop_name in population_names:
         cell_index = None
         pop_state_dict[pop_name] = {}
-        for attr_name, attr_cell_index in attr_info_dict[pop_name][
-            namespace_id
-        ]:
+        for attr_name, attr_cell_index in attr_info_dict[pop_name][namespace_id]:
             if attr_name in state_variables:
                 cell_index = attr_cell_index
                 break
@@ -126,12 +124,8 @@ def read_state(
                         this_n_trials = n_trial_bounds
                     else:
                         this_n_trials = min(n_trial_bounds, n_trials)
-                    trial_bounds_consecutive = consecutive(
-                        np.asarray(trial_bounds)
-                    )
-                    trial_bounds_unique = [
-                        x[-1] for x in trial_bounds_consecutive
-                    ]
+                    trial_bounds_consecutive = consecutive(np.asarray(trial_bounds))
+                    trial_bounds_unique = [x[-1] for x in trial_bounds_consecutive]
 
                     if this_n_trials > 1:
                         state_dict[cellind] = {
@@ -177,9 +171,7 @@ def read_state(
                         vals[time_variable][tinds], dtype=np.float32
                     ).reshape((-1,))
                     svals = [
-                        np.asarray(
-                            vals[state_variable][tinds], dtype=np.float32
-                        )
+                        np.asarray(vals[state_variable][tinds], dtype=np.float32)
                         for state_variable in state_variables
                     ]
                     trial_bounds = list(
@@ -187,12 +179,8 @@ def read_state(
                     )
                     n_trial_bounds = len(trial_bounds)
                     trial_bounds.append(len(tvals))
-                    trial_bounds_consecutive = consecutive(
-                        np.asarray(trial_bounds)
-                    )
-                    trial_bounds_unique = [
-                        x[-1] for x in trial_bounds_consecutive
-                    ]
+                    trial_bounds_consecutive = consecutive(np.asarray(trial_bounds))
+                    trial_bounds_unique = [x[-1] for x in trial_bounds_consecutive]
 
                     if n_trials == -1:
                         this_n_trials = n_trial_bounds

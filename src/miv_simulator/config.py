@@ -93,9 +93,7 @@ Example:
 ```
 """
 
-CellConstraints = Optional[
-    Dict[PopulationName, Dict[LayerName, Tuple[float, float]]]
-]
+CellConstraints = Optional[Dict[PopulationName, Dict[LayerName, Tuple[float, float]]]]
 """Describes constraints on the distribution of neurons in a given layer.
 
 Example:
@@ -140,9 +138,7 @@ class Synapse(BaseModel):
             (),
             {
                 "type": SynapseTypesDef.__members__[self.type],
-                "sections": list(
-                    map(SWCTypesDef.__members__.get, self.sections)
-                ),
+                "sections": list(map(SWCTypesDef.__members__.get, self.sections)),
                 "layers": list(map(layer_definitions.get, self.layers)),
                 "proportions": self.proportions,
                 "mechanisms": self.mechanisms,
@@ -348,9 +344,7 @@ class Config:
             self._definitions = Definitions(
                 swc_types=self.get("Definitions.SWC Types", {}),
                 synapse_types=self.get("Definitions.Synapse Types", {}),
-                synapse_mechanisms=self.get(
-                    "Definitions.Synapse Mechanisms", {}
-                ),
+                synapse_mechanisms=self.get("Definitions.Synapse Mechanisms", {}),
                 layers=self.get("Definitions.Layers", {}),
                 populations=self.get("Definitions.Populations", {}),
                 input_selectivity_types=self.get(

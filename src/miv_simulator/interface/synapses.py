@@ -4,7 +4,7 @@ from machinable import Component
 from miv_simulator import config
 from miv_simulator import simulator
 from pydantic import BaseModel, Field, ConfigDict, field_validator
-from typing import Optional, Dict
+from typing import Dict
 from miv_simulator.utils import from_yaml
 from mpi4py import MPI
 from miv_simulator import mechanisms

@@ -361,9 +361,7 @@ def measure_passive(
     t1 = iclamp_res["t1"]
 
     if np.max(t) < t0 or np.max(t) < t1:
-        logging.debug(
-            "measure_passive: time series ends before t0 = {t0} or t1 = {t1}"
-        )
+        logging.debug("measure_passive: time series ends before t0 = {t0} or t1 = {t1}")
         return {"Rinp": np.nan, "tau": np.nan}
 
     deflection_results = measure_deflection(t, v, t0, t1, stim_amp=stim_amp)
@@ -411,12 +409,8 @@ def measure_ap(gid, pop_name, v_init, env: AbstractEnv, cell_dict={}):
 
     results = {
         "spike threshold current": np.asarray([thr], dtype=np.float32),
-        "spike threshold trace t": np.asarray(
-            h.tlog.to_python(), dtype=np.float32
-        ),
-        "spike threshold trace v": np.asarray(
-            h.Vlog.to_python(), dtype=np.float32
-        ),
+        "spike threshold trace t": np.asarray(h.tlog.to_python(), dtype=np.float32),
+        "spike threshold trace v": np.asarray(h.Vlog.to_python(), dtype=np.float32),
     }
 
     env.synapse_attributes.del_syn_id_attr_dict(gid)
@@ -527,9 +521,7 @@ def measure_ap_rate(
         "ISI_mean": np.asarray([isimean], dtype=np.float32),
         "ISI_var": np.asarray([isivar], dtype=np.float32),
         "ISI_stdev": np.asarray([isistdev], dtype=np.float32),
-        "ISI_adaptation_1": np.asarray(
-            [isivect.x[0] / isimean], dtype=np.float32
-        ),
+        "ISI_adaptation_1": np.asarray([isivect.x[0] / isimean], dtype=np.float32),
         "ISI_adaptation_2": np.asarray(
             [isivect.x[0] / isivect.x[isilast]], dtype=np.float32
         ),
@@ -671,12 +663,8 @@ def measure_gap_junction_coupling(gid, population, v_init, env: AbstractEnv):
     h.Vlog2.record(soma2(0.5)._ref_v)
 
     gjpos = 0.5
-    neuron_utils.mkgap(
-        env, cell1, source, gjpos, srcsec, ggid, ggid + 1, weight
-    )
-    neuron_utils.mkgap(
-        env, cell2, destination, gjpos, dstsec, ggid + 1, ggid, weight
-    )
+    neuron_utils.mkgap(env, cell1, source, gjpos, srcsec, ggid, ggid + 1, weight)
+    neuron_utils.mkgap(env, cell2, destination, gjpos, dstsec, ggid + 1, ggid, weight)
 
     pc.setup_transfer()
     pc.set_maxstep(10.0)
@@ -884,18 +872,10 @@ def measure_psp(
     print(f"measure_psp: amp_v = {amp_v:f} amp_i = {amp_i:f}")
 
     results = {
-        f"{presyn_name} {syn_mech_name} PSP": np.asarray(
-            [amp_v], dtype=np.float32
-        ),
-        f"{presyn_name} {syn_mech_name} PSP i": np.asarray(
-            vec_i, dtype=np.float32
-        ),
-        f"{presyn_name} {syn_mech_name} PSP v": np.asarray(
-            vec_v, dtype=np.float32
-        ),
-        f"{presyn_name} {syn_mech_name} PSP t": np.asarray(
-            vec_t, dtype=np.float32
-        ),
+        f"{presyn_name} {syn_mech_name} PSP": np.asarray([amp_v], dtype=np.float32),
+        f"{presyn_name} {syn_mech_name} PSP i": np.asarray(vec_i, dtype=np.float32),
+        f"{presyn_name} {syn_mech_name} PSP v": np.asarray(vec_v, dtype=np.float32),
+        f"{presyn_name} {syn_mech_name} PSP t": np.asarray(vec_t, dtype=np.float32),
     }
 
     env.synapse_attributes.del_syn_id_attr_dict(gid)

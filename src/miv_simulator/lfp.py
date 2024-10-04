@@ -81,9 +81,7 @@ class LFP:
         self.epoint = pos
         self.maxEDist = maxEDist
         self.rho = rho  ## extracellular resistivity, [ohm cm]
-        self.fdst = (
-            fdst  ## percent of distant cells to include in the computation
-        )
+        self.fdst = fdst  ## percent of distant cells to include in the computation
         self.meanlfp = []
         self.t = []
         self.lfp_ids = {}
@@ -126,9 +124,7 @@ class LFP:
                         yint = h.Vector(sec.nseg + 2)
                         zint = h.Vector(sec.nseg + 2)
 
-                        interpxyz(
-                            nn, sec.nseg, xx, yy, zz, ll, xint, yint, zint
-                        )
+                        interpxyz(nn, sec.nseg, xx, yy, zz, ll, xint, yint, zint)
 
                         j = 0
                         sx0 = xint.x[0]
@@ -238,9 +234,7 @@ class LFP:
                     math.sqrt((x - ex) ** 2 + (y - ey) ** 2 + (z - ez) ** 2)
                     < self.maxEDist
                 ):
-                    lfptype = (
-                        1  ## proximal cell; compute extracellular potential
-                    )
+                    lfptype = 1  ## proximal cell; compute extracellular potential
                 else:
                     if ransample < self.fdst:
                         lfptype = 2  ## distal cell -- compute extracellular potential only for fdst fraction of total

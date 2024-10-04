@@ -61,8 +61,6 @@ class GenerateSynapseForest(Component):
         del context["config"]["mpi"]
         del context["config"]["nodes"]
         del context["config"]["filepath"]
-        context["config"]["morphology"] = file_hash(
-            context["config"]["morphology"]
-        )
+        context["config"]["morphology"] = file_hash(context["config"]["morphology"])
         context["predicate"]["uses"] = sorted([u.hash for u in self.uses])
         return context

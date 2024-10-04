@@ -1,6 +1,6 @@
-import gc, math, os, sys
+import os
+import sys
 import click
-from mpi4py import MPI
 from miv_simulator import plotting as plot
 from miv_simulator import utils
 from miv_simulator.env import Env
@@ -92,9 +92,7 @@ if __name__ == "__main__":
     main(
         args=sys.argv[
             (
-                utils.list_find(
-                    lambda x: os.path.basename(x) == script_name, sys.argv
-                )
+                utils.list_find(lambda x: os.path.basename(x) == script_name, sys.argv)
                 + 1
             ) :
         ]

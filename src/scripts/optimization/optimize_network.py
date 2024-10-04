@@ -1,7 +1,4 @@
-import os
-import sys
 import click
-from miv_simulator import utils
 from miv_simulator.optimize_network import optimize_network
 
 

@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 
-import os
-import sys
 
 import click
-from miv_simulator import utils
 from miv_simulator.simulator.distribute_synapses import (
     distribute_synapse_locations,
 )

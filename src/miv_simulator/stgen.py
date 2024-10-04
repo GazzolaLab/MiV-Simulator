@@ -187,9 +187,7 @@ class StGen:
         if i == len(spikes):
             # ISI buf overrun
 
-            t_last = (
-                spikes[-1] + self.rng.exponential(1.0 / rate, 1)[0] * 1000.0
-            )
+            t_last = spikes[-1] + self.rng.exponential(1.0 / rate, 1)[0] * 1000.0
 
             while t_last < t_stop:
                 extra_spikes.append(t_last)
@@ -358,9 +356,7 @@ class StGen:
             # evolve adaptation state
             t_s += isi[i]
 
-            if rn[i] < (
-                a[t_i] * np.exp(-bq[t_i] * np.exp(old_div(-t_s, tau))) / rmax
-            ):
+            if rn[i] < (a[t_i] * np.exp(-bq[t_i] * np.exp(old_div(-t_s, tau))) / rmax):
                 # keep spike
                 keep[i] = True
                 # remap t_s state
@@ -481,8 +477,7 @@ class StGen:
             if rn[i] < (
                 a[t_i]
                 * np.exp(
-                    -bq[t_i]
-                    * (np.exp(-t_s / tau_s) + qrqs * np.exp(-t_r / tau_r))
+                    -bq[t_i] * (np.exp(-t_s / tau_s) + qrqs * np.exp(-t_r / tau_r))
                 )
                 / rmax
             ):
@@ -581,9 +576,7 @@ class StGen:
         y = np.zeros(N, float)
         y[0] = y0
         fac = dt / tau
-        gauss = fac * y0 + np.sqrt(2 * fac) * sigma * self.rng.standard_normal(
-            N - 1
-        )
+        gauss = fac * y0 + np.sqrt(2 * fac) * sigma * self.rng.standard_normal(N - 1)
         mfac = 1 - fac
 
         # python loop... bad+slow!
@@ -636,9 +629,7 @@ class StGen:
         y = np.zeros(N, float)
         y[0] = y0
         fac = dt / tau
-        gauss = fac * y0 + np.sqrt(2 * fac) * sigma * self.rng.standard_normal(
-            N - 1
-        )
+        gauss = fac * y0 + np.sqrt(2 * fac) * sigma * self.rng.standard_normal(N - 1)
 
         # python loop... bad+slow!
         # for i in xrange(1,len(t)):
@@ -738,9 +729,7 @@ def shotnoise_fromspikes(
 
     kern = q * np.exp(-np.arange(0.0, vs_t, dt) / tau)
 
-    idx = np.clip(
-        np.searchsorted(t, st.spike_times, "right") - 1, 0, len(t) - 1
-    )
+    idx = np.clip(np.searchsorted(t, st.spike_times, "right") - 1, 0, len(t) - 1)
 
     a = np.zeros(np.shape(t), float)
 

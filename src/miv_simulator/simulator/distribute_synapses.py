@@ -90,9 +90,7 @@ def global_syn_summary(comm, syn_stats, gid_count, root):
                         )
         total_syn_stats_dict = pop_syn_stats["total"]
         for syn_type in total_syn_stats_dict:
-            global_syn_count = comm.gather(
-                total_syn_stats_dict[syn_type], root=root
-            )
+            global_syn_count = comm.gather(total_syn_stats_dict[syn_type], root=root)
             if comm.rank == root:
                 res.append(
                     f"{population}: mean {syn_type} synapses per cell: {np.sum(global_syn_count) / global_count:.2f}"
@@ -389,14 +387,10 @@ def distribute_synapses(
                         cell_secidx_dict,
                     )
                 else:
-                    raise Exception(
-                        f"Unknown distribution type: {distribution}"
-                    )
+                    raise Exception(f"Unknown distribution type: {distribution}")
 
                 synapse_dict[gid] = syn_dict
-                this_syn_stats = update_synapse_statistics(
-                    syn_dict, syn_stats_dict
-                )
+                this_syn_stats = update_synapse_statistics(syn_dict, syn_stats_dict)
                 check_synapses(
                     gid,
                     morph_dict,
@@ -419,11 +413,7 @@ def distribute_synapses(
             else:
                 logger.info(f"Rank {rank} gid is None")
             gc.collect()
-            if (
-                (not dry_run)
-                and (write_size > 0)
-                and (gid_count % write_size == 0)
-            ):
+            if (not dry_run) and (write_size > 0) and (gid_count % write_size == 0):
                 append_cell_attributes(
                     output_filepath,
                     population,
@@ -450,9 +440,7 @@ def distribute_synapses(
                 value_chunk_size=value_chunk_size,
             )
 
-        global_count, summary = global_syn_summary(
-            comm, syn_stats, gid_count, root=0
-        )
+        global_count, summary = global_syn_summary(comm, syn_stats, gid_count, root=0)
         if rank == 0:
             logger.info(
                 f"Population: {population}, {comm.size} ranks took {time.time() - start_time:.2f} s "

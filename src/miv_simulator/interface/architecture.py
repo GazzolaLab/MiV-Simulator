@@ -1,11 +1,10 @@
-from typing import Optional, Tuple, Dict, Union
-import os
+from typing import Optional, Tuple, Dict
 import logging
 
 from machinable import Component
 from machinable.element import normversion
 from miv_simulator import config, simulator
-from miv_simulator.utils import io as io_utils, from_yaml
+from miv_simulator.utils import from_yaml
 from mpi4py import MPI
 from pydantic import BaseModel, Field, ConfigDict
 

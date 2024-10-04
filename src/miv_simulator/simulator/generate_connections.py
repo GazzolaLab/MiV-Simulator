@@ -10,7 +10,6 @@ from miv_simulator.connections import (
 )
 from miv_simulator import config
 from miv_simulator.env import Env
-from miv_simulator.geometry import make_distance_interpolant, measure_distances
 from miv_simulator.utils.neuron import configure_hoc
 from mpi4py import MPI
 from neuroh5.io import (
@@ -74,9 +73,7 @@ def generate_distance_connections(
     connectivity_seed = int(
         env.model_config["Random Seeds"]["Distance-Dependent Connectivity"]
     )
-    cluster_seed = int(
-        env.model_config["Random Seeds"]["Connectivity Clustering"]
-    )
+    cluster_seed = int(env.model_config["Random Seeds"]["Connectivity Clustering"])
 
     return generate_connections(
         filepath=coords_path,
@@ -190,9 +187,7 @@ def generate_connections(
     soma_coords = comm.bcast(soma_coords, root=0)
 
     forest_populations = sorted(read_population_names(forest_filepath))
-    if (include_forest_populations is None) or (
-        len(include_forest_populations) == 0
-    ):
+    if (include_forest_populations is None) or (len(include_forest_populations) == 0):
         destination_populations = forest_populations
     else:
         destination_populations = []

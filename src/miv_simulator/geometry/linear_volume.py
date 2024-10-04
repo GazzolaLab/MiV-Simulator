@@ -115,15 +115,9 @@ class LinearVolume:
         u, v, l = np.meshgrid(obs_u, obs_v, obs_l, indexing="ij")
         uvl_obs = np.array([u.ravel(), v.ravel(), l.ravel()]).T
 
-        xvol = LinearNDInterpolator(
-            uvl_obs, xyz[:, 0], fill_value=xyz[0, 0], **kwargs
-        )
-        yvol = LinearNDInterpolator(
-            uvl_obs, xyz[:, 1], fill_value=xyz[0, 1], **kwargs
-        )
-        zvol = LinearNDInterpolator(
-            uvl_obs, xyz[:, 2], fill_value=xyz[0, 2], **kwargs
-        )
+        xvol = LinearNDInterpolator(uvl_obs, xyz[:, 0], fill_value=xyz[0, 0], **kwargs)
+        yvol = LinearNDInterpolator(uvl_obs, xyz[:, 1], fill_value=xyz[0, 1], **kwargs)
+        zvol = LinearNDInterpolator(uvl_obs, xyz[:, 2], fill_value=xyz[0, 2], **kwargs)
 
         uvol = LinearNDInterpolator(
             xyz, uvl_obs[:, 0], fill_value=uvl_obs[0, 0], **kwargs
@@ -366,9 +360,7 @@ class LinearVolume:
 
         c = input_axes
 
-        ordered_axes = [
-            np.sort(c[i]) if i == axis else c[i] for i in range(0, 3)
-        ]
+        ordered_axes = [np.sort(c[i]) if i == axis else c[i] for i in range(0, 3)]
 
         aidx = list(range(0, 3))
         aidx.remove(axis)
@@ -392,9 +384,7 @@ class LinearVolume:
                 cdist = np.zeros((split_pts[0].shape[0], 1))
                 distances.append(cdist)
                 if return_coords:
-                    cind = np.lexsort(
-                        tuple(split_pts_coords[0][i] for i in aidx)
-                    )
+                    cind = np.lexsort(tuple(split_pts_coords[0][i] for i in aidx))
                     coords.append(split_pts_coords[0][cind])
                 for i in range(0, npts - 1):
                     a = split_pts[i + 1]
@@ -566,7 +556,7 @@ class LinearVolume:
         """
         from matplotlib.colors import ColorConverter
 
-        if not "color" in kwargs:
+        if "color" not in kwargs:
             # Generate random color
             cvec = np.random.rand(3)
             cvec /= math.sqrt(cvec.dot(cvec))
@@ -626,7 +616,7 @@ class LinearVolume:
         from matplotlib.colors import ColorConverter
         from mayavi import mlab
 
-        if not "color" in kwargs:
+        if "color" not in kwargs:
             # Generate random color
             cvec = np.random.rand(3)
             cvec /= math.sqrt(cvec.dot(cvec))
@@ -713,17 +703,12 @@ class LinearVolume:
 def test_surface(u, v, l):
     import numpy as np
 
-    x = np.array(
-        -500.0 * np.cos(u) * (5.3 - np.sin(u) + (1.0 + 0.138 * l) * np.cos(v))
-    )
+    x = np.array(-500.0 * np.cos(u) * (5.3 - np.sin(u) + (1.0 + 0.138 * l) * np.cos(v)))
     y = np.array(
-        750.0
-        * np.sin(u)
-        * (5.5 - 2.0 * np.sin(u) + (0.9 + 0.114 * l) * np.cos(v))
+        750.0 * np.sin(u) * (5.5 - 2.0 * np.sin(u) + (0.9 + 0.114 * l) * np.cos(v))
     )
     z = np.array(
-        2500.0 * np.sin(u)
-        + (663.0 + 114.0 * l) * np.sin(v - 0.13 * (np.pi - u))
+        2500.0 * np.sin(u) + (663.0 + 114.0 * l) * np.sin(v - 0.13 * (np.pi - u))
     )
 
     pts = np.array([x, y, z]).reshape(3, u.size)

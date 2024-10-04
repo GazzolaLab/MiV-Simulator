@@ -126,9 +126,7 @@ def main(
     if rank == 0:
         logger.info("%i ranks have been allocated" % comm.size)
 
-    pop_ranges, pop_size = read_population_ranges(
-        env.connectivity_file_path, comm=comm
-    )
+    pop_ranges, pop_size = read_population_ranges(env.connectivity_file_path, comm=comm)
 
     distance_U_dict = {}
     distance_V_dict = {}
@@ -148,15 +146,12 @@ def main(
                 comm=comm0,
             )
             soma_distances = {
-                k: (v["U Distance"][0], v["V Distance"][0])
-                for (k, v) in distances
+                k: (v["U Distance"][0], v["V Distance"][0]) for (k, v) in distances
             }
             del distances
 
             numitems = len(list(soma_distances.keys()))
-            logger.info(
-                "read %s distances (%i elements)" % (population, numitems)
-            )
+            logger.info("read %s distances (%i elements)" % (population, numitems))
 
             if numitems == 0:
                 continue
@@ -207,9 +202,7 @@ def main(
     env.comm.barrier()
 
     if write_selection:
-        write_selection_file_path = (
-            f"{env.results_path}/{env.modelName}_selection.h5"
-        )
+        write_selection_file_path = f"{env.results_path}/{env.modelName}_selection.h5"
         if rank == 0:
             io_utils.mkout(env, write_selection_file_path)
         env.comm.barrier()
