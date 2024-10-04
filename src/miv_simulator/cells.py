@@ -367,8 +367,8 @@ class BRKneuron:
         return self._gid
 
     @property
-    def pop_name(self):
-        return self._pop_name
+    def population_name(self):
+        return self._population_name
 
     @property
     def soma(self):
@@ -442,7 +442,7 @@ class PRneuron:
         :param cell_config: :namedtuple:'PRconfig' or :namedtuple:'PRNconfig'
         """
         self._gid = gid
-        self._pop_name = pop_name
+        self._population_name = pop_name
         self.tree = nx.DiGraph()
         self.count = 0  # Keep track of number of nodes
         if env is not None:
@@ -478,6 +478,8 @@ class PRneuron:
                 "dend_gmax_Ca": cell_config.dend_gmax_Ca,
                 "dend_gmax_KCa": cell_config.dend_gmax_KCa,
                 "dend_gmax_KAHP": cell_config.dend_gmax_KAHP,
+                "dend_aqs_KAHP": cell_config.dend_aqs_KAHP,
+                "dend_bq_KAHP": cell_config.dend_bq_KAHP,
                 "dend_g_pas": cell_config.dend_g_pas,
                 "dend_d_Caconc": cell_config.dend_d_Caconc,
                 "cm_ratio": cell_config.cm_ratio,
@@ -531,8 +533,8 @@ class PRneuron:
         return self._gid
 
     @property
-    def pop_name(self):
-        return self._pop_name
+    def population_name(self):
+        return self._population_name
 
     @property
     def soma(self):
@@ -654,8 +656,8 @@ class SCneuron:
         return self._gid
 
     @property
-    def pop_name(self):
-        return self._pop_name
+    def population_name(self):
+        return self._population_name
 
     @property
     def soma(self) -> List[SectionNode]:

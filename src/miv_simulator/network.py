@@ -1749,6 +1749,8 @@ def init(env: Env, subworld_size: Optional[int] = None) -> None:
     if env.profile_memory and rank == 0:
         profile_memory(logger)
 
+    env.pc.barrier()
+
     st = time.time()
     init_input_cells(env)
     env.mkstimtime = time.time() - st

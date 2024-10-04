@@ -435,6 +435,11 @@ class Env(AbstractEnv):
         self.microcircuit_input_sources = {
             pop_name: set() for pop_name in self.celltypes.keys()
         }
+        if rank == 0:
+            self.logger.info(
+                f"env.microcircuit_inputs = {self.microcircuit_inputs}\n"
+                f"env.microcircuit_input_sources = {self.microcircuit_input_sources}"
+            )
 
         # Configuration profile for optogenetic stimulation
         self.opsin_config = None

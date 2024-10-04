@@ -2123,7 +2123,9 @@ def config_syn(
     nc_param = False
     mech_param = False
 
+    
     for param, val in params.items():
+        
         failed = True
         if param in mech_rules["mech_params"]:
             if syn is None:
@@ -2169,12 +2171,14 @@ def config_syn(
                     else:
                         if val is None:
                             raise AttributeError(
-                                f"config_syn: netcon attribute {param} is None for synaptic mechanism: {mech_name}"
+                                f"config_syn: netcon attribute {param} is None for synapse {syn_name} "
+                                f"synaptic mechanism: {mech_name}; params are {params}"
                             )
                         if isinstance(val, list):
                             if len(val) > 1:
                                 raise AttributeError(
-                                    "config_syn: netcon attribute {param} is list of length > 1 for synaptic mechanism: {mech_name}"
+                                    f"config_syn: netcon attribute {param} is list of length > 1 for synapse {syn_name} "
+                                    f"synaptic mechanism: {mech_name}"
                                 )
                             new = val[0]
                         else:
@@ -2184,7 +2188,8 @@ def config_syn(
                         failed = False
         if failed:
             raise AttributeError(
-                f"config_syn: problem setting attribute: {param} for synaptic mechanism: {mech_name}"
+                f"config_syn: problem setting attribute: {param} for synapse {syn_name} "
+                f"synaptic mechanism: {mech_name}"
             )
     return (mech_param, nc_param)
 
@@ -2697,14 +2702,14 @@ def set_syn_mech_param(
     syn_attrs = env.synapse_attributes
     for syn_id in syn_ids:
         syn_attrs.modify_mech_attrs(
-            cell.pop_name, cell.gid, syn_id, syn_name, {param_name: baseline}
+            cell.population_name, cell.gid, syn_id, syn_name, {param_name: baseline}
         )
 
     if update_targets:
         config_biophys_cell_syns(
             env,
             cell.gid,
-            cell.pop_name,
+            cell.population_name,
             syn_ids=syn_ids,
             insert=False,
             verbose=verbose,
