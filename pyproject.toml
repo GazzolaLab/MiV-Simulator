@@ -17,6 +17,20 @@ dependencies = [
 readme = "README.md"
 requires-python = ">= 3.9"
 
+[project.optional-dependencies]
+docs = [
+  "sphinx",
+  "pydata-sphinx-theme",
+  "readthedocs-sphinx-search",
+  "sphinx-autodoc-typehints",
+  "myst-nb",
+  "numpydoc",
+  "sphinx-togglebutton",
+  "sphinx-copybutton",
+  "sphinx-click",
+  "sphinxcontrib-mermaid"
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -32,3 +46,35 @@ allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/miv_simulator"]
+
+[project.scripts]
+# Main functions
+make-h5types = "scripts.make_h5types:main"
+measure-distances = "scripts.measure_distances:main"
+generate-distance-connections = "scripts.generate_distance_connections:main"
+generate-gapjunctions = "scripts.generate_gapjunctions:main"
+generate-input-features = "scripts.generate_input_features:main"
+generate-input-spike-trains = "scripts.generate_input_spike_trains:main"
+generate-soma-coordinates = "scripts.generate_soma_coordinates:main"
+distribute-synapse-locs = "scripts.distribute_synapse_locs:main"
+run-network = "scripts.run_network:main"
+network-clamp = "scripts.analysis.network_clamp:main_cli"
+# Analysis scripts
+plot-biophys-cell-tree = "scripts.analysis.plot_biophys_cell_tree:main"
+plot-cell-tree = "scripts.analysis.plot_cell_tree:main"
+plot-coords-in-volume = "scripts.analysis.plot_coords_in_volume:main"
+plot-network-clamp = "scripts.analysis.plot_network_clamp:main"
+plot-spike-raster = "scripts.analysis.plot_spike_raster:main"
+plot-state = "scripts.analysis.plot_state:main"
+plot-single-vertex-dist = "scripts.analysis.plot_single_vertex_dist:main"
+plot-spatial-spike-raster = "scripts.analysis.plot_spatial_spike_raster:main"
+plot-lfp = "scripts.analysis.plot_lfp:main"
+plot-lfp-spectrogram = "scripts.analysis.plot_lfp_spectrogram:main"
+#Tools
+show-h5types = "scripts.tools.show_h5types:main"
+query-cell-attrs = "scripts.tools.query_cell_attrs:main"
+check-config = "scripts.tools.check_config:main"
+cut-slice = "scripts.tools.cut_slice:main"
+sample-cells = "scripts.tools.sample_cells:main"
+reposition-trees = "scripts.tools.reposition_trees:main"
+optimize-network = "scripts.optimization.optimize_network:main_cli"
