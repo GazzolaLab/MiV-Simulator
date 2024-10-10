@@ -1209,6 +1209,9 @@ class H5FileManager:
         _run(cmd)
 
     def copy_stim_coordinates(self):
+        with h5py.File(self.cells_filepath, "w") as f:
+            if "/Populations/STIM" not in f:
+                return
         cmd = [
             "h5copy",
             "-p",
