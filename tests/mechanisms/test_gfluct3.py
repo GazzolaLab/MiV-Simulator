@@ -8,7 +8,6 @@ from miv_simulator.mechanisms import compile_and_load
 import numpy as np
 
 
-
 def test_run_with_Gfluct3():
     compile_and_load("tests/mechanisms", force=True)
 

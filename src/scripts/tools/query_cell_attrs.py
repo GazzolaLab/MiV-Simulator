@@ -1,4 +1,3 @@
-
 import click
 import numpy as np
 from miv_simulator.utils import io as io_utils
