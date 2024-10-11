@@ -1,4 +1,3 @@
-
 import click
 from miv_simulator.utils import io as io_utils
 

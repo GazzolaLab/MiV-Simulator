@@ -2123,9 +2123,7 @@ def config_syn(
     nc_param = False
     mech_param = False
 
-    
     for param, val in params.items():
-        
         failed = True
         if param in mech_rules["mech_params"]:
             if syn is None:
