@@ -2,7 +2,7 @@ __doc__ = """
 Network initialization routines.
 """
 
-from typing import Dict, Union
+from typing import Dict, Union, Optional
 import gc
 import os
 import pprint
@@ -21,7 +21,6 @@ from miv_simulator.utils import io as io_utils
 from miv_simulator.utils import neuron as neuron_utils
 from miv_simulator.utils import profile_memory, simtime, zip_longest
 from miv_simulator.utils.neuron import h
-from miv_simulator.opto.run import *
 
 if hasattr(h, "nrnmpi_init"):
     h.nrnmpi_init()
@@ -1684,6 +1683,9 @@ def init(env: Env, subworld_size: Optional[int] = None) -> None:
         }
         rho_params = env.opsin_config["rho parameters"]
         protocol_params = env.opsin_config["protocol parameters"]
+
+        from miv_simulator.opto.run import OptoStim
+
         env.opto_stim = OptoStim(
             env.pc,
             opsin_pop_dict,
