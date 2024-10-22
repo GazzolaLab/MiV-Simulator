@@ -1,6 +1,7 @@
 import os
 import shutil
 from glob import glob
+import platform
 
 import subprocess
 from mpi4py import MPI
@@ -102,7 +103,7 @@ def load(directory: str, force: bool = False) -> str:
         return _loaded[directory]
 
     dll_path = os.path.join(
-        os.path.abspath(directory), "x86_64", ".libs", "libnrnmech.so"
+        os.path.abspath(directory), platform.uname().machine, ".libs", "libnrnmech.so"
     )
     if not os.path.exists(dll_path):
         raise FileNotFoundError(f"{dll_path} does not exists.")
