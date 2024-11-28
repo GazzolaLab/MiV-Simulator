@@ -68,7 +68,7 @@ def main(
     utils.config_logging(verbose)
     logger = utils.get_script_logger(os.path.basename(script_name))
 
-    env = Env(config_file=config, config_prefix=config_prefix)
+    env = Env(config=config, config_prefix=config_prefix)
 
     plot.plot_single_vertex_dist(
         env,
