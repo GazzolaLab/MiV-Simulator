@@ -40,9 +40,7 @@ def make_h5types(
 )
 @click.option("--gap-junctions", is_flag=True)
 def main(config, config_prefix, output_path, gap_junctions):
-    make_h5types(
-        config, output_path, gap_junctions, config_prefix=config_prefix
-    )
+    make_h5types(config, output_path, gap_junctions, config_prefix=config_prefix)
 
 
 if __name__ == "__main__":

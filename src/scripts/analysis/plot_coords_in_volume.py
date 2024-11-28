@@ -28,9 +28,7 @@ def list_find(f, lst):
     required=True,
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
 )
-@click.option(
-    "--coords-namespace", "-n", type=str, default="Generated Coordinates"
-)
+@click.option("--coords-namespace", "-n", type=str, default="Generated Coordinates")
 @click.option("--populations", "-i", required=True, multiple=True, type=str)
 @click.option("--subpopulation", required=False, default=-1, type=int)
 @click.option("--scale", type=float, default=25.0)
@@ -66,9 +64,7 @@ if __name__ == "__main__":
     main(
         args=sys.argv[
             (
-                list_find(
-                    lambda s: s.find("plot_coords_in_volume.py") != -1, sys.argv
-                )
+                list_find(lambda s: s.find("plot_coords_in_volume.py") != -1, sys.argv)
                 + 1
             ) :
         ]

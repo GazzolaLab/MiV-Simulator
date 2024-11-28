@@ -3,11 +3,9 @@ Based on code from the PyRhO: A Multiscale Optogenetics Simulation Platform
 https://github.com/ProjectPyRhO/PyRhO.git
 """
 
-from typing import TYPE_CHECKING, Optional, Any, Dict, Set, Tuple
+from typing import TYPE_CHECKING, Optional, Any, Dict, Set
 from collections import defaultdict
 import copy
-import logging
-import math
 import numpy as np
 from neuron import h
 from miv_simulator.utils import (
@@ -24,7 +22,6 @@ logger = get_module_logger(__name__)
 
 
 class OptoStim:
-
     """Class for cellular level optogenetic simulations with NEURON."""
 
     mechanisms = {3: "RhO3c", 4: "RhO4c", 6: "RhO6c"}
@@ -190,9 +187,7 @@ class OptoStim:
 
         ### Delay phase (to allow the system to settle)
         phi = 0
-        self.model.initStates(
-            phi=phi
-        )  # Reset state and time arrays from previous runs
+        self.model.initStates(phi=phi)  # Reset state and time arrays from previous runs
         self.model.s0 = self.model.states[-1, :]  # Store initial state used
 
         logger.info(f"Optogenetic initial conditions: {self.model.s0}")
@@ -220,16 +215,12 @@ class OptoStim:
 
             onInd = len(t) - 1  # Start of on-phase
             offInd = onInd + int(round(Dt_on / self.dt))
-            self.model.pulseInd = np.vstack(
-                (self.model.pulseInd, [onInd, offInd])
-            )
+            self.model.pulseInd = np.vstack((self.model.pulseInd, [onInd, offInd]))
 
             t = np.r_[t, tPulse[1:]]
             phi_tV = np.r_[phi_tV, phiPulse[1:]]
 
-            self.model.ssInf.append(
-                self.model.calcSteadyState(phi_t(end - Dt_off))
-            )
+            self.model.ssInf.append(self.model.calcSteadyState(phi_t(end - Dt_off)))
 
         self.tvec = h.Vector(t)
         self.tvec.label("Time [ms]")
@@ -248,9 +239,7 @@ class OptoStim:
 
                 rho_list = rho_dict[gid]
                 for rho in rho_list:
-                    self.phiVec.play(
-                        rho._ref_phi, self.tvec, 1, discontinuities
-                    )
+                    self.phiVec.play(rho._ref_phi, self.tvec, 1, discontinuities)
 
     def sample(self, rec_index=0):
         t_rec = np.array(self.rho_tvec.to_python(), copy=True)

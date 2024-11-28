@@ -260,9 +260,7 @@ def synapse_seg_counts(
                     ran = None
                 if ran is not None:
                     l = L / nseg
-                    dens = ran.normal(
-                        density_dict["mean"], density_dict["variance"]
-                    )
+                    dens = ran.normal(density_dict["mean"], density_dict["variance"])
                     rc = dens * l
                     segcount_total += rc
                     segcounts.append(rc)
@@ -362,18 +360,15 @@ def distribute_uniform_synapses(
                     int_seg_count = math.floor(seg_count)
                     syn_count = 0
                     while syn_count < int_seg_count:
-                        syn_loc = seg_start + seg_range * (
-                            syn_count + 1
-                        ) / math.ceil(seg_count)
+                        syn_loc = seg_start + seg_range * (syn_count + 1) / math.ceil(
+                            seg_count
+                        )
                         assert (syn_loc <= 1) & (syn_loc >= 0)
                         if syn_loc < 1.0:
                             syn_cdist = math.sqrt(
                                 reduce(
                                     lambda a, b: a + b,
-                                    (
-                                        interp_loc[i](syn_loc) ** 2
-                                        for i in range(3)
-                                    ),
+                                    (interp_loc[i](syn_loc) ** 2 for i in range(3)),
                                 )
                             )
                             syn_cdists.append(syn_cdist)
@@ -527,9 +522,7 @@ def distribute_poisson_synapses(
                         else:
                             while True:
                                 sample = r.exponential(beta)
-                                if (sample >= L_seg_start) and (
-                                    sample < L_seg_end
-                                ):
+                                if (sample >= L_seg_start) and (sample < L_seg_end):
                                     break
                         interval += sample
                         while interval < L_seg_end:
@@ -653,9 +646,7 @@ class SynapseAttributes:
         self,
         env: AbstractEnv,
         syn_mech_names: Dict[str, str],
-        syn_param_rules: Dict[
-            str, Dict[str, Union[str, List[str], Dict[str, int]]]
-        ],
+        syn_param_rules: Dict[str, Dict[str, Union[str, List[str], Dict[str, int]]]],
     ) -> None:
         """An Env object containing imported network configuration metadata
         uses an instance of SynapseAttributes to track all metadata
@@ -674,9 +665,7 @@ class SynapseAttributes:
         self.env = env
         self.syn_mech_names = syn_mech_names
         self.syn_config = {
-            k: v["synapses"]
-            for k, v in env.celltypes.items()
-            if "synapses" in v
+            k: v["synapses"] for k, v in env.celltypes.items() if "synapses" in v
         }
         self.syn_param_rules = syn_param_rules
         self.syn_name_index_dict = {
@@ -777,9 +766,7 @@ class SynapseAttributes:
 
         """
         if gid in self.syn_id_attr_dict:
-            raise RuntimeError(
-                f"Entry {gid} exists in synapse attribute dictionary"
-            )
+            raise RuntimeError(f"Entry {gid} exists in synapse attribute dictionary")
         else:
             syn_dict = self.syn_id_attr_dict[gid]
             sec_dict = self.sec_dict[gid]
@@ -1301,9 +1288,7 @@ class SynapseAttributes:
                     attr_dict[k] = new_val
 
             else:
-                raise RuntimeError(
-                    f"modify_mech_attrs: unknown type of parameter {k}"
-                )
+                raise RuntimeError(f"modify_mech_attrs: unknown type of parameter {k}")
         syn.attr_dict[syn_index] = attr_dict
 
     def add_mech_attrs_from_iter(
@@ -1455,12 +1440,10 @@ class SynapseAttributes:
         source_names = {id: name for name, id in self.env.Populations.items()}
 
         source_order = {
-            id: i
-            for i, (name, id) in enumerate(sorted(self.env.Populations.items()))
+            id: i for i, (name, id) in enumerate(sorted(self.env.Populations.items()))
         }
         source_inverse_order = {
-            i: id
-            for i, (name, id) in enumerate(sorted(self.env.Populations.items()))
+            i: id for i, (name, id) in enumerate(sorted(self.env.Populations.items()))
         }
 
         if syn_ids is None:
@@ -1477,9 +1460,9 @@ class SynapseAttributes:
         )
 
         return {
-            source_names[
-                source_inverse_order[source_id_x[0]]
-            ]: generator_ifempty(source_id_x[1])
+            source_names[source_inverse_order[source_id_x[0]]]: generator_ifempty(
+                source_id_x[1]
+            )
             for source_id_x in enumerate(source_parts)
         }
 
@@ -1534,12 +1517,10 @@ class SynapseAttributes:
         source_names = {id: name for name, id in self.env.Populations.items()}
 
         source_order = {
-            id: i
-            for i, (name, id) in enumerate(sorted(self.env.Populations.items()))
+            id: i for i, (name, id) in enumerate(sorted(self.env.Populations.items()))
         }
         source_inverse_order = {
-            i: id
-            for i, (name, id) in enumerate(sorted(self.env.Populations.items()))
+            i: id for i, (name, id) in enumerate(sorted(self.env.Populations.items()))
         }
 
         syn_id_attr_dict = self.syn_id_attr_dict[gid]
@@ -1553,9 +1534,9 @@ class SynapseAttributes:
         source_iter = partitionn(syn_ids, partition_pred, n=len(source_names))
 
         return {
-            source_names[
-                source_inverse_order[source_id_x[0]]
-            ]: generator_ifempty(source_id_x[1])
+            source_names[source_inverse_order[source_id_x[0]]]: generator_ifempty(
+                source_id_x[1]
+            )
             for source_id_x in enumerate(source_iter)
         }
 
@@ -1635,21 +1616,11 @@ def insert_hoc_cell_syns(
     swc_type_ais = env.SWC_Types["ais"]
     swc_type_hill = env.SWC_Types["hillock"]
 
-    syns_dict_dend = defaultdict(
-        lambda: defaultdict(lambda: defaultdict(lambda: None))
-    )
-    syns_dict_axon = defaultdict(
-        lambda: defaultdict(lambda: defaultdict(lambda: None))
-    )
-    syns_dict_ais = defaultdict(
-        lambda: defaultdict(lambda: defaultdict(lambda: None))
-    )
-    syns_dict_hill = defaultdict(
-        lambda: defaultdict(lambda: defaultdict(lambda: None))
-    )
-    syns_dict_soma = defaultdict(
-        lambda: defaultdict(lambda: defaultdict(lambda: None))
-    )
+    syns_dict_dend = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: None)))
+    syns_dict_axon = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: None)))
+    syns_dict_ais = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: None)))
+    syns_dict_hill = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: None)))
+    syns_dict_soma = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: None)))
     layer_name_dict = dict({v: k for k, v in env.layers.items()})
     swc_name_dict = dict({v: k for k, v in env.SWC_Types.items()})
 
@@ -1700,9 +1671,7 @@ def insert_hoc_cell_syns(
     syn_attrs = env.synapse_attributes
     syn_id_attr_dict = syn_attrs.syn_id_attr_dict[gid]
 
-    make_syn_mech = (
-        make_unique_synapse_mech if unique else make_shared_synapse_mech
-    )
+    make_syn_mech = make_unique_synapse_mech if unique else make_shared_synapse_mech
 
     syn_count = 0
     nc_count = 0
@@ -1790,9 +1759,7 @@ def insert_hoc_cell_syns(
                     this_nc, this_vecstim = mknetcon_vecstim(
                         syn_pps, delay=syn.source.delay
                     )
-                    syn_attrs.add_vecstim(
-                        gid, syn_id, syn_name, this_vecstim, this_nc
-                    )
+                    syn_attrs.add_vecstim(gid, syn_id, syn_name, this_vecstim, this_nc)
                 if insert_netcons:
                     if this_nc is None:
                         this_nc = mknetcon(
@@ -1853,16 +1820,14 @@ def insert_biophys_cell_syns(
     :param insert_vecstims: bool; whether to build new vecstims for newly constructed netcons
     :param verbose: bool
     """
-    if not (gid in env.biophys_cells[postsyn_name]):
+    if gid not in env.biophys_cells[postsyn_name]:
         raise KeyError(
             f"insert_biophys_cell_syns: biophysical cell with gid {gid} does not exist"
         )
 
     cell = env.biophys_cells[postsyn_name][gid]
 
-    connection_syn_params = env.connection_config[postsyn_name][
-        presyn_name
-    ].mechanisms
+    connection_syn_params = env.connection_config[postsyn_name][presyn_name].mechanisms
 
     synapse_config = env.celltypes[postsyn_name]["synapses"]
 
@@ -1928,10 +1893,8 @@ def config_biophys_cell_syns(
         syn_ids = list(syn_id_attr_dict.keys())
 
     if insert:
-        source_syn_ids_dict = syn_attrs.partition_syn_ids_by_source(
-            gid, syn_ids
-        )
-        if not (gid in env.biophys_cells[postsyn_name]):
+        source_syn_ids_dict = syn_attrs.partition_syn_ids_by_source(gid, syn_ids)
+        if gid not in env.biophys_cells[postsyn_name]:
             raise KeyError(
                 f"config_biophys_cell_syns: insert: biophysical cell with gid {gid} does not exist"
             )
@@ -2160,9 +2123,7 @@ def config_syn(
     nc_param = False
     mech_param = False
 
-    
     for param, val in params.items():
-        
         failed = True
         if param in mech_rules["mech_params"]:
             if syn is None:
@@ -2234,9 +2195,7 @@ def config_syn(
 def syn_in_seg(
     syn_name: str,
     seg: Segment,
-    syns_dict: DefaultDict[
-        Section, DefaultDict[float, DefaultDict[str, "HocObject"]]
-    ],
+    syns_dict: DefaultDict[Section, DefaultDict[float, DefaultDict[str, "HocObject"]]],
 ) -> Optional["HocObject"]:
     """
     If a synaptic mechanism of the specified type already exists in the specified segment, it is returned. Otherwise,
@@ -2269,9 +2228,7 @@ def make_syn_mech(mech_name: str, seg: Segment) -> "HocObject":
 def make_shared_synapse_mech(
     syn_name: str,
     seg: Segment,
-    syns_dict: DefaultDict[
-        Section, DefaultDict[float, DefaultDict[str, "HocObject"]]
-    ],
+    syns_dict: DefaultDict[Section, DefaultDict[float, DefaultDict[str, "HocObject"]]],
     mech_names: Optional[Dict[str, str]] = None,
 ) -> "HocObject":
     """
@@ -2474,9 +2431,7 @@ def modify_syn_param(
     :param verbose: bool
     """
     if sec_type not in cell.nodes:
-        raise ValueError(
-            f"modify_syn_mech_param: sec_type: {sec_type} not in cell"
-        )
+        raise ValueError(f"modify_syn_mech_param: sec_type: {sec_type} not in cell")
     if param_name is None:
         raise ValueError(
             f"modify_syn_mech_param: missing required parameter to modify synaptic mechanism: {syn_name} "
@@ -2512,9 +2467,7 @@ def modify_syn_param(
         cell.mech_dict[sec_type]["synapses"][syn_name] = mech_content
     # This parameter of this syn_name has already been specified in this type of section, and the user wants to append
     # a new rule set
-    elif (
-        param_name in cell.mech_dict[sec_type]["synapses"][syn_name] and append
-    ):
+    elif param_name in cell.mech_dict[sec_type]["synapses"][syn_name] and append:
         cell.mech_dict[sec_type]["synapses"][syn_name][param_name].append(rules)
     # This syn_name has been specified, but not this parameter, or the user wants to replace an existing rule set
     else:
@@ -2597,9 +2550,7 @@ def update_syn_mech_param_by_sec_type(
     """
     new_rules = copy.deepcopy(rules)
     if "filters" in new_rules:
-        synapse_filters = get_syn_filter_dict(
-            env, new_rules["filters"], convert=True
-        )
+        synapse_filters = get_syn_filter_dict(env, new_rules["filters"], convert=True)
         del new_rules["filters"]
     else:
         synapse_filters = {}
@@ -2828,8 +2779,7 @@ def write_syn_spike_count(
         syn_names = list(syn_attrs.syn_name_index_dict.keys())
 
     output_dict = {
-        syn_name: defaultdict(lambda: defaultdict(int))
-        for syn_name in syn_names
+        syn_name: defaultdict(lambda: defaultdict(int)) for syn_name in syn_names
     }
 
     gids = []

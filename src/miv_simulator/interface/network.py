@@ -26,9 +26,7 @@ class Network(Interface):
         populations: Optional[list[str]] = None
 
     def launch(self):
-        self.source_config = config = Config.from_yaml(
-            self.config.config_filepath
-        )
+        self.source_config = config = Config.from_yaml(self.config.config_filepath)
 
         populations = self.config.populations
         if populations is None:
@@ -78,9 +76,7 @@ class Network(Interface):
         self.synapses = {
             population: self.architecture.distribute_synapses(
                 {
-                    "forest_filepath": self.synapse_forest[
-                        population
-                    ].output_filepath,
+                    "forest_filepath": self.synapse_forest[population].output_filepath,
                     "cell_types": config.cell_types,
                     "population": population,
                     "layer_definitions": config.definitions.layers,
@@ -135,9 +131,7 @@ class Network(Interface):
             population: self.architecture.generate_connections(
                 {
                     "synapses": config.synapses,
-                    "forest_filepath": self.synapses[
-                        population
-                    ].output_filepath,
+                    "forest_filepath": self.synapses[population].output_filepath,
                     "axon_extents": config.axon_extents,
                     "population_definitions": config.definitions.populations,
                     "layer_definitions": config.definitions.layers,

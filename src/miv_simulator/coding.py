@@ -11,9 +11,7 @@ SpikeTimes = EventArray[NDArray[np.float64], "SpikeTimes T ..."]
 
 # Spike train encodings (RLE, delta encoding, variable time binning etc.)
 
-BinarySparseSpikeTrainLike = EventArray[
-    NDArray, "BinarySparseSpikeTrainLike ..."
-]
+BinarySparseSpikeTrainLike = EventArray[NDArray, "BinarySparseSpikeTrainLike ..."]
 """Binary data that can be cast to the `BinarySparseSpikeTrain` format"""
 
 

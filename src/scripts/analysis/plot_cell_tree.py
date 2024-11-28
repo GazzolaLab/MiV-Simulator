@@ -42,9 +42,7 @@ def main(
     mayavi,
     verbose,
 ):
-    (tree_iter, _) = read_tree_selection(
-        forest_path, population, selection=[gid]
-    )
+    (tree_iter, _) = read_tree_selection(forest_path, population, selection=[gid])
     (gid, tree_dict) = next(tree_iter)
 
     plot.plot_cell_tree(
@@ -60,7 +58,5 @@ def main(
 
 if __name__ == "__main__":
     main(
-        args=sys.argv[
-            (list_find(lambda s: s.find(script_name) != -1, sys.argv) + 1) :
-        ]
+        args=sys.argv[(list_find(lambda s: s.find(script_name) != -1, sys.argv) + 1) :]
     )

@@ -1,8 +1,4 @@
-import os
-import sys
-
 import click
-from miv_simulator import utils
 from miv_simulator.utils import io as io_utils
 
 

@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple, Union
 
 import collections
 import copy
-import math
 import os
 
 import networkx as nx
@@ -103,9 +102,7 @@ def get_soma_xyz(
     pt_swc_types = neurotree_dict["swc_type"]
 
     soma_pts = np.where(pt_swc_types == swc_type_defs["soma"])[0]
-    soma_coords = np.column_stack(
-        (pt_xs[soma_pts], pt_ys[soma_pts], pt_zs[soma_pts])
-    )
+    soma_coords = np.column_stack((pt_xs[soma_pts], pt_ys[soma_pts], pt_zs[soma_pts]))
 
     return soma_coords[0]
 
@@ -148,7 +145,7 @@ def make_neurotree_hoc_cell(
         for section_index in secnodes:
             nodes = secnodes[section_index]
             node_layers = np.asarray([vlayer[n] for n in nodes], dtype=np.uint8)
-            if not section_index in section_content_dict:
+            if section_index not in section_content_dict:
                 section_content_dict[section_index] = dict()
             section_content_dict[section_index]["layer"] = node_layers
 
@@ -233,8 +230,7 @@ def make_input_cell(
         param_values = input_gen["params"]
         template = getattr(h, template_name)
         params = [
-            param_values[p]
-            for p in env.netclamp_config.template_params[template_name]
+            param_values[p] for p in env.netclamp_config.template_params[template_name]
         ]
         cell = template(gid, *params)
     else:
@@ -287,9 +283,7 @@ class BRKneuron:
 
     """
 
-    def __init__(
-        self, gid, pop_name, env=None, cell_config=None, mech_dict=None
-    ):
+    def __init__(self, gid, pop_name, env=None, cell_config=None, mech_dict=None):
         """
 
         :param gid: int
@@ -353,9 +347,7 @@ class BRKneuron:
         h.define_shape()
 
         soma_node = insert_section_node(self, "soma", index=0, sec=BRK_nrn.soma)
-        apical_node = insert_section_node(
-            self, "apical", index=1, sec=BRK_nrn.dend
-        )
+        apical_node = insert_section_node(self, "apical", index=1, sec=BRK_nrn.dend)
         connect_nodes(
             self.tree, self.soma[0], self.apical[0], connect_hoc_sections=False
         )
@@ -521,9 +513,7 @@ class PRneuron:
         h.define_shape()
 
         soma_node = insert_section_node(self, "soma", index=0, sec=PR_nrn.soma)
-        apical_node = insert_section_node(
-            self, "apical", index=1, sec=PR_nrn.dend
-        )
+        apical_node = insert_section_node(self, "apical", index=1, sec=PR_nrn.dend)
         connect_nodes(
             self.tree, self.soma[0], self.apical[0], connect_hoc_sections=False
         )
@@ -731,9 +721,7 @@ class BiophysCell:
         neurotree_dict: Optional[
             Dict[
                 str,
-                Union[
-                    ndarray, Dict[str, Union[int, Dict[int, ndarray], ndarray]]
-                ],
+                Union[ndarray, Dict[str, Union[int, Dict[int, ndarray], ndarray]]],
             ]
         ] = None,
         mech_file_path: None = None,
@@ -758,9 +746,7 @@ class BiophysCell:
             self.template_class = env.template_dict[population_name]
             for sec_type in env.SWC_Types:
                 if sec_type not in default_ordered_sec_types:
-                    raise AttributeError(
-                        "Unexpected SWC Type definitions found in Env"
-                    )
+                    raise AttributeError("Unexpected SWC Type definitions found in Env")
 
         self.nodes = {key: [] for key in default_ordered_sec_types}
         self.mech_file_path = mech_file_path
@@ -774,9 +760,7 @@ class BiophysCell:
             hoc_cell, section_content = make_neurotree_hoc_cell(
                 self.template_class, gid, neurotree_dict, section_content=True
             )
-            import_morphology_from_hoc(
-                self, hoc_cell, section_content=section_content
-            )
+            import_morphology_from_hoc(self, hoc_cell, section_content=section_content)
         if (mech_dict is None) and (mech_file_path is not None):
             import_mech_dict_from_file(self, self.mech_file_path)
         elif mech_dict is None:
@@ -864,9 +848,7 @@ def get_distance_to_node(
         return length
     if loc is not None:
         length += loc * node.section.L
-    rpath = list(
-        reversed(nx.shortest_path(cell.tree, source=root, target=node))
-    )
+    rpath = list(reversed(nx.shortest_path(cell.tree, source=root, target=node)))
     while not len(rpath) == 0:
         node = rpath.pop()
         if not len(rpath) == 0:
@@ -1026,9 +1008,7 @@ def import_morphology_from_hoc(
     if root_sec:
         insert_section_tree(cell, [root_sec], sec_info_dict)
     else:
-        raise RuntimeError(
-            f"import_morphology_from_hoc: unable to locate root section"
-        )
+        raise RuntimeError("import_morphology_from_hoc: unable to locate root section")
 
 
 def import_mech_dict_from_file(cell, mech_file_path=None):
@@ -1040,9 +1020,7 @@ def import_mech_dict_from_file(cell, mech_file_path=None):
     """
     if mech_file_path is None:
         if cell.mech_file_path is None:
-            raise ValueError(
-                "import_mech_dict_from_file: missing mech_file_path"
-            )
+            raise ValueError("import_mech_dict_from_file: missing mech_file_path")
         elif not os.path.isfile(cell.mech_file_path):
             raise OSError(
                 "import_mech_dict_from_file: invalid mech_file_path: %s"
@@ -1058,9 +1036,7 @@ def import_mech_dict_from_file(cell, mech_file_path=None):
     cell.mech_dict = copy.deepcopy(cell.init_mech_dict)
 
 
-def init_cable(
-    cell: Union[BiophysCell, SCneuron], verbose: bool = False
-) -> None:
+def init_cable(cell: Union[BiophysCell, SCneuron], verbose: bool = False) -> None:
     for sec_type in cell.nodes:
         for node in cell.nodes[sec_type]:
             reset_cable_by_node(cell, node, verbose=verbose)
@@ -1081,9 +1057,7 @@ def reset_cable_by_node(
     if sec_type in cell.mech_dict and "cable" in cell.mech_dict[sec_type]:
         mech_content = cell.mech_dict[sec_type]["cable"]
         if mech_content is not None:
-            update_mechanism_by_node(
-                cell, node, "cable", mech_content, verbose=verbose
-            )
+            update_mechanism_by_node(cell, node, "cable", mech_content, verbose=verbose)
     else:
         init_nseg(node.section, verbose=verbose)
         reinit_diam(node.section, node.diam_bounds)
@@ -1172,9 +1146,7 @@ def init_spike_detector(
                 sec_seg_locs = [seg.x for seg in node.sec]
                 for loc in sec_seg_locs:
                     if (
-                        get_distance_to_node(
-                            cell, node, root=cell.root, loc=loc
-                        )
+                        get_distance_to_node(cell, node, root=cell.root, loc=loc)
                         >= distance
                     ):
                         break
@@ -1242,9 +1214,7 @@ def update_mechanism_by_node(
     cell: BiophysCell,
     node: SectionNode,
     mech_name: str,
-    mech_content: Optional[
-        Dict[str, Union[Dict[str, float], Dict[str, int]]]
-    ] = None,
+    mech_content: Optional[Dict[str, Union[Dict[str, float], Dict[str, int]]]] = None,
     verbose: bool = True,
 ) -> None:
     """
@@ -1390,11 +1360,7 @@ def filter_nodes(
     for swc_type in swc_types:
         nodes.extend(cell.nodes[swc_type])
 
-    result = [
-        v
-        for v in nodes
-        if matches([(layers, v.get_layer()), (sections, v.sec)])
-    ]
+    result = [v for v in nodes if matches([(layers, v.get_layer()), (sections, v.sec)])]
 
     return result
 
@@ -1454,16 +1420,16 @@ def report_topology(
         )
     )
 
-    diams_str = ", ".join(
-        f"{node.sec.diam3d(i):.2f}" for i in range(node.sec.n3d())
-    )
+    diams_str = ", ".join(f"{node.sec.diam3d(i):.2f}" for i in range(node.sec.n3d()))
     report = (
         f"node: {node.name}, L: {node.sec.L:.1f}, diams: [{diams_str}], nseg: {node.sec.nseg}, "
         f"children: {len(node.sec.children())}, exc_syns: {num_exc_syns}, inh_syns: {num_inh_syns}"
     )
     parent, edge_data = get_node_parent(cell, node, return_edge_data=True)
     if parent is not None:
-        report += f", parent: {parent.name}; connection_loc: {edge_data['parent_loc']:.1f}"
+        report += (
+            f", parent: {parent.name}; connection_loc: {edge_data['parent_loc']:.1f}"
+        )
     logger.info(report)
     children = get_node_children(cell, node)
     for child in children:
@@ -1787,9 +1753,7 @@ def init_circuit_context(
                     % (pop_name, gid)
                 )
         else:
-            raise RuntimeError(
-                "init_circuit_context: invalid synapses parameters"
-            )
+            raise RuntimeError("init_circuit_context: invalid synapses parameters")
 
     if init_weights and has_weights:
         for weight_config_dict in weight_config:
@@ -1823,14 +1787,10 @@ def init_circuit_context(
                         cell_weights_dict,
                     ) in cell_weights_iter:
                         assert cell_weights_gid == gid
-                        cell_weights_dicts[weights_namespace] = (
-                            cell_weights_dict
-                        )
+                        cell_weights_dicts[weights_namespace] = cell_weights_dict
 
             else:
-                raise RuntimeError(
-                    "init_circuit_context: invalid weights parameters"
-                )
+                raise RuntimeError("init_circuit_context: invalid weights parameters")
             if len(weights_namespaces) != len(cell_weights_dicts):
                 logger.warning(
                     "init_circuit_context: Unable to load all weights namespaces: %s"
@@ -2018,9 +1978,7 @@ def make_biophys_cell(
         )
         _, tree_dict = next(tree_attr_iter)
 
-    hoc_cell = make_hoc_cell(
-        env, population_name, gid, neurotree_dict=tree_dict
-    )
+    hoc_cell = make_hoc_cell(env, population_name, gid, neurotree_dict=tree_dict)
 
     cell = BiophysCell(
         env=env,
@@ -2105,9 +2063,7 @@ def make_BRK_cell(
         pop_name=pop_name,
         env=env,
         cell_config=BRKconfig(**mech_dict["BoothRinzelKiehn"]),
-        mech_dict={
-            k: mech_dict[k] for k in mech_dict if k != "BoothRinzelKiehn"
-        },
+        mech_dict={k: mech_dict[k] for k in mech_dict if k != "BoothRinzelKiehn"},
     )
 
     circuit_flag = (

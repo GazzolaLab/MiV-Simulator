@@ -1,4 +1,3 @@
-import gc
 import os
 import sys
 import click
@@ -10,9 +9,7 @@ script_name = os.path.basename(__file__)
 
 @click.command()
 @click.option("--spike-events-path", "-p", required=True, type=click.Path())
-@click.option(
-    "--spike-events-namespace", "-n", type=str, default="Spike Events"
-)
+@click.option("--spike-events-namespace", "-n", type=str, default="Spike Events")
 @click.option("--coords-path", "-c", required=True, type=click.Path())
 @click.option("--distances-namespace", "-d", type=str, default="Arc Distances")
 @click.option("--populations", "-i", type=str, multiple=True)
@@ -79,9 +76,7 @@ if __name__ == "__main__":
     main(
         args=sys.argv[
             (
-                utils.list_find(
-                    lambda x: os.path.basename(x) == script_name, sys.argv
-                )
+                utils.list_find(lambda x: os.path.basename(x) == script_name, sys.argv)
                 + 1
             ) :
         ]

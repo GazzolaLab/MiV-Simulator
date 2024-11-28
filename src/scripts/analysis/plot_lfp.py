@@ -1,8 +1,9 @@
-import os, sys
+import os
+import sys
 import click
 
 from miv_simulator import plotting as plot
-from miv_simulator import statedata, utils
+from miv_simulator import utils
 
 script_name = os.path.basename(__file__)
 
@@ -63,9 +64,7 @@ if __name__ == "__main__":
     main(
         args=sys.argv[
             (
-                utils.list_find(
-                    lambda x: os.path.basename(x) == script_name, sys.argv
-                )
+                utils.list_find(lambda x: os.path.basename(x) == script_name, sys.argv)
                 + 1
             ) :
         ]

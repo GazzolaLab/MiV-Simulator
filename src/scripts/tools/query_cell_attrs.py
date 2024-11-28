@@ -1,9 +1,5 @@
-import os
-import sys
-
 import click
 import numpy as np
-from miv_simulator import utils
 from miv_simulator.utils import io as io_utils
 
 
@@ -81,6 +77,4 @@ def main(input_path, populations):
                 this_namespace_id
             ]:
                 print(f"\tAttribute: {attr_name}")
-                print(
-                    f"\tIndex: {np.array2string(np.asarray(attr_cell_index))}"
-                )
+                print(f"\tIndex: {np.array2string(np.asarray(attr_cell_index))}")

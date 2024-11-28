@@ -1,4 +1,4 @@
-from typing import Dict, Tuple
+from typing import Tuple
 
 from machinable import Component
 from pydantic import Field, BaseModel

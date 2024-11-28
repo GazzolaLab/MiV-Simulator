@@ -318,9 +318,7 @@ class RBFSurface:
                         for (i, x) in enumerate(axes)
                     ]
                     pts = (
-                        self.ev(*ecoords, chunk_size=interp_chunk_size)
-                        .reshape(3, -1)
-                        .T
+                        self.ev(*ecoords, chunk_size=interp_chunk_size).reshape(3, -1).T
                     )
                     a = pts[1:, :]
                     b = pts[0 : npts - 1, :]
@@ -334,9 +332,7 @@ class RBFSurface:
                         distances.append(d)
                     if return_coords:
                         pcoords = [
-                            x
-                            if i == axis
-                            else np.repeat(p[aidx.index(i)], npts)
+                            x if i == axis else np.repeat(p[aidx.index(i)], npts)
                             for (i, x) in enumerate(axes)
                         ]
                         for i, col in enumerate(pcoords):
@@ -370,7 +366,7 @@ class RBFSurface:
         from matplotlib.colors import ColorConverter
         from mayavi import mlab
 
-        if not "color" in kwargs:
+        if "color" not in kwargs:
             # Generate random color
             cvec = np.random.rand(3)
             cvec /= math.sqrt(cvec.dot(cvec))
@@ -407,17 +403,12 @@ class RBFSurface:
 def test_surface(u, v, l):
     import numpy as np
 
-    x = np.array(
-        -500.0 * np.cos(u) * (5.3 - np.sin(u) + (1.0 + 0.138 * l) * np.cos(v))
-    )
+    x = np.array(-500.0 * np.cos(u) * (5.3 - np.sin(u) + (1.0 + 0.138 * l) * np.cos(v)))
     y = np.array(
-        750.0
-        * np.sin(u)
-        * (5.5 - 2.0 * np.sin(u) + (0.9 + 0.114 * l) * np.cos(v))
+        750.0 * np.sin(u) * (5.5 - 2.0 * np.sin(u) + (0.9 + 0.114 * l) * np.cos(v))
     )
     z = np.array(
-        2500.0 * np.sin(u)
-        + (663.0 + 114.0 * l) * np.sin(v - 0.13 * (np.pi - u))
+        2500.0 * np.sin(u) + (663.0 + 114.0 * l) * np.sin(v - 0.13 * (np.pi - u))
     )
     return np.array([x, y, z])
 

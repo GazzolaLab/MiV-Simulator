@@ -1,6 +1,7 @@
 import os
 import shutil
 from glob import glob
+import platform
 
 import subprocess
 from mpi4py import MPI
@@ -76,9 +77,7 @@ def compile(
             print("Compiling *.mod files via nrnivmodl")
             os.makedirs(compiled)
             for m, data in file_data.items():
-                with open(
-                    os.path.join(compiled, os.path.basename(m)), "w"
-                ) as f:
+                with open(os.path.join(compiled, os.path.basename(m)), "w") as f:
                     f.write(data)
 
             subprocess.run(["nrnivmodl"], cwd=compiled, check=True)
@@ -104,7 +103,7 @@ def load(directory: str, force: bool = False) -> str:
         return _loaded[directory]
 
     dll_path = os.path.join(
-        os.path.abspath(directory), "x86_64", ".libs", "libnrnmech.so"
+        os.path.abspath(directory), platform.uname().machine, ".libs", "libnrnmech.so"
     )
     if not os.path.exists(dll_path):
         raise FileNotFoundError(f"{dll_path} does not exists.")

@@ -1,5 +1,4 @@
 import os
-import sys
 
 import click
 from miv_simulator import cells
@@ -27,9 +26,7 @@ script_name = os.path.basename(__file__)
     default="config",
     help="path to directory containing network and cell mechanism config files",
 )
-@click.option(
-    "--population", "-p", required=True, type=str, help="target population"
-)
+@click.option("--population", "-p", required=True, type=str, help="target population")
 @click.option("--gid", "-g", required=True, type=int, help="target cell gid")
 @click.option(
     "--template-paths",
@@ -102,9 +99,7 @@ def main(
     logger = utils.get_script_logger(script_name)
 
     if dataset_prefix is None and data_file is None:
-        raise RuntimeError(
-            "Either --dataset-prefix or --data-file must be provided."
-        )
+        raise RuntimeError("Either --dataset-prefix or --data-file must be provided.")
 
     params = dict(locals())
     env = Env(**params)

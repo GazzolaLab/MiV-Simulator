@@ -2,8 +2,9 @@
 ## Generates distance-weighted random connectivity between the specified populations.
 ##
 
-import os, os.path, sys, gc, logging
-import numpy as np
+import os
+import os.path
+import sys
 import click
 from mpi4py import MPI
 import h5py
@@ -12,9 +13,7 @@ from miv_simulator.env import Env
 from miv_simulator.gapjunctions import generate_gj_connections
 from miv_simulator.utils.neuron import configure_hoc_env
 from neuroh5.io import (
-    bcast_cell_attributes,
     read_cell_attributes,
-    read_population_names,
     read_population_ranges,
 )
 

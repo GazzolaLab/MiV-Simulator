@@ -1,7 +1,5 @@
-import os
 import sys
 import click
-from miv_simulator import utils
 from miv_simulator.clamps import network
 
 
@@ -33,9 +31,7 @@ def cli():
     default="GC",
     help="target population",
 )
-@click.option(
-    "--gid", "-g", required=True, type=int, default=0, help="target cell gid"
-)
+@click.option("--gid", "-g", required=True, type=int, default=0, help="target cell gid")
 @click.option(
     "--arena-id",
     "-a",
@@ -219,9 +215,7 @@ def show(
     multiple=True,
     help="generate weights for the given presynaptic population",
 )
-@click.option(
-    "--t-max", "-t", type=float, default=150.0, help="simulation end time"
-)
+@click.option("--t-max", "-t", type=float, default=150.0, help="simulation end time")
 @click.option("--t-min", type=float)
 @click.option(
     "--template-paths",
@@ -343,9 +337,7 @@ def show(
     default="Network clamp default",
     help="recording profile to use",
 )
-@click.option(
-    "--input-seed", type=int, help="seed for generation of spike trains"
-)
+@click.option("--input-seed", type=int, help="seed for generation of spike trains")
 def go(
     config_file,
     config_prefix,
@@ -449,9 +441,7 @@ def go(
     help="file containing target cell gids",
 )
 @click.option("--arena-id", "-a", type=str, required=False, help="arena id")
-@click.option(
-    "--stimulus-id", "-s", type=str, required=False, help="stimulus id"
-)
+@click.option("--stimulus-id", "-s", type=str, required=False, help="stimulus id")
 @click.option(
     "--generate-weights",
     "-w",
@@ -460,9 +450,7 @@ def go(
     multiple=True,
     help="generate weights for the given presynaptic population",
 )
-@click.option(
-    "--t-max", "-t", type=float, default=150.0, help="simulation end time"
-)
+@click.option("--t-max", "-t", type=float, default=150.0, help="simulation end time")
 @click.option("--t-min", type=float)
 @click.option(
     "--nprocs-per-worker",

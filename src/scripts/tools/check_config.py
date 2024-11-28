@@ -1,12 +1,11 @@
 import os
 import os.path
-import random
 import sys
 import logging
 
 import click
 from miv_simulator.env import Env
-from miv_simulator.utils import config_logging, get_script_logger, list_find
+from miv_simulator.utils import config_logging, get_script_logger
 from mpi4py import MPI
 
 script_name = os.path.basename(__file__)

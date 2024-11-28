@@ -6,7 +6,6 @@ import math
 import pickle
 
 import numpy as np
-from past.utils import old_div
 from scipy.interpolate import LinearNDInterpolator
 
 
@@ -59,7 +58,7 @@ def cartesian_product(arrays, out=None):
     if out is None:
         out = np.zeros([n, len(arrays)], dtype=dtype)
 
-    m = old_div(n, arrays[0].size)
+    m = n // arrays[0].size
     out[:, 0] = np.repeat(arrays[0], m)
     if arrays[1:]:
         cartesian_product(arrays[1:], out=out[0:m, 1:])
@@ -116,15 +115,9 @@ class LinearVolume:
         u, v, l = np.meshgrid(obs_u, obs_v, obs_l, indexing="ij")
         uvl_obs = np.array([u.ravel(), v.ravel(), l.ravel()]).T
 
-        xvol = LinearNDInterpolator(
-            uvl_obs, xyz[:, 0], fill_value=xyz[0, 0], **kwargs
-        )
-        yvol = LinearNDInterpolator(
-            uvl_obs, xyz[:, 1], fill_value=xyz[0, 1], **kwargs
-        )
-        zvol = LinearNDInterpolator(
-            uvl_obs, xyz[:, 2], fill_value=xyz[0, 2], **kwargs
-        )
+        xvol = LinearNDInterpolator(uvl_obs, xyz[:, 0], fill_value=xyz[0, 0], **kwargs)
+        yvol = LinearNDInterpolator(uvl_obs, xyz[:, 1], fill_value=xyz[0, 1], **kwargs)
+        zvol = LinearNDInterpolator(uvl_obs, xyz[:, 2], fill_value=xyz[0, 2], **kwargs)
 
         uvol = LinearNDInterpolator(
             xyz, uvl_obs[:, 0], fill_value=uvl_obs[0, 0], **kwargs
@@ -367,9 +360,7 @@ class LinearVolume:
 
         c = input_axes
 
-        ordered_axes = [
-            np.sort(c[i]) if i == axis else c[i] for i in range(0, 3)
-        ]
+        ordered_axes = [np.sort(c[i]) if i == axis else c[i] for i in range(0, 3)]
 
         aidx = list(range(0, 3))
         aidx.remove(axis)
@@ -393,9 +384,7 @@ class LinearVolume:
                 cdist = np.zeros((split_pts[0].shape[0], 1))
                 distances.append(cdist)
                 if return_coords:
-                    cind = np.lexsort(
-                        tuple(split_pts_coords[0][i] for i in aidx)
-                    )
+                    cind = np.lexsort(tuple(split_pts_coords[0][i] for i in aidx))
                     coords.append(split_pts_coords[0][cind])
                 for i in range(0, npts - 1):
                     a = split_pts[i + 1]
@@ -455,7 +444,7 @@ class LinearVolume:
         """
         ## Distance from b1 boundary to coordinate
         d1 = np.abs(b1 - coords[axis])
-        ps1 = np.linspace(b1, coords[axis], int(old_div(d1, resolution)))
+        ps1 = np.linspace(b1, coords[axis], int(d1 / resolution))
         if len(ps1) > 1:
             p_grid1 = [ps1 if i == axis else coords[i] for i in range(0, 3)]
             p_u, p_v, p_l = np.meshgrid(*p_grid1)
@@ -472,7 +461,7 @@ class LinearVolume:
 
         ## Distance from coordinate to b2 boundary
         d2 = np.abs(b2 - coords[axis])
-        ps2 = np.linspace(coords[axis], b2, int(old_div(d2, resolution)))
+        ps2 = np.linspace(coords[axis], b2, int(d2 / resolution))
         if len(ps2) > 1:
             p_grid2 = [ps2 if i == axis else coords[i] for i in range(0, 3)]
             p_u, p_v, p_l = np.meshgrid(*p_grid2)
@@ -528,14 +517,14 @@ class LinearVolume:
             u_extent = u_dist1 + u_dist2
 
             # todo(frthjf): not sure if we should rather error in the 0 case
-            u_pos = old_div(u_dist1, u_extent) if u_extent != 0.0 else 0.0
+            u_pos = u_dist1 / u_extent if u_extent != 0.0 else 0.0
 
             v_dist1, v_dist2 = self.boundary_distance(
                 1, self.v[0], self.v[-1], uvl[i, :], resolution=resolution
             )
 
             v_extent = v_dist1 + v_dist2
-            v_pos = old_div(v_dist1, v_extent) if v_extent != 0.0 else 0.0
+            v_pos = v_dist1 / v_extent if v_extent != 0.0 else 0.0
 
             pos.append((u_pos, v_pos))
             extents.append((u_extent, v_extent))
@@ -567,7 +556,7 @@ class LinearVolume:
         """
         from matplotlib.colors import ColorConverter
 
-        if not "color" in kwargs:
+        if "color" not in kwargs:
             # Generate random color
             cvec = np.random.rand(3)
             cvec /= math.sqrt(cvec.dot(cvec))
@@ -627,7 +616,7 @@ class LinearVolume:
         from matplotlib.colors import ColorConverter
         from mayavi import mlab
 
-        if not "color" in kwargs:
+        if "color" not in kwargs:
             # Generate random color
             cvec = np.random.rand(3)
             cvec /= math.sqrt(cvec.dot(cvec))
@@ -714,17 +703,12 @@ class LinearVolume:
 def test_surface(u, v, l):
     import numpy as np
 
-    x = np.array(
-        -500.0 * np.cos(u) * (5.3 - np.sin(u) + (1.0 + 0.138 * l) * np.cos(v))
-    )
+    x = np.array(-500.0 * np.cos(u) * (5.3 - np.sin(u) + (1.0 + 0.138 * l) * np.cos(v)))
     y = np.array(
-        750.0
-        * np.sin(u)
-        * (5.5 - 2.0 * np.sin(u) + (0.9 + 0.114 * l) * np.cos(v))
+        750.0 * np.sin(u) * (5.5 - 2.0 * np.sin(u) + (0.9 + 0.114 * l) * np.cos(v))
     )
     z = np.array(
-        2500.0 * np.sin(u)
-        + (663.0 + 114.0 * l) * np.sin(v - 0.13 * (np.pi - u))
+        2500.0 * np.sin(u) + (663.0 + 114.0 * l) * np.sin(v - 0.13 * (np.pi - u))
     )
 
     pts = np.array([x, y, z]).reshape(3, u.size)
@@ -793,7 +777,7 @@ def test_uv_isospline():
     nvpts = V.shape[0]
     # Plot u,v-isosplines on the surface
     upts = vol(U, V[0], L)
-    vpts = vol(U[int(old_div(nupts, 2))], V, L)
+    vpts = vol(U[int(nupts / 2)], V, L)
 
     vol.mplot_surface(color=(0, 1, 0), opacity=1.0, ures=10, vres=10)
 

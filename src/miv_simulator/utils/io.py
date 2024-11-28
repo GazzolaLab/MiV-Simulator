@@ -258,9 +258,7 @@ def import_spikeraster(
         write_cell_attributes(
             output_path, pop_name, output_dict, namespace=namespace, comm=comm
         )
-        logger.info(
-            f"Saved spike data for population {pop_name} to file {output_path}"
-        )
+        logger.info(f"Saved spike data for population {pop_name} to file {output_path}")
 
     comm.barrier()
 
@@ -372,9 +370,7 @@ def mkout(env: AbstractEnv, results_filename: str) -> None:
     """
     if "Cell Data" in env.model_config:
         dataset_path = os.path.join(env.dataset_prefix, env.datasetName)
-        data_file_path = os.path.join(
-            dataset_path, env.model_config["Cell Data"]
-        )
+        data_file_path = os.path.join(dataset_path, env.model_config["Cell Data"])
         data_file = h5py.File(data_file_path, "r")
         results_file = h5py.File(results_filename, "a")
         if "H5Types" not in results_file:
@@ -399,17 +395,13 @@ def spikeout(
     :param clear_data:
     :return:
     """
-    equilibration_duration = float(
-        env.stimulus_config["Equilibration Duration"]
-    )
+    equilibration_duration = float(env.stimulus_config["Equilibration Duration"])
     n_trials = env.n_trials
 
     t_vec = env.t_vec.as_numpy()
     id_vec = np.asarray(env.id_vec.as_numpy(), dtype=np.uint32)
 
-    trial_time_ranges = get_trial_time_ranges(
-        env.t_rec.to_python(), env.n_trials
-    )
+    trial_time_ranges = get_trial_time_ranges(env.t_rec.to_python(), env.n_trials)
     trial_time_bins = [
         t_trial_start for t_trial_start, t_trial_end in trial_time_ranges
     ]
@@ -461,9 +453,7 @@ def spikeout(
                     )
                 spkdict[gid]["t"] = np.concatenate(trial_spikes)
                 spkdict[gid]["Trial Duration"] = trial_dur
-                spkdict[gid]["Trial Index"] = np.asarray(
-                    trial_bins, dtype=np.uint8
-                )
+                spkdict[gid]["Trial Index"] = np.asarray(trial_bins, dtype=np.uint8)
                 spkdict[gid]["artificial"] = np.asarray(
                     [1 if is_artificial else 0], dtype=np.uint8
                 )
@@ -504,15 +494,11 @@ def recsout(
     :return:
     """
     t_rec = env.t_rec
-    equilibration_duration = float(
-        env.stimulus_config["Equilibration Duration"]
-    )
+    equilibration_duration = float(env.stimulus_config["Equilibration Duration"])
     reduce_data = env.recording_profile.get("reduce", None)
     n_trials = env.n_trials
 
-    trial_time_ranges = get_trial_time_ranges(
-        env.t_rec.to_python(), env.n_trials
-    )
+    trial_time_ranges = get_trial_time_ranges(env.t_rec.to_python(), env.n_trials)
     trial_time_bins = [
         t_trial_start for t_trial_start, t_trial_end in trial_time_ranges
     ]
@@ -522,17 +508,13 @@ def recsout(
 
     for pop_name in sorted(env.celltypes.keys()):
         local_rec_types = list(env.recs_dict[pop_name].keys())
-        rec_types = sorted(
-            set(env.comm.allreduce(local_rec_types, op=mpi_op_concat))
-        )
+        rec_types = sorted(set(env.comm.allreduce(local_rec_types, op=mpi_op_concat)))
         for rec_type in rec_types:
             recs = env.recs_dict[pop_name][rec_type]
             attr_dict = defaultdict(lambda: {})
             for rec in recs:
                 gid = rec["gid"]
-                data_vec = np.array(
-                    rec["vec"], copy=clear_data, dtype=np.float32
-                )
+                data_vec = np.array(rec["vec"], copy=clear_data, dtype=np.float32)
                 time_vec = np.array(t_rec, copy=clear_data, dtype=np.float32)
                 if t_start is not None:
                     time_inds = np.where(time_vec >= t_start)[0]
@@ -574,9 +556,7 @@ def recsout(
                         )
                     loc = rec.get("loc", None)
                     if loc is not None:
-                        attr_dict[gid]["loc"] = np.asarray(
-                            [loc], dtype=np.float32
-                        )
+                        attr_dict[gid]["loc"] = np.asarray([loc], dtype=np.float32)
                 if clear_data:
                     rec["vec"].resize(0)
             if env.results_namespace_id is None:
@@ -598,9 +578,7 @@ def recsout(
 
     env.comm.barrier()
     if env.comm.Get_rank() == 0:
-        logger.info(
-            f"*** Output intracellular state results to file {output_path}"
-        )
+        logger.info(f"*** Output intracellular state results to file {output_path}")
 
 
 def lfpout(env: AbstractEnv, output_path: str):
@@ -760,9 +738,7 @@ def write_cell_selection(
             env.coordinates_ns in env.cell_attribute_info[pop_name]
         ):
             if rank == 0:
-                logger.info(
-                    f"*** Reading coordinates for population {pop_name}"
-                )
+                logger.info(f"*** Reading coordinates for population {pop_name}")
 
             cell_attributes_iter = scatter_read_cell_attribute_selection(
                 data_file_path,
@@ -774,9 +750,7 @@ def write_cell_selection(
             )
 
             if rank == 0:
-                logger.info(
-                    f"*** Done reading coordinates for population {pop_name}"
-                )
+                logger.info(f"*** Done reading coordinates for population {pop_name}")
 
             for i, (gid, coords) in enumerate(cell_attributes_iter):
                 coords_output_dict[gid] = coords
@@ -918,8 +892,7 @@ def write_connection_selection(
             connectivity_file_path,
             selection=gid_range,
             projections=[
-                (presyn_name, postsyn_name)
-                for presyn_name in sorted(presyn_names)
+                (presyn_name, postsyn_name) for presyn_name in sorted(presyn_names)
             ],
             comm=env.comm,
             io_size=env.io_size,
@@ -931,10 +904,7 @@ def write_connection_selection(
             edge_count = 0
             node_count = 0
             if postsyn_name in graph:
-                if (
-                    postsyn_name in attr_info
-                    and presyn_name in attr_info[postsyn_name]
-                ):
+                if postsyn_name in attr_info and presyn_name in attr_info[postsyn_name]:
                     edge_attr_info = attr_info[postsyn_name][presyn_name]
                 else:
                     raise RuntimeError(
@@ -949,9 +919,7 @@ def write_connection_selection(
                     and "distance" in edge_attr_info["Connections"]
                 ):
                     syn_id_attr_index = edge_attr_info["Synapses"]["syn_id"]
-                    distance_attr_index = edge_attr_info["Connections"][
-                        "distance"
-                    ]
+                    distance_attr_index = edge_attr_info["Connections"]["distance"]
                 else:
                     raise RuntimeError(
                         "write_connection_selection: missing edge attributes for projection %s -> %s"
@@ -959,9 +927,7 @@ def write_connection_selection(
                     )
 
                 edge_iter = compose_iter(
-                    lambda edgeset: input_sources[presyn_name].update(
-                        edgeset[1][0]
-                    ),
+                    lambda edgeset: input_sources[presyn_name].update(edgeset[1][0]),
                     graph[postsyn_name][presyn_name],
                 )
                 for postsyn_gid, edges in edge_iter:
@@ -1035,12 +1001,8 @@ def write_input_cell_selection(
 
         spikes_output_dict = {}
 
-        if (env.cell_selection is not None) and (
-            pop_name in env.cell_selection
-        ):
-            local_gid_range = gid_range.difference(
-                set(env.cell_selection[pop_name])
-            )
+        if (env.cell_selection is not None) and (pop_name in env.cell_selection):
+            local_gid_range = gid_range.difference(set(env.cell_selection[pop_name]))
         else:
             local_gid_range = gid_range
 
@@ -1062,16 +1024,12 @@ def write_input_cell_selection(
                 spike_input_source_loc.append(
                     (env.spike_input_path, env.spike_input_ns)
                 )
-        if (env.cell_attribute_info is not None) and (
-            env.spike_input_ns is not None
-        ):
+        if (env.cell_attribute_info is not None) and (env.spike_input_ns is not None):
             if (pop_name in env.cell_attribute_info) and (
                 env.spike_input_ns in env.cell_attribute_info[pop_name]
             ):
                 has_spike_train = True
-                spike_input_source_loc.append(
-                    (input_file_path, env.spike_input_ns)
-                )
+                spike_input_source_loc.append((input_file_path, env.spike_input_ns))
 
         if rank == 0:
             logger.info(
@@ -1251,6 +1209,9 @@ class H5FileManager:
         _run(cmd)
 
     def copy_stim_coordinates(self):
+        with h5py.File(self.cells_filepath, "w") as f:
+            if "/Populations/STIM" not in f:
+                return
         cmd = [
             "h5copy",
             "-p",
