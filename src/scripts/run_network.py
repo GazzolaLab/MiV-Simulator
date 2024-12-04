@@ -196,6 +196,7 @@ sys.excepthook = mpi_excepthook
 @click.option(
     "--coordinates-namespace",
     required=False,
+    default="Coordinates",
     type=str,
     help="namespace for coordinates when cells without morphologies are instantiated",
 )
