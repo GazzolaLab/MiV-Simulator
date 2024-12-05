@@ -434,6 +434,9 @@ def configure_hoc_env(
 
         coreneuron.enable = True
         coreneuron.verbose = 1 if env.verbose else 0
+        if env.coreneuron_gpu:
+            coreneuron.gpu = True
+            
     h.pc = h.ParallelContext()
     if subworld_size is not None:
         h.pc.subworlds(subworld_size)

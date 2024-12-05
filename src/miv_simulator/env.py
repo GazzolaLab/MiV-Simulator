@@ -97,6 +97,7 @@ class Env(AbstractEnv):
         cache_queries: bool = False,
         profile_memory: bool = False,
         use_coreneuron: bool = False,
+        coreneuron_gpu: bool = False,
         transfer_debug: bool = False,
         verbose: bool = False,
         config_prefix="",
@@ -162,6 +163,7 @@ class Env(AbstractEnv):
         comm0 = self.comm.Split(color, 0)
 
         self.use_coreneuron = use_coreneuron
+        self.coreneuron_gpu = coreneuron_gpu
 
         # If true, the biophysical cells and synapses dictionary will be freed
         # as synapses and connections are instantiated.
