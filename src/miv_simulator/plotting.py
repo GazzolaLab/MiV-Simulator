@@ -51,7 +51,7 @@ logger = get_module_logger(__name__)
 default_fig_options = Struct(
     figFormat="png",
     lw=2,
-    figSize=(10, 8),
+    figSize=(8, 8),
     fontSize=14,
     saveFig=None,
     showFig=True,
@@ -2990,7 +2990,6 @@ def plot_single_vertex_dist(
     dist_bins = comm.reduce(dist_bins, op=add_bins_op)
 
     if rank == 0:
-        res = finalize_bins(dist_bins, bin_size)
         dist_hist_vals, dist_u_bin_edges, dist_v_bin_edges = finalize_bins(
             dist_bins, bin_size
         )
@@ -3069,6 +3068,7 @@ def plot_single_vertex_dist(
         if fig_options.showFig:
             show_figure()
 
+        plt.tight_layout()
         if fig_options.saveFig:
             if isinstance(fig_options.saveFig, str):
                 filename = fig_options.saveFig
