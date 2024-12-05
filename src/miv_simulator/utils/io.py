@@ -514,8 +514,8 @@ def recsout(
             attr_dict = defaultdict(lambda: {})
             for rec in recs:
                 gid = rec["gid"]
-                data_vec = np.array(rec["vec"], dtype=np.float32).copy()
-                time_vec = np.array(t_rec, dtype=np.float32).copy()
+                data_vec = np.array(rec["vec"], dtype=np.float32)
+                time_vec = np.array(t_rec, dtype=np.float32)
                 if t_start is not None:
                     time_inds = np.where(time_vec >= t_start)[0]
                     time_vec = time_vec[time_inds]

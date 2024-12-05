@@ -460,8 +460,9 @@ def connect_cells(env: Env) -> None:
             if hasattr(hoc_cell, "all"):
                 if gid in env.biophys_cells[postsyn_name]:
                     biophys_cell = env.biophys_cells[postsyn_name][gid]
-                for sec in list(hoc_cell.all):
-                    logger.info(pprint.pformat(sec.psection()))
+        #                if env.verbose:
+        #                    for sec in list(hoc_cell.all):
+        #                        logger.info(pprint.pformat(sec.psection()))
 
         env.edge_count[postsyn_name] += syn_count
 
@@ -758,9 +759,9 @@ def connect_cell_selection(env):
                 f"{nc_count} network connections for gid {gid}; cleanup flag is {env.cleanup}"
             )
             hoc_cell = env.pc.gid2cell(gid)
-            if hasattr(hoc_cell, "all"):
-                for sec in list(hoc_cell.all):
-                    logger.info(pprint.pformat(sec.psection()))
+        #            if hasattr(hoc_cell, "all"):
+        #                for sec in list(hoc_cell.all):
+        #                    logger.info(pprint.pformat(sec.psection()))
 
         if gid in env.recording_sets.get(pop_name, {}):
             cells.record_cell(env, pop_name, gid)
@@ -965,9 +966,9 @@ def make_cells(env: Env) -> None:
                 if rank == 0 and first_gid == gid:
                     if hasattr(cell, "hoc_cell"):
                         hoc_cell = cell.hoc_cell
-                        if hasattr(hoc_cell, "all"):
-                            for sec in list(hoc_cell.all):
-                                logger.info(pprint.pformat(sec.psection()))
+                #                        if hasattr(hoc_cell, "all"):
+                #                            for sec in list(hoc_cell.all):
+                #                                logger.info(pprint.pformat(sec.psection()))
                 cells.register_cell(env, pop_name, gid, cell)
                 num_cells += 1
             del trees
@@ -1167,9 +1168,9 @@ def make_cell_selection(env):
                 if rank == 0 and first_gid == gid:
                     if hasattr(cell, "hoc_cell"):
                         hoc_cell = cell.hoc_cell
-                        if hasattr(hoc_cell, "all"):
-                            for sec in list(hoc_cell.all):
-                                logger.info(pprint.pformat(sec.psection()))
+                #                        if hasattr(hoc_cell, "all"):
+                #                            for sec in list(hoc_cell.all):
+                #                                logger.info(pprint.pformat(sec.psection()))
                 cells.register_cell(env, pop_name, gid, cell)
 
                 num_cells += 1
