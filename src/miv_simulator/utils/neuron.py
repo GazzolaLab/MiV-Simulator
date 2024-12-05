@@ -7,14 +7,13 @@ import numpy as np
 
 
 from typing import TYPE_CHECKING, Dict, List, Optional, Union
-from miv_simulator.utils import AbstractEnv, get_module_logger
-from neuron import h
+from miv_simulator.utils import AbstractEnv, import_object_by_path, get_module_logger
+from neuron import h, hoc
 from nrn import Section
 from numpy import float64, uint32
 from scipy import interpolate
 
-if TYPE_CHECKING:
-    from neuron.hoc import HocObject
+from hoc import HocObject
 
 # This logger will inherit its settings from the root logger, created in miv_simulator.env
 logger = get_module_logger(__name__)
@@ -314,21 +313,30 @@ def load_cell_template(
     if pop_name not in env.celltypes:
         raise KeyError(f"load_cell_templates: unrecognized cell population: {pop_name}")
 
-    template_name = env.celltypes[pop_name]["template"]
+    template_name = env.celltypes[pop_name].get("template", None)
+    template_class = None
+    template_file = None
     if "template file" in env.celltypes[pop_name]:
         template_file = env.celltypes[pop_name]["template file"]
+    elif "template class" in env.celltypes[pop_name]:
+        template_class = import_object_by_path(
+            env.celltypes[pop_name]["template class"]
+        )
     else:
         template_file = None
-    if not hasattr(h, template_name):
-        find_template(
-            env,
-            template_name,
-            template_file=template_file,
-            path=env.template_paths,
-            bcast_template=bcast_template,
-        )
-    assert hasattr(h, template_name)
-    template_class = getattr(h, template_name)
+
+    if template_class is None and template_name is not None:
+        if not hasattr(h, template_name):
+            find_template(
+                env,
+                template_name,
+                template_file=template_file,
+                path=env.template_paths,
+                bcast_template=bcast_template,
+            )
+            assert hasattr(h, template_name)
+        template_class = getattr(h, template_name)
+
     env.template_dict[pop_name] = template_class
     return template_class
 
