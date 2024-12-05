@@ -2990,6 +2990,7 @@ def plot_single_vertex_dist(
     dist_bins = comm.reduce(dist_bins, op=add_bins_op)
 
     if rank == 0:
+
         dist_hist_vals, dist_u_bin_edges, dist_v_bin_edges = finalize_bins(
             dist_bins, bin_size
         )
