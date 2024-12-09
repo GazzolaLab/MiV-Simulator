@@ -994,9 +994,13 @@ def import_morphology_from_obj(
         if hasattr(cell_obj, sec_attr_name) and (
             getattr(cell_obj, sec_attr_name) is not None
         ):
-            sec_list = list(getattr(cell_obj, sec_attr_name))
+            sec_attr = getattr(cell_obj, sec_attr_name)
+            if isinstance(sec_attr, Section):
+                sec_list = [sec_attr]
+            else:
+                sec_list = list(sec_attr)
             if hasattr(cell_obj, sec_index_list):
-                sec_indexes = list(getattr(hoc_cell, sec_index_list))
+                sec_indexes = list(getattr(cell_obj, sec_index_list))
             else:
                 sec_indexes = list(range(len(sec_list)))
             if sec_type == "soma":
@@ -1013,6 +1017,7 @@ def import_morphology_from_obj(
                         "section_type": sec_type,
                         "section_index": int(index),
                     }
+                    
     if root_sec:
         insert_section_tree(cell, [root_sec], sec_info_dict)
     else:

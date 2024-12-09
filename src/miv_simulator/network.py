@@ -891,10 +891,12 @@ def make_cells(env: Env) -> None:
     for pop_name in pop_names:
         if rank == 0:
             logger.info(f"*** Creating population {pop_name}")
+            logger.info(f"Coordinates namespace is {env.coordinates_ns}\n"
+                        f"population attributes are {env.cell_attribute_info[pop_name]}")
 
-        template_name_lower = template_name.lower()
-        if template_name_lower != "vecstim":
-            neuron_utils.load_cell_template(env, pop_name, bcast_template=True)
+            
+        ## Determine template name for this cell type
+        template_name = env.celltypes[pop_name].get("template", None)
 
         mech_dict = None
         mech_file_path = None
@@ -943,13 +945,9 @@ def make_cells(env: Env) -> None:
                         gid=gid, pop_name=pop_name, env=env, mech_dict=mech_dict
                     )
                 else:
-                    hoc_cell = cells.make_hoc_cell(
-                        env, pop_name, gid, neurotree_dict=tree
-                    )
                     cell = cells.make_biophys_cell(
                         gid=gid,
                         population_name=pop_name,
-                        hoc_cell=hoc_cell,
                         env=env,
                         tree_dict=tree,
                         mech_dict=mech_dict,
