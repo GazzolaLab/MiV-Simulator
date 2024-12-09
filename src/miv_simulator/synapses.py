@@ -1573,10 +1573,10 @@ class SynapseAttributes:
         return self.syn_id_attr_dict[gid]
 
 
-def insert_hoc_cell_syns(
+def insert_cell_syns(
     env: AbstractEnv,
     gid: int,
-    cell: "HocObject",
+    cell: object,
     syn_ids: Union[List[uint32], itertools.chain],
     syn_params: Dict[
         str,
@@ -1609,6 +1609,7 @@ def insert_hoc_cell_syns(
 
     """
 
+    assert cell is not None
     swc_type_apical = env.SWC_Types["apical"]
     swc_type_basal = env.SWC_Types["basal"]
     swc_type_soma = env.SWC_Types["soma"]
@@ -1727,7 +1728,7 @@ def insert_hoc_cell_syns(
             syns_dict = syns_dict_by_type[swc_type]
         else:
             raise RuntimeError(
-                f"insert_hoc_cell_syns: unsupported synapse SWC type {swc_type} for synapse {syn_id}"
+                f"insert_cell_syns: unsupported synapse SWC type {swc_type} for synapse {syn_id}"
             )
 
         if "default" in syn_params:
@@ -1837,10 +1838,10 @@ def insert_biophys_cell_syns(
         else:
             unique = False
 
-    syn_count, mech_count, nc_count = insert_hoc_cell_syns(
+    syn_count, mech_count, nc_count = insert_cell_syns(
         env,
         gid,
-        cell.hoc_cell,
+        cell.hoc_cell if cell.hoc_cell is not None else cell.cell_obj,
         syn_ids,
         connection_syn_params,
         unique=unique,
@@ -1914,7 +1915,7 @@ def config_biophys_cell_syns(
                 )
 
     cell = env.biophys_cells[postsyn_name][gid]
-    syn_count, mech_count, nc_count = config_hoc_cell_syns(
+    syn_count, mech_count, nc_count = config_cell_syns(
         env,
         gid,
         postsyn_name,
@@ -1934,7 +1935,7 @@ def config_biophys_cell_syns(
     return syn_count, nc_count
 
 
-def config_hoc_cell_syns(
+def config_cell_syns(
     env: AbstractEnv,
     gid: int,
     postsyn_name: str,
@@ -1950,7 +1951,7 @@ def config_hoc_cell_syns(
     """
     Configures the given syn_ids, and call config_syn with mechanism and netcon parameters (which must not be empty).
     If syn_ids=None, configures all synapses for the cell with the given gid.
-    If insert=True, iterate over sources and call insert_hoc_cell_syns
+    If insert=True, iterate over sources and call insert_cell_syns
     (requires the cell object is given or registered with h.ParallelContext on this rank).
 
         :param env: :class:'Env'
@@ -1999,7 +2000,7 @@ def config_hoc_cell_syns(
                 connection_syn_params = env.connection_config[postsyn_name][
                     presyn_name
                 ].mechanisms
-                syn_count, mech_count, nc_count = insert_hoc_cell_syns(
+                syn_count, mech_count, nc_count = insert_cell_syns(
                     env,
                     gid,
                     cell,
@@ -2011,7 +2012,7 @@ def config_hoc_cell_syns(
                 )
                 if verbose:
                     logger.info(
-                        f"config_hoc_cell_syns: population: {postsyn_name}; cell {gid}: inserted {mech_count} mechanisms for source {presyn_name}"
+                        f"config_cell_syns: population: {postsyn_name}; cell {gid}: inserted {mech_count} mechanisms for source {presyn_name}"
                     )
         if verbose:
             logger.info(

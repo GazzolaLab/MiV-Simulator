@@ -772,6 +772,11 @@ class BiophysCell:
         sorted_nodes = list(nx.topological_sort(self.tree))
         if len(sorted_nodes) > 0:
             self.root = sorted_nodes[0]
+        self.sections = None
+        if (hoc_cell is not None) and hasattr(hoc_cell, "sections"):
+            self.sections = hoc_cell.sections
+        if (cell_obj is not None) and hasattr(cell_obj, "sections"):
+            self.sections = cell_obj.sections
 
         init_cable(self)
         init_spike_detector(self)
@@ -990,7 +995,7 @@ def import_morphology_from_obj(
             getattr(cell_obj, sec_attr_name) is not None
         ):
             sec_list = list(getattr(cell_obj, sec_attr_name))
-            if hasattr(hoc_cell, sec_index_list):
+            if hasattr(cell_obj, sec_index_list):
                 sec_indexes = list(getattr(hoc_cell, sec_index_list))
             else:
                 sec_indexes = list(range(len(sec_list)))
@@ -2042,7 +2047,6 @@ def make_biophys_cell(
         hoc_cell=hoc_cell,
         cell_obj=cell_obj,
         neurotree_dict=tree_dict,
-        mech_file_path=mech_file_path,
         mech_dict=mech_dict,
     )
 
@@ -2392,18 +2396,22 @@ def register_cell(
     rank = env.comm.rank
     env.gidset.add(gid)
     env.pc.set_gid2node(gid, rank)
-    hoc_cell = getattr(cell, "hoc_cell", cell)
-    env.cells[pop_name][gid] = hoc_cell
-    if hoc_cell.is_art() > 0:
-        env.artificial_cells[pop_name][gid] = hoc_cell
+
+    cell_obj = getattr(cell, "hoc_cell", None)
+    if cell_obj is None:
+        cell_obj = getattr(cell, "cell_obj", cell)
+
+    env.cells[pop_name][gid] = cell_obj
+    if cell_obj.is_art() > 0:
+        env.artificial_cells[pop_name][gid] = cell_obj
     # Tell the ParallelContext that this cell is a spike source
     # for all other hosts. NetCon is temporary.
     nc = getattr(cell, "spike_detector", None)
     if nc is None:
         if hasattr(cell, "connect2target"):
-            nc = hoc_cell.connect2target(h.nil)
+            nc = cell_obj.connect2target(h.nil)
         elif cell.is_art() > 0:
-            nc = h.NetCon(cell, None)
+            nc = h.NetCon(cell_obj, None)
         else:
             raise RuntimeError("register_cell: unknown cell type")
     nc.delay = max(2 * env.dt, nc.delay)
@@ -2470,7 +2478,11 @@ def record_cell(
                             rec_id,
                             pop_name,
                             gid,
-                            cell.hoc_cell,
+                            (
+                                cell.hoc_cell
+                                if cell.hoc_cell is not None
+                                else cell.cell_obj
+                            ),
                             sec=sec,
                             dt=dt,
                             loc=locdict[node.section_type],
@@ -2511,7 +2523,11 @@ def record_cell(
                                 rec_id,
                                 pop_name,
                                 gid,
-                                cell.hoc_cell,
+                                (
+                                    cell.hoc_cell
+                                    if cell.hoc_cell is not None
+                                    else cell.cell_obj
+                                ),
                                 ps=pps,
                                 dt=dt,
                                 param=recvar,
@@ -2540,4 +2556,6 @@ default_reduced_cell_constructors = {
 
 
 def get_reduced_cell_constructor(template_name):
+    if template_name is None:
+        return None
     return default_reduced_cell_constructors.get(template_name.lower(), None)

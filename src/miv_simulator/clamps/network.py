@@ -647,7 +647,9 @@ def init(
             if is_cell_registered(env, gid):
                 cell = env.pc.gid2cell(gid)
                 for sec in list(
-                    cell.hoc_cell.all if hasattr(cell, "hoc_cell") else cell.all
+                    cell.hoc_cell.all
+                    if hasattr(cell, "hoc_cell") and cell.hoc_cell is not None
+                    else cell.all
                 ):
                     h.psection(sec=sec)
             break

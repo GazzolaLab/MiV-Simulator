@@ -97,7 +97,7 @@ def init_biophys_cell(
     rank = int(env.pc.id())
 
     ## Determine template name for this cell type
-    template_name = env.celltypes[pop_name]["template"]
+    template_name = env.celltypes[pop_name].get("template", None)
 
     ## Determine if a mechanism configuration file exists for this cell type
     mech_dict = None
