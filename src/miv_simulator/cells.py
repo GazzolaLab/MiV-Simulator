@@ -1017,7 +1017,7 @@ def import_morphology_from_obj(
                         "section_type": sec_type,
                         "section_index": int(index),
                     }
-                    
+
     if root_sec:
         insert_section_tree(cell, [root_sec], sec_info_dict)
     else:
@@ -2033,7 +2033,6 @@ def make_biophys_cell(
         mech_dict = import_mech_dict_from_file(mech_file_path)
 
     if cell_obj is None and hoc_cell is None:
-
         template_class = load_cell_template(
             env, population_name, bcast_template=bcast_template
         )

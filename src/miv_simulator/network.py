@@ -891,10 +891,11 @@ def make_cells(env: Env) -> None:
     for pop_name in pop_names:
         if rank == 0:
             logger.info(f"*** Creating population {pop_name}")
-            logger.info(f"Coordinates namespace is {env.coordinates_ns}\n"
-                        f"population attributes are {env.cell_attribute_info[pop_name]}")
+            logger.info(
+                f"Coordinates namespace is {env.coordinates_ns}\n"
+                f"population attributes are {env.cell_attribute_info[pop_name]}"
+            )
 
-            
         ## Determine template name for this cell type
         template_name = env.celltypes[pop_name].get("template", None)
 
@@ -1124,7 +1125,6 @@ def make_cell_selection(env):
                     )
 
                 elif isinstance(template_class, HocObject):
-
                     hoc_cell = cells.make_hoc_cell(
                         env, pop_name, gid, neurotree_dict=tree
                     )
