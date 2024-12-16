@@ -425,6 +425,13 @@ def configure_hoc_env(
     """
     :param env: :class:'Env'
     """
+    if env.use_coreneuron:
+        from neuron import coreneuron
+
+        coreneuron.enable = True
+        coreneuron.verbose = 1 if env.verbose else 0
+        if env.coreneuron_gpu:
+            coreneuron.gpu = True
     h.load_file("stdrun.hoc")
     h.load_file("loadbal.hoc")
     for template_dir in env.template_paths:
@@ -437,13 +444,6 @@ def configure_hoc_env(
     h("strdef dataset_path")
     if hasattr(env, "dataset_path"):
         h.dataset_path = env.dataset_path if env.dataset_path is not None else ""
-    if env.use_coreneuron:
-        from neuron import coreneuron
-
-        coreneuron.enable = True
-        coreneuron.verbose = 1 if env.verbose else 0
-        if env.coreneuron_gpu:
-            coreneuron.gpu = True
 
     h.pc = h.ParallelContext()
     if subworld_size is not None:
