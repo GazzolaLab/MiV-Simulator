@@ -437,7 +437,7 @@ def connect_cells(env: Env) -> None:
 
         last_time = time.time()
 
-        syn_count, mech_count, nc_count = synapses.config_hoc_cell_syns(
+        syn_count, mech_count, nc_count = synapses.config_cell_syns(
             env,
             gid,
             postsyn_name,
@@ -743,7 +743,7 @@ def connect_cell_selection(env):
         cell = env.pc.gid2cell(gid)
         pop_name = find_gid_pop(env.celltypes, gid)
 
-        syn_count, mech_count, nc_count = synapses.config_hoc_cell_syns(
+        syn_count, mech_count, nc_count = synapses.config_cell_syns(
             env,
             gid,
             pop_name,
@@ -1670,7 +1670,7 @@ def init(env: Env, subworld_size: Optional[int] = None) -> None:
     if rank == 0:
         logger.info(f"*** Cells created in {env.mkcellstime:.02f} s")
     local_num_cells = imapreduce(
-        env.cells.items(), lambda kv: len(kv[1]), lambda ax, x: ax + x
+        env.cells.items(), lambda kv: len(kv[1]), lambda ax, x: ax + x, init=0
     )
     logger.info(f"*** Rank {rank} created {local_num_cells} cells")
     if env.cell_selection is None:
@@ -1955,7 +1955,7 @@ def run(
         "event_handling": env.pc.event_time(),
         "numerical_integration": env.pc.integ_time(),
         "voltage_transfer": gjtime,
-        "load_balance": (meancomp / maxcw),
+        "load_balance": (meancomp / (maxcw if maxcw > 0 else 1)),
         "mean_voltage_transfer_time": meangj,
         "max_voltage_transfer_time": maxgj,
     }
