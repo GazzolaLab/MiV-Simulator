@@ -18,6 +18,7 @@ def compile(
     force: bool = False,
     recursive: bool = True,
     return_hash: bool = False,
+    coreneuron: bool = False,
 ) -> str:
     """
     Compile NEURON NMODL files
@@ -80,7 +81,10 @@ def compile(
                 with open(os.path.join(compiled, os.path.basename(m)), "w") as f:
                     f.write(data)
 
-            subprocess.run(["nrnivmodl"], cwd=compiled, check=True)
+            cmd = ["nrnivmodl"]
+            if coreneuron:
+                cmd = cmd + ["-coreneuron"]
+            subprocess.run(cmd, cwd=compiled, check=True)
         except subprocess.CalledProcessError:
             print("Compilation failed, reverting ...")
             shutil.rmtree(compiled, ignore_errors=True)
@@ -120,6 +124,7 @@ def compile_and_load(
     output_path: str = "${source}/compiled",
     force: bool = False,
     recursive: bool = True,
+    coreneuron: bool = False,
     comm: MPI.Intracomm = MPI.COMM_WORLD,
 ) -> str:
     """
@@ -127,7 +132,7 @@ def compile_and_load(
     """
     rank = comm.rank
     if rank == 0:
-        compiled = compile(directory, output_path, force, recursive)
+        compiled = compile(directory, output_path, force, recursive, coreneuron)
     else:
         compiled = None
     comm.barrier()
