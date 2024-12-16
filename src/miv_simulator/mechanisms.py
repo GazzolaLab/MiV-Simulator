@@ -5,7 +5,7 @@ import platform
 
 import subprocess
 from mpi4py import MPI
-from neuron import h
+from neuron import h, load_mechanisms
 import hashlib
 
 if hasattr(h, "nrnmpi_init"):
@@ -112,7 +112,7 @@ def load(directory: str, force: bool = False) -> str:
     if not os.path.exists(dll_path):
         raise FileNotFoundError(f"{dll_path} does not exists.")
 
-    h(f'nrn_load_dll("{dll_path}")')
+    load_mechanisms(dll_path)
 
     _loaded[directory] = dll_path
 
