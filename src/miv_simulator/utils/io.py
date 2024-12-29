@@ -1098,14 +1098,6 @@ def query_cell_attributes(input_file, population_names, namespace_ids=None):
     return namespace_id_lst, attr_info_dict
 
 
-def _run(commands, spawn_process=False):
-    cmd = " ".join(commands)
-    print(cmd)
-    if not spawn_process:
-        return os.system(" ".join([shlex.quote(cmd) for cmd in commands]))
-    return subprocess.check_output(commands)
-
-
 def copy_dataset(f_src: h5py.File, f_dst: h5py.File, dset_path: str) -> None:
     print(f"Copying {dset_path} from {f_src} to {f_dst} ...")
     target_path = str(pathlib.Path(dset_path).parent)
@@ -1163,65 +1155,24 @@ class H5FileManager:
     ):
         forest_dset_path = f"/Populations/{population}/Trees"
         forest_syns_dset_path = f"/Populations/{population}/Synapse Attributes"
-
-        cmd = [
-            "h5copy",
-            "-p",
-            "-s",
-            forest_dset_path,
-            "-d",
-            forest_dset_path,
-            "-i",
-            forest_file,
-            "-o",
-            self.cells_filepath,
-        ]
-        _run(cmd)
-
-        cmd = [
-            "h5copy",
-            "-p",
-            "-s",
-            forest_syns_dset_path,
-            "-d",
-            forest_syns_dset_path,
-            "-i",
-            synapses_file,
-            "-o",
-            self.cells_filepath,
-        ]
-        _run(cmd)
+        
+        with h5py.File(self.cells_filepath, "a") as f_dst:
+            with h5py.File(forest_file, "r") as f_src:
+                copy_dataset(f_src, f_dst, forest_dset_path)
+            with h5py.File(synapses_file, "r") as f_src:
+                copy_dataset(f_src, f_dst, forest_syns_dset_path)
 
     def import_projections(self, population: str, src: str):
         projection_dset_path = f"/Projections/{population}"
-        cmd = [
-            "h5copy",
-            "-p",
-            "-s",
-            projection_dset_path,
-            "-d",
-            projection_dset_path,
-            "-i",
-            src,
-            "-o",
-            self.connections_filepath,
-        ]
-        _run(cmd)
+        with h5py.File(self.connections_filepath, "a") as f_dst:
+            if "Projections" not in f_dst:
+                f_dst.create_group("Projections")
+            with h5py.File(src, "r") as f_src:
+                copy_dataset(f_src, f_dst, projection_dset_path)
 
     def copy_stim_coordinates(self):
-        with h5py.File(self.cells_filepath, "w") as f:
+        with h5py.File(self.cells_filepath, "a") as f:
             if "/Populations/STIM" not in f:
                 return
-        cmd = [
-            "h5copy",
-            "-p",
-            "-s",
-            "/Populations/STIM/Generated Coordinates",
-            "-d",
-            "/Populations/STIM/Coordinates",
-            "-i",
-            self.cells_filepath,
-            "-o",
-            self.cells_filepath,
-        ]
-        _run(cmd)
+            f.copy("/Populations/STIM/Generated Coordinates", "/Populations/STIM/Coordinates")
+
