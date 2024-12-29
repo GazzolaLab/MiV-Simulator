@@ -91,13 +91,7 @@ class Network(Interface):
                         30,
                         sum(config.cell_distributions[population].values()),
                     ),
-                    "write_size": _lp(
-                        0,
-                        5e5,
-                        1,
-                        100,
-                        sum(config.cell_distributions[population].values()),
-                    ),
+                    "write_size": sum(config.cell_distributions[population].values()) // 32,
                     "chunk_size": _lp(
                         0,
                         5e5,
@@ -149,13 +143,7 @@ class Network(Interface):
                         20,
                         sum(config.cell_distributions[population].values()),
                     ),
-                    "write_size": _lp(
-                        0,
-                        5e5,
-                        1,
-                        250,
-                        sum(config.cell_distributions[population].values()),
-                    ),
+                    "write_size": sum(config.cell_distributions[population].values()) // 32,
                     "chunk_size": _lp(
                         0,
                         5e5,
