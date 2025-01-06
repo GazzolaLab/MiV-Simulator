@@ -1155,7 +1155,7 @@ class H5FileManager:
     ):
         forest_dset_path = f"/Populations/{population}/Trees"
         forest_syns_dset_path = f"/Populations/{population}/Synapse Attributes"
-        
+
         with h5py.File(self.cells_filepath, "a") as f_dst:
             with h5py.File(forest_file, "r") as f_src:
                 copy_dataset(f_src, f_dst, forest_dset_path)
@@ -1174,5 +1174,7 @@ class H5FileManager:
         with h5py.File(self.cells_filepath, "a") as f:
             if "/Populations/STIM" not in f:
                 return
-            f.copy("/Populations/STIM/Generated Coordinates", "/Populations/STIM/Coordinates")
-
+            f.copy(
+                "/Populations/STIM/Generated Coordinates",
+                "/Populations/STIM/Coordinates",
+            )

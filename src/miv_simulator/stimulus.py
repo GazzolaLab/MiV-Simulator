@@ -201,7 +201,6 @@ def get_equilibration(env: AbstractEnv) -> Tuple[ndarray, int]:
             / env.stimulus_config["Temporal Resolution"]
         )
         from scipy.signal.windows import hann
-        
 
         equilibrate_hann = hann(2 * equilibrate_len)[:equilibrate_len]
         equilibrate = (equilibrate_hann, equilibrate_len)
