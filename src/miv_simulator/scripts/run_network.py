@@ -133,7 +133,9 @@ sys.excepthook = mpi_excepthook
     help="record the per-cell number of spikes received from each pre-synaptic source",
 )
 @click.option("--use-coreneuron", is_flag=True, help="use CoreNEURON for simulation")
-@click.option("--coreneuron-gpu", is_flag=True, help="use CoreNEURON GPU for simulation")
+@click.option(
+    "--coreneuron-gpu", is_flag=True, help="use CoreNEURON GPU for simulation"
+)
 @click.option("--stimulus-id", required=False, type=str, help="name of input stimulus")
 @click.option("--tstop", type=int, default=1, help="physical time to simulate (ms)")
 @click.option(

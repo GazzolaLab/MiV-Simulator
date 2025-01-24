@@ -15,7 +15,7 @@ Stage: build
 
     # CMake needs to be reinstalled. (we are using conda)
     apt-get purge --auto-remove cmake
-    
+
     # Intel Repository
     curl -k -L https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | apt-key add -
     echo deb https://apt.repos.intel.com/mpi all main > /etc/apt/sources.list.d/intel-mpi.list
@@ -49,7 +49,7 @@ Stage: build
     export HDF5_PATCH_VER=1
     export HDF5_VER=${HDF5_MAJOR_VER}.${HDF5_MINOR_VER}.${HDF5_PATCH_VER}
     export HDF5_PATH=/opt/hdf5
- 
+
     wget https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-${HDF5_MAJOR_VER}.${HDF5_MINOR_VER}/hdf5-${HDF5_VER}/src/hdf5-${HDF5_VER}.tar.gz
     tar -xzf hdf5-${HDF5_VER}.tar.gz && rm hdf5-${HDF5_VER}.tar.gz
     mv hdf5-${HDF5_VER} $HDF5_PATH
@@ -64,14 +64,14 @@ Stage: build
     CC=mpicc HDF5_MPI="ON" HDF5_DIR=$HDF5_SOURCE pip install --no-binary=h5py --no-deps h5py
 
     # NeuroH5
-    git clone https://github.com/iraikov/neuroh5.git 
+    git clone https://github.com/iraikov/neuroh5.git
     CC=mpicc CXX=mpicxx pip install --no-deps ./neuroh5
     cd neuroh5 \
         && CC=mpicc CXX=mpicxx cmake . \
         && make -j4
     echo "export PATH=/opt/neuroh5/bin:\$PATH" >> $BASHRC
     cd /opt
-    
+
     # Neuron (nrn)
     export NEURON_VER=8.2.1
     # RUN pip install --no-cache-dir neuron==${NEURON_VER}
@@ -94,11 +94,11 @@ Stage: build
     echo "export PATH=\$PATH:$NRN_SOURCE/bin" >> $BASHRC
     echo "export PYTHONPATH=\$PYTHONPATH:$NRN_SOURCE/lib/python" >> $BASHRC
     cd /opt
-    
+
     # MiV Simulator
     git clone https://github.com/GazzolaLab/MiV-Simulator
     pip install --no-cache-dir ./MiV-Simulator
-    
+
     # Other Utilities
     pip install --no-cache-dir miv-os
 

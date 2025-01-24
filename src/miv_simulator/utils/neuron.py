@@ -6,9 +6,9 @@ from miv_simulator.mechanisms import compile_and_load
 import numpy as np
 
 
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union
 from miv_simulator.utils import AbstractEnv, import_object_by_path, get_module_logger
-from neuron import h, hoc
+from neuron import h
 from nrn import Section
 from numpy import float64, uint32
 from scipy import interpolate

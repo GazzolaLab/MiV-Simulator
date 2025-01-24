@@ -980,9 +980,7 @@ def plot_spike_raster(
                 f"{pop_name} ({info[0]:.02f}% active)"
                 for pop_name, info in zip_longest(spkpoplst, lgd_info)
             ]
-        for i, (pop_name, lgd_label) in enumerate(
-            zip_longest(spkpoplst, lgd_labels)
-        ):
+        for i, (pop_name, lgd_label) in enumerate(zip_longest(spkpoplst, lgd_labels)):
             at = AnchoredText(
                 f"{pop_name} {lgd_label}",
                 loc="upper right",
@@ -2990,7 +2988,6 @@ def plot_single_vertex_dist(
     dist_bins = comm.reduce(dist_bins, op=add_bins_op)
 
     if rank == 0:
-
         dist_hist_vals, dist_u_bin_edges, dist_v_bin_edges = finalize_bins(
             dist_bins, bin_size
         )
