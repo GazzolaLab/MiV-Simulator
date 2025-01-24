@@ -124,7 +124,7 @@ def gen_min_energy_nodes(
                 )
             elif len(valid_idxs) != len(in_nodes):
                 logger.info(
-                    f"Removing {len(in_nodes)-len(valid_idxs)} out of {len(in_nodes)} nodes due to constraint {constraint}"
+                    f"Removing {len(in_nodes) - len(valid_idxs)} out of {len(in_nodes)} nodes due to constraint {constraint}"
                 )
             in_nodes = in_nodes[valid_idxs]
         node_count = len(in_nodes)
