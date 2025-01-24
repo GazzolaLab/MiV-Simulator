@@ -147,7 +147,7 @@ def generate_weights(env, weight_source_rules, this_syn_attrs):
             else:
                 raise RuntimeError(
                     "network_clamp.generate_weights: unknown weight generator rule class "
-                    f'{weight_rule["class"]}'
+                    f"{weight_rule['class']}"
                 )
 
     return weights_dict

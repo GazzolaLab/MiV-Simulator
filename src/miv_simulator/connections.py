@@ -388,9 +388,9 @@ def generate_synaptic_connections(
                     f"{ranstream_syn=}"
                 )
             log_flag = False
-            assert (
-                projection is not None
-            ), f"generate_synaptic_connections: {gid=}: {syn_id=} {syn_type=} {swc_type=} {syn_layer=} {projection=} {ranstream_syn=} {population_dict=} {projection_synapse_dict=}\n {synapse_dict['syn_types']=}"
+            assert projection is not None, (
+                f"generate_synaptic_connections: {gid=}: {syn_id=} {syn_type=} {swc_type=} {syn_layer=} {projection=} {ranstream_syn=} {population_dict=} {projection_synapse_dict=}\n {synapse_dict['syn_types']=}"
+            )
             synapse_prj_counts[prj_pop_index[projection]] += 1
             synapse_prj_partition[projection][syn_layer].append(syn_id)
         it += 1
@@ -506,9 +506,9 @@ def generate_synaptic_connections(
             logger.warning(
                 f"Rank {rank}: source gid list is empty for gid: {destination_gid} source: {projection}"
             )
-        assert (
-            len(prj_source_vertices_array) > 0
-        ), f"Rank {rank}: source gid list is empty. The cell density might be too small."
+        assert len(prj_source_vertices_array) > 0, (
+            f"Rank {rank}: source gid list is empty. The cell density might be too small."
+        )
         count += len(prj_source_vertices_array)
         gid_dict[destination_gid] = (
             prj_source_vertices_array,
