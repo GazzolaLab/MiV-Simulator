@@ -2305,7 +2305,7 @@ def plot_intracellular_state(
                             )
                         else:
                             legend_labels.append(
-                                f"{pop_name} {gid} " f"{cell_state_mat[2][i]}"
+                                f"{pop_name} {gid} {cell_state_mat[2][i]}"
                             )
 
                 if lowpass_plot is not None and not distance:

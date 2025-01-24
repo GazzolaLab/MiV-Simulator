@@ -63,9 +63,7 @@ def ld_bal(env):
     max_sum_cx = env.pc.allreduce(sum_cx, 2)
     sum_cx = env.pc.allreduce(sum_cx, 1)
     if rank == 0:
-        logger.info(
-            f"*** expected load balance {(((sum_cx / nhosts) / max_sum_cx)):.2f}"
-        )
+        logger.info(f"*** expected load balance {((sum_cx / nhosts) / max_sum_cx):.2f}")
 
 
 def lpt_bal(env):
