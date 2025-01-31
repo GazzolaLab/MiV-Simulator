@@ -9,7 +9,7 @@ Common data I/O for the Mind-In-Vitro project based on `HDF5` and `neuroh5` in p
 To install `miv_data` without installing `MiV-Simulator` use the following:
 ```sh
 pip install -e "git+https://github.com/GazzolaLab/MiV-Simulator.git#egg=miv_data&subdirectory=src"
-``` 
+```
 
 ## Rationale
 

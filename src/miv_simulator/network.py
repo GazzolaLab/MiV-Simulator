@@ -20,7 +20,7 @@ from miv_simulator.utils import (
 from miv_simulator.utils import io as io_utils
 from miv_simulator.utils import neuron as neuron_utils
 from miv_simulator.utils import profile_memory, simtime, zip_longest
-from miv_simulator.utils.neuron import h
+from miv_simulator.utils.neuron import h, HocObject
 
 if hasattr(h, "nrnmpi_init"):
     h.nrnmpi_init()
@@ -435,7 +435,7 @@ def connect_cells(env: Env) -> None:
 
         last_time = time.time()
 
-        syn_count, mech_count, nc_count = synapses.config_hoc_cell_syns(
+        syn_count, mech_count, nc_count = synapses.config_cell_syns(
             env,
             gid,
             postsyn_name,
@@ -458,8 +458,9 @@ def connect_cells(env: Env) -> None:
             if hasattr(hoc_cell, "all"):
                 if gid in env.biophys_cells[postsyn_name]:
                     biophys_cell = env.biophys_cells[postsyn_name][gid]
-                for sec in list(hoc_cell.all):
-                    logger.info(pprint.pformat(sec.psection()))
+        #                if env.verbose:
+        #                    for sec in list(hoc_cell.all):
+        #                        logger.info(pprint.pformat(sec.psection()))
 
         env.edge_count[postsyn_name] += syn_count
 
@@ -740,7 +741,7 @@ def connect_cell_selection(env):
         cell = env.pc.gid2cell(gid)
         pop_name = find_gid_pop(env.celltypes, gid)
 
-        syn_count, mech_count, nc_count = synapses.config_hoc_cell_syns(
+        syn_count, mech_count, nc_count = synapses.config_cell_syns(
             env,
             gid,
             pop_name,
@@ -756,9 +757,9 @@ def connect_cell_selection(env):
                 f"{nc_count} network connections for gid {gid}; cleanup flag is {env.cleanup}"
             )
             hoc_cell = env.pc.gid2cell(gid)
-            if hasattr(hoc_cell, "all"):
-                for sec in list(hoc_cell.all):
-                    logger.info(pprint.pformat(sec.psection()))
+        #            if hasattr(hoc_cell, "all"):
+        #                for sec in list(hoc_cell.all):
+        #                    logger.info(pprint.pformat(sec.psection()))
 
         if gid in env.recording_sets.get(pop_name, {}):
             cells.record_cell(env, pop_name, gid)
@@ -888,14 +889,13 @@ def make_cells(env: Env) -> None:
     for pop_name in pop_names:
         if rank == 0:
             logger.info(f"*** Creating population {pop_name}")
+            logger.info(
+                f"Coordinates namespace is {env.coordinates_ns}\n"
+                f"population attributes are {env.cell_attribute_info[pop_name]}"
+            )
 
+        ## Determine template name for this cell type
         template_name = env.celltypes[pop_name].get("template", None)
-        if template_name is None:
-            continue
-
-        template_name_lower = template_name.lower()
-        if template_name_lower != "vecstim":
-            neuron_utils.load_cell_template(env, pop_name, bcast_template=True)
 
         mech_dict = None
         mech_file_path = None
@@ -944,13 +944,9 @@ def make_cells(env: Env) -> None:
                         gid=gid, pop_name=pop_name, env=env, mech_dict=mech_dict
                     )
                 else:
-                    hoc_cell = cells.make_hoc_cell(
-                        env, pop_name, gid, neurotree_dict=tree
-                    )
                     cell = cells.make_biophys_cell(
                         gid=gid,
                         population_name=pop_name,
-                        hoc_cell=hoc_cell,
                         env=env,
                         tree_dict=tree,
                         mech_dict=mech_dict,
@@ -967,9 +963,9 @@ def make_cells(env: Env) -> None:
                 if rank == 0 and first_gid == gid:
                     if hasattr(cell, "hoc_cell"):
                         hoc_cell = cell.hoc_cell
-                        if hasattr(hoc_cell, "all"):
-                            for sec in list(hoc_cell.all):
-                                logger.info(pprint.pformat(sec.psection()))
+                #                        if hasattr(hoc_cell, "all"):
+                #                            for sec in list(hoc_cell.all):
+                #                                logger.info(pprint.pformat(sec.psection()))
                 cells.register_cell(env, pop_name, gid, cell)
                 num_cells += 1
             del trees
@@ -1082,12 +1078,9 @@ def make_cell_selection(env):
         if rank == 0:
             logger.info(f"*** Creating selected cells from population {pop_name}")
 
-        template_name = env.celltypes[pop_name]["template"]
-        template_name_lower = template_name.lower()
-        if template_name_lower != "vecstim":
-            neuron_utils.load_cell_template(env, pop_name, bcast_template=True)
-
-        templateClass = getattr(h, env.celltypes[pop_name]["template"])
+        template_class = neuron_utils.load_cell_template(
+            env, pop_name, bcast_template=True
+        )
 
         gid_range = [
             gid for gid in env.cell_selection[pop_name] if gid % nhosts == rank
@@ -1097,8 +1090,6 @@ def make_cell_selection(env):
             mech_dict = env.celltypes[pop_name]["mech_dict"]
         else:
             mech_dict = None
-
-        reduced_cons = cells.get_reduced_cell_constructor(template_name)
 
         num_cells = 0
         if (pop_name in env.cell_attribute_info) and (
@@ -1121,14 +1112,17 @@ def make_cell_selection(env):
                 if first_gid == None:
                     first_gid = gid
 
-                if reduced_cons is not None:
-                    cell = reduced_cons(
+                if template_class is None:
+                    cell = cells.make_biophys_cell(
                         gid=gid,
                         pop_name=pop_name,
+                        hoc_cell=hoc_cell,
                         env=env,
-                        param_dict=mech_dict,
+                        tree_dict=tree,
+                        mech_dict=mech_dict,
                     )
-                else:
+
+                elif isinstance(template_class, HocObject):
                     hoc_cell = cells.make_hoc_cell(
                         env, pop_name, gid, neurotree_dict=tree
                     )
@@ -1144,21 +1138,35 @@ def make_cell_selection(env):
                             mech_dict=mech_dict,
                         )
                         # cells.init_spike_detector(biophys_cell)
-                        if rank == 0 and gid == first_gid:
-                            logger.info(
-                                f"*** make_cell_selection: population: {pop_name}; gid: {gid}; loaded biophysics from path: {mech_file_path}"
-                            )
+                else:
+                    cell_obj = template_class(
+                        gid=gid,
+                        pop_name=pop_name,
+                        env=env,
+                        param_dict=mech_dict,
+                    )
+                    cell = cells.make_biophys_cell(
+                        gid=gid,
+                        pop_name=pop_name,
+                        cell_obj=cell_obj,
+                        env=env,
+                        mech_dict=mech_dict,
+                    )
 
-                if reduced_cons is not None:
-                    soma_xyz = cells.get_soma_xyz(tree, env.SWC_Types)
-                    cell.position(soma_xyz[0], soma_xyz[1], soma_xyz[2])
+                if rank == 0 and gid == first_gid:
+                    logger.info(
+                        f"*** make_cell_selection: population: {pop_name}; gid: {gid}; loaded biophysics from path: {mech_file_path}"
+                    )
+
+                soma_xyz = cells.get_soma_xyz(tree, env.SWC_Types)
+                cell.position(soma_xyz[0], soma_xyz[1], soma_xyz[2])
 
                 if rank == 0 and first_gid == gid:
                     if hasattr(cell, "hoc_cell"):
                         hoc_cell = cell.hoc_cell
-                        if hasattr(hoc_cell, "all"):
-                            for sec in list(hoc_cell.all):
-                                logger.info(pprint.pformat(sec.psection()))
+                #                        if hasattr(hoc_cell, "all"):
+                #                            for sec in list(hoc_cell.all):
+                #                                logger.info(pprint.pformat(sec.psection()))
                 cells.register_cell(env, pop_name, gid, cell)
 
                 num_cells += 1
@@ -1660,7 +1668,7 @@ def init(env: Env, subworld_size: Optional[int] = None) -> None:
     if rank == 0:
         logger.info(f"*** Cells created in {env.mkcellstime:.02f} s")
     local_num_cells = imapreduce(
-        env.cells.items(), lambda kv: len(kv[1]), lambda ax, x: ax + x
+        env.cells.items(), lambda kv: len(kv[1]), lambda ax, x: ax + x, init=0
     )
     logger.info(f"*** Rank {rank} created {local_num_cells} cells")
     if env.cell_selection is None:
@@ -1945,7 +1953,7 @@ def run(
         "event_handling": env.pc.event_time(),
         "numerical_integration": env.pc.integ_time(),
         "voltage_transfer": gjtime,
-        "load_balance": (meancomp / maxcw),
+        "load_balance": (meancomp / (maxcw if maxcw > 0 else 1)),
         "mean_voltage_transfer_time": meangj,
         "max_voltage_transfer_time": maxgj,
     }

@@ -133,6 +133,9 @@ sys.excepthook = mpi_excepthook
     help="record the per-cell number of spikes received from each pre-synaptic source",
 )
 @click.option("--use-coreneuron", is_flag=True, help="use CoreNEURON for simulation")
+@click.option(
+    "--coreneuron-gpu", is_flag=True, help="use CoreNEURON GPU for simulation"
+)
 @click.option("--stimulus-id", required=False, type=str, help="name of input stimulus")
 @click.option("--tstop", type=int, default=1, help="physical time to simulate (ms)")
 @click.option(
@@ -256,6 +259,7 @@ def main(
     recording_profile,
     output_syn_spike_count,
     use_coreneuron,
+    coreneuron_gpu,
     stimulus_id,
     tstop,
     v_init,
@@ -288,7 +292,7 @@ def main(
     params["config"] = params.pop("config_file")
     env = Env(**params)
 
-    compile_and_load(directory=mechanisms_path)
+    compile_and_load(directory=env.mechanisms_path)
 
     if profile_time:
         import cProfile

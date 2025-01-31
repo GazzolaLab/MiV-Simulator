@@ -45,7 +45,7 @@ The quickest way to get started is to use the preconfigured setup via docker-com
 
 ```bash
 # If you haven't already, clone the MiV-Simulator source into a local directory
-git clone https://github.com/GazzolaLab/MiV-Simulator  
+git clone https://github.com/GazzolaLab/MiV-Simulator
 cd MiV-Simulator
 # Then launch docker-compose
 docker-compose up

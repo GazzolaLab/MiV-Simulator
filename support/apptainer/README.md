@@ -1,7 +1,7 @@
 # Apptainer (singularity) container
 
 - Frontera Base Container: https://containers-at-tacc.readthedocs.io/en/latest/singularity/03.mpi_and_gpus.html
-- Vista Base Container: https://hub.docker.com/r/tacc/tacc-base 
+- Vista Base Container: https://hub.docker.com/r/tacc/tacc-base
 
 ## How to build
 

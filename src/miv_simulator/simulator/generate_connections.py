@@ -116,6 +116,7 @@ def generate_connections(
     write_size: int,
     dry_run: bool,
     seeds: Union[Tuple[int], int, None],
+    debug: bool = False,
 ):
     logger = utils.get_script_logger(os.path.basename(__file__))
 
@@ -249,6 +250,6 @@ def generate_connections(
             cache_size,
             write_size,
             dry_run=dry_run,
-            debug=False,
+            debug=debug,
         )
     MPI.Finalize()

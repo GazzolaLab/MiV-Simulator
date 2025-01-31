@@ -50,8 +50,11 @@ def get_inhom_poisson_spike_times_by_thinning(
     interp_t = np.arange(t[0], t[-1] + dt, dt)
     #    try:
     rate[np.isclose(rate, 0.0, atol=1e-3, rtol=1e-3)] = 0.0
-    rate_ip = Akima1DInterpolator(t, rate)
+    rate_ip = Akima1DInterpolator(t, rate, method="makima")
     interp_rate = rate_ip(interp_t)
+    rate_is_not_nan = ~np.isnan(interp_rate)
+    interp_t = interp_t[rate_is_not_nan]
+    interp_rate = interp_rate[rate_is_not_nan]
     #    except Exception:
     #        print('t shape: %s rate shape: %s' % (str(t.shape), str(rate.shape)))
     interp_rate /= 1000.0

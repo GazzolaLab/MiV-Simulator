@@ -53,6 +53,13 @@ def cli():
     help="colon-separated list of paths to directories containing hoc cell templates",
 )
 @click.option(
+    "--mechanisms-path",
+    type=str,
+    required=False,
+    default=".",
+    help="path to directory containing NMODL mechanisms",
+)
+@click.option(
     "--dataset-prefix",
     required=True,
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
@@ -127,6 +134,7 @@ def show(
     arena_id,
     stimulus_id,
     template_paths,
+    mechanisms_path,
     dataset_prefix,
     results_path,
     spike_events_path,
@@ -148,6 +156,7 @@ def show(
         arena_id,
         stimulus_id,
         template_paths,
+        mechanisms_path,
         dataset_prefix,
         results_path,
         spike_events_path,
@@ -222,6 +231,13 @@ def show(
     type=str,
     required=True,
     help="colon-separated list of paths to directories containing hoc cell templates",
+)
+@click.option(
+    "--mechanisms-path",
+    type=str,
+    required=False,
+    default=".",
+    help="path to directory containing NMODL mechanisms",
 )
 @click.option(
     "--dataset-prefix",
@@ -351,6 +367,7 @@ def go(
     t_max,
     t_min,
     template_paths,
+    mechanisms_path,
     dataset_prefix,
     spike_events_path,
     spike_events_namespace,
@@ -386,6 +403,7 @@ def go(
         t_max,
         t_min,
         template_paths,
+        mechanisms_path,
         dataset_prefix,
         spike_events_path,
         spike_events_namespace,
@@ -474,6 +492,13 @@ def go(
     type=str,
     required=True,
     help="colon-separated list of paths to directories containing hoc cell templates",
+)
+@click.option(
+    "--mechanisms-path",
+    type=str,
+    required=False,
+    default=".",
+    help="path to directory containing NMODL mechanisms",
 )
 @click.option(
     "--dataset-prefix",
@@ -613,6 +638,7 @@ def optimize(
     opt_seed,
     opt_iter,
     template_paths,
+    mechanisms_path,
     dataset_prefix,
     param_config_name,
     param_type,
@@ -654,6 +680,7 @@ def optimize(
         opt_seed,
         opt_iter,
         template_paths,
+        mechanisms_path,
         dataset_prefix,
         param_config_name,
         param_type,

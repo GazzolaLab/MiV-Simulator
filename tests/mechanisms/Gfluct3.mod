@@ -20,7 +20,7 @@ THEORY
   coefficients and Ft is a gaussian white noise of unit standard deviation.
 
   g_e and g_i are described by an Ornstein-Uhlenbeck (OU) stochastic process
-  where tau_e and tau_i represent the "correlation" (if tau_e and tau_i are 
+  where tau_e and tau_i represent the "correlation" (if tau_e and tau_i are
   zero, g_e and g_i are white noise).  The estimation of OU parameters can
   be made from the power spectrum:
 
@@ -33,9 +33,9 @@ THEORY
 
 NUMERICAL RESOLUTION
 
-  The numerical scheme for integration of OU processes takes advantage 
+  The numerical scheme for integration of OU processes takes advantage
   of the fact that these processes are gaussian, which led to an exact
-  update rule independent of the time step dt (see Gillespie DT, Am J Phys 
+  update rule independent of the time step dt (see Gillespie DT, Am J Phys
   64: 225, 1996):
 
      x(t+dt) = x(t) * exp(-dt/tau) + A * N(0,1)
@@ -48,9 +48,9 @@ IMPLEMENTATION
 
   This mechanism is implemented as a nonspecific current defined as a
   point process.
-  
-  Modified 4/7/2015 by Ted Carnevale 
-  
+
+  Modified 4/7/2015 by Ted Carnevale
+
   Uses events to control times at which conductances are updated, so
   this mechanism can be used with adaptive integration.  Produces
   exactly same results as original Gfluct2 does if h is set equal to
@@ -81,7 +81,7 @@ Gfluct2: conductance cannot be negative
 
 REFERENCE
 
-  Destexhe, A., Rudolph, M., Fellous, J-M. and Sejnowski, T.J.  
+  Destexhe, A., Rudolph, M., Fellous, J-M. and Sejnowski, T.J.
   Fluctuating synaptic conductances recreate in-vivo--like activity in
   neocortical neurons. Neuroscience 107: 13-24 (2001).
 
@@ -106,13 +106,13 @@ NEURON {
 }
 
 UNITS {
-	(nA) = (nanoamp) 
+	(nA) = (nanoamp)
 	(mV) = (millivolt)
 	(umho) = (micromho)
 }
 
 PARAMETER {
-    
+
      on = 0
      h = 0.025 (ms) : interval at which conductances are to be updated
 		    : for fixed dt simulation, should be an integer multiple of dt
@@ -164,8 +164,8 @@ previously 0.
 static int _ran_compat; /* specifies the noise style for all instances */
 #define IFNEWSTYLE(arg) if(_ran_compat == 2) { arg }
 
-#endif /* running in NEURON */ 
-ENDVERBATIM  
+#endif /* running in NEURON */
+ENDVERBATIM
 
 INITIAL {
 
@@ -205,7 +205,7 @@ VERBATIM
 #if !NRNBBCORE
 		if (_ran_compat == 2) {
 			x = nrnran123_normal((nrnran123_State*)_p_donotuse);
-		}else{		
+		}else{
 			x = nrn_random_pick((Rand*)_p_donotuse);
 		}
 #else
@@ -234,14 +234,14 @@ PROCEDURE foo() {
 	} else {
 		ival = 0
 	}
-	
+
 	:printf("on = %g t = %g v = %g i = %g g_e = %g g_i = %g E_e = %g E_i = %g\n", on, t, v, i, g_e, g_i, E_e, E_i)
     }
 
 
 BREAKPOINT {
       foo()
-      i = ival   
+      i = ival
     }
 
 
@@ -263,7 +263,7 @@ ENDVERBATIM
 	VERBATIM
 	  printf("Setting random generator with seed = %g\n", _lseed);
 	ENDVERBATIM
-VERBATIM  
+VERBATIM
 #endif
 ENDVERBATIM
 }
@@ -276,7 +276,7 @@ VERBATIM
 	if (_ran_compat == 2) {
 		fprintf(stderr, "Gfluct3.noiseFromRandom123 was previously called\n");
 		assert(0);
-	} 
+	}
 	_ran_compat = 1;
 	if (ifarg(1)) {
 		*pv = nrn_random_arg(1);
@@ -339,7 +339,7 @@ static void bbcore_write(double* x, int* d, int* xx, int *offset, _threadargspro
 	if (d) {
 		uint32_t* di = ((uint32_t*)d) + *offset;
 #if !NRNBBCORE
-		if (_ran_compat == 1) { 
+		if (_ran_compat == 1) {
 			char which;
 			Rand** pv = (Rand**)(&_p_donotuse);
 			/* error if not using Random123 generator */
@@ -379,4 +379,3 @@ static void bbcore_read(double* x, int* d, int* xx, int* offset, _threadargsprot
 	*offset += 5;
 }
 ENDVERBATIM
-

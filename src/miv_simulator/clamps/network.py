@@ -23,6 +23,7 @@ from miv_simulator.cells import (
     report_topology,
 )
 from miv_simulator.env import Env
+from miv_simulator.mechanisms import compile_and_load
 from miv_simulator.utils.neuron import configure_hoc_env, h
 from miv_simulator.stimulus import (
     oscillation_phase_mod_config,
@@ -397,6 +398,8 @@ def init(
 
     """
 
+    compile_and_load(directory=env.mechanisms_path)
+
     if phase_mod and coords_path is None:
         raise RuntimeError(
             "network_clamp.init: when phase_mod is True, coords_path must be provided"
@@ -646,8 +649,11 @@ def init(
         for gid in my_cell_index_set:
             if is_cell_registered(env, gid):
                 cell = env.pc.gid2cell(gid)
+                assert cell is not None, f"Registered cell gid {gid} is None"
                 for sec in list(
-                    cell.hoc_cell.all if hasattr(cell, "hoc_cell") else cell.all
+                    cell.hoc_cell.all
+                    if hasattr(cell, "hoc_cell") and cell.hoc_cell is not None
+                    else cell.all
                 ):
                     h.psection(sec=sec)
             break
@@ -873,6 +879,7 @@ def init_state_objfun(
     t_min,
     opt_iter,
     template_paths,
+    mechanisms_path,
     dataset_prefix,
     results_path,
     spike_events_path,
@@ -1030,6 +1037,7 @@ def init_rate_objfun(
     t_min,
     opt_iter,
     template_paths,
+    mechanisms_path,
     dataset_prefix,
     results_path,
     spike_events_path,
@@ -1270,6 +1278,7 @@ def init_rate_dist_objfun(
     t_min,
     opt_iter,
     template_paths,
+    mechanisms_path,
     dataset_prefix,
     results_path,
     spike_events_path,
@@ -1785,6 +1794,7 @@ def show(
     arena_id,
     stimulus_id,
     template_paths,
+    mechanisms_path,
     dataset_prefix,
     results_path,
     spike_events_path,
@@ -1853,6 +1863,7 @@ def go(
     t_max,
     t_min,
     template_paths,
+    mechanisms_path,
     dataset_prefix,
     spike_events_path,
     spike_events_namespace,
@@ -1887,6 +1898,8 @@ def go(
     verbose = True
     init_params["verbose"] = verbose
     config_logging(verbose)
+
+    logger.info(f"mechanisms_path = {mechanisms_path}")
 
     pop_params_tuple_dicts = None
     if rank == 0:
@@ -2052,6 +2065,7 @@ def optimize(
     opt_seed,
     opt_iter,
     template_paths,
+    mechanisms_path,
     dataset_prefix,
     param_config_name,
     param_type,
