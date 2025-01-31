@@ -137,11 +137,6 @@ def init_biophys_cell(
             validate_tree=validate_tree,
         )
 
-    cells.init_biophysics(
-        cell,
-        reset_cable=True,
-        env=env,
-    )
     synapses.init_syn_mech_attrs(cell, env)
 
     if register_cell:

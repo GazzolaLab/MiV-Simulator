@@ -292,7 +292,7 @@ def main(
     params["config"] = params.pop("config_file")
     env = Env(**params)
 
-    compile_and_load(directory=mechanisms_path)
+    compile_and_load(directory=env.mechanisms_path)
 
     if profile_time:
         import cProfile

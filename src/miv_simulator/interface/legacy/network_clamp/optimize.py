@@ -26,6 +26,7 @@ class ClampOptimize(Component):
         opt_seed: Optional[int] = None
         opt_iter: int = 10
         templates: str = "templates"
+        mechanisms_path: str = "."
         dataset_path: Optional[str] = None
         param_config_name: Optional[str] = None
         param_type: str = "synaptic"
@@ -67,6 +68,7 @@ class ClampOptimize(Component):
             opt_seed=self.config.opt_seed,
             opt_iter=self.config.opt_iter,
             template_paths=self.config.templates,
+            mechanisms_path=self.config.mechanisms_path,
             dataset_prefix=self.config.dataset_path,
             param_config_name=self.config.param_config_name,
             param_type=self.config.param_type,

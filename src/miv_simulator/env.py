@@ -64,6 +64,7 @@ class Env(AbstractEnv):
         config: Optional[str] = None,
         template_paths: str = "templates",
         hoc_lib_path: Optional[str] = None,
+        mechanisms_path: Optional[str] = None,
         dataset_prefix: Optional[str] = None,
         results_path: Optional[str] = None,
         results_file_id: Optional[str] = None,
@@ -108,6 +109,7 @@ class Env(AbstractEnv):
         :param config_file: str; model configuration file name
         :param template_paths: str; colon-separated list of paths to directories containing hoc cell templates
         :param hoc_lib_path: str; path to directory containing required hoc libraries
+        :param mechanisms_path: str; path to directory containing NMODL mechanisms
         :param dataset_prefix: str; path to directory containing required neuroh5 data files
         :param results_path: str; path to directory to export output files
         :param results_file_id: str; label for neuroh5 files to write spike and voltage trace data
@@ -188,6 +190,8 @@ class Env(AbstractEnv):
 
         # The location of required hoc libraries
         self.hoc_lib_path = hoc_lib_path
+        # The location of NMODL mechanisms
+        self.mechanisms_path = mechanisms_path
 
         # Checkpoint interval in ms of simulation time
         self.checkpoint_clear_data = checkpoint_clear_data

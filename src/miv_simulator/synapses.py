@@ -23,7 +23,6 @@ from miv_simulator.cells import (
     BiophysCell,
     SCneuron,
     make_section_graph,
-    get_mech_rules_dict,
     get_distance_to_node,
 )
 from miv_simulator.utils import (
@@ -72,6 +71,34 @@ SynParam = namedtuple(
 
 def syn_param_from_dict(d):
     return SynParam(*[d[key] for key in SynParam._fields])
+
+
+def get_mech_rules_dict(cell, **rules):
+    """
+    Used by modify_mech_param. Takes in a series of arguments and constructs a validated rules dictionary that will be
+    used to update a cell's mechanism dictionary.
+    :param cell: :class:'BiophysCell'
+    :param rules: dict
+    :return: dict
+    """
+    rules_dict = {
+        name: rules[name]
+        for name in (
+            name
+            for name in ["value", "origin"]
+            if name in rules and rules[name] is not None
+        )
+    }
+    if "origin" in rules_dict:
+        origin_type = rules_dict["origin"]
+        valid_sec_types = [
+            sec_type for sec_type in cell.nodes if len(cell.nodes[sec_type]) > 0
+        ]
+        if origin_type not in valid_sec_types + ["parent", "branch_origin"]:
+            raise ValueError(
+                f"get_mech_rules_dict: cannot inherit from invalid origin type: {origin_type}"
+            )
+    return rules_dict
 
 
 def get_node_attribute(name, content, sec, secnodes, x=None):

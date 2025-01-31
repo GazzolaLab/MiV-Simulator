@@ -17,6 +17,7 @@ class ClampShow(Component):
         area_id: Optional[str] = None
         stimulus_id: Optional[str] = None
         templates: str = "templates"
+        mechanisms_path: str = "."
         dataset_path: Optional[str] = None
         spike_events_path: Optional[str] = None
         spike_events_namespace: str = "Spike Events"
@@ -40,6 +41,7 @@ class ClampShow(Component):
             arena_id=self.config.arena_id,
             stimulus_id=self.config.stimulus_id,
             template_paths=self.config.templates,
+            mechanisms_path=self.config.mechanisms_path,
             dataset_prefix=self.config.dataset_path,
             results_path=self.local_directory("data/results", create=True),
             spike_events_path=self.config.spike_events_path,
