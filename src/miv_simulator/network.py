@@ -114,7 +114,6 @@ def connect_cells(env: Env) -> None:
         logger.info(f"*** Connectivity file path is {connectivity_file_path}")
         logger.info("*** Reading projections: ")
 
-    biophys_cell_count = 0
     for postsyn_name, presyn_names in sorted(env.projection_dict.items()):
         if rank == 0:
             logger.info(f"*** Reading projections of population {postsyn_name}")
@@ -522,7 +521,6 @@ def connect_cell_selection(env):
     connectivity_file_path = env.connectivity_file_path
     forest_file_path = env.forest_file_path
     rank = int(env.pc.id())
-    nhosts = int(env.pc.nhost())
     syn_attrs = env.synapse_attributes
 
     if rank == 0:
@@ -744,10 +742,6 @@ def connect_cell_selection(env):
                 f"Rank {rank}: took {time.time() - last_time:.02f} s to configure {syn_count} synapses, {mech_count} synaptic mechanisms, "
                 f"{nc_count} network connections for gid {gid}; cleanup flag is {env.cleanup}"
             )
-            hoc_cell = env.pc.gid2cell(gid)
-        #            if hasattr(hoc_cell, "all"):
-        #                for sec in list(hoc_cell.all):
-        #                    logger.info(pprint.pformat(sec.psection()))
 
         if gid in env.recording_sets.get(pop_name, {}):
             cells.record_cell(env, pop_name, gid)
@@ -768,9 +762,6 @@ def connect_gjs(env: Env) -> None:
 
     """
     rank = int(env.pc.id())
-    nhosts = int(env.pc.nhost())
-
-    dataset_path = os.path.join(env.dataset_prefix, env.datasetName)
 
     gapjunctions = env.gapjunctions
     gapjunctions_file_path = env.gapjunctions_file_path
@@ -792,7 +783,6 @@ def connect_gjs(env: Env) -> None:
             prj = graph[name[0]][name[1]]
             attrmap = a[(name[1], name[0])]
             cc_src_idx = attrmap["Coupling strength"]["Source"]
-            cc_dst_idx = attrmap["Coupling strength"]["Destination"]
             dstsec_idx = attrmap["Location"]["Destination section"]
             dstpos_idx = attrmap["Location"]["Destination position"]
             srcsec_idx = attrmap["Location"]["Source section"]
@@ -804,7 +794,6 @@ def connect_gjs(env: Env) -> None:
                 cc_dict = edges[1]["Coupling strength"]
                 loc_dict = edges[1]["Location"]
                 srcweights = cc_dict[cc_src_idx]
-                dstweights = cc_dict[cc_dst_idx]
                 dstposs = loc_dict[dstpos_idx]
                 dstsecs = loc_dict[dstsec_idx]
                 srcposs = loc_dict[srcpos_idx]
@@ -824,7 +813,7 @@ def connect_gjs(env: Env) -> None:
                                 % (rank, src, srcsec, wgt, ggid, ggid + 1)
                             )
                         cell = env.pc.gid2cell(src)
-                        gj = neuron_utils.mkgap(
+                        neuron_utils.mkgap(
                             env, cell, src, srcpos, srcsec, ggid, ggid + 1, wgt
                         )
                     if env.pc.gid_exists(dst):
@@ -835,7 +824,7 @@ def connect_gjs(env: Env) -> None:
                                 % (rank, dst, dstsec, wgt, ggid + 1, ggid)
                             )
                         cell = env.pc.gid2cell(dst)
-                        gj = neuron_utils.mkgap(
+                        neuron_utils.mkgap(
                             env, cell, dst, dstpos, dstsec, ggid + 1, ggid, wgt
                         )
                     ggid = ggid + 2
@@ -860,7 +849,6 @@ def make_cells(env: Env) -> None:
     :param env: an instance of the `miv_simulator.Env` class
     """
     rank = int(env.pc.id())
-    nhosts = int(env.pc.nhost())
 
     recording_seed = int(
         env.model_config["Random Seeds"]["Intracellular Recording Sample"]
@@ -868,7 +856,6 @@ def make_cells(env: Env) -> None:
     ranstream_recording = np.random.RandomState()
     ranstream_recording.seed(recording_seed)
 
-    dataset_path = env.dataset_path
     data_file_path = env.data_file_path
     pop_names = sorted(env.celltypes.keys())
 
@@ -884,13 +871,10 @@ def make_cells(env: Env) -> None:
                 f"population attributes are {env.cell_attribute_info[pop_name]}"
             )
 
-
         ## Determine template name for this cell type
         template_name = env.celltypes[pop_name].get("template", None)
 
-        template_class = neuron_utils.load_cell_template(
-            env, pop_name, bcast_template=True
-        )
+        neuron_utils.load_cell_template(env, pop_name, bcast_template=True)
 
         mech_dict = None
         mech_file_path = None
@@ -1060,7 +1044,6 @@ def make_cell_selection(env):
     rank = int(env.pc.id())
     nhosts = int(env.pc.nhost())
 
-    dataset_path = env.dataset_path
     data_file_path = env.data_file_path
 
     pop_names = sorted(env.cell_selection.keys())
@@ -1100,14 +1083,13 @@ def make_cell_selection(env):
             for i, (gid, tree) in enumerate(trees):
                 if rank == 0:
                     logger.info(f"*** Creating {pop_name} gid {gid}")
-                if first_gid == None:
+                if first_gid is None:
                     first_gid = gid
 
                 if template_class is None:
                     cell = cells.make_biophys_cell(
                         gid=gid,
                         pop_name=pop_name,
-                        hoc_cell=hoc_cell,
                         env=env,
                         tree_dict=tree,
                         mech_dict=mech_dict,
@@ -1117,7 +1099,7 @@ def make_cell_selection(env):
                     hoc_cell = cells.make_hoc_cell(
                         env, pop_name, gid, neurotree_dict=tree
                     )
-                    if mech_file_path is None:
+                    if mech_dict is None:
                         cell = hoc_cell
                     else:
                         cell = cells.make_biophys_cell(
@@ -1146,7 +1128,7 @@ def make_cell_selection(env):
 
                 if rank == 0 and gid == first_gid:
                     logger.info(
-                        f"*** make_cell_selection: population: {pop_name}; gid: {gid}; loaded biophysics from path: {mech_file_path}"
+                        f"*** make_cell_selection: population: {pop_name}; gid: {gid}"
                     )
 
                 soma_xyz = cells.get_soma_xyz(tree, env.SWC_Types)
@@ -1188,42 +1170,18 @@ def make_cell_selection(env):
                     logger.info(f"*** Creating {pop_name} gid {gid}")
 
                 cell = None
-                if is_SC:
-                    cell = cells.make_SC_cell(
-                        gid=gid,
-                        pop_name=pop_name,
-                        env=env,
-                        param_dict=mech_dict,
-                    )
-                    cells.register_cell(env, pop_name, gid, SC_cell)
-                elif is_PR:
-                    cell = cells.make_PR_cell(
-                        gid=gid,
-                        pop_name=pop_name,
-                        env=env,
-                        param_dict=mech_dict,
-                    )
-                    cells.register_cell(env, pop_name, gid, PR_cell)
-                elif is_BRK:
-                    cell = cells.make_BRK_cell(
-                        gid=gid,
-                        pop_name=pop_name,
-                        env=env,
-                        param_dict=mech_dict,
-                    )
+                hoc_cell = cells.make_hoc_cell(env, pop_name, gid)
+                if mech_dict is None:
+                    cell = hoc_cell
                 else:
-                    hoc_cell = cells.make_hoc_cell(env, pop_name, gid)
-                    if mech_file_path is None:
-                        cell = hoc_cell
-                    else:
-                        cell = cells.make_biophys_cell(
-                            gid=gid,
-                            pop_name=pop_name,
-                            hoc_cell=hoc_cell,
-                            env=env,
-                            tree_dict=tree,
-                            mech_dict=mech_dict,
-                        )
+                    cell = cells.make_biophys_cell(
+                        gid=gid,
+                        pop_name=pop_name,
+                        hoc_cell=hoc_cell,
+                        env=env,
+                        tree_dict=tree,
+                        mech_dict=mech_dict,
+                    )
 
                 cell_x = cell_coords_tuple[x_index][0]
                 cell_y = cell_coords_tuple[y_index][0]
@@ -1345,11 +1303,9 @@ def init_input_cells(env: Env) -> None:
     """
 
     rank = int(env.pc.id())
-    nhosts = int(env.pc.nhost())
     if rank == 0:
         logger.info(f"*** Stimulus onset is {env.stimulus_onset} ms")
 
-    dataset_path = env.dataset_path
     input_file_path = env.data_file_path
 
     pop_names = sorted(env.celltypes.keys())
@@ -1638,7 +1594,7 @@ def init(env: Env, subworld_size: Optional[int] = None) -> None:
     assert env.data_file_path
     assert env.connectivity_file_path
     rank = int(env.pc.id())
-    nhosts = int(env.pc.nhost())
+
     if env.optldbal or env.optlptbal:
         lb = h.LoadBalance()
         if not os.path.isfile("mcomplex.dat"):
@@ -1925,7 +1881,6 @@ def run(
     cwtime = comptime + env.pc.step_wait()
     maxcw = env.pc.allreduce(cwtime, 2)
     meancomp = env.pc.allreduce(comptime, 1) / nhosts
-    maxcomp = env.pc.allreduce(comptime, 2)
 
     gjtime = env.pc.vtransfer_time()
 
