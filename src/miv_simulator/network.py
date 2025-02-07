@@ -326,7 +326,7 @@ def connect_cells(env: Env) -> None:
 
         env.edge_count[postsyn_name] = 0
         for presyn_name in presyn_names:
-            env.comm.barrier()
+            env.pc.barrier()
             if rank == 0:
                 logger.info(
                     f"Rank {rank}: Reading projection {presyn_name} -> {postsyn_name}"
@@ -384,12 +384,6 @@ def connect_cells(env: Env) -> None:
                     first_gid = gid
                 try:
                     biophys_cell = env.biophys_cells[postsyn_name][gid]
-                    cells.init_biophysics(
-                        biophys_cell,
-                        env=env,
-                        reset_cable=True,
-                        verbose=((rank == 0) and (first_gid == gid)),
-                    )
                     synapses.init_syn_mech_attrs(biophys_cell, env)
                 except KeyError:
                     raise KeyError(
@@ -705,12 +699,6 @@ def connect_cell_selection(env):
                 try:
                     if syn_attrs.has_gid(gid):
                         biophys_cell = env.biophys_cells[postsyn_name][gid]
-                        cells.init_biophysics(
-                            biophys_cell,
-                            reset_cable=True,
-                            env=env,
-                            verbose=((rank == 0) and (first_gid == gid)),
-                        )
                         synapses.init_syn_mech_attrs(biophys_cell, env)
                 except KeyError:
                     raise KeyError(
@@ -887,6 +875,8 @@ def make_cells(env: Env) -> None:
     if rank == 0:
         logger.info(f"Population attributes: {pprint.pformat(env.cell_attribute_info)}")
     for pop_name in pop_names:
+        env.pc.barrier()
+
         if rank == 0:
             logger.info(f"*** Creating population {pop_name}")
             logger.info(
@@ -894,8 +884,13 @@ def make_cells(env: Env) -> None:
                 f"population attributes are {env.cell_attribute_info[pop_name]}"
             )
 
+
         ## Determine template name for this cell type
         template_name = env.celltypes[pop_name].get("template", None)
+
+        template_class = neuron_utils.load_cell_template(
+            env, pop_name, bcast_template=True
+        )
 
         mech_dict = None
         mech_file_path = None
@@ -928,6 +923,7 @@ def make_cells(env: Env) -> None:
                     io_size=env.io_size,
                     node_allocation=env.node_allocation,
                 )
+
             if rank == 0:
                 logger.info(f"*** Done reading trees for population {pop_name}")
 
@@ -960,12 +956,7 @@ def make_cells(env: Env) -> None:
                 if reduced_cons is not None:
                     soma_xyz = cells.get_soma_xyz(tree, env.SWC_Types)
                     cell.position(soma_xyz[0], soma_xyz[1], soma_xyz[2])
-                if rank == 0 and first_gid == gid:
-                    if hasattr(cell, "hoc_cell"):
-                        hoc_cell = cell.hoc_cell
-                #                        if hasattr(hoc_cell, "all"):
-                #                            for sec in list(hoc_cell.all):
-                #                                logger.info(pprint.pformat(sec.psection()))
+
                 cells.register_cell(env, pop_name, gid, cell)
                 num_cells += 1
             del trees
