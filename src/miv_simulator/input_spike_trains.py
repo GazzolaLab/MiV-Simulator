@@ -254,7 +254,7 @@ def generate_input_spike_trains(
             valid_selectivity_namespaces[population] = []
             with h5py.File(selectivity_path, "r") as selectivity_f:
                 for this_namespace in selectivity_f["Populations"][population]:
-                    if f"Selectivity {arena_id}" in this_namespace:
+                    if f"{selectivity_namespace} {arena_id}" == this_namespace:
                         valid_selectivity_namespaces[population].append(this_namespace)
                 if len(valid_selectivity_namespaces[population]) == 0:
                     raise RuntimeError(
@@ -269,7 +269,9 @@ def generate_input_spike_trains(
 
     equilibrate = stimulus.get_equilibration(env)
 
-    logger.info(f"trajectories: {arena.trajectories}")
+    if rank == 0:
+        logger.info(f"valid selectivity name spaces: {valid_selectivity_namespaces}")
+        logger.info(f"trajectories: {arena.trajectories}")
     for trajectory_id in sorted(arena.trajectories.keys()):
         trajectory = arena.trajectories[trajectory_id]
         t, x, y, d = None, None, None, None

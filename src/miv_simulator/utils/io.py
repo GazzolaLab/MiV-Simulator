@@ -3,8 +3,6 @@ from typing import Any, List, Optional, Union, Dict, Tuple
 import gc
 import pathlib
 import os
-import shlex
-import subprocess
 from collections import defaultdict
 from miv_simulator import config
 import h5py
@@ -251,7 +249,7 @@ def import_spikeraster(
             f"Saving spike data for population {pop_name} gid set {sorted(this_spk_dict.keys())}"
         )
         output_dict = {
-            gid: {"t": np.asarray(spk_ts, dtype=np.float32)}
+            gid: {"t": np.asarray(np.round(spk_ts, 6), dtype=np.float32)}
             for gid, spk_ts in this_spk_dict.items()
         }
 
@@ -438,7 +436,7 @@ def spikeout(
                         spkdict[gid] = {"t": [t]}
             for gid in spkdict:
                 is_artificial = gid in env.artificial_cells[pop_name]
-                spiketrain = np.array(spkdict[gid]["t"], dtype=np.float32)
+                spiketrain = np.array(np.round(spkdict[gid]["t"], 6), dtype=np.float32)
                 if gid in env.spike_onset_delay:
                     spiketrain -= env.spike_onset_delay[gid]
                 trial_bins = np.digitize(spiketrain, trial_time_bins) - 1
@@ -514,8 +512,8 @@ def recsout(
             attr_dict = defaultdict(lambda: {})
             for rec in recs:
                 gid = rec["gid"]
-                data_vec = np.array(rec["vec"], copy=clear_data, dtype=np.float32)
-                time_vec = np.array(t_rec, copy=clear_data, dtype=np.float32)
+                data_vec = np.array(np.round(rec["vec"], 6), dtype=np.float32)
+                time_vec = np.array(np.round(t_rec, 6), dtype=np.float32)
                 if t_start is not None:
                     time_inds = np.where(time_vec >= t_start)[0]
                     time_vec = time_vec[time_inds]
@@ -604,8 +602,8 @@ def lfpout(env: AbstractEnv, output_path: str):
 
         grp = output.create_group(namespace_id)
 
-        grp["t"] = np.asarray(lfp.t, dtype=np.float32)
-        grp["v"] = np.asarray(lfp.meanlfp, dtype=np.float32)
+        grp["t"] = np.asarray(np.round(lfp.t, 6), dtype=np.float32)
+        grp["v"] = np.asarray(np.round(lfp.meanlfp, 6), dtype=np.float32)
 
         output.close()
 

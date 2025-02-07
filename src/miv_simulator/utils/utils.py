@@ -432,6 +432,16 @@ def yaml_convert_scalars(data):
     return data
 
 
+def import_object_by_path(path):
+    module_path, _, obj_name = path.rpartition(".")
+
+    if module_path == "__main__" or module_path == "":
+        module = sys.modules["__main__"]
+    else:
+        module = importlib.import_module(module_path)
+    return getattr(module, obj_name)
+
+
 def is_iterable(obj):
     return isinstance(obj, Iterable)
 
@@ -850,7 +860,7 @@ def finalize_bins(bins, binsize):
     bin_ranges = [(int(min(ks)), int(max(ks))) for ks in bin_keys]
     dims = tuple((imax - imin + 1) for imin, imax in bin_ranges)
     if len(dims) > 1:
-        grid = sparse.dok_matrix(dims, dtype=np.int)
+        grid = sparse.dok_matrix(dims, dtype=int)
     else:
         grid = np.zeros(dims)
     bin_edges = [

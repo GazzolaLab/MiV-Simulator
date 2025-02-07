@@ -6,15 +6,14 @@ from miv_simulator.mechanisms import compile_and_load
 import numpy as np
 
 
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
-from miv_simulator.utils import AbstractEnv, get_module_logger
+from typing import Dict, List, Optional, Union
+from miv_simulator.utils import AbstractEnv, import_object_by_path, get_module_logger
 from neuron import h
 from nrn import Section
 from numpy import float64, uint32
 from scipy import interpolate
 
-if TYPE_CHECKING:
-    from neuron.hoc import HocObject
+from hoc import HocObject
 
 # This logger will inherit its settings from the root logger, created in miv_simulator.env
 logger = get_module_logger(__name__)
@@ -314,21 +313,30 @@ def load_cell_template(
     if pop_name not in env.celltypes:
         raise KeyError(f"load_cell_templates: unrecognized cell population: {pop_name}")
 
-    template_name = env.celltypes[pop_name]["template"]
+    template_name = env.celltypes[pop_name].get("template", None)
+    template_class = None
+    template_file = None
     if "template file" in env.celltypes[pop_name]:
         template_file = env.celltypes[pop_name]["template file"]
+    elif "template class" in env.celltypes[pop_name]:
+        template_class = import_object_by_path(
+            env.celltypes[pop_name]["template class"]
+        )
     else:
         template_file = None
-    if not hasattr(h, template_name):
-        find_template(
-            env,
-            template_name,
-            template_file=template_file,
-            path=env.template_paths,
-            bcast_template=bcast_template,
-        )
-    assert hasattr(h, template_name)
-    template_class = getattr(h, template_name)
+
+    if template_class is None and template_name is not None:
+        if not hasattr(h, template_name):
+            find_template(
+                env,
+                template_name,
+                template_file=template_file,
+                path=env.template_paths,
+                bcast_template=bcast_template,
+            )
+            assert hasattr(h, template_name)
+        template_class = getattr(h, template_name)
+
     env.template_dict[pop_name] = template_class
     return template_class
 
@@ -417,6 +425,13 @@ def configure_hoc_env(
     """
     :param env: :class:'Env'
     """
+    if env.use_coreneuron:
+        from neuron import coreneuron
+
+        coreneuron.enable = True
+        coreneuron.verbose = 1 if env.verbose else 0
+        if env.coreneuron_gpu:
+            coreneuron.gpu = True
     h.load_file("stdrun.hoc")
     h.load_file("loadbal.hoc")
     for template_dir in env.template_paths:
@@ -429,11 +444,7 @@ def configure_hoc_env(
     h("strdef dataset_path")
     if hasattr(env, "dataset_path"):
         h.dataset_path = env.dataset_path if env.dataset_path is not None else ""
-    if env.use_coreneuron:
-        from neuron import coreneuron
 
-        coreneuron.enable = True
-        coreneuron.verbose = 1 if env.verbose else 0
     h.pc = h.ParallelContext()
     if subworld_size is not None:
         h.pc.subworlds(subworld_size)

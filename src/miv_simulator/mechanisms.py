@@ -1,11 +1,10 @@
 import os
 import shutil
 from glob import glob
-import platform
 
 import subprocess
 from mpi4py import MPI
-from neuron import h
+from neuron import h, load_mechanisms
 import hashlib
 
 if hasattr(h, "nrnmpi_init"):
@@ -18,6 +17,7 @@ def compile(
     force: bool = False,
     recursive: bool = True,
     return_hash: bool = False,
+    coreneuron: bool = False,
 ) -> str:
     """
     Compile NEURON NMODL files
@@ -80,7 +80,10 @@ def compile(
                 with open(os.path.join(compiled, os.path.basename(m)), "w") as f:
                     f.write(data)
 
-            subprocess.run(["nrnivmodl"], cwd=compiled, check=True)
+            cmd = ["nrnivmodl"]
+            if coreneuron:
+                cmd = cmd + ["-coreneuron"]
+            subprocess.run(cmd, cwd=compiled, check=True)
         except subprocess.CalledProcessError:
             print("Compilation failed, reverting ...")
             shutil.rmtree(compiled, ignore_errors=True)
@@ -102,13 +105,14 @@ def load(directory: str, force: bool = False) -> str:
         # already loaded
         return _loaded[directory]
 
-    dll_path = os.path.join(
-        os.path.abspath(directory), platform.uname().machine, ".libs", "libnrnmech.so"
-    )
+    # dll_path = os.path.join(
+    #    os.path.abspath(directory), platform.uname().machine, ".libs", "libnrnmech.so"
+    # )
+    dll_path = os.path.abspath(directory)
     if not os.path.exists(dll_path):
         raise FileNotFoundError(f"{dll_path} does not exists.")
 
-    h(f'nrn_load_dll("{dll_path}")')
+    load_mechanisms(dll_path)
 
     _loaded[directory] = dll_path
 
@@ -120,6 +124,7 @@ def compile_and_load(
     output_path: str = "${source}/compiled",
     force: bool = False,
     recursive: bool = True,
+    coreneuron: bool = False,
     comm: MPI.Intracomm = MPI.COMM_WORLD,
 ) -> str:
     """
@@ -127,7 +132,7 @@ def compile_and_load(
     """
     rank = comm.rank
     if rank == 0:
-        compiled = compile(directory, output_path, force, recursive)
+        compiled = compile(directory, output_path, force, recursive, coreneuron)
     else:
         compiled = None
     comm.barrier()

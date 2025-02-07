@@ -51,7 +51,7 @@ logger = get_module_logger(__name__)
 default_fig_options = Struct(
     figFormat="png",
     lw=2,
-    figSize=(10, 8),
+    figSize=(8, 8),
     fontSize=14,
     saveFig=None,
     showFig=True,
@@ -851,6 +851,10 @@ def plot_spike_raster(
 
         pop_spkinds, pop_spkts = pop_spk_dict[pop_name]
 
+        logger.info(
+            f"population {pop_name}: spike counts: {np.unique(pop_spkinds, return_counts=True)}"
+        )
+
         if max_spikes is not None:
             if int(max_spikes) < len(pop_spkinds):
                 logger.info(
@@ -976,9 +980,9 @@ def plot_spike_raster(
                 f"{pop_name} ({info[0]:.02f}% active)"
                 for pop_name, info in zip_longest(spkpoplst, lgd_info)
             ]
-        for i, lgd_label in enumerate(lgd_labels):
+        for i, (pop_name, lgd_label) in enumerate(zip_longest(spkpoplst, lgd_labels)):
             at = AnchoredText(
-                pop_name + " " + lgd_label,
+                f"{pop_name} {lgd_label}",
                 loc="upper right",
                 borderpad=0.01,
                 prop=dict(size=fig_options.fontSize),
@@ -992,13 +996,14 @@ def plot_spike_raster(
                 continue
 
             if pop_rates:
-                label = f"{info[0]:.02f}%\n{info[1]:.2g} Hz"
+                label = f"\n({info[0]:.02f}% active;\n {info[1]:.3g} Hz)"
             else:
-                label = f"{info[0]:.02f}%\n"
+                label = f"\n({info[0]:.02f}% active)"
 
             maxN = max(pop_active_cells[pop_name])
             minN = min(pop_active_cells[pop_name])
             loc = pop_start_inds[pop_name] + 0.5 * (maxN - minN)
+            a.tick_params(axis="y", labelsize="x-small")
             a.set_yticks([loc, loc])
             a.set_yticklabels([pop_name, label])
             yticklabels = a.get_yticklabels()
@@ -3061,6 +3066,7 @@ def plot_single_vertex_dist(
         if fig_options.showFig:
             show_figure()
 
+        plt.tight_layout()
         if fig_options.saveFig:
             if isinstance(fig_options.saveFig, str):
                 filename = fig_options.saveFig

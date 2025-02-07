@@ -25,7 +25,7 @@ Given the x,y,z coordinates of your MEA electrodes, you can insert them into the
      ...
    }
 
-   "layer_extents": { 
+   "layer_extents": {
       "@callable": [      # extents definition
           [0.0, 0.0, 0.0],
           [200.0, 200.0, 150.0],

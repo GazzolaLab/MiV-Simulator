@@ -12,4 +12,3 @@ Geometry Modules
    point_fit
    rbf_surface
    rbf_volume
-

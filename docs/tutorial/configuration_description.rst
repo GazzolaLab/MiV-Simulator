@@ -1,8 +1,8 @@
 ******************
-YAML Configuration 
+YAML Configuration
 ******************
 
-The MiV-Simulator leverages a YAML-based configuration format to declaratively describe complex neural systems. The user-specified configuration files are used to generate concrete instantiations of the system used in the simulation. 
+The MiV-Simulator leverages a YAML-based configuration format to declaratively describe complex neural systems. The user-specified configuration files are used to generate concrete instantiations of the system used in the simulation.
 For example, a YAML user configuration may describe the number and distribution of neurons which is used during network construction to determine the exact sampled soma positions.
 
 The different configuration templates that are used for simulation construction are described below.

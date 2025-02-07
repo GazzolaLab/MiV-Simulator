@@ -1,7 +1,6 @@
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import collections
-import copy
 import os
 
 import networkx as nx
@@ -20,10 +19,9 @@ from miv_simulator.utils.neuron import (
     default_hoc_sec_lists,
     default_ordered_sec_types,
     h,
-    init_nseg,
     load_cell_template,
     make_rec,
-    reinit_diam,
+    HocObject,
 )
 from networkx.classes.digraph import DiGraph
 from neuroh5.io import (
@@ -33,9 +31,6 @@ from neuroh5.io import (
 )
 from nrn import Section
 from numpy import ndarray, uint32
-
-if TYPE_CHECKING:
-    from neuron.hoc import HocObject
 
 # This logger will inherit its settings from the root logger, created in env
 logger = get_module_logger(__name__)
@@ -645,7 +640,6 @@ class SCneuron:
 
         soma_node = insert_section_node(self, "soma", index=0, sec=SC_nrn.soma)
 
-        init_cable(self)
         init_spike_detector(self)
 
     def position(self, x, y, z):
@@ -710,21 +704,21 @@ class SCneuron:
 
 class BiophysCell:
     """
-    A Python wrapper for neuronal cell objects specified in the NEURON language hoc.
+    Representation of neuronal cell objects.
     """
 
     def __init__(
         self,
         gid: int,
         population_name: str,
-        hoc_cell: None = None,
+        hoc_cell: Optional[HocObject] = None,
+        cell_obj: Optional[object] = None,
         neurotree_dict: Optional[
             Dict[
                 str,
                 Union[ndarray, Dict[str, Union[int, Dict[int, ndarray], ndarray]]],
             ]
         ] = None,
-        mech_file_path: None = None,
         mech_dict: None = None,
         env: Optional[AbstractEnv] = None,
     ) -> None:
@@ -749,31 +743,37 @@ class BiophysCell:
                     raise AttributeError("Unexpected SWC Type definitions found in Env")
 
         self.nodes = {key: [] for key in default_ordered_sec_types}
-        self.mech_file_path = mech_file_path
         self.init_mech_dict = dict(mech_dict) if mech_dict is not None else None
         self.mech_dict = dict(mech_dict) if mech_dict is not None else None
         self.spike_detector = None
         self.spike_onset_delay = 0.0
+
         if hoc_cell is not None:
             import_morphology_from_hoc(self, hoc_cell)
+        elif cell_obj is not None:
+            import_morphology_from_obj(self, cell_obj)
         elif neurotree_dict is not None:
             hoc_cell, section_content = make_neurotree_hoc_cell(
                 self.template_class, gid, neurotree_dict, section_content=True
             )
             import_morphology_from_hoc(self, hoc_cell, section_content=section_content)
-        if (mech_dict is None) and (mech_file_path is not None):
-            import_mech_dict_from_file(self, self.mech_file_path)
-        elif mech_dict is None:
+
+        if mech_dict is None:
             # Allows for a cell to be created and for a new mech_dict to be constructed programmatically from scratch
             self.init_mech_dict = dict()
             self.mech_dict = dict()
         self.hoc_cell = hoc_cell
+        self.cell_obj = cell_obj
         self.root = None
         sorted_nodes = list(nx.topological_sort(self.tree))
         if len(sorted_nodes) > 0:
             self.root = sorted_nodes[0]
+        self.sections = None
+        if (hoc_cell is not None) and hasattr(hoc_cell, "sections"):
+            self.sections = hoc_cell.sections
+        if (cell_obj is not None) and hasattr(cell_obj, "sections"):
+            self.sections = cell_obj.sections
 
-        init_cable(self)
         init_spike_detector(self)
 
     @property
@@ -823,7 +823,11 @@ class BiophysCell:
     @property
     def is_reduced(self):
         if self.hoc_cell is not None:
-            return getattr(self.hoc_cell, "is_reduced", False)
+            is_reduced = getattr(self.hoc_cell, "is_reduced", None)
+            return (is_reduced is not None) and is_reduced()
+        elif self.cell_obj is not None:
+            is_reduced = getattr(self.cell_obj, "is_reduced", None)
+            return (is_reduced is not None) and is_reduced()
         else:
             return False
 
@@ -965,6 +969,56 @@ def connect_nodes(
     return tree
 
 
+def import_morphology_from_obj(
+    cell: BiophysCell,
+    cell_obj: object,
+    section_content: Optional[Dict[int, Dict[str, ndarray]]] = None,
+) -> None:
+    """
+    Append sections from an existing instance of a NEURON cell object template to a Python cell wrapper.
+    :param cell: :class:'BiophysCell'
+    :param cell_obj: :class:'hocObject': instance of a NEURON cell object
+
+    """
+    sec_info_dict = {}
+    root_sec = None
+    for sec_type, sec_index_list in default_hoc_sec_lists.items():
+        sec_attr_name = f"{sec_type}_list"
+        if not hasattr(cell_obj, sec_attr_name):
+            sec_attr_name = sec_type
+        if hasattr(cell_obj, sec_attr_name) and (
+            getattr(cell_obj, sec_attr_name) is not None
+        ):
+            sec_attr = getattr(cell_obj, sec_attr_name)
+            if isinstance(sec_attr, Section):
+                sec_list = [sec_attr]
+            else:
+                sec_list = list(sec_attr)
+            if hasattr(cell_obj, sec_index_list):
+                sec_indexes = list(getattr(cell_obj, sec_index_list))
+            else:
+                sec_indexes = list(range(len(sec_list)))
+            if sec_type == "soma":
+                root_sec = sec_list[0]
+            for sec, index in zip(sec_list, sec_indexes):
+                if section_content is not None:
+                    sec_info_dict[sec] = {
+                        "section_type": sec_type,
+                        "section_index": int(index),
+                        "section_content": section_content[index],
+                    }
+                else:
+                    sec_info_dict[sec] = {
+                        "section_type": sec_type,
+                        "section_index": int(index),
+                    }
+
+    if root_sec:
+        insert_section_tree(cell, [root_sec], sec_info_dict)
+    else:
+        raise RuntimeError("import_morphology_from_hoc: unable to locate root section")
+
+
 def import_morphology_from_hoc(
     cell: BiophysCell,
     hoc_cell: "HocObject",
@@ -1011,56 +1065,21 @@ def import_morphology_from_hoc(
         raise RuntimeError("import_morphology_from_hoc: unable to locate root section")
 
 
-def import_mech_dict_from_file(cell, mech_file_path=None):
+def import_mech_dict_from_file(mech_file_path):
     """
     Imports from a .yaml file a dictionary specifying parameters of NEURON cable properties, density mechanisms, and
     point processes for each type of section in a BiophysCell.
-    :param cell: :class:'BiophysCell'
     :param mech_file_path: str (path)
     """
     if mech_file_path is None:
-        if cell.mech_file_path is None:
-            raise ValueError("import_mech_dict_from_file: missing mech_file_path")
-        elif not os.path.isfile(cell.mech_file_path):
-            raise OSError(
-                "import_mech_dict_from_file: invalid mech_file_path: %s"
-                % cell.mech_file_path
-            )
-    elif not os.path.isfile(mech_file_path):
+        raise ValueError("import_mech_dict_from_file: missing mech_file_path")
+    elif not os.path.isfile(cell.mech_file_path):
         raise OSError(
-            f"import_mech_dict_from_file: invalid mech_file_path: {mech_file_path}"
+            "import_mech_dict_from_file: invalid mech_file_path: %s"
+            % cell.mech_file_path
         )
-    else:
-        cell.mech_file_path = mech_file_path
-    cell.init_mech_dict = read_from_yaml(cell.mech_file_path)
-    cell.mech_dict = copy.deepcopy(cell.init_mech_dict)
-
-
-def init_cable(cell: Union[BiophysCell, SCneuron], verbose: bool = False) -> None:
-    for sec_type in cell.nodes:
-        for node in cell.nodes[sec_type]:
-            reset_cable_by_node(cell, node, verbose=verbose)
-
-
-def reset_cable_by_node(
-    cell: Union[BiophysCell, SCneuron], node: SectionNode, verbose: bool = True
-) -> None:
-    """
-    Consults a dictionary specifying parameters of NEURON cable properties such as axial resistance ('Ra'),
-    membrane specific capacitance ('cm'), and a spatial resolution parameter to specify the number of separate
-    segments per section in a BiophysCell
-    :param cell: :class:'BiophysCell'
-    :param node_index: int
-    :param verbose: bool
-    """
-    sec_type = node.section_type
-    if sec_type in cell.mech_dict and "cable" in cell.mech_dict[sec_type]:
-        mech_content = cell.mech_dict[sec_type]["cable"]
-        if mech_content is not None:
-            update_mechanism_by_node(cell, node, "cable", mech_content, verbose=verbose)
-    else:
-        init_nseg(node.section, verbose=verbose)
-        reinit_diam(node.section, node.diam_bounds)
+    mech_dict = read_from_yaml(cell.mech_file_path)
+    return mech_dict
 
 
 def connect2target(
@@ -1174,163 +1193,6 @@ def init_spike_detector(
     return cell.spike_detector
 
 
-def update_biophysics_by_sec_type(
-    cell: BiophysCell,
-    sec_type: str,
-    reset_cable: bool = False,
-    verbose: bool = False,
-) -> None:
-    """
-    This method loops through all sections of the specified type, and consults the mechanism dictionary to update
-    mechanism properties. If the reset_cable flag is True, cable parameters are re-initialized first, then the
-    ion channel mechanisms are updated.
-
-    :param cell: :class:'BiophysCell'
-    :param sec_type: str
-    :param reset_cable: bool
-    """
-    if sec_type in cell.nodes:
-        if reset_cable:
-            # cable properties must be set first, as they can change nseg, which will affect insertion of membrane
-            # mechanism gradients
-            for node in cell.nodes[sec_type]:
-                reset_cable_by_node(cell, node, verbose=verbose)
-        if sec_type in cell.mech_dict:
-            for node in cell.nodes[sec_type]:
-                for mech_name in (
-                    mech_name
-                    for mech_name in cell.mech_dict[sec_type]
-                    if mech_name not in ["cable", "synapses"]
-                ):
-                    update_mechanism_by_node(
-                        cell,
-                        node,
-                        mech_name,
-                        cell.mech_dict[sec_type][mech_name],
-                    )
-
-
-def update_mechanism_by_node(
-    cell: BiophysCell,
-    node: SectionNode,
-    mech_name: str,
-    mech_content: Optional[Dict[str, Union[Dict[str, float], Dict[str, int]]]] = None,
-    verbose: bool = True,
-) -> None:
-    """
-    This method loops through all the parameters for a single mechanism specified in the mechanism dictionary and
-    calls apply_mech_rules to interpret the rules and set the values for the given node.
-    :param cell: :class:'BiophysCell'
-    :param node: :class:'SectionNode'
-    :param mech_name: str
-    :param mech_content: list of dict
-    :param verbose: bool
-    """
-    if mech_content is not None:
-        # process either a dict specifying rules for a single parameter
-        if isinstance(mech_content, dict):
-            point_process_loc = mech_content.get("loc", None)
-            for param_name in mech_content:
-                if param_name != "loc":
-                    apply_mech_rules(
-                        cell,
-                        node,
-                        mech_name,
-                        param_name,
-                        mech_content[param_name],
-                        point_process_loc=point_process_loc,
-                        verbose=verbose,
-                    )
-        else:
-            raise RuntimeError(
-                "update_mechanism_by_node: unknown mechanism rule structure"
-            )
-
-    else:
-        node.section.insert(mech_name)
-
-
-def apply_mech_rules(
-    cell: BiophysCell,
-    node: SectionNode,
-    mech_name: str,
-    param_name: str,
-    rules: Dict[str, Union[int, float]],
-    point_process_loc: Optional[float] = None,
-    verbose: bool = True,
-) -> None:
-    """
-    Provided a membrane density mechanism, a parameter, a node, and a dict of rules, interprets the provided rules,
-    and applies resulting parameter values to mechanisms in the corresponding section.
-
-    :param cell: :class:'BiophysCell'
-    :param node: :class:'SectionNode'
-    :param mech_name: str
-    :param param_name: str
-    :param rules: dict
-    :param point_process_loc: location in section if mechanism is a point process
-    :param verbose: bool
-    """
-    baseline = rules.get("value", None)
-    if mech_name == "cable":
-        setattr(node.sec, param_name, baseline)
-        init_nseg(node.section, verbose=verbose)
-        reinit_diam(node.section, node.diam_bounds)
-    else:
-        set_mech_param(
-            cell,
-            node,
-            mech_name,
-            param_name,
-            baseline,
-            rules,
-            point_process_loc=point_process_loc,
-        )
-
-
-def set_mech_param(
-    cell: BiophysCell,
-    node: SectionNode,
-    mech_name: str,
-    param_name: str,
-    baseline: Union[int, float],
-    rules: Dict[str, Union[int, float]],
-    point_process_loc: Optional[float] = None,
-) -> None:
-    """
-
-    :param node: :class:'SectionNode'
-    :param mech_name: str
-    :param param_name: str
-    :param baseline: float
-    :param rules: dict
-    """
-    if point_process_loc is not None:
-        pp_dict = node.content.get(mech_name, None)
-        if pp_dict is None:
-            pp_dict = {}
-            node.content[mech_name] = pp_dict
-        pp = pp_dict.get(point_process_loc, None)
-        if pp is None:
-            pp = getattr(h, mech_name)(node.sec(point_process_loc))
-            pp_dict[point_process_loc] = pp
-            hoc_cell = getattr(cell, "hoc_cell", None)
-            if hoc_cell is not None:
-                pps = getattr(hoc_cell, "pps", None)
-                if pps is not None:
-                    pps.append(pp)
-        setattr(pp, param_name, baseline)
-    else:
-        try:
-            node.sec.insert(mech_name)
-        except Exception:
-            raise RuntimeError(
-                f"set_mech_param: unable to insert mechanism: {mech_name} cell: {cell} "
-                f"in sec_type: {node.section_type}"
-            )
-        setattr(node.sec, f"{param_name}_{mech_name}", baseline)
-
-
 def filter_nodes(
     cell: BiophysCell,
     sections: None = None,
@@ -1363,34 +1225,6 @@ def filter_nodes(
     result = [v for v in nodes if matches([(layers, v.get_layer()), (sections, v.sec)])]
 
     return result
-
-
-def get_mech_rules_dict(cell, **rules):
-    """
-    Used by modify_mech_param. Takes in a series of arguments and constructs a validated rules dictionary that will be
-    used to update a cell's mechanism dictionary.
-    :param cell: :class:'BiophysCell'
-    :param rules: dict
-    :return: dict
-    """
-    rules_dict = {
-        name: rules[name]
-        for name in (
-            name
-            for name in ["value", "origin"]
-            if name in rules and rules[name] is not None
-        )
-    }
-    if "origin" in rules_dict:
-        origin_type = rules_dict["origin"]
-        valid_sec_types = [
-            sec_type for sec_type in cell.nodes if len(cell.nodes[sec_type]) > 0
-        ]
-        if origin_type not in valid_sec_types + ["parent", "branch_origin"]:
-            raise ValueError(
-                f"get_mech_rules_dict: cannot inherit from invalid origin type: {origin_type}"
-            )
-    return rules_dict
 
 
 def report_topology(
@@ -1885,38 +1719,6 @@ def init_circuit_context(
             raise Exception
 
 
-def init_biophysics(
-    cell: Union[BiophysCell, SCneuron],
-    env: Optional[AbstractEnv] = None,
-    reset_cable: bool = True,
-    reset_mech_dict: bool = False,
-    verbose: bool = True,
-) -> None:
-    """
-    Consults a dictionary specifying parameters of NEURON cable properties, density mechanisms, and point processes for
-    each type of section in a BiophysCell. Traverses through the tree of SHocNode nodes following order of inheritance.
-    Sets membrane mechanism parameters, including gradients and inheritance of parameters from nodes along the path from
-    root. Warning! Do not reset cable after inserting synapses!
-    :param cell: :class:'BiophysCell'
-    :param env: :class:'Env'
-    :param reset_cable: bool
-    :param reset_mech_dict: bool
-    :param verbose: bool
-    """
-
-    if reset_mech_dict:
-        cell.mech_dict = copy.deepcopy(cell.init_mech_dict)
-    if reset_cable:
-        for sec_type in default_ordered_sec_types:
-            if sec_type in cell.mech_dict and sec_type in cell.nodes:
-                for node in cell.nodes[sec_type]:
-                    reset_cable_by_node(cell, node, verbose=verbose)
-    for sec_type in default_ordered_sec_types:
-        if sec_type in cell.mech_dict and sec_type in cell.nodes:
-            if cell.nodes[sec_type]:
-                update_biophysics_by_sec_type(cell, sec_type)
-
-
 def make_biophys_cell(
     env: AbstractEnv,
     population_name: str,
@@ -1949,6 +1751,8 @@ def make_biophys_cell(
     set_edge_delays: bool = True,
     bcast_template: bool = True,
     validate_tree: bool = True,
+    hoc_cell: Optional[HocObject] = None,
+    cell_obj: Optional[object] = None,
     **kwargs,
 ) -> BiophysCell:
     """
@@ -1965,8 +1769,6 @@ def make_biophys_cell(
     :param mech_file_path: str (path)
     :return: :class:'BiophysCell'
     """
-    load_cell_template(env, population_name, bcast_template=bcast_template)
-
     if tree_dict is None:
         tree_attr_iter, _ = read_tree_selection(
             env.data_file_path,
@@ -1978,17 +1780,31 @@ def make_biophys_cell(
         )
         _, tree_dict = next(tree_attr_iter)
 
-    hoc_cell = make_hoc_cell(env, population_name, gid, neurotree_dict=tree_dict)
+    if (mech_dict is None) and (mech_file_path is not None):
+        mech_dict = import_mech_dict_from_file(mech_file_path)
+
+    if cell_obj is None and hoc_cell is None:
+        template_class = load_cell_template(
+            env, population_name, bcast_template=bcast_template
+        )
+
+        if isinstance(template_class, HocObject):
+            hoc_cell = make_hoc_cell(
+                env, population_name, gid, neurotree_dict=tree_dict
+            )
+        else:
+            cell_obj = template_class(params=mech_dict)
 
     cell = BiophysCell(
         env=env,
         gid=gid,
         population_name=population_name,
         hoc_cell=hoc_cell,
+        cell_obj=cell_obj,
         neurotree_dict=tree_dict,
-        mech_file_path=mech_file_path,
         mech_dict=mech_dict,
     )
+
     circuit_flag = (
         load_edges
         or load_weights
@@ -2335,20 +2151,26 @@ def register_cell(
     rank = env.comm.rank
     env.gidset.add(gid)
     env.pc.set_gid2node(gid, rank)
-    hoc_cell = getattr(cell, "hoc_cell", cell)
-    env.cells[pop_name][gid] = hoc_cell
-    if hoc_cell.is_art() > 0:
-        env.artificial_cells[pop_name][gid] = hoc_cell
+
+    cell_obj = getattr(cell, "hoc_cell", None)
+    if cell_obj is None:
+        cell_obj = getattr(cell, "cell_obj", cell)
+
+    env.cells[pop_name][gid] = cell_obj
+    if cell_obj.is_art() > 0:
+        env.artificial_cells[pop_name][gid] = cell_obj
     # Tell the ParallelContext that this cell is a spike source
     # for all other hosts. NetCon is temporary.
     nc = getattr(cell, "spike_detector", None)
+
     if nc is None:
-        if hasattr(cell, "connect2target"):
-            nc = hoc_cell.connect2target(h.nil)
+        if hasattr(cell_obj, "connect2target"):
+            nc = cell_obj.connect2target(h.nil)
         elif cell.is_art() > 0:
-            nc = h.NetCon(cell, None)
+            nc = h.NetCon(cell_obj, None)
         else:
             raise RuntimeError("register_cell: unknown cell type")
+    assert nc is not None, f"register_cell spike source netcon for gid {gid} is None"
     nc.delay = max(2 * env.dt, nc.delay)
     env.pc.cell(gid, nc, 1)
     env.pc.outputcell(gid)
@@ -2413,7 +2235,11 @@ def record_cell(
                             rec_id,
                             pop_name,
                             gid,
-                            cell.hoc_cell,
+                            (
+                                cell.hoc_cell
+                                if cell.hoc_cell is not None
+                                else cell.cell_obj
+                            ),
                             sec=sec,
                             dt=dt,
                             loc=locdict[node.section_type],
@@ -2454,7 +2280,11 @@ def record_cell(
                                 rec_id,
                                 pop_name,
                                 gid,
-                                cell.hoc_cell,
+                                (
+                                    cell.hoc_cell
+                                    if cell.hoc_cell is not None
+                                    else cell.cell_obj
+                                ),
                                 ps=pps,
                                 dt=dt,
                                 param=recvar,
@@ -2483,4 +2313,6 @@ default_reduced_cell_constructors = {
 
 
 def get_reduced_cell_constructor(template_name):
+    if template_name is None:
+        return None
     return default_reduced_cell_constructors.get(template_name.lower(), None)
