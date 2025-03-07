@@ -851,6 +851,11 @@ class SynapseAttributes:
             delays = [2.0 * h.dt] * len(edge_syn_ids)
         syn_id_dict = self.syn_id_attr_dict[gid]
 
+        if gid == 317742:
+            logger.info(f"gid {gid}:"
+                        f" length of edge_syn_ids: {len(edge_syn_ids)}"
+                        f" length of presyn_gids: {len(presyn_gids)}")
+
         for edge_syn_id, presyn_gid, delay in zip_longest(
             edge_syn_ids, presyn_gids, delays
         ):
@@ -859,6 +864,9 @@ class SynapseAttributes:
                 raise RuntimeError(
                     f"init_edge_attrs: gid {gid}: synapse id {edge_syn_id} has not been initialized"
                 )
+
+            if gid == 317742:
+                logger.info(f"gid {gid}: initializing synapse {edge_syn_id} presyn gid: {presyn_gid}")
 
             if syn.source.gid is not None:
                 raise RuntimeError(
@@ -1712,7 +1720,7 @@ def insert_cell_syns(
         syn = syn_id_attr_dict[syn_id]
         swc_type = syn.swc_type
         swc_type_name = swc_name_dict[swc_type]
-        syn_loc = syn.syn_loc
+        syn_loc = np.clip(syn.syn_loc, 0.05, 0.95)
         syn_section = syn.syn_section
         syn_layer = syn.syn_layer
         syn_layer_name = layer_name_dict[syn_layer]
