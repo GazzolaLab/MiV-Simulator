@@ -39,6 +39,7 @@ from miv_simulator.utils.neuron import (
     default_ordered_sec_types,
     interplocs,
     mknetcon,
+    mknetcon_vecstim,
 )
 from neuroh5.io import write_cell_attributes
 from neuron import h
@@ -170,8 +171,6 @@ def synapse_seg_density(
         total_seg_density = 0.0
         for sec_index, seg_list in seg_dict.items():
             for seg in seg_list:
-                L = seg.sec.L
-                nseg = seg.sec.nseg
                 if neurotree_dict is not None:
                     secnodes = secnodes_dict[sec_index]
                     layer = get_node_attribute(
@@ -286,9 +285,9 @@ def synapse_seg_counts(
                 else:
                     ran = None
                 if ran is not None:
-                    l = L / nseg
+                    pos = L / nseg
                     dens = ran.normal(density_dict["mean"], density_dict["variance"])
-                    rc = dens * l
+                    rc = dens * pos
                     segcount_total += rc
                     segcounts.append(rc)
                 else:
@@ -331,7 +330,6 @@ def distribute_uniform_synapses(
     syn_index = 0
 
     r = np.random.RandomState()
-    local_random.seed(int(seed))
 
     sec_interp_loc_dict = {}
     segcounts_per_sec = {}
@@ -343,7 +341,6 @@ def distribute_uniform_synapses(
         (seclst, maxdist) = cell_sec_dict[sec_name]
         secidxlst = cell_secidx_dict[sec_name]
         for sec, idx in zip(seclst, secidxlst):
-            npts_interp = max(int(round(sec.L)), 3)
             sec_interp_loc_dict[idx] = interplocs(sec)
         sec_dict = {int(idx): sec for sec, idx in zip(seclst, secidxlst)}
         seg_dict = {}
@@ -373,7 +370,6 @@ def distribute_uniform_synapses(
             neurotree_dict=neurotree_dict,
         )
         segcounts_per_sec[sec_name] = segcounts_dict
-        sample_size = total
         for syn_type_label, _ in layer_density_dict.items():
             syn_type = syn_type_dict[syn_type_label]
             segcounts = segcounts_dict[syn_type]
@@ -480,7 +476,6 @@ def distribute_poisson_synapses(
         (seclst, maxdist) = cell_sec_dict[sec_name]
         secidxlst = cell_secidx_dict[sec_name]
         for sec, idx in zip(seclst, secidxlst):
-            npts_interp = max(int(round(sec.L)), 3)
             sec_interp_loc_dict[idx] = interplocs(sec)
         sec_dict = {int(idx): sec for sec, idx in zip(seclst, secidxlst)}
         if len(sec_dict) > 1:
@@ -531,7 +526,6 @@ def distribute_poisson_synapses(
                 seg_list = seg_dict[sec_index]
                 sec_seg_layers = layers[sec_index]
                 sec_seg_density = seg_density[sec_index]
-                start_seg = seg_list[0]
                 interval = 0.0
                 syn_loc = 0.0
                 for seg, layer, density in zip(
@@ -719,7 +713,6 @@ class SynapseAttributes:
         See `init_syn_id_attrs` for details on the format of the input dictionary.
         """
 
-        first_gid = True
         if attr_type == "dict":
             for gid, attr_dict in cell_iter:
                 syn_ids = attr_dict["syn_ids"]
@@ -845,16 +838,10 @@ class SynapseAttributes:
         """
 
         presyn_index = int(self.env.Populations[presyn_name])
-        connection_velocity = float(self.env.connection_velocity[presyn_name])
 
         if delays is None:
             delays = [2.0 * h.dt] * len(edge_syn_ids)
         syn_id_dict = self.syn_id_attr_dict[gid]
-
-        if gid == 317742:
-            logger.info(f"gid {gid}:"
-                        f" length of edge_syn_ids: {len(edge_syn_ids)}"
-                        f" length of presyn_gids: {len(presyn_gids)}")
 
         for edge_syn_id, presyn_gid, delay in zip_longest(
             edge_syn_ids, presyn_gids, delays
@@ -864,9 +851,6 @@ class SynapseAttributes:
                 raise RuntimeError(
                     f"init_edge_attrs: gid {gid}: synapse id {edge_syn_id} has not been initialized"
                 )
-
-            if gid == 317742:
-                logger.info(f"gid {gid}: initializing synapse {edge_syn_id} presyn gid: {presyn_gid}")
 
             if syn.source.gid is not None:
                 raise RuntimeError(
@@ -1194,7 +1178,6 @@ class SynapseAttributes:
         :param syn_id: synapse id
         :param syn_name: synapse mechanism name
         """
-        rules = self.syn_param_rules
         syn_id_dict = self.syn_id_attr_dict[gid]
         syn_id_backup_dict = self.syn_id_attr_backup_dict[gid]
         stash_id = uuid.uuid4()
@@ -1210,7 +1193,6 @@ class SynapseAttributes:
         :param syn_id: synapse id
         :param syn_name: synapse mechanism name
         """
-        rules = self.syn_param_rules
         syn_id_backup_dict = self.syn_id_attr_backup_dict[gid][stash_id]
         if syn_id_backup_dict is not None:
             self.syn_id_attr_dict[gid] = copy.deepcopy(syn_id_backup_dict)
@@ -1404,13 +1386,15 @@ class SynapseAttributes:
         :param cache: bool
         :return: dictionary { syn_id: { attribute: value } }
         """
-        matches = lambda items: all(
-            map(
-                lambda query_item: (query_item[0] is None)
-                or (query_item[1] in query_item[0]),
-                items,
+
+        def matches(items):
+            return all(
+                map(
+                    lambda query_item: (query_item[0] is None)
+                    or (query_item[1] in query_item[0]),
+                    items,
+                )
             )
-        )
 
         if cache:
             cache_args = tuple(
@@ -1548,7 +1532,6 @@ class SynapseAttributes:
         :param syn_ids: array of int
 
         """
-        start_time = time.time()
         source_names = {id: name for name, id in self.env.Populations.items()}
 
         source_order = {
@@ -1771,7 +1754,7 @@ def insert_cell_syns(
         else:
             try:
                 mech_params = syn_params[swc_type]
-            except:
+            except Exception:
                 # default
                 mech_params = syn_params
 
@@ -1789,7 +1772,7 @@ def insert_cell_syns(
 
             if insert_netcons or insert_vecstims:
                 syn_pps = syn_attrs.get_pps(gid, syn_id, syn_name)
-                this_vecstim, this_vecstim_nc = None, None
+                this_vecstim = None
                 this_nc = None
                 if insert_vecstims:
                     this_nc, this_vecstim = mknetcon_vecstim(
@@ -2059,7 +2042,6 @@ def config_cell_syns(
     total_nc_count = 0
     total_mech_count = 0
     total_syn_id_count = 0
-    config_time = time.time()
     for presyn_name, source_syns in source_syn_dict.items():
         if source_syns is None:
             continue
@@ -2189,7 +2171,6 @@ def config_syn(
             else:
                 i = mech_rules["netcon_params"][param]
                 if int(nc.wcnt()) >= i:
-                    old = nc.weight[i]
                     if isinstance(val, ExprClosure):
                         param_vals = []
                         for clos_param in val.parameters:
@@ -2676,7 +2657,6 @@ def apply_syn_mech_rules(
             syn_distances.append(
                 get_distance_to_node(cell, node, sec_root, loc=syn.syn_loc)
             )
-        target_distance = min(syn_distances)
         syn_ids = list(filtered_syns.keys())
 
     if "value" in rules:
