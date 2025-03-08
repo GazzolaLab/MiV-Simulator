@@ -287,7 +287,7 @@ class BRKneuron:
         :param cell_config: :namedtuple:'BRKconfig'
         """
         self._gid = gid
-        self._pop_name = pop_name
+        self._population_name = pop_name
         self.tree = nx.DiGraph()
         self.count = 0  # Keep track of number of nodes
         if env is not None:
