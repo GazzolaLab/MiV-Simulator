@@ -473,7 +473,9 @@ def configure_hoc(
     **optional_attrs,
 ) -> "HocObject":
     if mechanisms_directory is not None:
-        compile_and_load(directory=mechanisms_directory, force=force)
+        compile_and_load(directory=mechanisms_directory, 
+                         coreneuron=use_coreneuron,
+                         force=force)
 
     if not force and hasattr(h, "pc"):
         # already configured

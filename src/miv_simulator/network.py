@@ -1232,12 +1232,12 @@ def make_input_cell_selection(env):
                 )
                 spike_generator = None
             else:
-                if pop_name in env.netclamp_config.input_generators:
+                if hasattr(env.netclamp_config, 'input_generators') and (pop_name in env.netclamp_config.input_generators):
                     spike_generator = env.netclamp_config.input_generators[pop_name]
                 else:
                     raise RuntimeError(
                         f"make_input_cell_selection: population {pop_name} has neither input spike trains nor input generator configuration"
-                    )
+                )
 
         if spike_generator is not None:
             input_source_dict = {pop_index: {"generator": spike_generator}}
