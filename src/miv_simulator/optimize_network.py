@@ -15,6 +15,7 @@ import numpy as np
 from neuron import h
 from miv_simulator import network
 from miv_simulator.env import Env
+from miv_simulator.mechanisms import compile_and_load
 from miv_simulator.utils import (
     read_from_yaml,
     write_to_yaml,
@@ -319,7 +320,12 @@ def init_network_objfun(
     def from_param_dict(params_dict):
         result = []
         for param_name, param_tuple in zip(param_names, param_tuples):
-            result.append((param_tuple, params_dict[param_name]))
+            p = param_tuple
+            if param_name in params_dict:
+                param_value = params_dict[param_name]
+            else:
+                param_value = params_dict[p.population][p.source][str(p.sec_type)][p.syn_name][p.param_path]
+            result.append((param_tuple, param_value))
         return result
 
     return partial(
@@ -337,6 +343,7 @@ def init_network_objfun(
 def init_network(comm, subworld_size, kwargs):
     np.seterr(all="raise")
     env = Env(comm=comm, **kwargs)
+    compile_and_load(directory=env.mechanisms_path, comm=env.comm)
     network.init(env, subworld_size=subworld_size)
     return env
 
