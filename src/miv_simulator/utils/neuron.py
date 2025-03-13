@@ -155,7 +155,7 @@ def cx(env: AbstractEnv):
 
     :param env: an instance of the `Env` class.
     """
-    rank = int(env.pc.id())
+
     lb = h.LoadBalance()
     if os.path.isfile("mcomplex.dat"):
         lb.read_mcomplex()
@@ -309,7 +309,7 @@ def load_cell_template(
     """
     if pop_name in env.template_dict:
         return env.template_dict[pop_name]
-    rank = env.comm.Get_rank()
+
     if pop_name not in env.celltypes:
         raise KeyError(f"load_cell_templates: unrecognized cell population: {pop_name}")
 
@@ -473,9 +473,9 @@ def configure_hoc(
     **optional_attrs,
 ) -> "HocObject":
     if mechanisms_directory is not None:
-        compile_and_load(directory=mechanisms_directory, 
-                         coreneuron=use_coreneuron,
-                         force=force)
+        compile_and_load(
+            directory=mechanisms_directory, coreneuron=use_coreneuron, force=force
+        )
 
     if not force and hasattr(h, "pc"):
         # already configured
@@ -511,50 +511,6 @@ def configure_hoc(
         h.nrn_sparse_partrans = 1
 
     return h
-
-
-# Code by Michael Hines from this discussion thread:
-# https://www.neuron.yale.edu/phpBB/viewtopic.php?f=31&t=3628
-def cx(env):
-    """
-    Estimates cell complexity. Uses the LoadBalance class.
-
-    :param env: an instance of the `Env` class.
-    """
-    rank = int(env.pc.id())
-    lb = h.LoadBalance()
-    if os.path.isfile("mcomplex.dat"):
-        lb.read_mcomplex()
-    cxvec = np.zeros((len(env.gidset),))
-    for i, gid in enumerate(env.gidset):
-        cxvec[i] = lb.cell_complexity(env.pc.gid2cell(gid))
-    env.cxvec = cxvec
-    return cxvec
-
-
-def mkgap(env: AbstractEnv, cell, gid, secpos, secidx, sgid, dgid, w):
-    """
-    Create gap junctions
-    :param pc:
-    :param gjlist:
-    :param gid:
-    :param secidx:
-    :param sgid:
-    :param dgid:
-    :param w:
-    :return:
-    """
-
-    sec = list(cell.sections)[secidx]
-    seg = sec(secpos)
-    gj = h.ggap(seg)
-    gj.g = w
-
-    env.pc.source_var(seg._ref_v, sgid, sec=sec)
-    env.pc.target_var(gj, gj._ref_vgap, dgid)
-
-    env.gjlist.append(gj)
-    return gj
 
 
 def interplocs(sec):
