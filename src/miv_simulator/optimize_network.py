@@ -20,7 +20,6 @@ from miv_simulator.utils import (
     read_from_yaml,
     write_to_yaml,
     get_module_logger,
-    get_script_logger,
 )
 from miv_simulator.synapses import (
     syn_param_from_dict,
@@ -96,9 +95,6 @@ def dmosopt_get_best(file_path, opt_id):
 
     if len(old_eval_epochs) > 0 and old_eval_epochs[0] is not None:
         epochs = np.concatenate(old_eval_epochs, axis=None)
-
-    n_dim = len(lo_bounds)
-    n_objectives = len(objective_names)
 
     best_x, best_y, best_f, best_c, best_epoch, _ = get_best(
         x,
@@ -298,13 +294,12 @@ def init_network_objfun(
 ):
     param_tuples = [syn_param_from_dict(param_tuple) for param_tuple in param_tuples]
 
-    objective_names = operational_config["objective_names"]
     target_populations = operational_config["target_populations"]
     kwargs["results_file_id"] = (
         f"optimize_network_{worker.worker_id}_{operational_config['run_ts']}"
     )
     nprocs_per_worker = operational_config["nprocs_per_worker"]
-    logger = get_script_logger(os.path.basename(__file__))
+    # logger = get_script_logger(os.path.basename(__file__))
     env = init_network(
         comm=worker.merged_comm, subworld_size=nprocs_per_worker, kwargs=kwargs
     )
@@ -315,7 +310,6 @@ def init_network_objfun(
 
     t_start = 50.0
     t_stop = env.tstop
-    time_range = (t_start, t_stop)
 
     def from_param_dict(params_dict):
         result = []
@@ -324,7 +318,9 @@ def init_network_objfun(
             if param_name in params_dict:
                 param_value = params_dict[param_name]
             else:
-                param_value = params_dict[p.population][p.source][str(p.sec_type)][p.syn_name][p.param_path]
+                param_value = params_dict[p.population][p.source][str(p.sec_type)][
+                    p.syn_name
+                ][p.param_path]
             result.append((param_tuple, param_value))
         return result
 
@@ -430,7 +426,6 @@ def compute_objectives(local_features, operational_config, opt_targets):
     feature_dtypes = [(feature_name, np.float32) for feature_name in objective_names]
 
     target_vals = opt_targets
-    target_ranges = opt_targets
     objectives = []
     features = []
     for key in objective_names:
