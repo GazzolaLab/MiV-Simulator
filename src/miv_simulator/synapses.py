@@ -15,6 +15,7 @@ import sys
 import time
 import traceback
 import uuid
+import gc
 from collections import defaultdict, namedtuple
 from functools import reduce
 
@@ -704,6 +705,7 @@ class SynapseAttributes:
         )
         self.presyn_names = {id: name for name, id in env.Populations.items()}
         self.filter_cache = {}
+        self.filter_id_cache = {}
 
     def init_syn_id_attrs_from_iter(
         self, cell_iter, attr_type="dict", attr_tuple_index=None, debug=False
@@ -1384,7 +1386,7 @@ class SynapseAttributes:
         :param sources: list of enumerated type: population names of source projections
         :param swc_types: list of enumerated type: swc_type
         :param cache: bool
-        :return: dictionary { syn_id: { attribute: value } }
+        :return: iterator ( syn_id, { attribute: value } )
         """
 
         def matches(items):
@@ -1423,13 +1425,13 @@ class SynapseAttributes:
             it = itertools.chain.from_iterable(
                 [sec_dict[sec_index] for sec_index in syn_sections]
             )
-            syn_dict = {k: v for (k, v) in it}
+            syn_items = ((k, v) for (k, v) in it)
         else:
-            syn_dict = self.syn_id_attr_dict[gid]
+            syn_items = self.syn_id_attr_dict[gid].items()
 
-        result = {
-            k: v
-            for k, v in syn_dict.items()
+        result = (
+            (k, v)
+            for k, v in syn_items
             if matches(
                 [
                     (syn_indexes, k),
@@ -1439,9 +1441,107 @@ class SynapseAttributes:
                     (swc_types, v.swc_type),
                 ]
             )
-        }
+        )
         if cache:
-            self.filter_cache[cache_args] = result
+            # Try to materialize with a memory limit
+            MAX_CACHE_ITEMS = 10000  # Adjust based on memory constraints
+            cache_list = []
+    
+            for i, item in enumerate(itertools.islice(result, MAX_CACHE_ITEMS + 1)):
+                if i >= MAX_CACHE_ITEMS:
+                    # Too many items - not suitable for caching
+                    self.filter_cache[cache_args] = None
+                    # Include what we've collected plus remaining items
+                    result = itertools.chain(cache_list, [item], result)
+                    break
+                cache_list.append(item)
+        else:
+            # Collected all items within the limit
+            self.filter_cache[cache_args] = cache_list
+            result = iter(cache_list)
+
+        return result
+
+    def filter_synapse_ids(
+        self,
+        gid: int,
+        syn_sections: Optional[List[int]] = None,
+        syn_indexes: None = None,
+        syn_types: Optional[List[int]] = None,
+        layers: None = None,
+        sources: None = None,
+        swc_types: None = None,
+        cache: bool = False,
+    ) -> np.ndarray:
+        """
+        Returns a subset of the synapse ids of the given cell according to the given criteria.
+
+        :param gid: int
+        :param syn_sections: array of int
+        :param syn_indexes: array of int: syn_ids
+        :param syn_types: list of enumerated type: synapse category
+        :param layers: list of enumerated type: layer
+        :param sources: list of enumerated type: population names of source projections
+        :param swc_types: list of enumerated type: swc_type
+        :param cache: bool
+        :return: ndarray of synapse ids
+        """
+
+        def matches(items):
+            return all(
+                map(
+                    lambda query_item: (query_item[0] is None)
+                    or (query_item[1] in query_item[0]),
+                    items,
+                )
+            )
+
+        if cache:
+            cache_args = tuple(
+                tuple(x) if isinstance(x, list) else x
+                for x in [
+                    gid,
+                    syn_sections,
+                    syn_indexes,
+                    syn_types,
+                    layers,
+                    sources,
+                    swc_types,
+                ]
+            )
+            if cache_args in self.filter_cache:
+                return self.filter_id_cache[cache_args]
+
+        if sources is None:
+            source_indexes = None
+        else:
+            source_indexes = set(sources)
+
+        sec_dict = self.sec_dict[gid]
+        if syn_sections is not None:
+            # Fast path
+            it = itertools.chain.from_iterable(
+                [sec_dict[sec_index] for sec_index in syn_sections]
+            )
+            syn_items = ((k, v) for (k, v) in it)
+        else:
+            syn_items = self.syn_id_attr_dict[gid].items()
+
+        result = np.asarray(
+            [k
+            for k, v in syn_items
+            if matches(
+                [
+                    (syn_indexes, k),
+                    (syn_types, v.syn_type),
+                    (layers, v.syn_layer),
+                    (source_indexes, v.source.population),
+                    (swc_types, v.swc_type),
+                ]
+            )
+         ], dtype=np.uint32)
+        if cache:
+            self.filter_id_cache[cache_args] = result
 
         return result
 
@@ -1466,14 +1566,13 @@ class SynapseAttributes:
         }
 
         if syn_ids is None:
-            syn_id_attr_dict = self.syn_id_attr_dict[gid]
+            syn_id_attr_items = self.syn_id_attr_dict[gid].items()
         else:
-            syn_id_attr_dict = {
-                syn_id: self.syn_id_attr_dict[gid][syn_id] for syn_id in syn_ids
-            }
+            syn_id_attr_items = ((syn_id, self.syn_id_attr_dict[gid][syn_id]) for syn_id in syn_ids)
+
 
         source_parts = partitionn(
-            syn_id_attr_dict.items(),
+            syn_id_attr_items,
             lambda syn_id_syn: source_order[syn_id_syn[1].source.population],
             n=len(source_names),
         )
@@ -1508,8 +1607,7 @@ class SynapseAttributes:
         :param cache:
         :return: sequence
         """
-        return list(
-            self.filter_synapses(
+        return self.filter_synapse_ids(
                 gid,
                 syn_sections=syn_sections,
                 syn_indexes=syn_indexes,
@@ -1517,9 +1615,7 @@ class SynapseAttributes:
                 layers=layers,
                 sources=sources,
                 swc_types=swc_types,
-                cache=cache,
-            ).keys()
-        )
+                cache=cache)
 
     def partition_syn_ids_by_source(
         self, gid: int, syn_ids: Optional[List[uint32]] = None
@@ -1909,7 +2005,7 @@ def config_biophys_cell_syns(
     syn_id_attr_dict = syn_attrs.syn_id_attr_dict[gid]
 
     if syn_ids is None:
-        syn_ids = list(syn_id_attr_dict.keys())
+        syn_ids = np.fromiter(syn_id_attr_dict.keys(), dtype=np.uint32)
 
     if insert:
         source_syn_ids_dict = syn_attrs.partition_syn_ids_by_source(gid, syn_ids)
@@ -2000,7 +2096,7 @@ def config_cell_syns(
             unique = False
 
     if syn_ids is None:
-        syn_ids = list(syn_id_attr_dict.keys())
+        syn_ids = np.fromiter(syn_id_attr_dict.keys(), dtype=np.uint32)
 
     if insert:
         source_syn_dict = syn_attrs.partition_synapses_by_source(gid, syn_ids)
@@ -2061,7 +2157,7 @@ def config_cell_syns(
                     )
                     if this_pps is None and throw_error:
                         raise RuntimeError(
-                            f"config_hoc_cell_syns: insert: cell gid {gid} synapse {syn_id} does not have a point "
+                            f"config_cell_syns: cell gid {gid} synapse {syn_id} does not have a point "
                             f"process for mechanism {syn_name}"
                         )
 
@@ -2638,26 +2734,16 @@ def apply_syn_mech_rules(
         if synapse_filters is None:
             synapse_filters = {}
         if node is None:
-            filtered_syns = syn_attrs.filter_synapses(
+            syn_ids = syn_attrs.filter_synapse_ids(
                 cell.gid, cache=env.cache_queries, **synapse_filters
             )
         else:
-            filtered_syns = syn_attrs.filter_synapses(
+            syn_ids = syn_attrs.filter_synapse_ids(
                 cell.gid,
                 syn_sections=[node.index],
                 cache=env.cache_queries,
                 **synapse_filters,
             )
-        if len(filtered_syns) == 0:
-            return
-        syn_distances = []
-        sec_roots = list([n for n, d in cell.tree.in_degree() if d == 0])
-        sec_root = sec_roots[0]
-        for syn_id, syn in filtered_syns.items():
-            syn_distances.append(
-                get_distance_to_node(cell, node, sec_root, loc=syn.syn_loc)
-            )
-        syn_ids = list(filtered_syns.keys())
 
     if "value" in rules:
         baseline = rules["value"]
@@ -2693,6 +2779,7 @@ def set_syn_mech_param(
     rules,
     update_targets=False,
     verbose=False,
+    batch_size=1000,
 ):
     """Provided a synaptic mechanism, a parameter, a node, a list of
     syn_ids, and a dict of rules. Sets placeholder values for each
@@ -2714,20 +2801,33 @@ def set_syn_mech_param(
     :param verbose: bool
     """
     syn_attrs = env.synapse_attributes
-    for syn_id in syn_ids:
+    for i, syn_id in enumerate(syn_ids):
         syn_attrs.modify_mech_attrs(
             cell.population_name, cell.gid, syn_id, syn_name, {param_name: baseline}
         )
+        if i % batch_size == 0:
+            gc.collect()
+            
 
     if update_targets:
-        config_biophys_cell_syns(
-            env,
-            cell.gid,
-            cell.population_name,
-            syn_ids=syn_ids,
-            insert=False,
-            verbose=verbose,
-        )
+        syn_id_iter = iter(syn_ids)
+        while True:
+            batch_iterator = itertools.islice(syn_id_iter, batch_size)
+            try:
+                first_id = next(batch_iterator)
+            except StopIteration:
+                break
+
+            batch_syn_ids = itertools.chain([first_id], batch_iterator)
+
+            config_biophys_cell_syns(
+                env,
+                cell.gid,
+                cell.population_name,
+                syn_ids=batch_syn_ids,
+                insert=False,
+                verbose=verbose,
+            )
 
 
 def init_syn_mech_attrs(
@@ -2804,14 +2904,14 @@ def write_syn_spike_count(
 
     for gid in gids:
         if filters_dict is None:
-            syns_dict = syn_attrs.syn_id_attr_dict[gid]
+            syn_items = syn_attrs.syn_id_attr_dict[gid]
         else:
-            syns_dict = syn_attrs.filter_synapses(gid, **filters_dict)
+            syn_items = syn_attrs.filter_synapses(gid, **filters_dict)
         logger.info(
             f"write_syn_mech_spike_counts: rank {rank}: population {pop_name}: gid {gid}: {len(syns_dict)} synapses"
         )
 
-        for syn_id, syn in syns_dict.items():
+        for syn_id, syn in syn_items:
             source_population = syn.source.population
             syn_netcon_dict = syn_attrs.pps_dict[gid][syn_id].netcon
             for syn_name in syn_names:
