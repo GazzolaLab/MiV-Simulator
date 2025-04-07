@@ -6,7 +6,7 @@ from collections import defaultdict, namedtuple
 
 import numpy as np
 import yaml
-from miv_simulator.synapses import SynapseAttributes, get_syn_filter_dict
+from miv_simulator.synapses import SynapseManager, get_syn_filter_dict
 from miv_simulator.utils import (
     AbstractEnv,
     ExprClosure,
@@ -721,9 +721,7 @@ class Env(AbstractEnv):
         syn_mech_names = connection_config["Synapse Mechanisms"]
         syn_param_rules = connection_config["Synapse Parameter Rules"]
 
-        self.synapse_attributes = SynapseAttributes(
-            self, syn_mech_names, syn_param_rules
-        )
+        self.synapse_manager = SynapseManager(self, syn_mech_names, syn_param_rules)
 
         extent_config = connection_config["Axon Extent"]
         self.connection_extents = {}
@@ -798,12 +796,12 @@ class Env(AbstractEnv):
 
             config_dict = defaultdict(lambda: 0.0)
             for key_presyn, conn_config in connection_dict[key_postsyn].items():
-                for s, l, p in zip(
+                for sec, layer, p in zip(
                     conn_config.sections,
                     conn_config.layers,
                     conn_config.proportions,
                 ):
-                    config_dict[(conn_config.type, s, l)] += p
+                    config_dict[(conn_config.type, sec, layer)] += p
 
             for k, v in config_dict.items():
                 try:
@@ -909,8 +907,8 @@ class Env(AbstractEnv):
             with open(node_rank_file) as fp:
                 dval = {}
                 lines = fp.readlines()
-                for l in lines:
-                    a = l.split(" ")
+                for line in lines:
+                    a = line.split(" ")
                     dval[int(a[0])] = int(a[1])
                 node_rank_map = dval
         node_rank_map = self.comm.bcast(node_rank_map, root=0)
@@ -943,7 +941,6 @@ class Env(AbstractEnv):
         :return:
         """
         rank = self.comm.Get_rank()
-        size = self.comm.Get_size()
         celltypes = self.celltypes
         typenames = sorted(celltypes.keys())
 
