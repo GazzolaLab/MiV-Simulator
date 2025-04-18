@@ -9,7 +9,7 @@ from miv_simulator.utils import from_yaml, ExprClosure
 import time
 import random
 from miv_simulator import config
-from miv_simulator.synapses import SynapseAttributes
+from miv_simulator.synapses import SynapseManager
 
 from neuroh5.io import (
     read_cell_attribute_info,
@@ -53,7 +53,7 @@ class ExecutionEnvironment(AbstractEnv):
         self.biophys_cells = defaultdict(lambda: dict())
         self.spike_onset_delay = {}
         self.recording_sets = {}
-        self.synapse_attributes = None
+        self.synapse_manager = None
         self.edge_count = defaultdict(dict)
         self.syns_set = defaultdict(set)
 
@@ -291,7 +291,7 @@ class ExecutionEnvironment(AbstractEnv):
                 "celltypes": self.cells_meta_data["celltypes"],
             }
         )
-        self.synapse_attributes = SynapseAttributes(
+        self.synapse_manager = SynapseManager(
             this,
             # TODO: expose config
             {
@@ -329,7 +329,7 @@ class ExecutionEnvironment(AbstractEnv):
                 },
             },
         )
-        this.__dict__["synapse_attributes"] = self.synapse_attributes
+        this.__dict__["synapse_manager"] = self.synapse_manager
 
         connect_cells(this)
 

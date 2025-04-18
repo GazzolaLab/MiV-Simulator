@@ -123,7 +123,6 @@ def make_neurotree_hoc_cell(
     vz = neurotree_dict["z"]
     vradius = neurotree_dict["radius"]
     vlayer = neurotree_dict["layer"]
-    vsection = neurotree_dict["section"]
     secnodes = neurotree_dict["section_topology"]["nodes"]
     vsrc = neurotree_dict["section_topology"]["src"]
     vdst = neurotree_dict["section_topology"]["dst"]
@@ -236,6 +235,30 @@ def make_input_cell(
     return cell
 
 
+def make_section_node_dict(neurotree_dict):
+    """
+    Creates a dictionary of node to section assignments.
+    :param neurotree_dict:
+    :return: dict
+    """
+    pt_sections = neurotree_dict["sections"]
+    num_sections = pt_sections[0]
+    sec_nodes = {}
+    i = 1
+    section_idx = 0
+    while i < len(pt_sections):
+        num_points = pt_sections[i]
+        i += 1
+        sec_nodes[section_idx] = []
+        for ip in range(num_points):
+            p = pt_sections[i]
+            sec_nodes[section_idx].append(p)
+            i += 1
+        section_idx += 1
+    assert section_idx == num_sections
+    return sec_nodes
+
+
 def make_section_graph(neurotree_dict):
     """
     Creates a graph of sections that follows the topological organization of the given neuron.
@@ -253,7 +276,6 @@ def make_section_graph(neurotree_dict):
         sec_dst = neurotree_dict["dst"]
         sec_loc = []
         sec_nodes = {}
-        pt_sections = neurotree_dict["sections"]
         pt_parents = neurotree_dict["parent"]
         sec_nodes = make_section_node_dict(neurotree_dict)
         for src, dst in zip_longest(sec_src, sec_dst):
@@ -341,8 +363,6 @@ class BRKneuron:
         self.hoc_cell = BRK_nrn
         h.define_shape()
 
-        soma_node = insert_section_node(self, "soma", index=0, sec=BRK_nrn.soma)
-        apical_node = insert_section_node(self, "apical", index=1, sec=BRK_nrn.dend)
         connect_nodes(
             self.tree, self.soma[0], self.apical[0], connect_hoc_sections=False
         )
@@ -507,8 +527,6 @@ class PRneuron:
         self.hoc_cell = PR_nrn
         h.define_shape()
 
-        soma_node = insert_section_node(self, "soma", index=0, sec=PR_nrn.soma)
-        apical_node = insert_section_node(self, "apical", index=1, sec=PR_nrn.dend)
         connect_nodes(
             self.tree, self.soma[0], self.apical[0], connect_hoc_sections=False
         )
@@ -637,8 +655,6 @@ class SCneuron:
 
         self.hoc_cell = SC_nrn
         h.define_shape()
-
-        soma_node = insert_section_node(self, "soma", index=0, sec=SC_nrn.soma)
 
         init_spike_detector(self)
 
@@ -907,7 +923,7 @@ def insert_section_node(
     node = SectionNode(section_type, index, sec, content=content)
     if cell.tree.has_node(node) or node in cell.nodes[section_type]:
         raise RuntimeError(
-            f"insert_section: section index {index} already exists in cell {self.gid}"
+            f"insert_section: section index {index} already exists in cell {cell.gid}"
         )
     cell.tree.add_node(node)
     cell.nodes[section_type].append(node)
@@ -1040,7 +1056,6 @@ def import_morphology_from_hoc(
             getattr(hoc_cell, hoc_sec_attr_name) is not None
         ):
             sec_list = list(getattr(hoc_cell, hoc_sec_attr_name))
-            hoc_obj = getattr(hoc_cell, hoc_sec_attr_name)
             if hasattr(hoc_cell, sec_index_list):
                 sec_indexes = list(getattr(hoc_cell, sec_index_list))
             else:
@@ -1073,12 +1088,11 @@ def import_mech_dict_from_file(mech_file_path):
     """
     if mech_file_path is None:
         raise ValueError("import_mech_dict_from_file: missing mech_file_path")
-    elif not os.path.isfile(cell.mech_file_path):
+    elif not os.path.isfile(mech_file_path):
         raise OSError(
-            "import_mech_dict_from_file: invalid mech_file_path: %s"
-            % cell.mech_file_path
+            f"import_mech_dict_from_file: invalid mech_file_path: {mech_file_path}"
         )
-    mech_dict = read_from_yaml(cell.mech_file_path)
+    mech_dict = read_from_yaml(mech_file_path)
     return mech_dict
 
 
@@ -1208,13 +1222,15 @@ def filter_nodes(
     :param swc_types: list of enumerated type: swc_type
     :return: list of nodes
     """
-    matches = lambda items: all(
-        map(
-            lambda query_item: (query_item[0] is None)
-            or (query_item[1] in query_item[0]),
-            items,
+
+    def matches(items):
+        return all(
+            map(
+                lambda query_item: (query_item[0] is None)
+                or (query_item[1] in query_item[0]),
+                items,
+            )
         )
-    )
 
     nodes = []
     if swc_types is None:
@@ -1238,16 +1254,16 @@ def report_topology(
     """
     if node is None:
         node = cell.root
-    syn_attrs = env.synapse_attributes
+    syn_manager = env.synapse_manager
     num_exc_syns = len(
-        syn_attrs.filter_synapses(
+        syn_manager.filter_synapses(
             cell.gid,
             syn_sections=[node.index],
             syn_types=[env.Synapse_Types["excitatory"]],
         )
     )
     num_inh_syns = len(
-        syn_attrs.filter_synapses(
+        syn_manager.filter_synapses(
             cell.gid,
             syn_sections=[node.index],
             syn_types=[env.Synapse_Types["inhibitory"]],
@@ -1281,7 +1297,6 @@ def make_morph_graph(biophys_cell, node_filters={}):
     nodes = filter_nodes(biophys_cell, **node_filters)
     tree = biophys_cell.tree
 
-    sec_layers = {}
     src_sec = []
     dst_sec = []
     connection_locs = []
@@ -1537,7 +1552,7 @@ def init_circuit_context(
     set_edge_delays: bool = True,
     **kwargs,
 ) -> None:
-    syn_attrs = env.synapse_attributes
+    syn_manager = env.synapse_manager
     synapse_config = env.celltypes[pop_name]["synapses"]
 
     has_weights = False
@@ -1560,7 +1575,7 @@ def init_circuit_context(
 
     if init_synapses:
         if synapses_dict is not None:
-            syn_attrs.init_syn_id_attrs(gid, **synapses_dict)
+            syn_manager.init_syn_id_attrs(gid, **synapses_dict)
         elif load_synapses or load_edges:
             if (pop_name in env.cell_attribute_info) and (
                 "Synapse Attributes" in env.cell_attribute_info[pop_name]
@@ -1580,7 +1595,7 @@ def init_circuit_context(
                     },
                     comm=env.comm,
                 )
-                syn_attrs.init_syn_id_attrs_from_iter(synapses_iter)
+                syn_manager.init_syn_id_attrs_from_iter(synapses_iter)
             else:
                 raise RuntimeError(
                     "init_circuit_context: synapse attributes not found for %s: gid: %i"
@@ -1643,7 +1658,7 @@ def init_circuit_context(
                         if syn_name != "syn_id"
                     ):
                         weights_values = cell_weights_dict[syn_name]
-                        syn_attrs.add_mech_attrs_from_iter(
+                        syn_manager.add_mechanism_parameters_from_iter(
                             gid,
                             syn_name,
                             zip_longest(
@@ -1708,7 +1723,7 @@ def init_circuit_context(
         if pop_name in graph:
             for presyn_name in graph[pop_name].keys():
                 edge_iter = graph[pop_name][presyn_name]
-                syn_attrs.init_edge_attrs_from_iter(
+                syn_manager.init_edge_attrs_from_iter(
                     pop_name, presyn_name, a, edge_iter, set_edge_delays
                 )
         else:
@@ -2199,7 +2214,7 @@ def record_cell(
     if recording_profile is None:
         recording_profile = env.recording_profile
     if recording_profile is not None:
-        syn_attrs = env.synapse_attributes
+        syn_manager = env.synapse_manager
         cell = env.biophys_cells[pop_name].get(gid, None)
         if cell is not None:
             label = recording_profile["label"]
@@ -2212,8 +2227,8 @@ def record_cell(
                 swc_types = recdict.get("swc_types", None)
                 locdict = collections.defaultdict(lambda: 0.5)
                 if (loc is not None) and (swc_types is not None):
-                    for s, l in zip(swc_types, loc):
-                        locdict[s] = l
+                    for s1, l1 in zip(swc_types, loc):
+                        locdict[s1] = l1
 
                 nodes = filter_nodes(
                     cell,
@@ -2256,17 +2271,17 @@ def record_cell(
             ).items():
                 syn_filters = recdict.get("syn_filters", {})
                 syn_sections = recdict.get("sections", None)
-                synapses = syn_attrs.filter_synapses(
+                synapses = syn_manager.filter_synapses(
                     gid, syn_sections=syn_sections, **syn_filters
                 )
                 syn_names = recdict.get(
-                    "syn names", syn_attrs.syn_name_index_dict.keys()
+                    "syn names", syn_manager.syn_name_index_dict.keys()
                 )
-                for syn_id, syn in synapses.items():
+                for syn_id, syn in synapses:
                     syn_swc_type_name = env.SWC_Type_index[syn.swc_type]
                     syn_section = syn.syn_section
                     for syn_name in syn_names:
-                        pps = syn_attrs.get_pps(
+                        pps = syn_manager.get_point_process(
                             gid, syn_id, syn_name, throw_error=False
                         )
                         if (pps is not None) and (pps not in env.recs_pps_set):

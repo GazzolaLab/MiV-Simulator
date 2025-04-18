@@ -108,7 +108,7 @@ def connect_cells(env: Env) -> None:
     connectivity_file_path = env.connectivity_file_path
     forest_file_path = env.forest_file_path
     rank = int(env.pc.id())
-    syn_attrs = env.synapse_attributes
+    syn_manager = env.synapse_manager
 
     if rank == 0:
         logger.info(f"*** Connectivity file path is {connectivity_file_path}")
@@ -177,7 +177,7 @@ def connect_cells(env: Env) -> None:
                     syn_secs = attr_tuple[syn_secs_ind]
                     syn_locs = attr_tuple[syn_locs_ind]
 
-                    syn_attrs.init_syn_id_attrs(
+                    syn_manager.init_syn_id_attrs(
                         gid,
                         syn_ids,
                         syn_layers,
@@ -226,7 +226,7 @@ def connect_cells(env: Env) -> None:
                 syn_attrs_iter, syn_attrs_info = cell_attributes_dict[
                     "Synapse Attributes"
                 ]
-                syn_attrs.init_syn_id_attrs_from_iter(
+                syn_manager.init_syn_id_attrs_from_iter(
                     syn_attrs_iter,
                     attr_type="tuple",
                     attr_tuple_index=syn_attrs_info,
@@ -235,7 +235,7 @@ def connect_cells(env: Env) -> None:
                 del cell_attributes_dict
                 gc.collect()
 
-        weight_attr_mask = list(syn_attrs.syn_mech_names)
+        weight_attr_mask = list(syn_manager.syn_mech_names)
         weight_attr_mask.append("syn_id")
 
         if has_weights:
@@ -288,7 +288,7 @@ def connect_cells(env: Env) -> None:
                             first_gid = gid
                         weights_syn_ids = cell_weights_tuple[syn_id_index]
                         for syn_name, syn_name_index in syn_name_inds:
-                            if syn_name not in syn_attrs.syn_mech_names:
+                            if syn_name not in syn_manager.syn_mech_names:
                                 if rank == 0 and first_gid == gid:
                                     logger.warning(
                                         f"*** connect_cells: population: {postsyn_name}; gid: {gid}; syn_name: {syn_name} "
@@ -297,7 +297,7 @@ def connect_cells(env: Env) -> None:
                             else:
                                 weights_values = cell_weights_tuple[syn_name_index]
                                 assert len(weights_syn_ids) == len(weights_values)
-                                syn_attrs.add_mech_attrs_from_iter(
+                                syn_manager.add_mech_attrs_from_iter(
                                     gid,
                                     syn_name,
                                     zip_longest(
@@ -365,7 +365,7 @@ def connect_cells(env: Env) -> None:
                 env.microcircuit_input_sources[presyn_name] = presyn_input_sources
             else:
                 syn_edge_iter = edge_iter
-            syn_attrs.init_edge_attrs_from_iter(
+            syn_manager.init_edge_attrs_from_iter(
                 postsyn_name, presyn_name, a, syn_edge_iter
             )
             if rank == 0:
@@ -406,7 +406,7 @@ def connect_cells(env: Env) -> None:
     first_gid = None
     start_time = time.time()
 
-    gids = list(syn_attrs.gids())
+    gids = list(syn_manager.gids())
     comm0 = env.comm.Split(2 if len(gids) > 0 else 0, 0)
 
     first_gid_set = set([])
@@ -461,7 +461,7 @@ def connect_cells(env: Env) -> None:
             cells.record_cell(env, postsyn_name, gid)
 
         if env.cleanup:
-            syn_attrs.del_syn_id_attr_dict(gid)
+            syn_manager.del_syn_id_attr_dict(gid)
             if gid in env.biophys_cells[postsyn_name]:
                 del env.biophys_cells[postsyn_name][gid]
 
@@ -521,7 +521,7 @@ def connect_cell_selection(env):
     connectivity_file_path = env.connectivity_file_path
     forest_file_path = env.forest_file_path
     rank = int(env.pc.id())
-    syn_attrs = env.synapse_attributes
+    syn_manager = env.synapse_manager
 
     if rank == 0:
         logger.info(f"*** Connectivity file path is {connectivity_file_path}")
@@ -575,12 +575,12 @@ def connect_cell_selection(env):
             return_type="tuple",
         )
 
-        syn_attrs.init_syn_id_attrs_from_iter(
+        syn_manager.init_syn_id_attrs_from_iter(
             syn_attrs_iter, attr_type="tuple", attr_tuple_index=syn_attrs_info
         )
         del syn_attrs_iter
 
-        weight_attr_mask = list(syn_attrs.syn_mech_names)
+        weight_attr_mask = list(syn_manager.syn_mech_names)
         weight_attr_mask.append("syn_id")
 
         if has_weights:
@@ -622,7 +622,7 @@ def connect_cell_selection(env):
                             first_gid = gid
                         weights_syn_ids = cell_weights_tuple[syn_id_index]
                         for syn_name, syn_name_index in syn_name_inds:
-                            if syn_name not in syn_attrs.syn_mech_names:
+                            if syn_name not in syn_manager.syn_mech_names:
                                 if rank == 0 and first_gid == gid:
                                     logger.warning(
                                         f"*** connect_cells: population: {postsyn_name}; gid: {gid}; syn_name: {syn_name} "
@@ -630,7 +630,7 @@ def connect_cell_selection(env):
                                     )
                             else:
                                 weights_values = cell_weights_tuple[syn_name_index]
-                                syn_attrs.add_mech_attrs_from_iter(
+                                syn_manager.add_mechanism_parameters_from_iter(
                                     gid,
                                     syn_name,
                                     zip_longest(
@@ -680,7 +680,7 @@ def connect_cell_selection(env):
                     lambda edgeset: presyn_input_sources.update(edgeset[1][0]),
                     edge_iter,
                 )
-                syn_attrs.init_edge_attrs_from_iter(
+                syn_manager.init_edge_attrs_from_iter(
                     postsyn_name, presyn_name, a, syn_edge_iter
                 )
                 env.microcircuit_input_sources[presyn_name] = presyn_input_sources
@@ -695,7 +695,7 @@ def connect_cell_selection(env):
                 if first_gid is None:
                     first_gid = gid
                 try:
-                    if syn_attrs.has_gid(gid):
+                    if syn_manager.has_gid(gid):
                         biophys_cell = env.biophys_cells[postsyn_name][gid]
                         synapses.init_syn_mech_attrs(biophys_cell, env)
                 except KeyError:
@@ -716,7 +716,7 @@ def connect_cell_selection(env):
     ## This section instantiates the synaptic mechanisms and netcons for each connection.
     ##
     first_gid = None
-    gids = list(syn_attrs.gids())
+    gids = list(syn_manager.gids())
     assert len(gids) == biophys_cell_count
 
     for gid in gids:
@@ -748,7 +748,7 @@ def connect_cell_selection(env):
 
         env.edge_count[pop_name] += syn_count
         if env.cleanup:
-            syn_attrs.del_syn_id_attr_dict(gid)
+            syn_manager.del_syn_id_attr_dict(gid)
             if gid in env.biophys_cells[pop_name]:
                 del env.biophys_cells[pop_name][gid]
 

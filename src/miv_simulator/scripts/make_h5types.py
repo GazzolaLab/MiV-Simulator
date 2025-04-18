@@ -4,21 +4,8 @@ import sys
 
 import click
 from miv_simulator import utils
-from miv_simulator.env import Env
 from miv_simulator.utils import io as io_utils
-
-
-def make_h5types(
-    config: str, output_file: str, gap_junctions: bool = False, config_prefix=""
-):
-    env = Env(config=config, config_prefix=config_prefix)
-    return io_utils.create_neural_h5(
-        output_file,
-        env.geometry["Cell Distribution"],
-        env.connection_config,
-        env.Populations,
-        env.gapjunctions if gap_junctions else None,
-    )
+from miv_simulator.env import Env
 
 
 @click.command()
@@ -40,7 +27,8 @@ def make_h5types(
 )
 @click.option("--gap-junctions", is_flag=True)
 def main(config, config_prefix, output_path, gap_junctions):
-    make_h5types(config, output_path, gap_junctions, config_prefix=config_prefix)
+    env = Env(config=config, config_prefix=config_prefix)
+    io_utils.make_h5types(env, output_path, gap_junctions, config_prefix=config_prefix)
 
 
 if __name__ == "__main__":

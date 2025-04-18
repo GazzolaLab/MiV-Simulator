@@ -200,7 +200,6 @@ def import_spikeraster(
         comm = MPI.COMM_WORLD
 
     populations = import_celltypes(celltype_path, output_path)
-    n_pop = len(populations)
 
     start = 0
     pop_range_bins = []
@@ -238,7 +237,6 @@ def import_spikeraster(
 
     for i, (gid, pop_idx) in it:
         pop_name = populations[pop_idx][0]
-        pop_start = populations[pop_idx][0]
         spk_t = spike_array["time"][i]
 
         pop_spk_dict[pop_name][gid].append(spk_t)
@@ -280,7 +278,6 @@ def create_neural_h5(
             pop_count += layer_count
         populations.append((pop_name, pop_idx, pop_count))
     populations.sort(key=lambda x: x[1])
-    min_pop_idx = populations[0][1]
 
     projections = []
     if gap_junctions:
@@ -358,6 +355,22 @@ def create_neural_h5(
     h5.close()
 
 
+def make_h5types(
+    env: AbstractEnv,
+    config: str,
+    output_file: str,
+    gap_junctions: bool = False,
+    config_prefix="",
+):
+    return create_neural_h5(
+        output_file,
+        env.geometry["Cell Distribution"],
+        env.connection_config,
+        env.Populations,
+        env.gapjunctions if gap_junctions else None,
+    )
+
+
 def mkout(env: AbstractEnv, results_filename: str) -> None:
     """
     Creates simulation results file and adds H5Types group compatible with NeuroH5.
@@ -407,7 +420,6 @@ def spikeout(
         [env.tstop + equilibration_duration] * n_trials, dtype=np.float32
     )
 
-    binlst = []
     typelst = sorted(env.celltypes.keys())
     binvect = np.asarray([env.celltypes[k]["start"] for k in typelst])
     sort_idx = np.argsort(binvect, axis=0)
@@ -691,7 +703,6 @@ def write_cell_selection(
     rank = int(env.comm.Get_rank())
     nhosts = int(env.comm.Get_size())
 
-    dataset_path = env.dataset_path
     data_file_path = env.data_file_path
 
     if populations is None:
@@ -790,7 +801,6 @@ def write_connection_selection(
     forest_file_path = env.forest_file_path
     rank = int(env.comm.Get_rank())
     nhosts = int(env.comm.Get_size())
-    syn_attrs = env.synapse_attributes
 
     if populations is None:
         pop_names = sorted(env.cell_selection.keys())
@@ -983,7 +993,6 @@ def write_input_cell_selection(
     rank = int(env.comm.Get_rank())
     nhosts = int(env.comm.Get_size())
 
-    dataset_path = env.dataset_path
     input_file_path = env.data_file_path
 
     if populations is None:
@@ -1087,7 +1096,6 @@ def query_cell_attributes(input_file, population_names, namespace_ids=None):
 
     namespace_id_lst = []
     for pop_name in attr_info_dict:
-        cell_index = None
         pop_state_dict[pop_name] = {}
         if namespace_ids is None:
             namespace_id_lst = attr_info_dict[pop_name].keys()
@@ -1142,7 +1150,6 @@ class H5FileManager:
 
             for p in populations:
                 coords_dset_path = f"/Populations/{p}/Generated Coordinates"
-                coords_output_path = f"/Populations/{p}/Coordinates"
                 distances_dset_path = f"/Populations/{p}/Arc Distances"
                 with h5py.File(src, "r") as f_src:
                     copy_dataset(f_src, f_dst, coords_dset_path)

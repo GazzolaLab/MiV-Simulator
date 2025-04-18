@@ -1,7 +1,7 @@
 from typing import Dict, List, Optional, Tuple, Union
 
 import uuid
-
+import warnings
 import numpy as np
 from miv_simulator import cells, synapses
 from miv_simulator.cells import BiophysCell
@@ -24,7 +24,6 @@ from miv_simulator.utils.neuron import (
 )
 from mpi4py import MPI  # Must come before importing NEURON
 from neuroh5.io import append_cell_attributes
-from neuron import h
 from numpy import ndarray
 from scipy.optimize import curve_fit
 
@@ -233,7 +232,7 @@ def fit_membrane_time_constant(t, v, t0, t1, rmse_max_tol=1.0):
     try:
         popt, pcov = curve_fit(exp_curve, t_window, v_window, p0=p0)
     except RuntimeError:
-        logging.info("Curve fit for membrane time constant failed")
+        warnings.warn("Curve fit for membrane time constant failed")
         return np.nan, np.nan, np.nan
 
     pred = exp_curve(t_window, *popt)
@@ -241,9 +240,8 @@ def fit_membrane_time_constant(t, v, t0, t1, rmse_max_tol=1.0):
     rmse = np.sqrt(np.mean((pred - v_window) ** 2))
 
     if rmse > rmse_max_tol:
-        logging.debug(
-            "RMSE %f for the Curve fit for membrane time constant exceeded the maximum tolerance of %f"
-            % (rmse, rmse_max_tol)
+        warnings.warn(
+            f"RMSE {rmse} for the Curve fit for membrane time constant exceeded the maximum tolerance of {rmse_max_tol}"
         )
         return np.nan, np.nan, np.nan
 
@@ -274,8 +272,8 @@ def measure_time_constant(
     """
 
     if np.max(t) < t0 or np.max(t) < t1:
-        logging.debug(
-            "measure_time_constant: time series ends before t0 = {t0} or t1 = {t1}"
+        warnings.warn(
+            f"measure_time_constant: time series ends before t0 = {t0} or t1 = {t1}"
         )
         return np.nan
 
@@ -292,17 +290,14 @@ def measure_time_constant(
         np.argwhere(t >= (t0 - baseline_interval) * 0.999)[0]
     )
     noise = np.std(v[noise_interval_start_index:start_index])
-    t_noise_start = t[noise_interval_start_index]
 
     if noise == 0:  # noiseless - likely a deterministic model
         snr = np.inf
     else:
         snr = signal / noise
     if snr < min_snr:
-        logging.debug(
-            "measure_time_constant: signal-to-noise ratio too low for time constant estimate ({:g} < {:g})".format(
-                snr, min_snr
-            )
+        warnings.warn(
+            f"measure_time_constant: signal-to-noise ratio too low for time constant estimate ({snr} < {min_snr})"
         )
         return np.nan
 
@@ -311,7 +306,7 @@ def measure_time_constant(
     )
 
     if not search_result.size:
-        logger.debug(
+        warnings.warn(
             "measure_time_constant: could not find interval for time constant estimate"
         )
         return np.nan
@@ -356,7 +351,9 @@ def measure_passive(
     t1 = iclamp_res["t1"]
 
     if np.max(t) < t0 or np.max(t) < t1:
-        logging.debug("measure_passive: time series ends before t0 = {t0} or t1 = {t1}")
+        warnings.warn(
+            f"measure_passive: time series ends before t0 = {t0} or t1 = {t1}"
+        )
         return {"Rinp": np.nan, "tau": np.nan}
 
     deflection_results = measure_deflection(t, v, t0, t1, stim_amp=stim_amp)
@@ -371,7 +368,7 @@ def measure_passive(
         "tau0": np.asarray([tau0], dtype=np.float32),
     }
 
-    env.synapse_attributes.del_syn_id_attr_dict(gid)
+    env.synapse_manager.del_syn_id_attr_dict(gid)
     if gid in env.biophys_cells[pop_name]:
         del env.biophys_cells[pop_name][gid]
 
@@ -386,7 +383,6 @@ def measure_ap(gid, pop_name, v_init, env: AbstractEnv, cell_dict={}):
 
     h.dt = env.dt
 
-    prelength = 100.0
     stimdur = 10.0
 
     soma = list(hoc_cell.soma)[0]
@@ -408,7 +404,7 @@ def measure_ap(gid, pop_name, v_init, env: AbstractEnv, cell_dict={}):
         "spike threshold trace v": np.asarray(h.Vlog.to_python(), dtype=np.float32),
     }
 
-    env.synapse_attributes.del_syn_id_attr_dict(gid)
+    env.synapse_manager.del_syn_id_attr_dict(gid)
     if gid in env.biophys_cells[pop_name]:
         del env.biophys_cells[pop_name][gid]
 
@@ -528,7 +524,7 @@ def measure_ap_rate(
         ),
     }
 
-    env.synapse_attributes.del_syn_id_attr_dict(gid)
+    env.synapse_manager.del_syn_id_attr_dict(gid)
     if gid in env.biophys_cells[pop_name]:
         del env.biophys_cells[pop_name][gid]
 
@@ -591,14 +587,16 @@ def measure_fi(gid, pop_name, v_init, env: AbstractEnv, cell_dict={}):
         "FI_curve_frequency": np.asarray(frs, dtype=np.float32),
     }
 
-    env.synapse_attributes.del_syn_id_attr_dict(gid)
+    env.synapse_manager.del_syn_id_attr_dict(gid)
     if gid in env.biophys_cells[pop_name]:
         del env.biophys_cells[pop_name][gid]
 
     return results
 
 
-def measure_gap_junction_coupling(gid, population, v_init, env: AbstractEnv):
+def measure_gap_junction_coupling(
+    gid, population, v_init, env: AbstractEnv, weight=5.4e-4, cell_dict={}
+):
     h("objref gjlist, cells, Vlog1, Vlog2")
 
     pc = env.pc
@@ -608,10 +606,12 @@ def measure_gap_junction_coupling(gid, population, v_init, env: AbstractEnv):
     biophys_cell1 = init_biophys_cell(
         env, population, gid, register_cell=False, cell_dict=cell_dict
     )
-    hoc_cell1 = biophys_cell1.hoc_cell
+    biophys_cell2 = init_biophys_cell(
+        env, population, gid + 1, register_cell=False, cell_dict=cell_dict
+    )
 
-    cell1 = cells.make_neurotree_hoc_cell(template_class, neurotree_dict=tree)
-    cell2 = cells.make_neurotree_hoc_cell(template_class, neurotree_dict=tree)
+    cell1 = biophys_cell1.hoc_cell
+    cell2 = biophys_cell2.hoc_cell
 
     h.cells.append(cell1)
     h.cells.append(cell2)
@@ -646,7 +646,7 @@ def measure_gap_junction_coupling(gid, population, v_init, env: AbstractEnv):
     stim2.dur = stimdur
     stim2.amp = -0.1
 
-    log_size = old_div(tstop, h.dt) + 1
+    log_size = (tstop // h.dt) + 1
 
     h.tlog = h.Vector(log_size, 0)
     h.tlog.record(h._ref_t)
@@ -713,7 +713,7 @@ def measure_psc(
     h.Vlog.record(soma(0.5)._ref_v)
 
     h.ilog = h.Vector()
-    ilog.record(se._ref_i)
+    h.ilog.record(se._ref_i)
 
     h.tstop = tstop
 
@@ -728,7 +728,6 @@ def measure_psc(
     vec_v = vec_v[idx]
     vec_t = vec_t[idx]
 
-    t_holding = vec_t[0]
     i_holding = vec_i[0]
 
     i_peak = np.max(np.abs(vec_i[1:]))
@@ -779,8 +778,6 @@ def measure_psp(
         insert_vecstims=True,
     )
 
-    hoc_cell = biophys_cell.hoc_cell
-
     h.dt = env.dt
 
     prelength = 200.0
@@ -791,9 +788,9 @@ def measure_psp(
         rules["swc_types"] = [swc_type]
     if syn_layer is not None:
         rules["layers"] = [syn_layer]
-    syn_attrs = env.synapse_attributes
+    syn_manager = env.synapse_manager
     syn_filters = get_syn_filter_dict(env, rules=rules, convert=True)
-    syns = syn_attrs.filter_synapses(biophys_cell.gid, **syn_filters)
+    syns = syn_manager.filter_synapses(biophys_cell.gid, **syn_filters)
 
     print(
         "total number of %s %s synapses: %d"
@@ -804,8 +801,8 @@ def measure_psp(
     count = 0
     target_syn_pps = None
     for target_syn_id, target_syn in iter(syns.items()):
-        target_syn_pps = syn_attrs.get_pps(gid, target_syn_id, syn_mech_name)
-        target_syn_nc = syn_attrs.get_netcon(gid, target_syn_id, syn_mech_name)
+        target_syn_pps = syn_manager.get_pps(gid, target_syn_id, syn_mech_name)
+        target_syn_nc = syn_manager.get_netcon(gid, target_syn_id, syn_mech_name)
         target_syn_nc.weight[0] = weight
         setattr(target_syn_pps, "e", erev)
         vs = target_syn_nc.pre()
@@ -873,7 +870,7 @@ def measure_psp(
         f"{presyn_name} {syn_mech_name} PSP t": np.asarray(vec_t, dtype=np.float32),
     }
 
-    env.synapse_attributes.del_syn_id_attr_dict(gid)
+    env.synapse_manager.del_syn_id_attr_dict(gid)
     if gid in env.biophys_cells[pop_name]:
         del env.biophys_cells[pop_name][gid]
 
