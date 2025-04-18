@@ -3111,7 +3111,9 @@ def insert_cell_syns(
     if "default" in syn_params:
         mech_params = syn_params["default"]
         for mech_name, mech_params in mech_params.items():
-            syn_manager.add_default_mech_attrs(gid, mech_name, mech_params, syn_ids)
+            syn_manager.add_default_mechanism_parameters(
+                gid, mech_name, mech_params, syn_ids
+            )
 
     syn_count = 0
     nc_count = 0

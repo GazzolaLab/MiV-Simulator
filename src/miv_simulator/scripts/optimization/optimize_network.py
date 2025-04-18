@@ -60,7 +60,7 @@ def main_cli(
     get_best,
     verbose,
 ):
-    surrogate_method_kwargs={'batch_size': 400}
+    surrogate_method_kwargs = {"batch_size": 400}
     optimize_network(
         config_path,
         optimize_file_dir,
