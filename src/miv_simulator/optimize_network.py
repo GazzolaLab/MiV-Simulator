@@ -6,6 +6,7 @@ Network model optimization script for optimization with dmosopt
 import os
 import sys
 import datetime
+import copy
 
 os.environ["DISTWQ_CONTROLLER_RANK"] = "-1"
 
@@ -140,6 +141,8 @@ def optimize_network(
     initial_maxiter,
     initial_method,
     optimizer_method,
+    surrogate_method,
+    surrogate_method_kwargs,
     population_size,
     num_generations,
     resample_fraction,
@@ -213,6 +216,10 @@ def optimize_network(
     constraint_names = [
         f"{target_pop_name} positive rate" for target_pop_name in target_populations
     ]
+    surrogate_method_kwargs = copy.copy(surrogate_method_kwargs)
+    if "batch_size" not in surrogate_method_kwargs:
+        surrogate_method_kwargs["batch_size"] = 400
+
     dmosopt_params = {
         "opt_id": "miv_simulator.optimize_network",
         "obj_fun_init_name": f"miv_simulator.optimize_network.{init_objfun}",
@@ -233,8 +240,8 @@ def optimize_network(
         "initial_maxiter": initial_maxiter,
         "initial_method": initial_method,
         "optimizer": optimizer_method,
-        "surrogate_method": "megp",
-        "surrogate_options": {"batch_size": 400},
+        "surrogate_method_name": surrogate_method,
+        "surrogate_method_kwargs": surrogate_method_kwargs,
         "n_epochs": n_epochs,
         "population_size": population_size,
         "num_generations": num_generations,

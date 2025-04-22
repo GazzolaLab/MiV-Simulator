@@ -220,7 +220,7 @@ def plot_graph(
         mode="2ddash",
         **kwargs,
     )
-    b = mlab.points3d(x[0], y[0], z[0], mode="cone", scale_factor=3, **kwargs)
+    mlab.points3d(x[0], y[0], z[0], mode="cone", scale_factor=3, **kwargs)
     if edge_scalars is not None:
         vec.glyph.color_mode = "color_by_scalar"
         cb = mlab.colorbar(vec, label_fmt="%.1f")
@@ -238,7 +238,7 @@ def clean_axes(axes, left=True, right=False):
     """
     if type(axes) not in [np.ndarray, list]:
         axes = [axes]
-    elif type(axes) == np.ndarray:
+    elif isinstance(axes, np.ndarray):
         axes = axes.flatten()
     for axis in axes:
         axis.tick_params(direction="out")
@@ -253,8 +253,6 @@ def clean_axes(axes, left=True, right=False):
 
 def plot_spatial_bin_graph(graph_dict, **kwargs):
     import hiveplot as hv
-
-    edge_dflt_colors = ["red", "crimson", "coral", "purple"]
 
     fig_options = copy.copy(default_fig_options)
     fig_options.update(kwargs)
@@ -353,7 +351,7 @@ def plot_coordinates(
         Hint = H[:-1, :-1]
         levels = MaxNLocator(nbins=25).tick_values(Hint.min(), Hint.max())
         cmap = plt.get_cmap("jet")
-        norm = BoundaryNorm(levels, ncolors=cmap.N, clip=True)
+        BoundaryNorm(levels, ncolors=cmap.N, clip=True)
         p = ax.contourf(
             X[:-1, :-1] + (bin_size / 2),
             Y[:-1, :-1] + (bin_size / 2),
@@ -559,7 +557,6 @@ def plot_cell_tree(
     xcoords = tree_dict["x"]
     ycoords = tree_dict["y"]
     zcoords = tree_dict["z"]
-    swc_type = tree_dict["swc_type"]
     layer = tree_dict["layer"]
     secnodes = tree_dict["section_topology"]["nodes"]
     src = tree_dict["section_topology"]["src"]
@@ -586,9 +583,9 @@ def plot_cell_tree(
     loc_x = []
     loc_y = []
     loc_z = []
-    for s, d, l in zip(src, dst, loc):
-        srcnode = secnodes[s][l]
-        dstnode = secnodes[d][0]
+    for s1, d1, l1 in zip(src, dst, loc):
+        srcnode = secnodes[s1][l1]
+        dstnode = secnodes[d1][0]
         edges.append((srcnode, dstnode))
         loc_x.append(x[srcnode])
         loc_y.append(y[srcnode])
@@ -642,7 +639,7 @@ def plot_cell_tree(
         )
 
         if conn_loc:
-            conn_pts = mlab.points3d(
+            mlab.points3d(
                 conn_loc_x,
                 conn_loc_y,
                 conn_loc_z,
@@ -666,7 +663,6 @@ def plot_cell_tree(
         fig = plt.figure(figsize=fig_options.figSize)
         ax = fig.add_subplot(projection="3d")
 
-        layer_set = set(layer)
         sct = ax.scatter(
             x,
             y,
@@ -988,7 +984,6 @@ def plot_spike_raster(
                 prop=dict(size=fig_options.fontSize),
             )
             axes[i].add_artist(at)
-        max_label_len = max(len(l) for l in lgd_labels)
 
     elif labels == "yticks":
         for pop_name, info, a in zip_longest(spkpoplst, lgd_info, fig.axes):
@@ -1288,7 +1283,7 @@ def plot_spike_histogram(
             loc=2,
             borderaxespad=0.0,
         )
-        maxLabelLen = min(10, max(len(str(l)) for l in include))
+        maxLabelLen = min(10, max(len(str(lbl)) for lbl in include))
         plt.subplots_adjust(right=(0.9 - 0.012 * maxLabelLen))
 
     if fig_options.saveFig:
@@ -1589,10 +1584,7 @@ def plot_lfp_spectrogram(
 
         # save figure
         if fig_options.saveFig:
-            if isinstance(fig_options.saveFig, str):
-                filename = fig_options.saveFig
-            else:
-                filename = namespace_id + f".{fig_options.figFormat}"
+            filename = fig_options.saveFig
             plt.savefig(filename)
 
         # show fig
@@ -1677,13 +1669,10 @@ def plot_biophys_cell_tree(
 
     morph_graph = cells.make_morph_graph(biophys_cell, node_filters=node_filters)
 
-    gid = biophys_cell.gid
-    population = biophys_cell.population_name
-
     # Obtain synapse xyz locations
-    syn_attrs = env.synapse_attributes
+    syn_manager = env.synapse_manager
     synapse_filters = synapses.get_syn_filter_dict(env, synapse_filters, convert=True)
-    syns_dict = syn_attrs.filter_synapses(biophys_cell.gid, **synapse_filters)
+    syns_dict = syn_manager.filter_synapses(biophys_cell.gid, **synapse_filters)
     syn_sec_dict = defaultdict(list)
     if (syn_source_threshold is not None) and (syn_source_threshold > 0.0):
         syn_source_count = defaultdict(int)
@@ -1986,7 +1975,7 @@ def plot_2D_rate_map(
         ax = fig.add_subplot(gs[1, 1])
     else:
         ax = fig.add_subplot(gs[:, 1])
-    sct = ax.scatter(angF, rpsd, cmap=fig_options.colormap)
+    ax.scatter(angF, rpsd, cmap=fig_options.colormap)
     ax.set_title("Radially Averaged Spectrogram")
 
     if title is not None:
@@ -2266,9 +2255,8 @@ def plot_intracellular_state(
                     state_rows.append(np.asarray(cell_state_mat[1][j, :]).reshape((n,)))
                 state_mat = np.row_stack(state_rows)
                 d = np.asarray(cell_state_distances)[distance_rank_descending]
-                ri = np.asarray(cell_state_ri)[distance_rank_descending]
                 pcm = ax.pcolormesh(st_x, d, state_mat, cmap=fig_options.colormap)
-                cb = fig.colorbar(pcm, ax=ax, shrink=0.9, aspect=20)
+                fig.colorbar(pcm, ax=ax, shrink=0.9, aspect=20)
                 stplots.append(pcm)
                 legend_labels.append(f"{pop_name} {gid}")
 
@@ -2320,7 +2308,7 @@ def plot_intracellular_state(
                             linewidth=fig_options.lw,
                             alpha=0.75,
                         )
-                    except:
+                    except Exception:
                         pass
 
             ax.set_xlabel("Time [ms]", fontsize=fig_options.fontSize)
@@ -2570,7 +2558,6 @@ def plot_network_clamp(
         for (pop_name, pop_spkinds, pop_spkts) in zip(spkpoplst, spkindlst, spktlst)
     }
     N = pop_num_cells[pop_name]
-    S = pop_start_inds[pop_name]
 
     n_plots = len(spkpoplst) + 2
     plot_height_ratios = [1] * len(spkpoplst)
@@ -2816,7 +2803,7 @@ def plot_network_clamp(
                     linewidth=fig_options.lw,
                     alpha=0.75,
                 )
-            except:
+            except Exception:
                 pass
 
             for st_y in st_ys:
@@ -2857,8 +2844,6 @@ def plot_network_clamp(
                 prop=dict(size=fig_options.fontSize),
             )
             axes[i].add_artist(at)
-        max_label_len = max(len(l) for l in lgd_labels)
-
     else:
         raise RuntimeError(f"plot_network_clamp: unknown label type {labels}")
 
@@ -2918,9 +2903,6 @@ def plot_single_vertex_dist(
     fig_options.update(kwargs)
 
     (population_ranges, _) = read_population_ranges(coords_path)
-
-    destination_start = population_ranges[destination][0]
-    destination_count = population_ranges[destination][1]
 
     if comm is None:
         comm = MPI.COMM_WORLD
@@ -3127,18 +3109,12 @@ def init_spatial_rasters(
 
     scts = []
     t0 = timebins[0]
-    t1 = timebins[1]
+    # t1 = timebins[1]
     min_U = None
     min_V = None
     max_U = None
     max_V = None
     for pop_name, spkinds, spkts in data:
-        distances_U = distances_U_dict[pop_name]
-        distances_V = distances_V_dict[pop_name]
-        rinds = np.where(np.logical_and(spkts[0] >= t0, spkts[0] <= t1))
-        cinds = spkinds[0][rinds]
-        x = np.asarray([distances_U[ind] for ind in cinds])
-        y = np.asarray([distances_V[ind] for ind in cinds])
         # scts.append(ax.scatter(x, y, linewidths=options.lw, marker=marker, c=pop_colors[pop_name], alpha=0.5, label=pop_name))
         scts = scts + plt.plot([], [], marker, animated=True, alpha=0.5)
         if min_U is None:
@@ -3266,8 +3242,6 @@ def plot_spatial_spike_raster(
     spkpoplst = spkdata["spkpoplst"]
     spkindlst = spkdata["spkindlst"]
     spktlst = spkdata["spktlst"]
-    num_cell_spks = spkdata["num_cell_spks"]
-    pop_active_cells = spkdata["pop_active_cells"]
     tmin = spkdata["tmin"]
     tmax = spkdata["tmax"]
 
@@ -3283,15 +3257,17 @@ def plot_spatial_spike_raster(
 
     pop_labels = [pop_name for pop_name in spkpoplst]
     legend_labels = pop_labels
-    lgd = lambda objs: plt.legend(
-        objs,
-        legend_labels,
-        fontsize=fig_options.fontSize,
-        scatterpoints=1,
-        markerscale=2.0,
-        loc="upper right",
-        bbox_to_anchor=(0.95, 0.95),
-    )
+
+    def lgd(objs):
+        plt.legend(
+            objs,
+            legend_labels,
+            fontsize=fig_options.fontSize,
+            scatterpoints=1,
+            markerscale=2.0,
+            loc="upper right",
+            bbox_to_anchor=(0.95, 0.95),
+        )
 
     timebins = np.linspace(tmin, tmax, int(((tmax - tmin) / time_step)))
 

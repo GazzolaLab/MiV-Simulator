@@ -27,7 +27,7 @@ import click
 import numpy as np
 import yaml
 from mpi4py import MPI
-from numpy import float64, uint32
+from numpy import float64
 from scipy import signal, sparse
 from yaml.nodes import ScalarNode
 
@@ -682,8 +682,6 @@ def make_random_clusters(
     X = []
     y = []
 
-    n_centers = centers.shape[0]
-
     for i, (cid, n, std) in enumerate(
         zip(center_ids, n_samples_per_center, cluster_std)
     ):
@@ -730,12 +728,6 @@ def random_clustered_shuffle(
                29, 21, 27, 27, 21, 27, 25, 21, 25, 27, 25])
     """
 
-    if isinstance(centers, numbers.Integral):
-        n_centers = centers
-    else:
-        assert isinstance(centers, np.ndarray)
-        n_centers = len(centers)
-
     X, y = make_random_clusters(
         centers,
         n_samples_per_center,
@@ -781,17 +773,83 @@ def NamedTupleWithDocstring(docstring, *ntargs):
     return NT
 
 
-def partitionn(
-    items: List[uint32], predicate: Callable = int, n: int = 2
-) -> Iterator[Any]:
+def partitionn(items, predicate, n=2, buffer_size=1000):
     """
-    Filter an iterator into N parts lazily
-    http://paddy3118.blogspot.com/2013/06/filtering-iterator-into-n-parts-lazily.html
+    Filter an iterator into N parts lazily using bounded memory.
+
+    Args:
+        items: Input iterator to partition
+        predicate: Function that returns the partition index for each item
+        n: Number of partitions (default=2)
+        buffer_size: Maximum number of items to buffer per partition (default=1000)
+
+    Returns:
+        List of N generators, one for each partition
     """
-    tees = itertools.tee(((predicate(item), item) for item in items), n)
-    return (
-        (lambda i: (item for pred, item in tees[i] if pred == i))(x) for x in range(n)
-    )
+    # Convert to iterator
+    iterator = iter(items)
+
+    # Shared state between generators
+    state = {
+        "active": [False] * n,  # Track which partitions are being consumed
+        "buffers": [[] for _ in range(n)],  # Limited-size buffers for each partition
+        "exhausted": False,  # Whether input iterator is exhausted
+    }
+
+    def fill_buffers():
+        """Add items to buffers for active partitions until they're full or input is exhausted"""
+        if state["exhausted"]:
+            return False
+
+        added = False
+        try:
+            # Process items until all active buffers are full or input is exhausted
+            while any(state["active"]):
+                # Check if all active buffers are full
+                if all(
+                    len(buffer) >= buffer_size
+                    for i, buffer in enumerate(state["buffers"])
+                    if state["active"][i]
+                ):
+                    break
+
+                # Get next item and determine its partition
+                item = next(iterator)
+                part_id = predicate(item)
+
+                # Buffer item if its partition is active and not full
+                if (
+                    0 <= part_id < n
+                    and state["active"][part_id]
+                    and len(state["buffers"][part_id]) < buffer_size
+                ):
+                    state["buffers"][part_id].append(item)
+                    added = True
+        except StopIteration:
+            state["exhausted"] = True
+
+        return added
+
+    def generate_partition(part_id):
+        """Generate items for a specific partition"""
+        # Mark this partition as active
+        state["active"][part_id] = True
+
+        try:
+            while True:
+                # Yield items from buffer
+                while state["buffers"][part_id]:
+                    yield state["buffers"][part_id].pop(0)
+
+                # If we can't fill buffers and this one is empty, we're done
+                if not fill_buffers() and not state["buffers"][part_id]:
+                    break
+        finally:
+            # Mark partition as inactive when generator is closed
+            state["active"][part_id] = False
+
+    # Return a generator for each partition
+    return [generate_partition(i) for i in range(n)]
 
 
 def generator_peek(iterable):
@@ -1159,46 +1217,3 @@ def signal_psd(s, Fs, frequency_range=(0, 500), window_size=4096, overlap=0.9):
     peak_index = np.argwhere(psd == np.max(psd))[0][0]
 
     return psd, freqs, peak_index
-
-
-def baks(spktimes, time, a=1.5, b=None):
-    """
-    Bayesian Adaptive Kernel Smoother (BAKS)
-    BAKS is a method for estimating firing rate from spike train data that uses kernel smoothing technique
-    with adaptive bandwidth determined using a Bayesian approach
-    ---------------INPUT---------------
-    - spktimes : spike event times [s]
-    - time : time points at which the firing rate is estimated [s]
-    - a : shape parameter (alpha)
-    - b : scale parameter (beta)
-    ---------------OUTPUT---------------
-    - rate : estimated firing rate [nTime x 1] (Hz)
-    - h : adaptive bandwidth [nTime x 1]
-
-    Based on "Estimation of neuronal firing rate using Bayesian adaptive kernel smoother (BAKS)"
-    https://github.com/nurahmadi/BAKS
-    """
-    from scipy.special import gamma
-
-    n = len(spktimes)
-    sumnum = 0
-    sumdenom = 0
-
-    if b is None:
-        b = 0.42
-    b = float(n) ** b
-
-    for i in range(n):
-        numerator = (((time - spktimes[i]) ** 2) / 2.0 + 1.0 / b) ** (-a)
-        denominator = (((time - spktimes[i]) ** 2) / 2.0 + 1.0 / b) ** (-a - 0.5)
-        sumnum = sumnum + numerator
-        sumdenom = sumdenom + denominator
-
-    h = (gamma(a) / gamma(a + 0.5)) * (sumnum / sumdenom)
-    rate = np.zeros((len(time),))
-    for j in range(n):
-        x = np.asarray(-((time - spktimes[j]) ** 2) / (2.0 * h**2), dtype=np.float128)
-        K = (1.0 / (np.sqrt(2.0 * np.pi) * h)) * np.exp(x)
-        rate = rate + K
-
-    return rate, h

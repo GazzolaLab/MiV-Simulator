@@ -29,6 +29,7 @@ from miv_simulator.optimize_network import optimize_network
 @click.option("--initial-maxiter", type=int, default=50)
 @click.option("--initial-method", type=str, default="glp")
 @click.option("--optimizer-method", type=str, default="nsga2")
+@click.option("--surrogate-method", type=str, default="megp")
 @click.option("--population-size", type=int, default=100)
 @click.option("--num-generations", type=int, default=200)
 @click.option("--resample-fraction", type=float)
@@ -48,6 +49,7 @@ def main_cli(
     initial_maxiter,
     initial_method,
     optimizer_method,
+    surrogate_method,
     population_size,
     num_generations,
     resample_fraction,
@@ -58,6 +60,7 @@ def main_cli(
     get_best,
     verbose,
 ):
+    surrogate_method_kwargs = {"batch_size": 400}
     optimize_network(
         config_path,
         optimize_file_dir,
@@ -68,6 +71,8 @@ def main_cli(
         initial_maxiter,
         initial_method,
         optimizer_method,
+        surrogate_method,
+        surrogate_method_kwargs,
         population_size,
         num_generations,
         resample_fraction,

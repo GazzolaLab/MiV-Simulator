@@ -14,7 +14,6 @@ from miv_simulator import spikedata, synapses
 from miv_simulator.opto.run import OptoStim
 from miv_simulator.clamps.cell import init_biophys_cell
 from miv_simulator.cells import (
-    h,
     is_cell_registered,
     load_biophys_cell_dicts,
     make_input_cell,
@@ -202,7 +201,6 @@ def init_inputs_from_spikes(
     spkindlst = spkdata["spkindlst"]
     spktlst = spkdata["spktlst"]
     spkpoplst = spkdata["spkpoplst"]
-    pop_active_cells = spkdata["pop_active_cells"]
 
     ## Organize spike times by index of presynaptic population and gid
     input_source_dict = {}
@@ -306,9 +304,6 @@ def init_inputs_from_features(
 
     input_source_dict = {}
     for population in populations:
-        pop_start = int(env.celltypes[population]["start"])
-        num_cells = int(env.celltypes[population]["num"])
-
         selection = list(presyn_sources[population])
         logger.info(
             f"generating spike trains in time range {time_range} "
@@ -467,12 +462,11 @@ def init(
             weight_source_dict[presyn_index] = weight_rule
 
     min_delay = float("inf")
-    syn_attrs = env.synapse_attributes
+    syn_manager = env.synapse_manager
     presyn_sources = {presyn_name: set() for presyn_name in presyn_names}
 
     for gid in my_cell_index_set:
-        this_syn_attrs = syn_attrs[gid]
-        for syn_id, syn in this_syn_attrs.items():
+        for syn_id, syn in syn_manager.items(gid=gid):
             presyn_id = syn.source.population
             if presyn_id is None:
                 raise RuntimeError(
@@ -622,9 +616,9 @@ def init(
     if plot_cell:
         from miv_simulator.plotting import plot_synaptic_attribute_distribution
 
-        syn_attrs = env.synapse_attributes
+        syn_manager = env.synapse_manager
         syn_name = "AMPA"
-        syn_mech_name = syn_attrs.syn_mech_names[syn_name]
+        syn_mech_name = syn_manager.syn_mech_names[syn_name]
         for gid in my_cell_index_set:
             biophys_cell = env.biophys_cells[pop_name][gid]
             for param_name in ["weight", "g_unit"]:
@@ -678,7 +672,6 @@ def run(env, cvode=False, pc_runworker=False):
     """
 
     rank = int(env.pc.id())
-    nhosts = int(env.pc.nhost())
 
     rec_dt = None
     if env.recording_profile is not None:
@@ -719,8 +712,6 @@ def run(env, cvode=False, pc_runworker=False):
     env.pc.barrier()
 
     comptime = env.pc.step_time() - st_comptime
-    avgcomp = env.pc.allreduce(comptime, 1) / nhosts
-    maxcomp = env.pc.allreduce(comptime, 2)
 
     if rank == 0:
         logger.info(f"Host {rank} ran simulation in {comptime:.02f} seconds")
@@ -734,16 +725,11 @@ def run(env, cvode=False, pc_runworker=False):
 
 def update_params(env, pop_param_dict):
     for population, param_tuple_dict in pop_param_dict.items():
-        synapse_config = env.celltypes[population]["synapses"]
-        weights_dict = synapse_config.get("weights", {})
         biophys_cell_dict = env.biophys_cells[population]
         for gid, param_tuples in param_tuple_dict.items():
             if gid not in biophys_cell_dict:
                 continue
             biophys_cell = biophys_cell_dict[gid]
-            is_reduced = False
-            if hasattr(biophys_cell, "is_reduced"):
-                is_reduced = biophys_cell.is_reduced
 
             for param_tuple, param_value in param_tuples:
                 assert population == param_tuple.population
@@ -794,13 +780,12 @@ def run_with(env, param_dict, cvode=False, pc_runworker=False):
     """
 
     rank = int(env.pc.id())
-    nhosts = int(env.pc.nhost())
 
     stash_id_dict = defaultdict(lambda: dict())
-    syn_attrs = env.synapse_attributes
+    syn_manager = env.synapse_manager
     for pop_name in param_dict:
         for gid in param_dict[pop_name]:
-            stash_id = syn_attrs.stash_mech_attrs(pop_name, gid)
+            stash_id = syn_manager.stash_mech_attrs(pop_name, gid)
             stash_id_dict[pop_name][gid] = stash_id
     update_params(env, param_dict)
 
@@ -848,8 +833,6 @@ def run_with(env, param_dict, cvode=False, pc_runworker=False):
     env.pc.barrier()
 
     comptime = env.pc.step_time() - st_comptime
-    avgcomp = env.pc.allreduce(comptime, 1) / nhosts
-    maxcomp = env.pc.allreduce(comptime, 2)
 
     if rank == 0:
         logger.info(f"Host {rank} ran simulation in {comptime:.02f} seconds")
@@ -861,7 +844,7 @@ def run_with(env, param_dict, cvode=False, pc_runworker=False):
     for pop_name in param_dict:
         for gid in param_dict[pop_name]:
             stash_id = stash_id_dict[pop_name][gid]
-            syn_attrs.restore_mech_attrs(pop_name, gid, stash_id)
+            syn_manager.restore_mech_attrs(pop_name, gid, stash_id)
             synapses.config_biophys_cell_syns(env, gid, pop_name, insert=False)
 
     return spikedata.get_env_spike_dict(env, include_artificial=None)
@@ -969,7 +952,7 @@ def init_state_objfun(
         results_dict = {}
         filter_fun = None
         if state_filter == "lowpass":
-            filter_fun = lambda x, t: get_low_pass_filtered_trace(x, t)
+            filter_fun = get_low_pass_filtered_trace
         for gid in state_recs_dict:
             state_values = []
             state_recs = state_recs_dict[gid]
@@ -1131,7 +1114,6 @@ def init_rate_objfun(
 
     def gid_firing_rate(spkdict, cell_index_set):
         rates_dict = defaultdict(list)
-        mean_rates_dict = {}
         for i in range(n_trials):
             spkdict1 = {}
             for gid in cell_index_set:
@@ -1354,7 +1336,7 @@ def init_rate_dist_objfun(
 
     opt_param_config = optimization_params(
         env.netclamp_config.optimize_parameters,
-        [pop_name],
+        [population],
         param_config_name,
         param_type,
     )
@@ -1404,7 +1386,7 @@ def init_rate_dist_objfun(
             f"{np.min(mean_rate_vector):.02f} / {np.max(mean_rate_vector):.02f} Hz"
         )
 
-        return np.square(np.subtract(mean_rate_vectore, target_rate_vector)).mean()
+        return np.square(np.subtract(mean_rate_vector, target_rate_vector)).mean()
 
     def best_trial_rate_mse(gid, rate_vectors, target_rate_vector):
         mses = []
@@ -1413,7 +1395,7 @@ def init_rate_dist_objfun(
             mses.append(mse)
 
         min_mse_index = np.argmin(mses)
-        min_mse = mses[max_mse_index]
+        min_mse = mses[min_mse_index]
 
         logger.info(
             f"firing rate objective: max firing rate min/max of gid {gid}: "
@@ -2203,7 +2185,7 @@ def optimize(
         constraint_names = None
     elif target == "ratedist" or target == "rate_dist":
         init_params["target_features_arena"] = arena_id
-        init_params["target_features_trajectory"] = trajectory_id
+        init_params["target_features_stimulus"] = stimulus_id
         init_objfun_name = "init_rate_dist_objfun"
         feature_dtypes = None
         constraint_names = None
