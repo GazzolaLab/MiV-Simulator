@@ -1,5 +1,4 @@
 import base64
-import gc
 import pickle
 import sys
 
@@ -17,7 +16,7 @@ from miv_simulator.volume import make_network_volume
 from mpi4py import MPI
 from neuroh5.io import (
     append_cell_attributes,
-    bcast_cell_attributes,
+    read_cell_attributes,
     read_population_ranges,
 )
 
@@ -42,6 +41,7 @@ def measure_distances_(
     populations,
     resolution,
     nsample,
+    alpha_radius,
     io_size,
     chunk_size,
     value_chunk_size,
@@ -52,15 +52,18 @@ def measure_distances_(
     utils.config_logging(verbose)
     env = Env(comm=MPI.COMM_WORLD, config=config, config_prefix=config_prefix)
 
+    parametric_surface = env.geometry["Parametric Surface"]
     return measure_distances(
         filepath=coords_path,
         geometry_filepath=geometry_path,
         coordinate_namespace=coords_namespace,
         populations=populations,
         cell_distributions=env.geometry["Cell Distribution"],
-        layer_extents=env.geometry["Layer Extents"],
-        rotation=env.geometry["Rotation"],
-        origin=env.geometry["Origin"],
+        layer_extents=parametric_surface["Layer Extents"],
+        rotation=parametric_surface["Rotation"],
+        origin=parametric_surface["Origin"],
+        resolution=resolution,
+        alpha_radius=alpha_radius,
         n_sample=nsample,
         io_size=io_size,
         chunk_size=chunk_size,
@@ -91,29 +94,40 @@ def measure_distances(
     comm = MPI.COMM_WORLD
     rank = comm.rank
 
-    soma_coords = {}
-
     if rank == 0:
         logger.info("Reading population coordinates...")
 
     if not populations:
         populations = read_population_ranges(filepath, comm)[0].keys()
 
-    for population in sorted(populations):
-        coords = bcast_cell_attributes(
-            filepath, population, 0, namespace=coordinate_namespace, comm=comm
-        )
+    if rank == 0:
+        color = 1
+    else:
+        color = 0
+    ## comm0 includes only rank 0
+    comm0 = comm.Split(color, 0)
 
-        soma_coords[population] = {
-            k: (
-                v["U Coordinate"][0],
-                v["V Coordinate"][0],
-                v["L Coordinate"][0],
+    soma_coords = {}
+    if rank == 0:
+        for population in sorted(populations):
+            coords_iter = read_cell_attributes(
+                filepath,
+                population,
+                mask={"U Coordinate", "V Coordinate", "L Coordinate"},
+                namespace=coordinate_namespace,
+                comm=comm0,
             )
-            for (k, v) in coords
-        }
-        del coords
-        gc.collect()
+
+            soma_coords[population] = {
+                k: (
+                    v["U Coordinate"][0],
+                    v["V Coordinate"][0],
+                    v["L Coordinate"][0],
+                )
+                for (k, v) in coords_iter
+            }
+    comm.barrier()
+    soma_coords = comm.bcast(soma_coords, root=0)
 
     has_ip_dist = False
     origin_ranges = None
@@ -131,7 +145,7 @@ def measure_distances(
                     base64.b64decode(ip_dist_dset[()])
                 )
             f.close()
-    has_ip_dist = MPI.COMM_WORLD.bcast(has_ip_dist, root=0)
+    has_ip_dist = comm.bcast(has_ip_dist, root=0)
 
     if not has_ip_dist:
         if rank == 0:
@@ -193,18 +207,18 @@ def measure_distances(
         )
         if rank == 0:
             f = h5py.File(filepath, "a")
-            f["Populations"][population]["Arc Distances"].attrs[
-                "Reference U Min"
-            ] = origin_ranges[0][0]
-            f["Populations"][population]["Arc Distances"].attrs[
-                "Reference U Max"
-            ] = origin_ranges[0][1]
-            f["Populations"][population]["Arc Distances"].attrs[
-                "Reference V Min"
-            ] = origin_ranges[1][0]
-            f["Populations"][population]["Arc Distances"].attrs[
-                "Reference V Max"
-            ] = origin_ranges[1][1]
+            f["Populations"][population]["Arc Distances"].attrs["Reference U Min"] = (
+                origin_ranges[0][0]
+            )
+            f["Populations"][population]["Arc Distances"].attrs["Reference U Max"] = (
+                origin_ranges[0][1]
+            )
+            f["Populations"][population]["Arc Distances"].attrs["Reference V Min"] = (
+                origin_ranges[1][0]
+            )
+            f["Populations"][population]["Arc Distances"].attrs["Reference V Max"] = (
+                origin_ranges[1][1]
+            )
             f.close()
 
     comm.Barrier()

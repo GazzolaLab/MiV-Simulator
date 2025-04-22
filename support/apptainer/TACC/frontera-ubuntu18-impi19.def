@@ -1,0 +1,127 @@
+Bootstrap: docker
+From: tacc/tacc-ubuntu18-impi19.0.7-common:latest
+Stage: build
+
+%help
+    This is test container for miv-simulator
+
+%files
+    $HOME/localrc_common.sh
+
+%post -c /bin/bash
+    source /entry.sh
+
+    echo "Installation"
+
+    # CMake needs to be reinstalled. (we are using conda)
+    apt-get purge --auto-remove cmake
+
+    # Intel Repository
+    curl -k -L https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | apt-key add -
+    echo deb https://apt.repos.intel.com/mpi all main > /etc/apt/sources.list.d/intel-mpi.list
+    apt-get update && apt-get upgrade -y
+    apt-get install -y --no-install-recommends wget bzip2
+    apt-get install -y --no-install-recommends git-all
+    apt-get install -y --no-install-recommends libgl1-mesa-glx
+    apt-get install -y --no-install-recommends ffmpeg libsm6 libxext6
+
+
+    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+    bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/miniconda
+    /opt/miniconda/bin/conda init
+    rm Miniconda3-latest-Linux-x86_64.sh
+    export BASHRC=/root/.bashrc
+    source $BASHRC
+
+    conda install -y python==3.9.19
+    conda install -y cmake
+    cmake --version
+
+    # All installation goes in /opt
+    cd /opt
+
+    # Install MPI4PY
+    env MPICC=mpicc pip install --no-cache-dir numpy mpi4py
+
+    # Install Parallel HDF5
+    export HDF5_MAJOR_VER=1
+    export HDF5_MINOR_VER=12
+    export HDF5_PATCH_VER=1
+    export HDF5_VER=${HDF5_MAJOR_VER}.${HDF5_MINOR_VER}.${HDF5_PATCH_VER}
+    export HDF5_PATH=/opt/hdf5
+
+    wget https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-${HDF5_MAJOR_VER}.${HDF5_MINOR_VER}/hdf5-${HDF5_VER}/src/hdf5-${HDF5_VER}.tar.gz
+    tar -xzf hdf5-${HDF5_VER}.tar.gz && rm hdf5-${HDF5_VER}.tar.gz
+    mv hdf5-${HDF5_VER} $HDF5_PATH
+    cd $HDF5_PATH
+    CC=mpicc ./configure --prefix=$PWD/build --enable-parallel --enable-shared
+    make -j8 && make install
+    export HDF5_SOURCE=$PWD/build
+    echo "export PATH=\$PATH:$HDF5_SOURCE/bin" >> $BASHRC
+    cd /opt
+
+    # h5py
+    CC=mpicc HDF5_MPI="ON" HDF5_DIR=$HDF5_SOURCE pip install --no-binary=h5py --no-deps h5py
+
+    # NeuroH5
+    git clone https://github.com/iraikov/neuroh5.git
+    CC=mpicc CXX=mpicxx pip install --no-deps ./neuroh5
+    cd neuroh5 \
+        && CC=mpicc CXX=mpicxx cmake . \
+        && make -j4
+    echo "export PATH=/opt/neuroh5/bin:\$PATH" >> $BASHRC
+    cd /opt
+
+    # Neuron (nrn)
+    export NEURON_VER=8.2.1
+    # RUN pip install --no-cache-dir neuron==${NEURON_VER}
+    export NRN_SOURCE=/opt/nrn/install
+    git clone https://github.com/neuronsimulator/nrn
+    cd nrn
+    mkdir build && cd build
+    cmake .. \
+        -DNRN_ENABLE_CORENEURON=ON \
+        -DCORENRN_ENABLE_GPU=OFF \
+        -DNRN_ENABLE_INTERVIEWS=OFF \
+        -DNRN_ENABLE_RX3D=OFF \
+        -DCMAKE_INSTALL_PREFIX=$NRN_SOURCE \
+        -DCMAKE_C_COMPILER=mpicc \
+        -DCMAKE_CXX_COMPILER=mpicxx \
+        -DCMAKE_CXX_FLAGS="-O3 -g" \
+        -DCMAKE_C_FLAGS="-O3 -g"
+        # -DCMAKE_BUILD_TYPE=CUSTOM
+    make -j8 && make install
+    echo "export PATH=\$PATH:$NRN_SOURCE/bin" >> $BASHRC
+    echo "export PYTHONPATH=\$PYTHONPATH:$NRN_SOURCE/lib/python" >> $BASHRC
+    cd /opt
+
+    # MiV Simulator
+    git clone https://github.com/GazzolaLab/MiV-Simulator
+    pip install --no-cache-dir ./MiV-Simulator
+
+    # Other Utilities
+    pip install --no-cache-dir miv-os
+
+    # Cleanup
+    apt-get clean
+    echo "docker-clean"
+    echo "build DONE"
+
+%test
+    echo "Diagnostics"
+    mpicc --version
+    mpicxx --version
+
+    which h5copy
+    which neurotrees_import
+
+    python -c "from neuron import h; from neuron import coreneuron"
+
+%environment
+    export PATH=/opt/miniconda/bin:$PATH
+    export PATH=$PATH:/opt/hdf5/build/bin
+    export PATH=$PATH:/opt/neuroh5/bin
+
+%runscript -c /bin/bash
+    echo "Starting apptainer"
+    source /entry.sh

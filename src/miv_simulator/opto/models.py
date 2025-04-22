@@ -8,7 +8,6 @@ https://github.com/ProjectPyRhO/PyRhO.git
 """
 
 import warnings
-import logging
 import abc
 import itertools
 from collections import OrderedDict
@@ -18,7 +17,6 @@ from miv_simulator.utils import (
     Struct,
     get_module_logger,
 )
-from miv_simulator.opto.core import rho_type
 
 logger = get_module_logger(__name__)
 
@@ -61,9 +59,7 @@ class RhodopsinModel(Struct):
         # Ensure v1 is scaled correctly so that f(V=-70) = 1
         v1 = calcV1(self.E, self.v0)
         if not np.isclose(self.v1, v1, rtol=1e-3, atol=1e-5):
-            warnings.warn(
-                "Correcting v1 scaling: {} <-- {}".format(self.v1, v1)
-            )
+            warnings.warn("Correcting v1 scaling: {} <-- {}".format(self.v1, v1))
             self.v1 = v1
 
         self.initStates(phi=self.phi_0, s0=self.s_0)
@@ -75,14 +71,10 @@ class RhodopsinModel(Struct):
         )
 
     def __str__(self):
-        return "{}-state {}".format(
-            self.nStates, self.rho_type
-        )  # self.__name__+
+        return "{}-state {}".format(self.nStates, self.rho_type)  # self.__name__+
 
     def __repr__(self):
-        return "<PyRhO {}-state {} Model object>".format(
-            self.nStates, self.rho_type
-        )
+        return "<PyRhO {}-state {} Model object>".format(self.nStates, self.rho_type)
 
     def __call__(self):
         """When a rhodopsin is called, return its internal state at that instant."""
@@ -277,8 +269,7 @@ class RhO_3states(RhodopsinModel):
         r"$C + O + D = 1$",
         r"$G_a(\phi) = k\\frac{\phi^p}{\phi^p + \phi_m^p}$",
         r"$G_r(\phi) = \mathcal{H}(\phi) \cdot G_{r1} + G_{r0}$",
-        r"$f_{\phi}(\phi) = O$"
-        r"$f_v(v) = \\frac{1-\\exp({-(v-E)/v_0})}{(v-E)/v_1}$",
+        r"$f_{\phi}(\phi) = O$" r"$f_v(v) = \\frac{1-\\exp({-(v-E)/v_0})}{(v-E)/v_1}$",
         r"$I_{\phi} = g_0 \cdot f_{\phi}(\phi) \cdot f_v(v) \cdot (v-E)$",
     ]
 
@@ -290,9 +281,7 @@ class RhO_3states(RhodopsinModel):
 
     def _calcGr(self, phi):
         # return self.Gr0 + (phi>0)*self.Gr1
-        return self.Gr0 + self.k_r * phi**self.q / (
-            phi**self.q + self.phi_m**self.q
-        )
+        return self.Gr0 + self.k_r * phi**self.q / (phi**self.q + self.phi_m**self.q)
         # return self.Gr0 + self.Gr1 * np.log(1 + phi/self.phi0) # self.Gr0 + self.Gr1
         # return self.Gr_dark + self.Gr_light * np.log(1 + phi/self.phi0) # self.Gr0 + self.Gr1
         # return 1/(taur_dark*exp(-log(1+phi/phi0))+taur_min) # Fig 6 Nikolic et al. 2009
@@ -404,16 +393,8 @@ class RhO_3states(RhodopsinModel):
         RSD = (SQ - 2 * SP) ** (1 / 2)  # xi
         lambda_1 = (Ga + Gd + Gr + RSD) / 2
         lambda_2 = (Ga + Gd + Gr - RSD) / 2
-        Z_1 = (
-            C_0 * Gd * Ga
-            + O_0 * (Gd * (Ga - lambda_1))
-            + D_0 * Gr * (Gr - lambda_2)
-        )
-        Z_2 = (
-            C_0 * Gd * Ga
-            + O_0 * (Gd * (Ga - lambda_2))
-            + D_0 * Gr * (Gr - lambda_1)
-        )
+        Z_1 = C_0 * Gd * Ga + O_0 * (Gd * (Ga - lambda_1)) + D_0 * Gr * (Gr - lambda_2)
+        Z_2 = C_0 * Gd * Ga + O_0 * (Gd * (Ga - lambda_2)) + D_0 * Gr * (Gr - lambda_1)
         Exp_1 = np.exp(-t * lambda_1)
         Exp_2 = np.exp(-t * lambda_2)
 
@@ -526,15 +507,11 @@ class RhO_4states(RhodopsinModel):
 
     def _calcGf(self, phi):
         # return self.e12d + self.c1*np.log(1+(phi/self.phi0)) # e12(phi=0) = e12d
-        return self.Gf0 + self.k_f * phi**self.q / (
-            phi**self.q + self.phi_m**self.q
-        )
+        return self.Gf0 + self.k_f * phi**self.q / (phi**self.q + self.phi_m**self.q)
 
     def _calcGb(self, phi):
         # return self.e21d + self.c2*np.log(1+(phi/self.phi0)) # e21(phi=0) = e21d
-        return self.Gb0 + self.k_b * phi**self.q / (
-            phi**self.q + self.phi_m**self.q
-        )
+        return self.Gb0 + self.k_b * phi**self.q / (phi**self.q + self.phi_m**self.q)
 
     def setLight(self, phi):
         """
@@ -720,15 +697,11 @@ class RhO_6states(RhodopsinModel):
 
     def _calcGf(self, phi):
         # return self.a30 + self.a31*np.log(1+(phi/self.phi0))
-        return self.Gf0 + self.k_f * phi**self.q / (
-            phi**self.q + self.phi_m**self.q
-        )
+        return self.Gf0 + self.k_f * phi**self.q / (phi**self.q + self.phi_m**self.q)
 
     def _calcGb(self, phi):
         # return self.b20 + self.b21*np.log(1+(phi/self.phi0))
-        return self.Gb0 + self.k_b * phi**self.q / (
-            phi**self.q + self.phi_m**self.q
-        )
+        return self.Gb0 + self.k_b * phi**self.q / (phi**self.q + self.phi_m**self.q)
 
     def _calcGa2(self, phi):
         # return self.b40*(phi/self.phi0)
@@ -809,8 +782,7 @@ class RhO_6states(RhodopsinModel):
             * (
                 Go1 * Gb * Go2 * Ga2
                 + Ga1 * Gb * Go2 * Ga2
-                + Gr0
-                * (Go1 * (Gb * Go2 + Gd2 * Go2) + Ga1 * (Gb * Go2 + Gd2 * Go2))
+                + Gr0 * (Go1 * (Gb * Go2 + Gd2 * Go2) + Ga1 * (Gb * Go2 + Gd2 * Go2))
             )
             + Gr0
             * (
@@ -826,15 +798,11 @@ class RhO_6states(RhodopsinModel):
             Gd1 * (Ga1 * Gb * Go2 * Ga2 + Ga1 * Gr0 * (Gb * Go2 + Gd2 * Go2))
             + Ga1 * Gf * Gd2 * Gr0 * Go2
         )
-        O1ss = Ga1 * Go1 * Gb * Go2 * Ga2 + Ga1 * Go1 * Gr0 * (
-            Gb * Go2 + Gd2 * Go2
-        )
+        O1ss = Ga1 * Go1 * Gb * Go2 * Ga2 + Ga1 * Go1 * Gr0 * (Gb * Go2 + Gd2 * Go2)
         O2ss = Ga1 * Go1 * Gf * Go2 * Ga2 + Ga1 * Go1 * Gf * Gr0 * Go2
         I2ss = Ga1 * Go1 * Gf * Gd2 * Ga2
         C2ss = Ga1 * Go1 * Gf * Gd2 * Go2
-        self.steadyStates = (
-            np.array([C1ss, I1ss, O1ss, O2ss, I2ss, C2ss]) / denom
-        )
+        self.steadyStates = np.array([C1ss, I1ss, O1ss, O2ss, I2ss, C2ss]) / denom
         return self.steadyStates
 
     def calcfphi(self, states=None):
@@ -872,9 +840,7 @@ model_params_dict[3][
     ("v1", 17.1, True, -1e15, 1e15, None),
 )
 
-model_params_dict[3][
-    "NpHR"
-] = (  # Hyperpolarising: pumps chloride ions into the cell
+model_params_dict[3]["NpHR"] = (  # Hyperpolarising: pumps chloride ions into the cell
     ("g0", 1.57e5, True, 0.001, 1e6, None),
     ("phi_m", 1.32e18, True, 1e15, 1e19, None),
     ("k_a", 0.01, True, 0.001, 1000, None),
@@ -888,9 +854,7 @@ model_params_dict[3][
     ("v1", 17.1, True, -1e15, 1e15, None),
 )
 
-model_params_dict[3][
-    "ArchT"
-] = (  # Hyperpolarising: actively extrudes Hydrogen ions
+model_params_dict[3]["ArchT"] = (  # Hyperpolarising: actively extrudes Hydrogen ions
     ("g0", 1.57e5, True, 0.001, 1e6, None),
     ("phi_m", 1.32e18, True, 1e15, 1e19, None),
     ("k_a", 0.01, True, 0.001, 1000, None),

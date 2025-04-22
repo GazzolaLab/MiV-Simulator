@@ -15,7 +15,7 @@ from neuroh5.io import (
     append_cell_attributes,
     read_population_ranges,
 )
-from typing import Optional, Tuple, Literal
+from typing import Optional, Tuple, Literal, Dict
 
 sys_excepthook = sys.excepthook
 
@@ -31,7 +31,7 @@ def mpi_excepthook(type, value, traceback):
 sys.excepthook = mpi_excepthook
 
 
-# !deprecated, use update_synapse_statistics instead
+# !for imperative API, use update_synapse_statistics instead
 def update_syn_stats(env, syn_stats_dict, syn_dict):
     return update_synapse_statistics(syn_dict, syn_stats_dict)
 
@@ -90,9 +90,7 @@ def global_syn_summary(comm, syn_stats, gid_count, root):
                         )
         total_syn_stats_dict = pop_syn_stats["total"]
         for syn_type in total_syn_stats_dict:
-            global_syn_count = comm.gather(
-                total_syn_stats_dict[syn_type], root=root
-            )
+            global_syn_count = comm.gather(total_syn_stats_dict[syn_type], root=root)
             if comm.rank == root:
                 res.append(
                     f"{population}: mean {syn_type} synapses per cell: {np.sum(global_syn_count) / global_count:.2f}"
@@ -114,7 +112,7 @@ def local_syn_summary(syn_stats_dict):
     return str.join("\n", res)
 
 
-# !deprecated, use check_synapses instead
+# !for imperative API, use check_synapses instead
 def check_syns(
     gid,
     morph_dict,
@@ -132,6 +130,7 @@ def check_syns(
         seg_density_per_sec,
         layer_set_dict,
         swc_set_dict,
+        env.layers,
         logger,
     )
 
@@ -143,30 +142,39 @@ def check_synapses(
     seg_density_per_sec,
     layer_set_dict,
     swc_set_dict,
+    swc_defs,
+    layer_defs,
     logger,
 ):
     layer_stats = syn_stats_dict["layer"]
     swc_stats = syn_stats_dict["swc_type"]
 
     warning_flag = False
+    incomplete_layers = []
     for syn_type, layer_set in list(layer_set_dict.items()):
         for layer in layer_set:
-            if layer in layer_stats:
-                if layer_stats[layer][syn_type] <= 0:
+            layer_index = layer_defs[layer]
+            if layer_index in layer_stats:
+                if layer_stats[layer_index][syn_type] <= 0:
+                    incomplete_layers.append(layer)
                     warning_flag = True
             else:
+                incomplete_layers.append(layer)
                 warning_flag = True
     if warning_flag:
         logger.warning(
-            f"Rank {MPI.COMM_WORLD.Get_rank()}: incomplete synapse layer set for cell {gid}: {layer_stats}"
+            f"Rank {MPI.COMM_WORLD.Get_rank()}: incomplete synapse layer set for cell {gid}: "
+            f"  incomplete layers: {incomplete_layers}\n"
+            f"  populated layers: {layer_stats}\n"
             f"  layer_set_dict: {layer_set_dict}\n"
             f"  seg_density_per_sec: {seg_density_per_sec}\n"
             f"  morph_dict: {morph_dict}"
         )
     for syn_type, swc_set in swc_set_dict.items():
         for swc_type in swc_set:
-            if swc_type in swc_stats:
-                if swc_stats[swc_type][syn_type] <= 0:
+            swc_type_index = swc_defs[swc_type]
+            if swc_type_index in swc_stats:
+                if swc_stats[swc_type_index][syn_type] <= 0:
                     warning_flag = True
             else:
                 warning_flag = True
@@ -179,7 +187,7 @@ def check_synapses(
         )
 
 
-# !deprecated, use distribute_synapses instead
+# !for imperative API, use distribute_synapses instead
 def distribute_synapse_locations(
     config,
     template_path,
@@ -213,6 +221,7 @@ def distribute_synapse_locations(
     configure_hoc(
         template_directory=template_path,
         use_coreneuron=env.use_coreneuron,
+        mechanisms_directory=mechanisms_path,
         dt=env.dt,
         tstop=env.tstop,
         celsius=env.globals.get("celsius", None),
@@ -221,9 +230,11 @@ def distribute_synapse_locations(
     return distribute_synapses(
         forest_filepath=forest_path,
         cell_types=env.celltypes,
+        swc_defs=env.SWC_Types,
+        synapse_defs=env.Synapse_Types,
+        layer_defs=env.layers,
         populations=populations,
         distribution=distribution,
-        mechanisms_path=mechanisms_path,
         template_path=template_path,
         io_size=io_size,
         output_filepath=output_path,
@@ -238,9 +249,11 @@ def distribute_synapse_locations(
 def distribute_synapses(
     forest_filepath: str,
     cell_types: config.CellTypes,
+    swc_defs: Dict[str, int],
+    synapse_defs: Dict[str, int],
+    layer_defs: Dict[str, int],
     populations: Tuple[str, ...],
     distribution: Literal["uniform", "poisson"],
-    mechanisms_path: str,
     template_path: str,
     output_filepath: Optional[str],
     io_size: int,
@@ -258,7 +271,7 @@ def distribute_synapses(
     if rank == 0:
         logger.info(f"{comm.size} ranks have been allocated")
 
-    configure_hoc(mechanisms_directory=mechanisms_path)
+    configure_hoc()
 
     if io_size == -1:
         io_size = comm.size
@@ -350,9 +363,9 @@ def distribute_synapses(
                         seg_density_per_sec,
                     ) = synapses.distribute_uniform_synapses(
                         random_seed,
-                        config.SynapseTypesDef.__members__,
-                        config.SWCTypesDef.__members__,
-                        config.LayersDef.__members__,
+                        synapse_defs,
+                        swc_defs,
+                        layer_defs,
                         density_dict,
                         morph_dict,
                         cell_sec_dict,
@@ -365,23 +378,19 @@ def distribute_synapses(
                         seg_density_per_sec,
                     ) = synapses.distribute_poisson_synapses(
                         random_seed,
-                        config.SynapseTypesDef.__members__,
-                        config.SWCTypesDef.__members__,
-                        config.LayersDef.__members__,
+                        synapse_defs,
+                        swc_defs,
+                        layer_defs,
                         density_dict,
                         morph_dict,
                         cell_sec_dict,
                         cell_secidx_dict,
                     )
                 else:
-                    raise Exception(
-                        f"Unknown distribution type: {distribution}"
-                    )
+                    raise Exception(f"Unknown distribution type: {distribution}")
 
                 synapse_dict[gid] = syn_dict
-                this_syn_stats = update_synapse_statistics(
-                    syn_dict, syn_stats_dict
-                )
+                this_syn_stats = update_synapse_statistics(syn_dict, syn_stats_dict)
                 check_synapses(
                     gid,
                     morph_dict,
@@ -389,6 +398,8 @@ def distribute_synapses(
                     seg_density_per_sec,
                     layer_set_dict,
                     swc_set_dict,
+                    swc_defs,
+                    layer_defs,
                     logger,
                 )
 
@@ -402,11 +413,7 @@ def distribute_synapses(
             else:
                 logger.info(f"Rank {rank} gid is None")
             gc.collect()
-            if (
-                (not dry_run)
-                and (write_size > 0)
-                and (gid_count % write_size == 0)
-            ):
+            if (not dry_run) and (write_size > 0) and (gid_count % write_size == 0):
                 append_cell_attributes(
                     output_filepath,
                     population,
@@ -433,9 +440,7 @@ def distribute_synapses(
                 value_chunk_size=value_chunk_size,
             )
 
-        global_count, summary = global_syn_summary(
-            comm, syn_stats, gid_count, root=0
-        )
+        global_count, summary = global_syn_summary(comm, syn_stats, gid_count, root=0)
         if rank == 0:
             logger.info(
                 f"Population: {population}, {comm.size} ranks took {time.time() - start_time:.2f} s "

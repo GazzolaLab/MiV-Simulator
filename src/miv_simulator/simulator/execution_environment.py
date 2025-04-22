@@ -1,14 +1,15 @@
 from typing import Optional
 from miv_simulator.utils import AbstractEnv
 from mpi4py import MPI
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from neuron import h
 import logging
 from miv_simulator.network import make_cells, connect_gjs, connect_cells
+from miv_simulator.utils import from_yaml, ExprClosure
 import time
 import random
 from miv_simulator import config
-from miv_simulator.synapses import SynapseAttributes
+from miv_simulator.synapses import SynapseManager
 
 from neuroh5.io import (
     read_cell_attribute_info,
@@ -52,7 +53,7 @@ class ExecutionEnvironment(AbstractEnv):
         self.biophys_cells = defaultdict(lambda: dict())
         self.spike_onset_delay = {}
         self.recording_sets = {}
-        self.synapse_attributes = None
+        self.synapse_manager = None
         self.edge_count = defaultdict(dict)
         self.syns_set = defaultdict(set)
 
@@ -113,7 +114,6 @@ class ExecutionEnvironment(AbstractEnv):
         population_names = self.comm.bcast(population_names, root=0)
         cell_attribute_info = self.comm.bcast(cell_attribute_info, root=0)
 
-        # TODO: refactor from declarative to imperative
         celltypes = dict(cell_types)
         typenames = sorted(celltypes.keys())
         for k in typenames:
@@ -121,23 +121,16 @@ class ExecutionEnvironment(AbstractEnv):
             if population_range is not None:
                 celltypes[k]["start"] = population_ranges[k][0]
                 celltypes[k]["num"] = population_ranges[k][1]
-                if "mechanism file" in celltypes[k]:
-                    if isinstance(celltypes[k]["mechanism file"], str):
-                        celltypes[k]["mech_file_path"] = celltypes[k][
-                            "mechanism file"
-                        ]
-                        mech_dict = None
+
+                if "mechanism" in celltypes[k]:
+                    mech_dict = celltypes[k]["mechanism"]
+                    if isinstance(mech_dict, str):
                         if rank == 0:
-                            mech_file_path = celltypes[k]["mech_file_path"]
-                            if self.config_prefix is not None:
-                                mech_file_path = os.path.join(
-                                    self.config_prefix, mech_file_path
-                                )
-                            mech_dict = read_from_yaml(mech_file_path)
-                    else:
-                        mech_dict = celltypes[k]["mechanism file"]
-                    mech_dict = self.comm.bcast(mech_dict, root=0)
+                            mech_dict = from_yaml(mech_dict)
+                        mech_dict = self.comm.bcast(mech_dict, root=0)
                     celltypes[k]["mech_dict"] = mech_dict
+                    celltypes[k]["mech_file_path"] = "$mechanism"
+
                 if "synapses" in celltypes[k]:
                     synapses_dict = celltypes[k]["synapses"]
                     if "weights" in synapses_dict:
@@ -198,11 +191,9 @@ class ExecutionEnvironment(AbstractEnv):
                 "dataset_prefix": "",
                 "template_dict": self.template_dict,
                 "cell_attribute_info": cell_attribute_info,
-                "celltypes": cell_types,
+                "celltypes": celltypes,
                 "model_config": {
-                    "Random Seeds": {
-                        "Intracellular Recording Sample": self.seed
-                    }
+                    "Random Seeds": {"Intracellular Recording Sample": self.seed}
                 },
             }
         )
@@ -232,9 +223,7 @@ class ExecutionEnvironment(AbstractEnv):
         self.pc.setup_transfer()
         self.connectgjstime = time.time() - st
         if rank == 0:
-            logger.info(
-                f"*** Gap junctions created in {self.connectgjstime:.02f} s"
-            )
+            logger.info(f"*** Gap junctions created in {self.connectgjstime:.02f} s")
 
     # -- user-space OptoStim and LFP etc.
 
@@ -250,7 +239,7 @@ class ExecutionEnvironment(AbstractEnv):
 
         st = time.time()
         if self.rank == 0:
-            logger.info(f"*** Creating connections:")
+            logger.info("*** Creating connections:")
 
         rank = self.comm.Get_rank()
         if rank == 0:
@@ -302,7 +291,7 @@ class ExecutionEnvironment(AbstractEnv):
                 "celltypes": self.cells_meta_data["celltypes"],
             }
         )
-        self.synapse_attributes = SynapseAttributes(
+        self.synapse_manager = SynapseManager(
             this,
             # TODO: expose config
             {
@@ -340,7 +329,7 @@ class ExecutionEnvironment(AbstractEnv):
                 },
             },
         )
-        this.__dict__["synapse_attributes"] = self.synapse_attributes
+        this.__dict__["synapse_manager"] = self.synapse_manager
 
         connect_cells(this)
 

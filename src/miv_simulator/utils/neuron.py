@@ -5,18 +5,15 @@ from collections import namedtuple
 from miv_simulator.mechanisms import compile_and_load
 import numpy as np
 
-from mpi4py import MPI  # Must come before importing NEURON
 
-from typing import TYPE_CHECKING, Dict, List, Optional, Union, Tuple
-from miv_simulator import config
-from miv_simulator.utils import AbstractEnv, get_module_logger
+from typing import Dict, List, Optional, Union
+from miv_simulator.utils import AbstractEnv, import_object_by_path, get_module_logger
 from neuron import h
 from nrn import Section
 from numpy import float64, uint32
 from scipy import interpolate
 
-if TYPE_CHECKING:
-    from neuron.hoc import HocObject
+from hoc import HocObject
 
 # This logger will inherit its settings from the root logger, created in miv_simulator.env
 logger = get_module_logger(__name__)
@@ -60,8 +57,35 @@ PRconfig = namedtuple(
         "dend_gmax_Ca",
         "dend_gmax_KCa",
         "dend_gmax_KAHP",
+        "dend_aqs_KAHP",
+        "dend_bq_KAHP",
         "dend_g_pas",
         "dend_d_Caconc",
+        "dend_beta_Caconc",
+        "global_cm",
+        "global_diam",
+        "ic_constant",
+        "cm_ratio",
+        "e_pas",
+        "V_rest",
+        "V_threshold",
+    ],
+)
+
+PRNconfig = namedtuple(
+    "PRNconfig",
+    [
+        "pp",
+        "Ltotal",
+        "gc",
+        "soma_gmax_Na",
+        "soma_gmax_K",
+        "soma_g_pas",
+        "dend_gmax_Ca",
+        "dend_gmax_KCa",
+        "dend_g_pas",
+        "dend_d_Caconc",
+        "dend_beta_Caconc",
         "global_cm",
         "global_diam",
         "ic_constant",
@@ -131,7 +155,7 @@ def cx(env: AbstractEnv):
 
     :param env: an instance of the `Env` class.
     """
-    rank = int(env.pc.id())
+
     lb = h.LoadBalance()
     if os.path.isfile("mcomplex.dat"):
         lb.read_mcomplex()
@@ -150,10 +174,25 @@ def lambda_f(sec: Section, f: int = freq) -> float:
     :param f: int
     :return: int
     """
-    diam = np.mean([seg.diam for seg in sec])
     Ra = sec.Ra
-    cm = np.mean([seg.cm for seg in sec])
-    return 1e5 * math.sqrt(diam / (4.0 * math.pi * f * Ra * cm))
+    cm = sec.cm
+    if sec.n3d() < 2:
+        return 1.0e5 * math.sqrt(sec(0).diam / (4 * math.pi * f * Ra * cm))
+
+    x1 = sec.arc3d(0)
+    d1 = sec.diam3d(0)
+    lam = 0
+    for i in range(1, sec.n3d()):
+        x2 = sec.arc3d(i)
+        d2 = sec.diam3d(i)
+        lam += (x2 - x1) / math.sqrt(d1 + d2)
+        x1 = x2
+        d1 = d2
+
+    ## length of the section in units of lambda
+    lam *= math.sqrt(2) * 1.0e-5 * math.sqrt(4 * math.pi * f * Ra * cm)
+
+    return sec.L / lam
 
 
 def d_lambda_nseg(sec: Section, lam: float = d_lambda, f: int = freq) -> int:
@@ -194,10 +233,9 @@ def init_nseg(sec: Section, spatial_res: int = 0, verbose: bool = True) -> None:
     sugg_nseg = d_lambda_nseg(sec)
     sugg_nseg *= 3**spatial_res
     if verbose:
-        logger.info(
-            f"init_nseg: changed {sec.hname()}.nseg {sec.nseg} --> {sugg_nseg}"
-        )
-    sec.nseg = int(sugg_nseg)
+        logger.info(f"init_nseg: changed {sec.hname()}.nseg {sec.nseg} --> {sugg_nseg}")
+    if sec.nseg < sugg_nseg:
+        sec.nseg = int(sugg_nseg)
 
 
 def mknetcon(
@@ -271,27 +309,34 @@ def load_cell_template(
     """
     if pop_name in env.template_dict:
         return env.template_dict[pop_name]
-    rank = env.comm.Get_rank()
-    if not (pop_name in env.celltypes):
-        raise KeyError(
-            f"load_cell_templates: unrecognized cell population: {pop_name}"
-        )
 
-    template_name = env.celltypes[pop_name]["template"]
+    if pop_name not in env.celltypes:
+        raise KeyError(f"load_cell_templates: unrecognized cell population: {pop_name}")
+
+    template_name = env.celltypes[pop_name].get("template", None)
+    template_class = None
+    template_file = None
     if "template file" in env.celltypes[pop_name]:
         template_file = env.celltypes[pop_name]["template file"]
+    elif "template class" in env.celltypes[pop_name]:
+        template_class = import_object_by_path(
+            env.celltypes[pop_name]["template class"]
+        )
     else:
         template_file = None
-    if not hasattr(h, template_name):
-        find_template(
-            env,
-            template_name,
-            template_file=template_file,
-            path=env.template_paths,
-            bcast_template=bcast_template,
-        )
-    assert hasattr(h, template_name)
-    template_class = getattr(h, template_name)
+
+    if template_class is None and template_name is not None:
+        if not hasattr(h, template_name):
+            find_template(
+                env,
+                template_name,
+                template_file=template_file,
+                path=env.template_paths,
+                bcast_template=bcast_template,
+            )
+            assert hasattr(h, template_name)
+        template_class = getattr(h, template_name)
+
     env.template_dict[pop_name] = template_class
     return template_class
 
@@ -372,10 +417,21 @@ def find_template(
         )
 
 
-def configure_hoc_env(env: AbstractEnv, bcast_template: bool = False) -> None:
+def configure_hoc_env(
+    env: AbstractEnv,
+    subworld_size: Optional[int] = None,
+    bcast_template: bool = False,
+) -> None:
     """
     :param env: :class:'Env'
     """
+    if env.use_coreneuron:
+        from neuron import coreneuron
+
+        coreneuron.enable = True
+        coreneuron.verbose = 1 if env.verbose else 0
+        if env.coreneuron_gpu:
+            coreneuron.gpu = True
     h.load_file("stdrun.hoc")
     h.load_file("loadbal.hoc")
     for template_dir in env.template_paths:
@@ -387,15 +443,11 @@ def configure_hoc_env(env: AbstractEnv, bcast_template: bool = False) -> None:
     h("objref pc, nc, nil")
     h("strdef dataset_path")
     if hasattr(env, "dataset_path"):
-        h.dataset_path = (
-            env.dataset_path if env.dataset_path is not None else ""
-        )
-    if env.use_coreneuron:
-        from neuron import coreneuron
+        h.dataset_path = env.dataset_path if env.dataset_path is not None else ""
 
-        coreneuron.enable = True
-        coreneuron.verbose = 1 if env.verbose else 0
     h.pc = h.ParallelContext()
+    if subworld_size is not None:
+        h.pc.subworlds(subworld_size)
     h.pc.gid_clear()
     env.pc = h.pc
     h.dt = env.dt
@@ -421,7 +473,9 @@ def configure_hoc(
     **optional_attrs,
 ) -> "HocObject":
     if mechanisms_directory is not None:
-        compile_and_load(directory=mechanisms_directory, force=force)
+        compile_and_load(
+            directory=mechanisms_directory, coreneuron=use_coreneuron, force=force
+        )
 
     if not force and hasattr(h, "pc"):
         # already configured
@@ -457,50 +511,6 @@ def configure_hoc(
         h.nrn_sparse_partrans = 1
 
     return h
-
-
-# Code by Michael Hines from this discussion thread:
-# https://www.neuron.yale.edu/phpBB/viewtopic.php?f=31&t=3628
-def cx(env):
-    """
-    Estimates cell complexity. Uses the LoadBalance class.
-
-    :param env: an instance of the `Env` class.
-    """
-    rank = int(env.pc.id())
-    lb = h.LoadBalance()
-    if os.path.isfile("mcomplex.dat"):
-        lb.read_mcomplex()
-    cxvec = np.zeros((len(env.gidset),))
-    for i, gid in enumerate(env.gidset):
-        cxvec[i] = lb.cell_complexity(env.pc.gid2cell(gid))
-    env.cxvec = cxvec
-    return cxvec
-
-
-def mkgap(env: AbstractEnv, cell, gid, secpos, secidx, sgid, dgid, w):
-    """
-    Create gap junctions
-    :param pc:
-    :param gjlist:
-    :param gid:
-    :param secidx:
-    :param sgid:
-    :param dgid:
-    :param w:
-    :return:
-    """
-
-    sec = list(cell.sections)[secidx]
-    seg = sec(secpos)
-    gj = h.ggap(seg)
-    gj.g = w
-
-    env.pc.source_var(seg._ref_v, sgid, sec=sec)
-    env.pc.target_var(gj, gj._ref_vgap, dgid)
-
-    env.gjlist.append(gj)
-    return gj
 
 
 def interplocs(sec):
@@ -585,9 +595,7 @@ def make_rec(
             loc = seg.x
             sec = seg.sec
             origin = (
-                list(cell.soma_list)[0]
-                if hasattr(cell, "soma_list")
-                else cell.soma
+                list(cell.soma_list)[0] if hasattr(cell, "soma_list") else cell.soma
             )
             distance = h.distance(origin(0.5), seg)
             ri = h.ri(loc, sec=sec)
@@ -596,19 +604,20 @@ def make_rec(
             ri = None
     elif (sec is not None) and (loc is not None):
         hocobj = sec(loc)
-        origin = (
-            list(cell.soma_list)[0] if hasattr(cell, "soma_list") else cell.soma
-        )
+        origin = list(cell.soma_list)[0] if hasattr(cell, "soma_list") else cell.soma
         h.distance(sec=origin)
         distance = h.distance(loc, sec=sec)
         ri = h.ri(loc, sec=sec)
     else:
-        raise RuntimeError(
-            "make_rec: either sec and loc or ps must be specified"
-        )
+        raise RuntimeError("make_rec: either sec and loc or ps must be specified")
     section_index = None
+    sections = []
+    if hasattr(cell, "sections"):
+        sections = list(cell.sections)
+    elif hasattr(cell, "all"):
+        sections = list(cell.all)
     if sec is not None:
-        for i, this_section in enumerate(cell.sections):
+        for i, this_section in enumerate(sections):
             if this_section == sec:
                 section_index = i
                 break

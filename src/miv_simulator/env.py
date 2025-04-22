@@ -6,7 +6,7 @@ from collections import defaultdict, namedtuple
 
 import numpy as np
 import yaml
-from miv_simulator.synapses import SynapseAttributes, get_syn_filter_dict
+from miv_simulator.synapses import SynapseManager, get_syn_filter_dict
 from miv_simulator.utils import (
     AbstractEnv,
     ExprClosure,
@@ -46,9 +46,7 @@ NetclampConfig = namedtuple(
     ["template_params", "weight_generators", "optimize_parameters"],
 )
 
-ArenaConfig = namedtuple(
-    "Arena", ["name", "domain", "trajectories", "properties"]
-)
+ArenaConfig = namedtuple("Arena", ["name", "domain", "trajectories", "properties"])
 
 DomainConfig = namedtuple("Domain", ["vertices", "simplices"])
 
@@ -66,6 +64,7 @@ class Env(AbstractEnv):
         config: Optional[str] = None,
         template_paths: str = "templates",
         hoc_lib_path: Optional[str] = None,
+        mechanisms_path: Optional[str] = None,
         dataset_prefix: Optional[str] = None,
         results_path: Optional[str] = None,
         results_file_id: Optional[str] = None,
@@ -94,10 +93,12 @@ class Env(AbstractEnv):
         spike_input_path: None = None,
         spike_input_namespace: None = None,
         spike_input_attr: None = None,
+        coordinates_namespace: str = "Coordinates",
         cleanup: bool = True,
         cache_queries: bool = False,
         profile_memory: bool = False,
         use_coreneuron: bool = False,
+        coreneuron_gpu: bool = False,
         transfer_debug: bool = False,
         verbose: bool = False,
         config_prefix="",
@@ -108,6 +109,7 @@ class Env(AbstractEnv):
         :param config_file: str; model configuration file name
         :param template_paths: str; colon-separated list of paths to directories containing hoc cell templates
         :param hoc_lib_path: str; path to directory containing required hoc libraries
+        :param mechanisms_path: str; path to directory containing NMODL mechanisms
         :param dataset_prefix: str; path to directory containing required neuroh5 data files
         :param results_path: str; path to directory to export output files
         :param results_file_id: str; label for neuroh5 files to write spike and voltage trace data
@@ -163,6 +165,7 @@ class Env(AbstractEnv):
         comm0 = self.comm.Split(color, 0)
 
         self.use_coreneuron = use_coreneuron
+        self.coreneuron_gpu = coreneuron_gpu
 
         # If true, the biophysical cells and synapses dictionary will be freed
         # as synapses and connections are instantiated.
@@ -187,6 +190,8 @@ class Env(AbstractEnv):
 
         # The location of required hoc libraries
         self.hoc_lib_path = hoc_lib_path
+        # The location of NMODL mechanisms
+        self.mechanisms_path = mechanisms_path
 
         # Checkpoint interval in ms of simulation time
         self.checkpoint_clear_data = checkpoint_clear_data
@@ -269,15 +274,11 @@ class Env(AbstractEnv):
 
         if "Definitions" in self.model_config:
             self.parse_definitions()
-            self.SWC_Type_index = {
-                item[1]: item[0] for item in self.SWC_Types.items()
-            }
+            self.SWC_Type_index = {item[1]: item[0] for item in self.SWC_Types.items()}
             self.Synapse_Type_index = {
                 item[1]: item[0] for item in self.Synapse_Types.items()
             }
-            self.layer_type_index = {
-                item[1]: item[0] for item in self.layers.items()
-            }
+            self.layer_type_index = {item[1]: item[0] for item in self.layers.items()}
 
         if "Global Parameters" in self.model_config:
             self.parse_globals()
@@ -288,8 +289,11 @@ class Env(AbstractEnv):
             if "Origin" in self.geometry["Parametric Surface"]:
                 self.parse_origin_coords()
 
+        self.coordinates_ns = coordinates_namespace
         self.celltypes = self.model_config["Cell Types"]
         self.cell_attribute_info = {}
+        self.phenotype_dict = {}
+        self.phenotype_ids = {}
 
         # The name of this model
         self.modelName = "Unnamed model"
@@ -321,9 +325,7 @@ class Env(AbstractEnv):
         self.spike_input_attribute_info = None
         if self.spike_input_path is not None:
             if rank == 0:
-                self.logger.info(
-                    f"env.spike_input_path = {str(self.spike_input_path)}"
-                )
+                self.logger.info(f"env.spike_input_path = {str(self.spike_input_path)}")
                 self.spike_input_attribute_info = read_cell_attribute_info(
                     self.spike_input_path,
                     sorted(self.Populations.keys()),
@@ -357,9 +359,7 @@ class Env(AbstractEnv):
             self.parse_gapjunction_config()
 
         if self.dataset_prefix is not None:
-            self.dataset_path = os.path.join(
-                self.dataset_prefix, self.datasetName
-            )
+            self.dataset_path = os.path.join(self.dataset_prefix, self.datasetName)
             if "Cell Data" in self.model_config:
                 self.data_file_path = os.path.join(
                     self.dataset_path, self.model_config["Cell Data"]
@@ -430,9 +430,7 @@ class Env(AbstractEnv):
                     ):
                         projection_dict[dst].append(src)
                 self.projection_dict = dict(projection_dict)
-                self.logger.info(
-                    f"projection_dict = {str(self.projection_dict)}"
-                )
+                self.logger.info(f"projection_dict = {str(self.projection_dict)}")
             self.projection_dict = self.comm.bcast(self.projection_dict, root=0)
 
         # If True, instantiate as spike source those cells that do not
@@ -443,6 +441,11 @@ class Env(AbstractEnv):
         self.microcircuit_input_sources = {
             pop_name: set() for pop_name in self.celltypes.keys()
         }
+        if rank == 0:
+            self.logger.info(
+                f"env.microcircuit_inputs = {self.microcircuit_inputs}\n"
+                f"env.microcircuit_input_sources = {self.microcircuit_input_sources}"
+            )
 
         # Configuration profile for optogenetic stimulation
         self.opsin_config = None
@@ -453,20 +456,16 @@ class Env(AbstractEnv):
                     "nstates": int(config["nstates"]),
                     "opsin type": config["opsin type"],
                     "protocol": config["protocol"],
-                    "protocol parameters": config.get(
-                        "protocol parameters", dict()
-                    ),
+                    "protocol parameters": config.get("protocol parameters", dict()),
                     "rho parameters": config.get("rho parameters", dict()),
                 }
 
         # Configuration profile for recording intracellular quantities
         self.recording_profile = None
-        if ("Recording" in self.model_config) and (
-            recording_profile is not None
-        ):
-            self.recording_profile = self.model_config["Recording"][
-                "Intracellular"
-            ][recording_profile]
+        if ("Recording" in self.model_config) and (recording_profile is not None):
+            self.recording_profile = self.model_config["Recording"]["Intracellular"][
+                recording_profile
+            ]
             self.recording_profile["label"] = recording_profile
             for recvar, recdict in self.recording_profile.get(
                 "synaptic quantity", {}
@@ -562,10 +561,7 @@ class Env(AbstractEnv):
             if stimulus_id is None:
                 self.stimulus_id = None
             else:
-                if (
-                    stimulus_id
-                    in self.stimulus_config["Arena"][arena_id].trajectories
-                ):
+                if stimulus_id in self.stimulus_config["Arena"][arena_id].trajectories:
                     self.stimulus_id = stimulus_id
                 else:
                     raise RuntimeError(
@@ -588,12 +584,10 @@ class Env(AbstractEnv):
                         pop_selectivity_type_prob_dict[
                             int(self.selectivity_types[selectivity_type_name])
                         ] = float(selectivity_type_prob)
-                    selectivity_type_prob_dict[
-                        pop
-                    ] = pop_selectivity_type_prob_dict
-                stimulus_config[
-                    "Selectivity Type Probabilities"
-                ] = selectivity_type_prob_dict
+                    selectivity_type_prob_dict[pop] = pop_selectivity_type_prob_dict
+                stimulus_config["Selectivity Type Probabilities"] = (
+                    selectivity_type_prob_dict
+                )
             elif k == "Peak Rate":
                 peak_rate_dict = {}
                 for pop, dvals in v.items():
@@ -727,9 +721,7 @@ class Env(AbstractEnv):
         syn_mech_names = connection_config["Synapse Mechanisms"]
         syn_param_rules = connection_config["Synapse Parameter Rules"]
 
-        self.synapse_attributes = SynapseAttributes(
-            self, syn_mech_names, syn_param_rules
-        )
+        self.synapse_manager = SynapseManager(self, syn_mech_names, syn_param_rules)
 
         extent_config = connection_config["Axon Extent"]
         self.connection_extents = {}
@@ -740,17 +732,13 @@ class Env(AbstractEnv):
                 if layer_name == "default":
                     pop_connection_extents[layer_name] = {
                         "width": extent_config[population][layer_name]["width"],
-                        "offset": extent_config[population][layer_name][
-                            "offset"
-                        ],
+                        "offset": extent_config[population][layer_name]["offset"],
                     }
                 else:
                     layer_index = self.layers[layer_name]
                     pop_connection_extents[layer_index] = {
                         "width": extent_config[population][layer_name]["width"],
-                        "offset": extent_config[population][layer_name][
-                            "offset"
-                        ],
+                        "offset": extent_config[population][layer_name]["offset"],
                     }
 
             self.connection_extents[population] = pop_connection_extents
@@ -789,9 +777,7 @@ class Env(AbstractEnv):
                 if swctype_mechparams_dict is not None:
                     for swc_type in swctype_mechparams_dict:
                         swc_type_index = self.SWC_Types[swc_type]
-                        res_mechparams[
-                            swc_type_index
-                        ] = self.parse_syn_mechparams(
+                        res_mechparams[swc_type_index] = self.parse_syn_mechparams(
                             swctype_mechparams_dict[swc_type]
                         )
                 else:
@@ -810,12 +796,12 @@ class Env(AbstractEnv):
 
             config_dict = defaultdict(lambda: 0.0)
             for key_presyn, conn_config in connection_dict[key_postsyn].items():
-                for s, l, p in zip(
+                for sec, layer, p in zip(
                     conn_config.sections,
                     conn_config.layers,
                     conn_config.proportions,
                 ):
-                    config_dict[(conn_config.type, s, l)] += p
+                    config_dict[(conn_config.type, sec, layer)] += p
 
             for k, v in config_dict.items():
                 try:
@@ -921,8 +907,8 @@ class Env(AbstractEnv):
             with open(node_rank_file) as fp:
                 dval = {}
                 lines = fp.readlines()
-                for l in lines:
-                    a = l.split(" ")
+                for line in lines:
+                    a = line.split(" ")
                     dval[int(a[0])] = int(a[1])
                 node_rank_map = dval
         node_rank_map = self.comm.bcast(node_rank_map, root=0)
@@ -955,7 +941,6 @@ class Env(AbstractEnv):
         :return:
         """
         rank = self.comm.Get_rank()
-        size = self.comm.Get_size()
         celltypes = self.celltypes
         typenames = sorted(celltypes.keys())
 
@@ -974,9 +959,7 @@ class Env(AbstractEnv):
         population_names = None
         if rank == 0:
             population_names = read_population_names(self.data_file_path, comm0)
-            (population_ranges, _) = read_population_ranges(
-                self.data_file_path, comm0
-            )
+            (population_ranges, _) = read_population_ranges(self.data_file_path, comm0)
             self.cell_attribute_info = read_cell_attribute_info(
                 self.data_file_path, population_names, comm=comm0
             )
@@ -985,9 +968,7 @@ class Env(AbstractEnv):
             self.logger.info(f"attribute info: {str(self.cell_attribute_info)}")
         population_ranges = self.comm.bcast(population_ranges, root=0)
         population_names = self.comm.bcast(population_names, root=0)
-        self.cell_attribute_info = self.comm.bcast(
-            self.cell_attribute_info, root=0
-        )
+        self.cell_attribute_info = self.comm.bcast(self.cell_attribute_info, root=0)
         comm0.Free()
 
         for k in typenames:
@@ -997,9 +978,7 @@ class Env(AbstractEnv):
                 celltypes[k]["num"] = population_ranges[k][1]
                 if "mechanism file" in celltypes[k]:
                     if isinstance(celltypes[k]["mechanism file"], str):
-                        celltypes[k]["mech_file_path"] = celltypes[k][
-                            "mechanism file"
-                        ]
+                        celltypes[k]["mech_file_path"] = celltypes[k]["mechanism file"]
                         mech_dict = None
                         if rank == 0:
                             mech_file_path = celltypes[k]["mech_file_path"]

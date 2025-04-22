@@ -3,11 +3,13 @@ Guide/Examples
 
 .. toctree::
    :maxdepth: 2
-   :caption: Guide
+   :caption: How-To guides
 
-Indices and tables
-==================
+   microcircuit-mea
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Examples
+
+   rc-separation

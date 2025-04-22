@@ -1,11 +1,7 @@
 #!/usr/bin/env python
 
-import sys
-import os
 import numpy as np
 from neuron import h
-from mpi4py import MPI
-import matplotlib.pyplot as plt
 
 from miv_simulator.mechanisms import compile_and_load
 from miv_simulator.opto.run import OptoStim
@@ -51,9 +47,7 @@ class BallAndStick(Cell):
         self.dend.nseg = 3
 
         # everything below here in this method is NEW
-        self._spike_detector = h.NetCon(
-            self.soma(0.5)._ref_v, None, sec=self.soma
-        )
+        self._spike_detector = h.NetCon(self.soma(0.5)._ref_v, None, sec=self.soma)
 
     def _setup_biophysics(self):
         for sec in self.all:

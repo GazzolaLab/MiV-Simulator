@@ -1,10 +1,9 @@
 from typing import Optional, Tuple
 
 import logging
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from machinable import Component
-from machinable.config import Field
 from miv_simulator import config, simulator
 from mpi4py import MPI
 
@@ -29,7 +28,8 @@ class MeasureDistances(Component):
         chunk_size: int = 1000
         value_chunk_size: int = 1000
         cache_size: int = 50
-        ranks_: int = 8
+        ranks: int = -1
+        nodes: str = "1"
 
     def __call__(self):
         logging.basicConfig(level=logging.INFO)
@@ -42,7 +42,7 @@ class MeasureDistances(Component):
             cell_distributions=self.config.cell_distributions,
             layer_extents=self.config.layer_extents,
             rotation=self.config.rotation,
-            origin=self.config.origin,
+            origin=config.Origin(**self.config.origin).as_spec(),
             n_sample=self.config.n_sample,
             alpha_radius=self.config.alpha_radius,
             io_size=self.config.io_size,
@@ -53,3 +53,15 @@ class MeasureDistances(Component):
 
     def on_write_meta_data(self):
         return MPI.COMM_WORLD.Get_rank() == 0
+
+    def compute_context(self):
+        context = super().compute_context()
+        del context["config"]["filepath"]
+        del context["config"]["io_size"]
+        del context["config"]["chunk_size"]
+        del context["config"]["value_chunk_size"]
+        del context["config"]["cache_size"]
+        del context["config"]["ranks"]
+        del context["config"]["nodes"]
+        context["predicate"]["uses"] = sorted([u.hash for u in self.uses])
+        return context

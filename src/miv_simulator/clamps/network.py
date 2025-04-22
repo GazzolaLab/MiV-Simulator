@@ -8,14 +8,12 @@ import sys
 import time
 from collections import defaultdict
 
-import click
 import h5py
 import numpy as np
-from miv_simulator import spikedata, stimulus, synapses
+from miv_simulator import spikedata, synapses
 from miv_simulator.opto.run import OptoStim
 from miv_simulator.clamps.cell import init_biophys_cell
 from miv_simulator.cells import (
-    h,
     is_cell_registered,
     load_biophys_cell_dicts,
     make_input_cell,
@@ -24,13 +22,18 @@ from miv_simulator.cells import (
     report_topology,
 )
 from miv_simulator.env import Env
+from miv_simulator.mechanisms import compile_and_load
 from miv_simulator.utils.neuron import configure_hoc_env, h
 from miv_simulator.stimulus import (
     oscillation_phase_mod_config,
     rate_maps_from_features,
+    get_2D_arena_spatial_mesh,
+    generate_linear_trajectory,
+    get_equilibration,
+    generate_input_spike_trains,
+    read_stimulus,
 )
 from miv_simulator.utils import (
-    Struct,
     Context,
     config_logging,
     generate_results_file_id,
@@ -38,12 +41,18 @@ from miv_simulator.utils import (
     get_module_logger,
     get_trial_time_indices,
     is_interactive,
-    list_find,
     list_index,
     read_from_yaml,
     write_to_yaml,
 )
 from miv_simulator.utils import io as io_utils
+from miv_simulator.optimization import (
+    SynParam,
+    ProblemRegime,
+    optimization_params,
+    opt_eval_fun,
+)
+
 from mpi4py import MPI
 from neuroh5.io import (
     bcast_cell_attributes,
@@ -105,9 +114,7 @@ def generate_weights(env, weight_source_rules, this_syn_attrs):
                 weights_name = weight_rule["name"]
                 rule_params = weight_rule["params"]
                 fraction = rule_params["fraction"]
-                seed_offset = int(
-                    env.model_config["Random Seeds"]["Sparse Weights"]
-                )
+                seed_offset = int(env.model_config["Random Seeds"]["Sparse Weights"])
                 seed = int(seed_offset + 1)
                 weights_dict[presyn_id] = synapses.generate_sparse_weights(
                     weights_name, fraction, seed, source_syn_dict
@@ -132,9 +139,7 @@ def generate_weights(env, weight_source_rules, this_syn_attrs):
                 rule_params = weight_rule["params"]
                 mu = rule_params["mu"]
                 sigma = rule_params["sigma"]
-                seed_offset = int(
-                    env.model_config["Random Seeds"]["GC Normal Weights"]
-                )
+                seed_offset = int(env.model_config["Random Seeds"]["GC Normal Weights"])
                 seed = int(seed_offset + 1)
                 weights_dict[presyn_id] = synapses.generate_normal_weights(
                     weights_name, mu, sigma, seed, source_syn_dict
@@ -142,7 +147,7 @@ def generate_weights(env, weight_source_rules, this_syn_attrs):
             else:
                 raise RuntimeError(
                     "network_clamp.generate_weights: unknown weight generator rule class "
-                    f'{weight_rule["class"]}'
+                    f"{weight_rule['class']}"
                 )
 
     return weights_dict
@@ -196,7 +201,6 @@ def init_inputs_from_spikes(
     spkindlst = spkdata["spkindlst"]
     spktlst = spkdata["spktlst"]
     spkpoplst = spkdata["spkpoplst"]
-    pop_active_cells = spkdata["pop_active_cells"]
 
     ## Organize spike times by index of presynaptic population and gid
     input_source_dict = {}
@@ -251,9 +255,7 @@ def init_inputs_from_features(
         if time_range[0] is None:
             time_range[0] = 0.0
 
-    equilibration_duration = float(
-        env.stimulus_config["Equilibration Duration"]
-    )
+    equilibration_duration = float(env.stimulus_config["Equilibration Duration"])
     spatial_resolution = float(env.stimulus_config["Spatial Resolution"])
     temporal_resolution = float(env.stimulus_config["Temporal Resolution"])
 
@@ -278,13 +280,13 @@ def init_inputs_from_features(
     selectivity_type_names = {i: n for n, i in env.selectivity_types.items()}
 
     arena = env.stimulus_config["Arena"][arena_id]
-    arena_x, arena_y = stimulus.get_2D_arena_spatial_mesh(
+    arena_x, arena_y = get_2D_arena_spatial_mesh(
         arena=arena, spatial_resolution=spatial_resolution
     )
 
-    stimulus = arena.trajectories[stimulus_id]
-    t, x, y, d = stimulus.generate_linear_trajectory(
-        stimulus,
+    stimulus_spec = arena.trajectories[stimulus_id]
+    t, x, y, d = generate_linear_trajectory(
+        stimulus_spec,
         temporal_resolution=temporal_resolution,
         equilibration_duration=equilibration_duration,
     )
@@ -298,13 +300,10 @@ def init_inputs_from_features(
         d = d[t_range_inds]
     stimulus = t, x, y, d
 
-    equilibrate = stimulus.get_equilibration(env)
+    equilibrate = get_equilibration(env)
 
     input_source_dict = {}
     for population in populations:
-        pop_start = int(env.celltypes[population]["start"])
-        num_cells = int(env.celltypes[population]["num"])
-
         selection = list(presyn_sources[population])
         logger.info(
             f"generating spike trains in time range {time_range} "
@@ -336,9 +335,7 @@ def init_inputs_from_features(
                 if phase_mod_config_dict is not None:
                     phase_mod_config = phase_mod_config_dict[gid]
 
-                spikes_attr_dict[
-                    gid
-                ] = stimulus.generate_stimulus_from_spike_trains(
+                spikes_attr_dict[gid] = generate_input_spike_trains(
                     env,
                     population,
                     selectivity_type_names,
@@ -355,9 +352,7 @@ def init_inputs_from_features(
                     comm=env.comm,
                     seed=seed,
                 )
-                spikes_attr_dict[gid][
-                    spike_train_attr_name
-                ] += equilibration_duration
+                spikes_attr_dict[gid][spike_train_attr_name] += equilibration_duration
 
         input_source_dict[pop_index] = {"spiketrains": spikes_attr_dict}
 
@@ -385,7 +380,6 @@ def init(
     write_cell=False,
     plot_cell=False,
     input_seed=None,
-    cooperative_init=False,
     worker=None,
 ):
     """
@@ -398,6 +392,8 @@ def init(
     :param spike_events_path:
 
     """
+
+    compile_and_load(directory=env.mechanisms_path)
 
     if phase_mod and coords_path is None:
         raise RuntimeError(
@@ -431,21 +427,7 @@ def init(
     data_dict = None
     cell_dict = None
 
-    if (worker is not None) and cooperative_init:
-        if worker.worker_id == 1:
-            cell_dict = load_biophys_cell_dicts(
-                env, pop_name, my_cell_index_set
-            )
-            req = worker.merged_comm.isend(
-                cell_dict, tag=InitMessageTag["cell"].value, dest=0
-            )
-            req.wait()
-        else:
-            cell_dict = worker.merged_comm.recv(
-                source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG
-            )
-    else:
-        cell_dict = load_biophys_cell_dicts(env, pop_name, my_cell_index_set)
+    cell_dict = load_biophys_cell_dicts(env, pop_name, my_cell_index_set)
 
     ## Load cell gid and its synaptic attributes and connection data
     for gid in my_cell_index_set:
@@ -480,12 +462,11 @@ def init(
             weight_source_dict[presyn_index] = weight_rule
 
     min_delay = float("inf")
-    syn_attrs = env.synapse_attributes
+    syn_manager = env.synapse_manager
     presyn_sources = {presyn_name: set() for presyn_name in presyn_names}
 
     for gid in my_cell_index_set:
-        this_syn_attrs = syn_attrs[gid]
-        for syn_id, syn in this_syn_attrs.items():
+        for syn_id, syn in syn_manager.items(gid=gid):
             presyn_id = syn.source.population
             if presyn_id is None:
                 raise RuntimeError(
@@ -501,17 +482,12 @@ def init(
         )
         env.comm.barrier()
         if env.comm.rank == 0:
-            presyn_gid_rank_dict = {
-                rank: set() for rank in range(env.comm.size)
-            }
+            presyn_gid_rank_dict = {rank: set() for rank in range(env.comm.size)}
             for i, gid in enumerate(presyn_gid_set):
                 rank = i % env.comm.size
                 presyn_gid_rank_dict[rank].add(gid)
             presyn_sources[presyn_name] = env.comm.scatter(
-                [
-                    presyn_gid_rank_dict[rank]
-                    for rank in sorted(presyn_gid_rank_dict)
-                ],
+                [presyn_gid_rank_dict[rank] for rank in sorted(presyn_gid_rank_dict)],
                 root=0,
             )
         else:
@@ -526,12 +502,12 @@ def init(
             if env.comm.rank == 0:
                 with h5py.File(coords_path, "r") as coords_f:
                     reference_u_arc_distance_bounds = (
-                        coords_f["Populations"][population][
-                            distances_namespace
-                        ].attrs["Reference U Min"],
-                        coords_f["Populations"][population][
-                            distances_namespace
-                        ].attrs["Reference U Max"],
+                        coords_f["Populations"][population][distances_namespace].attrs[
+                            "Reference U Min"
+                        ],
+                        coords_f["Populations"][population][distances_namespace].attrs[
+                            "Reference U Max"
+                        ],
                     )
             env.comm.barrier()
             reference_u_arc_distance_bounds = env.comm.bcast(
@@ -570,80 +546,38 @@ def init(
             logger.info("*** Opsin configuration instantiated")
 
     input_source_dict = None
-    if (worker is not None) and cooperative_init:
-        if worker.worker_id == 1:
-            if spike_events_path is not None:
-                input_source_dict = init_inputs_from_spikes(
-                    env,
-                    presyn_sources,
-                    t_range,
-                    spike_events_path,
-                    spike_events_namespace,
-                    arena_id,
-                    stimulus_id,
-                    spike_train_attr_name,
-                    n_trials,
-                )
-            elif input_features_path is not None:
-                input_source_dict = init_inputs_from_features(
-                    env,
-                    presyn_sources,
-                    t_range,
-                    input_features_path,
-                    input_features_namespaces,
-                    arena_id=arena_id,
-                    stimulus_id=stimulus_id,
-                    spike_train_attr_name=spike_train_attr_name,
-                    n_trials=n_trials,
-                    seed=input_seed,
-                    phase_mod=phase_mod,
-                    soma_positions_dict=soma_positions_dict,
-                )
-            else:
-                raise RuntimeError(
-                    "network_clamp.init: neither input spikes nor input features are provided"
-                )
-            req = worker.merged_comm.isend(
-                input_source_dict, tag=InitMessageTag["input"].value, dest=0
-            )
-            req.wait()
-        else:
-            input_source_dict = worker.merged_comm.recv(
-                source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG
-            )
-    else:
-        if spike_events_path is not None:
-            input_source_dict = init_inputs_from_spikes(
-                env,
-                presyn_sources,
-                t_range,
-                spike_events_path,
-                spike_events_namespace,
-                arena_id,
-                stimulus_id,
-                spike_train_attr_name,
-                n_trials,
-            )
-        elif input_features_path is not None:
-            input_source_dict = init_inputs_from_features(
-                env,
-                presyn_sources,
-                t_range,
-                input_features_path,
-                input_features_namespaces,
-                arena_id=arena_id,
-                stimulus_id=stimulus_id,
-                spike_train_attr_name=spike_train_attr_name,
-                n_trials=n_trials,
-                seed=input_seed,
-                phase_mod=phase_mod,
-                soma_positions_dict=soma_positions_dict,
-            )
+    if spike_events_path is not None:
+        input_source_dict = init_inputs_from_spikes(
+            env,
+            presyn_sources,
+            t_range,
+            spike_events_path,
+            spike_events_namespace,
+            arena_id,
+            stimulus_id,
+            spike_train_attr_name,
+            n_trials,
+        )
+    elif input_features_path is not None:
+        input_source_dict = init_inputs_from_features(
+            env,
+            presyn_sources,
+            t_range,
+            input_features_path,
+            input_features_namespaces,
+            arena_id=arena_id,
+            stimulus_id=stimulus_id,
+            spike_train_attr_name=spike_train_attr_name,
+            n_trials=n_trials,
+            seed=input_seed,
+            phase_mod=phase_mod,
+            soma_positions_dict=soma_positions_dict,
+        )
 
-        else:
-            raise RuntimeError(
-                "network_clamp.init: neither input spikes nor input features are provided"
-            )
+    else:
+        raise RuntimeError(
+            "network_clamp.init: neither input spikes nor input features are provided"
+        )
 
     if t_range is not None:
         env.tstart = t_range[0]
@@ -661,8 +595,7 @@ def init(
             ## if spike_generator_dict contains an entry for the respective presynaptic population,
             ## then use the given generator to generate spikes.
             if not (
-                (presyn_gid in env.gidset)
-                or (is_cell_registered(env, presyn_gid))
+                (presyn_gid in env.gidset) or (is_cell_registered(env, presyn_gid))
             ):
                 cell = make_input_cell(
                     env,
@@ -683,9 +616,9 @@ def init(
     if plot_cell:
         from miv_simulator.plotting import plot_synaptic_attribute_distribution
 
-        syn_attrs = env.synapse_attributes
+        syn_manager = env.synapse_manager
         syn_name = "AMPA"
-        syn_mech_name = syn_attrs.syn_mech_names[syn_name]
+        syn_mech_name = syn_manager.syn_mech_names[syn_name]
         for gid in my_cell_index_set:
             biophys_cell = env.biophys_cells[pop_name][gid]
             for param_name in ["weight", "g_unit"]:
@@ -710,8 +643,11 @@ def init(
         for gid in my_cell_index_set:
             if is_cell_registered(env, gid):
                 cell = env.pc.gid2cell(gid)
+                assert cell is not None, f"Registered cell gid {gid} is None"
                 for sec in list(
-                    cell.hoc_cell.all if hasattr(cell, "hoc_cell") else cell.all
+                    cell.hoc_cell.all
+                    if hasattr(cell, "hoc_cell") and cell.hoc_cell is not None
+                    else cell.all
                 ):
                     h.psection(sec=sec)
             break
@@ -736,7 +672,6 @@ def run(env, cvode=False, pc_runworker=False):
     """
 
     rank = int(env.pc.id())
-    nhosts = int(env.pc.nhost())
 
     rec_dt = None
     if env.recording_profile is not None:
@@ -777,8 +712,6 @@ def run(env, cvode=False, pc_runworker=False):
     env.pc.barrier()
 
     comptime = env.pc.step_time() - st_comptime
-    avgcomp = env.pc.allreduce(comptime, 1) / nhosts
-    maxcomp = env.pc.allreduce(comptime, 2)
 
     if rank == 0:
         logger.info(f"Host {rank} ran simulation in {comptime:.02f} seconds")
@@ -792,16 +725,11 @@ def run(env, cvode=False, pc_runworker=False):
 
 def update_params(env, pop_param_dict):
     for population, param_tuple_dict in pop_param_dict.items():
-        synapse_config = env.celltypes[population]["synapses"]
-        weights_dict = synapse_config.get("weights", {})
         biophys_cell_dict = env.biophys_cells[population]
         for gid, param_tuples in param_tuple_dict.items():
             if gid not in biophys_cell_dict:
                 continue
             biophys_cell = biophys_cell_dict[gid]
-            is_reduced = False
-            if hasattr(biophys_cell, "is_reduced"):
-                is_reduced = biophys_cell.is_reduced
 
             for param_tuple, param_value in param_tuples:
                 assert population == param_tuple.population
@@ -811,9 +739,7 @@ def update_params(env, pop_param_dict):
                 syn_name = param_tuple.syn_name
                 param_path = param_tuple.param_path
 
-                if isinstance(param_path, list) or isinstance(
-                    param_path, tuple
-                ):
+                if isinstance(param_path, list) or isinstance(param_path, tuple):
                     p, s = param_path
                 else:
                     p, s = param_path, None
@@ -836,13 +762,8 @@ def update_params(env, pop_param_dict):
                         this_sec_type,
                         syn_name,
                         param_name=p,
-                        value={s: param_value}
-                        if (s is not None)
-                        else param_value,
-                        filters={"sources": sources}
-                        if sources is not None
-                        else None,
-                        origin=None if is_reduced else "soma",
+                        value=({s: param_value} if (s is not None) else param_value),
+                        filters=({"sources": sources} if sources is not None else None),
                         update_targets=True,
                     )
 
@@ -859,13 +780,12 @@ def run_with(env, param_dict, cvode=False, pc_runworker=False):
     """
 
     rank = int(env.pc.id())
-    nhosts = int(env.pc.nhost())
 
     stash_id_dict = defaultdict(lambda: dict())
-    syn_attrs = env.synapse_attributes
+    syn_manager = env.synapse_manager
     for pop_name in param_dict:
         for gid in param_dict[pop_name]:
-            stash_id = syn_attrs.stash_mech_attrs(pop_name, gid)
+            stash_id = syn_manager.stash_mech_attrs(pop_name, gid)
             stash_id_dict[pop_name][gid] = stash_id
     update_params(env, param_dict)
 
@@ -913,8 +833,6 @@ def run_with(env, param_dict, cvode=False, pc_runworker=False):
     env.pc.barrier()
 
     comptime = env.pc.step_time() - st_comptime
-    avgcomp = env.pc.allreduce(comptime, 1) / nhosts
-    maxcomp = env.pc.allreduce(comptime, 2)
 
     if rank == 0:
         logger.info(f"Host {rank} ran simulation in {comptime:.02f} seconds")
@@ -926,7 +844,7 @@ def run_with(env, param_dict, cvode=False, pc_runworker=False):
     for pop_name in param_dict:
         for gid in param_dict[pop_name]:
             stash_id = stash_id_dict[pop_name][gid]
-            syn_attrs.restore_mech_attrs(pop_name, gid, stash_id)
+            syn_manager.restore_mech_attrs(pop_name, gid, stash_id)
             synapses.config_biophys_cell_syns(env, gid, pop_name, insert=False)
 
     return spikedata.get_env_spike_dict(env, include_artificial=None)
@@ -934,6 +852,7 @@ def run_with(env, param_dict, cvode=False, pc_runworker=False):
 
 def init_state_objfun(
     config_file,
+    config_prefix,
     population,
     cell_index_set,
     arena_id,
@@ -943,6 +862,7 @@ def init_state_objfun(
     t_min,
     opt_iter,
     template_paths,
+    mechanisms_path,
     dataset_prefix,
     results_path,
     spike_events_path,
@@ -963,7 +883,6 @@ def init_state_objfun(
     state_filter,
     target_value,
     use_coreneuron,
-    cooperative_init,
     dt,
     worker,
     **kwargs,
@@ -992,14 +911,11 @@ def init_state_objfun(
         generate_weights_pops=set(generate_weights),
         t_min=t_min,
         t_max=t_max,
-        cooperative_init=cooperative_init,
         worker=worker,
     )
 
     time_step = env.stimulus_config["Temporal Resolution"]
-    equilibration_duration = float(
-        env.stimulus_config["Equilibration Duration"]
-    )
+    equilibration_duration = float(env.stimulus_config["Equilibration Duration"])
 
     opt_param_config = optimization_params(
         env.netclamp_config.optimize_parameters,
@@ -1036,16 +952,14 @@ def init_state_objfun(
         results_dict = {}
         filter_fun = None
         if state_filter == "lowpass":
-            filter_fun = lambda x, t: get_low_pass_filtered_trace(x, t)
+            filter_fun = get_low_pass_filtered_trace
         for gid in state_recs_dict:
             state_values = []
             state_recs = state_recs_dict[gid]
             for rec in state_recs:
                 vec = np.asarray(rec["vec"].to_python(), dtype=np.float32)
                 if filter_fun is None:
-                    data = np.asarray(
-                        [np.mean(vec[t_inds]) for t_inds in t_trial_inds]
-                    )
+                    data = np.asarray([np.mean(vec[t_inds]) for t_inds in t_trial_inds])
                 else:
                     data = np.asarray(
                         [
@@ -1081,24 +995,19 @@ def init_state_objfun(
         elif trial_regime == "best":
             return {
                 gid: -(
-                    np.min(
-                        np.abs(
-                            np.asarray(state_values_dict[gid]) - target_value
-                        )
-                    )
+                    np.min(np.abs(np.asarray(state_values_dict[gid]) - target_value))
                 )
                 for gid in my_cell_index_set
             }
         else:
-            raise RuntimeError(
-                f"state_objfun: unknown trial regime {trial_regime}"
-            )
+            raise RuntimeError(f"state_objfun: unknown trial regime {trial_regime}")
 
     return opt_eval_fun(problem_regime, my_cell_index_set, eval_problem)
 
 
 def init_rate_objfun(
     config_file,
+    config_prefix,
     population,
     cell_index_set,
     arena_id,
@@ -1111,6 +1020,7 @@ def init_rate_objfun(
     t_min,
     opt_iter,
     template_paths,
+    mechanisms_path,
     dataset_prefix,
     results_path,
     spike_events_path,
@@ -1126,7 +1036,6 @@ def init_rate_objfun(
     recording_profile,
     target_rate,
     use_coreneuron,
-    cooperative_init,
     dt,
     worker,
     **kwargs,
@@ -1155,7 +1064,6 @@ def init_rate_objfun(
         generate_weights_pops=set(generate_weights),
         t_min=t_min,
         t_max=t_max,
-        cooperative_init=cooperative_init,
         worker=worker,
     )
 
@@ -1179,7 +1087,7 @@ def init_rate_objfun(
     param_tuples = opt_param_config.param_tuples
 
     recording_profile = {
-        "label": f"network_clamp.rate.v",
+        "label": "network_clamp.rate.v",
         "dt": None if use_coreneuron else 0.1,
         "section quantity": {"v": {"swc types": ["soma"]}},
     }
@@ -1190,12 +1098,8 @@ def init_rate_objfun(
             env, population, gid, recording_profile=recording_profile
         )
 
-    target_v_threshold = opt_targets[f"{population} state"]["v"].get(
-        "threshold", None
-    )
-    target_v_margin = opt_targets[f"{population} state"]["v"].get(
-        "margin", -1.0
-    )
+    target_v_threshold = opt_targets[f"{population} state"]["v"].get("threshold", None)
+    target_v_margin = opt_targets[f"{population} state"]["v"].get("margin", -1.0)
     if target_v_threshold is None:
         raise RuntimeError(
             f"network_clamp: network clamp optimization configuration for population {population} "
@@ -1210,7 +1114,6 @@ def init_rate_objfun(
 
     def gid_firing_rate(spkdict, cell_index_set):
         rates_dict = defaultdict(list)
-        mean_rates_dict = {}
         for i in range(n_trials):
             spkdict1 = {}
             for gid in cell_index_set:
@@ -1300,9 +1203,7 @@ def init_rate_objfun(
                 for gid in my_cell_index_set
             }
         else:
-            raise RuntimeError(
-                f"rate_objfun: unknown trial regime {trial_regime}"
-            )
+            raise RuntimeError(f"rate_objfun: unknown trial regime {trial_regime}")
 
         N_objectives = 1
         opt_rate_feature_dtypes = [
@@ -1320,9 +1221,7 @@ def init_rate_objfun(
             )
             rates_array = np.asarray(firing_rates_dict[gid])
             nz_idxs = np.argwhere(
-                np.logical_not(
-                    np.isclose(rates_array, 0.0, rtol=1e-4, atol=1e-4)
-                )
+                np.logical_not(np.isclose(rates_array, 0.0, rtol=1e-4, atol=1e-4))
             )
             feature_array["mean_rate"] = 0.0
             if len(nz_idxs) > 0:
@@ -1348,6 +1247,7 @@ def init_rate_objfun(
 
 def init_rate_dist_objfun(
     config_file,
+    config_prefix,
     population,
     cell_index_set,
     arena_id,
@@ -1360,6 +1260,7 @@ def init_rate_dist_objfun(
     t_min,
     opt_iter,
     template_paths,
+    mechanisms_path,
     dataset_prefix,
     results_path,
     spike_events_path,
@@ -1378,7 +1279,6 @@ def init_rate_dist_objfun(
     target_features_arena,
     target_features_stimulus,
     use_coreneuron,
-    cooperative_init,
     dt,
     worker,
     **kwargs,
@@ -1407,7 +1307,6 @@ def init_rate_dist_objfun(
         generate_weights_pops=set(generate_weights),
         t_min=t_min,
         t_max=t_max,
-        cooperative_init=cooperative_init,
         worker=worker,
     )
 
@@ -1427,10 +1326,8 @@ def init_rate_dist_objfun(
             np.isclose(target_rate_vector, 0.0, atol=1e-3, rtol=1e-3)
         ] = 0.0
 
-    trj_d, trj_t = stimulus.read_stimulus(
-        input_features_path
-        if input_features_path is not None
-        else spike_events_path,
+    trj_d, trj_t = read_stimulus(
+        (input_features_path if input_features_path is not None else spike_events_path),
         target_features_arena,
         target_features_stimulus,
     )
@@ -1439,7 +1336,7 @@ def init_rate_dist_objfun(
 
     opt_param_config = optimization_params(
         env.netclamp_config.optimize_parameters,
-        [pop_name],
+        [population],
         param_config_name,
         param_type,
     )
@@ -1468,9 +1365,7 @@ def init_rate_dist_objfun(
             )
             for gid in cell_index_set:
                 rate_vector = spike_density_dict[gid]["rate"]
-                idxs = np.where(
-                    np.isclose(rate_vector, 0.0, atol=1e-3, rtol=1e-3)
-                )[0]
+                idxs = np.where(np.isclose(rate_vector, 0.0, atol=1e-3, rtol=1e-3))[0]
                 rate_vector[idxs] = 0.0
                 rates_dict[gid].append(rate_vector)
             for gid in spkdict[population]:
@@ -1491,9 +1386,7 @@ def init_rate_dist_objfun(
             f"{np.min(mean_rate_vector):.02f} / {np.max(mean_rate_vector):.02f} Hz"
         )
 
-        return np.square(
-            np.subtract(mean_rate_vectore, target_rate_vector)
-        ).mean()
+        return np.square(np.subtract(mean_rate_vector, target_rate_vector)).mean()
 
     def best_trial_rate_mse(gid, rate_vectors, target_rate_vector):
         mses = []
@@ -1502,7 +1395,7 @@ def init_rate_dist_objfun(
             mses.append(mse)
 
         min_mse_index = np.argmin(mses)
-        min_mse = mses[max_mse_index]
+        min_mse = mses[min_mse_index]
 
         logger.info(
             f"firing rate objective: max firing rate min/max of gid {gid}: "
@@ -1543,9 +1436,7 @@ def init_rate_dist_objfun(
                 for gid in my_cell_index_set
             }
         else:
-            raise RuntimeError(
-                f"firing_rate_dist: unknown trial regime {trial_regime}"
-            )
+            raise RuntimeError(f"firing_rate_dist: unknown trial regime {trial_regime}")
 
     return opt_eval_fun(problem_regime, my_cell_index_set, eval_problem)
 
@@ -1565,7 +1456,6 @@ def optimize_run(
     feature_dtypes=None,
     constraint_names=None,
     results_file=None,
-    cooperative_init=False,
     verbose=False,
 ):
     import distgfs
@@ -1603,7 +1493,9 @@ def optimize_run(
 
     if results_file is None:
         if env.results_path is not None:
-            file_path = f"{env.results_path}/distgfs.network_clamp.{env.results_file_id}.h5"
+            file_path = (
+                f"{env.results_path}/distgfs.network_clamp.{env.results_file_id}.h5"
+            )
         else:
             file_path = f"distgfs.network_clamp.{env.results_file_id}.h5"
     else:
@@ -1627,15 +1519,13 @@ def optimize_run(
         reduce_fun_name = "opt_reduce_max"
         feature_dtypes = None
     else:
-        raise RuntimeError(
-            f"optimize_run: unknown problem regime {problem_regime}"
-        )
+        raise RuntimeError(f"optimize_run: unknown problem regime {problem_regime}")
 
     distgfs_params = {
         "opt_id": "network_clamp.optimize",
         "problem_ids": problem_ids,
         "obj_fun_init_name": init_objfun,
-        "obj_fun_init_module": "miv_simulator.network_clamp",
+        "obj_fun_init_module": "miv_simulator.clamps.network",
         "obj_fun_init_args": init_params,
         "reduce_fun_name": reduce_fun_name,
         "reduce_fun_module": "miv_simulator.optimization",
@@ -1651,10 +1541,6 @@ def optimize_run(
         "metadata": problem_metadata,
     }
 
-    if cooperative_init:
-        distgfs_params["broker_fun_name"] = "distgfs_broker_init"
-        distgfs_params["broker_module_name"] = "miv_simulator.optimization"
-
     opt_results = distgfs.run(
         distgfs_params,
         verbose=verbose,
@@ -1669,9 +1555,7 @@ def optimize_run(
                 params_dict = dict(opt_result[0])
                 result_value = opt_result[1]
                 results_config_tuples = []
-                for param_pattern, param_tuple in zip(
-                    param_names, param_tuples
-                ):
+                for param_pattern, param_tuple in zip(param_names, param_tuples):
                     results_config_tuples.append(
                         (
                             param_tuple.population,
@@ -1725,13 +1609,11 @@ def dist_ctrl(
         for this_param_path, pop_param_tuple_dict in zip(
             param_path, pop_param_tuple_dicts
         ):
-            params_basename = os.path.splitext(
-                os.path.basename(this_param_path)
-            )[0]
+            params_basename = os.path.splitext(os.path.basename(this_param_path))[0]
             this_results_file_id = f"{results_file_id}_{params_basename}"
             task_id = controller.submit_call(
                 "dist_run",
-                module_name="miv_simulator.network_clamp",
+                module_name="miv_simulator.clamps.network",
                 args=(
                     init_params,
                     cell_index_set,
@@ -1743,7 +1625,7 @@ def dist_ctrl(
     else:
         task_id = controller.submit_call(
             "dist_run",
-            module_name="miv_simulator.network_clamp",
+            module_name="miv_simulator.clamps.network",
             args=(init_params, cell_index_set, None, None),
         )
         task_ids.append(task_id)
@@ -1894,6 +1776,7 @@ def show(
     arena_id,
     stimulus_id,
     template_paths,
+    mechanisms_path,
     dataset_prefix,
     results_path,
     spike_events_path,
@@ -1962,6 +1845,7 @@ def go(
     t_max,
     t_min,
     template_paths,
+    mechanisms_path,
     dataset_prefix,
     spike_events_path,
     spike_events_namespace,
@@ -1997,12 +1881,12 @@ def go(
     init_params["verbose"] = verbose
     config_logging(verbose)
 
+    logger.info(f"mechanisms_path = {mechanisms_path}")
+
     pop_params_tuple_dicts = None
     if rank == 0:
         if results_file_id is None:
-            results_file_id = generate_results_file_id(
-                population, seed=input_seed
-            )
+            results_file_id = generate_results_file_id(population, seed=input_seed)
         if len(params_path) > 0:
             pop_params_tuple_dicts = []
             if len(params_id) == 0:
@@ -2020,9 +1904,7 @@ def go(
                         this_gid_params,
                     ) in this_pop_param_dict.items():
                         if this_param_id is not None:
-                            this_gid_params_list = this_gid_params[
-                                this_param_id
-                            ]
+                            this_gid_params_list = this_gid_params[this_param_id]
                         else:
                             this_gid_params_list = this_gid_params
                         for this_gid_param in this_gid_params_list:
@@ -2076,9 +1958,7 @@ def go(
                 comm=comm0,
             )
             cell_index = None
-            attr_name, attr_cell_index = next(
-                iter(attr_info_dict[population]["Trees"])
-            )
+            attr_name, attr_cell_index = next(iter(attr_info_dict[population]["Trees"]))
             cell_index_set = set(attr_cell_index)
         comm.barrier()
         cell_index_set = comm.bcast(cell_index_set, root=0)
@@ -2091,7 +1971,7 @@ def go(
         if distwq.is_controller:
             distwq.run(
                 fun_name="dist_ctrl",
-                module_name="miv_simulator.network_clamp",
+                module_name="miv_simulator.clamps.network",
                 verbose=True,
                 args=(
                     init_params,
@@ -2135,9 +2015,9 @@ def go(
             for this_params_path, pop_params_tuple_dict in zip(
                 params_path, pop_params_tuple_dicts
             ):
-                params_basename = os.path.splitext(
-                    os.path.basename(this_params_path)
-                )[0]
+                params_basename = os.path.splitext(os.path.basename(this_params_path))[
+                    0
+                ]
                 env.results_file_id = f"{results_file_id}_{params_basename}"
                 env.results_file_path = f"{env.results_path}/{env.modelName}_results_{env.results_file_id}.h5"
                 run_with(env, pop_params_tuple_dict)
@@ -2167,6 +2047,7 @@ def optimize(
     opt_seed,
     opt_iter,
     template_paths,
+    mechanisms_path,
     dataset_prefix,
     param_config_name,
     param_type,
@@ -2189,7 +2070,6 @@ def optimize(
     target_state_variable,
     target_state_filter,
     use_coreneuron,
-    cooperative_init,
     target,
 ):
     """
@@ -2241,9 +2121,7 @@ def optimize(
                 comm=comm0,
             )
             cell_index = None
-            attr_name, attr_cell_index = next(
-                iter(attr_info_dict[population]["Trees"])
-            )
+            attr_name, attr_cell_index = next(iter(attr_info_dict[population]["Trees"]))
             cell_index_set = set(attr_cell_index)
         comm.barrier()
         cell_index_set = comm.bcast(cell_index_set, root=0)
@@ -2284,9 +2162,7 @@ def optimize(
         )
 
     if population in env.netclamp_config.optimize_parameters[param_type]:
-        opt_params = env.netclamp_config.optimize_parameters[param_type][
-            population
-        ]
+        opt_params = env.netclamp_config.optimize_parameters[param_type][population]
     else:
         raise RuntimeError(
             f"network_clamp.optimize: population {population} does not have optimization configuration"
@@ -2300,9 +2176,7 @@ def optimize(
         constraint_names = ["mean_v_below_threshold"]
     elif target == "state":
         assert target_state_variable is not None
-        opt_target = opt_params["Targets"]["state"][target_state_variable][
-            "mean"
-        ]
+        opt_target = opt_params["Targets"]["state"][target_state_variable]["mean"]
         init_params["target_value"] = opt_target
         init_params["state_variable"] = target_state_variable
         init_params["state_filter"] = target_state_filter
@@ -2311,7 +2185,7 @@ def optimize(
         constraint_names = None
     elif target == "ratedist" or target == "rate_dist":
         init_params["target_features_arena"] = arena_id
-        init_params["target_features_trajectory"] = trajectory_id
+        init_params["target_features_stimulus"] = stimulus_id
         init_objfun_name = "init_rate_dist_objfun"
         feature_dtypes = None
         constraint_names = None
@@ -2335,13 +2209,10 @@ def optimize(
         constraint_names=constraint_names,
         results_file=results_file,
         nprocs_per_worker=nprocs_per_worker,
-        cooperative_init=cooperative_init,
         verbose=verbose,
     )
     if results_config_dict is not None:
         if results_path is not None:
-            file_path = (
-                f"{results_path}/network_clamp.optimize.{results_file_id}.yaml"
-            )
+            file_path = f"{results_path}/network_clamp.optimize.{results_file_id}.yaml"
             write_to_yaml(file_path, results_config_dict)
     comm.barrier()

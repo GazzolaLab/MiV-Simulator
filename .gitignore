@@ -1,4 +1,6 @@
 tests/**/compiled
+tests/interface/remotes
+tests/interface/storage
 examples/datasets
 
 # Byte-compiled / optimized / DLL files

@@ -7,7 +7,6 @@ import time
 from collections import defaultdict
 from typing import Dict, Union, List
 
-import click
 import h5py
 import numpy as np
 from miv_simulator.env import Env
@@ -82,22 +81,17 @@ def plot_summed_spike_psth(
     spike_hist_edges = np.linspace(min(t), max(t), spike_hist_resolution + 1)
     for population, this_selectivity_type_name in merged_spike_hist_sum.items():
         for this_selectivity_type_name in merged_spike_hist_sum[population]:
-            fig_title = (
-                f"{population} {this_selectivity_type_name} summed spike PSTH"
-            )
+            fig_title = f"{population} {this_selectivity_type_name} summed spike PSTH"
             fig, axes = plt.subplots()
             axes.plot(
                 spike_hist_edges[1:],
                 merged_spike_hist_sum[population][selectivity_type_name],
             )
             axes.set_xlabel("Time (ms)", fontsize=fig_options.fontSize)
-            axes.set_ylabel(
-                "Population spike count", fontsize=fig_options.fontSize
-            )
+            axes.set_ylabel("Population spike count", fontsize=fig_options.fontSize)
             axes.set_ylim(
                 0.0,
-                np.max(merged_spike_hist_sum[population][selectivity_type_name])
-                * 1.1,
+                np.max(merged_spike_hist_sum[population][selectivity_type_name]) * 1.1,
             )
             axes.set_title(
                 f"Summed spike PSTH\n{population} {selectivity_type_name} cells",
@@ -216,12 +210,12 @@ def generate_input_spike_trains(
             if rank == 0:
                 with h5py.File(coords_path, "r") as coords_f:
                     reference_u_arc_distance_bounds = (
-                        coords_f["Populations"][population][
-                            distances_namespace
-                        ].attrs["Reference U Min"],
-                        coords_f["Populations"][population][
-                            distances_namespace
-                        ].attrs["Reference U Max"],
+                        coords_f["Populations"][population][distances_namespace].attrs[
+                            "Reference U Min"
+                        ],
+                        coords_f["Populations"][population][distances_namespace].attrs[
+                            "Reference U Max"
+                        ],
                     )
             comm.barrier()
             reference_u_arc_distance_bounds = comm.bcast(
@@ -250,13 +244,9 @@ def generate_input_spike_trains(
             if population not in population_ranges:
                 raise RuntimeError(
                     "generate_input_spike_trains: specified population: %s not found in "
-                    "provided selectivity_path: %s"
-                    % (population, selectivity_path)
+                    "provided selectivity_path: %s" % (population, selectivity_path)
                 )
-            if (
-                population
-                not in env.stimulus_config["Selectivity Type Probabilities"]
-            ):
+            if population not in env.stimulus_config["Selectivity Type Probabilities"]:
                 raise RuntimeError(
                     "generate_input_spike_trains: selectivity type not specified for "
                     "population: %s" % population
@@ -264,10 +254,8 @@ def generate_input_spike_trains(
             valid_selectivity_namespaces[population] = []
             with h5py.File(selectivity_path, "r") as selectivity_f:
                 for this_namespace in selectivity_f["Populations"][population]:
-                    if f"Selectivity {arena_id}" in this_namespace:
-                        valid_selectivity_namespaces[population].append(
-                            this_namespace
-                        )
+                    if f"{selectivity_namespace} {arena_id}" == this_namespace:
+                        valid_selectivity_namespaces[population].append(this_namespace)
                 if len(valid_selectivity_namespaces[population]) == 0:
                     raise RuntimeError(
                         "generate_input_spike_trains: no selectivity data in arena: %s found "
@@ -276,16 +264,14 @@ def generate_input_spike_trains(
                     )
     comm.barrier()
 
-    valid_selectivity_namespaces = comm.bcast(
-        valid_selectivity_namespaces, root=0
-    )
-    selectivity_type_names = {
-        val: key for (key, val) in env.selectivity_types.items()
-    }
+    valid_selectivity_namespaces = comm.bcast(valid_selectivity_namespaces, root=0)
+    selectivity_type_names = {val: key for (key, val) in env.selectivity_types.items()}
 
     equilibrate = stimulus.get_equilibration(env)
 
-    logger.info(f"trajectories: {arena.trajectories}")
+    if rank == 0:
+        logger.info(f"valid selectivity name spaces: {valid_selectivity_namespaces}")
+        logger.info(f"trajectories: {arena.trajectories}")
     for trajectory_id in sorted(arena.trajectories.keys()):
         trajectory = arena.trajectories[trajectory_id]
         t, x, y, d = None, None, None, None
@@ -293,9 +279,7 @@ def generate_input_spike_trains(
             t, x, y, d = stimulus.generate_linear_trajectory(
                 trajectory,
                 temporal_resolution=env.stimulus_config["Temporal Resolution"],
-                equilibration_duration=env.stimulus_config[
-                    "Equilibration Duration"
-                ],
+                equilibration_duration=env.stimulus_config["Equilibration Duration"],
             )
 
         t = comm.bcast(t, root=0)
@@ -309,9 +293,7 @@ def generate_input_spike_trains(
 
         if not dry_run and rank == 0:
             if output_path is None:
-                raise RuntimeError(
-                    "generate_input_spike_trains: missing output_path"
-                )
+                raise RuntimeError("generate_input_spike_trains: missing output_path")
             if not os.path.isfile(output_path):
                 with h5py.File(output_path, "w") as output_file:
                     input_file = h5py.File(selectivity_path, "r")
@@ -324,17 +306,14 @@ def generate_input_spike_trains(
                     )
                 group = f.create_group(trajectory_namespace)
                 for key, value in zip(["t", "x", "y", "d"], [t, x, y, d]):
-                    dataset = group.create_dataset(
-                        key, data=value, dtype="float32"
-                    )
+                    dataset = group.create_dataset(key, data=value, dtype="float32")
                 else:
                     loaded_t = f[trajectory_namespace]["t"][:]
                     if len(t) != len(loaded_t):
                         raise RuntimeError(
                             "generate_input_spike_trains: file at path: %s already contains the "
                             "namespace: %s, but the dataset sizes are inconsistent with the provided input"
-                            "configuration"
-                            % (output_path, trajectory_namespace)
+                            "configuration" % (output_path, trajectory_namespace)
                         )
         comm.barrier()
 
@@ -359,9 +338,7 @@ def generate_input_spike_trains(
                     env, population, soma_positions_dict[population]
                 )
 
-            this_spike_hist_sum = defaultdict(
-                lambda: np.zeros(spike_hist_resolution)
-            )
+            this_spike_hist_sum = defaultdict(lambda: np.zeros(spike_hist_resolution))
 
             process_time = dict()
             for this_selectivity_namespace in sorted(
@@ -397,9 +374,7 @@ def generate_input_spike_trains(
                         phase_mod_config = None
                         if phase_mod_config_dict is not None:
                             phase_mod_config = phase_mod_config_dict[gid]
-                        spikes_attr_dict[
-                            gid
-                        ] = stimulus.generate_input_spike_trains(
+                        spikes_attr_dict[gid] = stimulus.generate_input_spike_trains(
                             env,
                             population,
                             selectivity_type_names,
@@ -421,9 +396,7 @@ def generate_input_spike_trains(
                         debug and iter_count == 10
                     ):
                         req = comm.Ibarrier()
-                        total_gid_count = comm.reduce(
-                            gid_count, root=0, op=MPI.SUM
-                        )
+                        total_gid_count = comm.reduce(gid_count, root=0, op=MPI.SUM)
                         if rank == 0:
                             logger.info(
                                 "generated spike trains for %i %s cells"
@@ -485,8 +458,7 @@ def generate_input_spike_trains(
 
         if gather:
             this_spike_hist_sum = {
-                key: dict(val.items())
-                for key, val in spike_hist_sum_dict.items()
+                key: dict(val.items()) for key, val in spike_hist_sum_dict.items()
             }
             spike_hist_sum = comm.gather(this_spike_hist_sum, root=0)
 
@@ -496,18 +468,16 @@ def generate_input_spike_trains(
                 )
                 for each_spike_hist_sum in spike_hist_sum:
                     for population in each_spike_hist_sum:
-                        for selectivity_type_name in each_spike_hist_sum[
-                            population
-                        ]:
-                            merged_spike_hist_sum[population][
-                                selectivity_type_name
-                            ] = np.add(
-                                merged_spike_hist_sum[population][
-                                    selectivity_type_name
-                                ],
-                                each_spike_hist_sum[population][
-                                    selectivity_type_name
-                                ],
+                        for selectivity_type_name in each_spike_hist_sum[population]:
+                            merged_spike_hist_sum[population][selectivity_type_name] = (
+                                np.add(
+                                    merged_spike_hist_sum[population][
+                                        selectivity_type_name
+                                    ],
+                                    each_spike_hist_sum[population][
+                                        selectivity_type_name
+                                    ],
+                                )
                             )
 
                 if plot:
@@ -554,8 +524,7 @@ def import_input_spike_train(
     output_spike_attr_dict = dict(
         {
             _validate_key(k): {
-                attr_name: np.array(v, dtype=np.float32)
-                * 1000  # to miliseconds
+                attr_name: np.array(v, dtype=np.float32) * 1000  # to miliseconds
             }
             for k, v in data.items()
         }

@@ -6,6 +6,7 @@ import os
 import os.path
 import random
 import sys
+import importlib
 from collections import defaultdict
 
 import h5py
@@ -99,6 +100,10 @@ def gen_min_energy_nodes(
                 )
             )
         ]
+        if len(nodes) != len(nodes1):
+            logger.info(
+                f"{len(nodes) - len(nodes1)} nodes out of {len(nodes)} were NaN"
+            )
 
         # remove nodes outside of the domain
         vert, smp = domain
@@ -113,18 +118,25 @@ def gen_min_energy_nodes(
                     and current_xyz[i][2] <= constraint[1]
                 ):
                     valid_idxs.append(i)
+            if len(valid_idxs) == 0:
+                logger.info(
+                    f"Warning: all in_nodes have been rejected due to constraint {constraint}!"
+                )
+            elif len(valid_idxs) != len(in_nodes):
+                logger.info(
+                    f"Removing {len(in_nodes) - len(valid_idxs)} out of {len(in_nodes)} nodes due to constraint {constraint}"
+                )
             in_nodes = in_nodes[valid_idxs]
         node_count = len(in_nodes)
         N = int(1.5 * N)
         logger.info(
-            "%i interior nodes out of %i nodes generated"
-            % (node_count, len(nodes))
+            "%i interior nodes out of %i nodes generated" % (node_count, len(nodes))
         )
 
     return in_nodes
 
 
-# !deprecated, use generate_network_architecture() instead
+# !for imperative API, use generate_network_architecture() instead
 def generate_soma_coordinates(
     config: str,
     types_path: str,
@@ -158,7 +170,7 @@ def generate_soma_coordinates(
         layer_extents=env.geometry["Parametric Surface"]["Layer Extents"],
         rotation=env.geometry["Parametric Surface"]["Rotation"],
         cell_distributions=env.geometry["Cell Distribution"],
-        cell_constraints=env.geometry["Cell Constraints"],
+        cell_constraints=env.geometry.get("Cell Constraints", None),
         output_namespace=output_namespace,
         geometry_filepath=geometry_path,
         populations=populations,
@@ -178,7 +190,7 @@ def generate_network_architecture(
     cell_distributions: config.CellDistributions,
     layer_extents: config.LayerExtents,
     rotation: config.Rotation,
-    cell_constraints: config.CellConstraints,
+    cell_constraints: Optional[config.CellConstraints],
     output_namespace: str,
     geometry_filepath: Optional[str],
     populations: Optional[Tuple[str, ...]],
@@ -226,9 +238,7 @@ def generate_network_architecture(
         )
         vol_alpha_shape_path = f"{layer_alpha_shape_path}/all"
         if geometry_filepath:
-            vol_alpha_shape = load_alpha_shape(
-                geometry_filepath, vol_alpha_shape_path
-            )
+            vol_alpha_shape = load_alpha_shape(geometry_filepath, vol_alpha_shape_path)
         else:
             vol_alpha_shape = make_alpha_shape(vol, alpha_radius=alpha_radius)
             if geometry_filepath:
@@ -244,18 +254,14 @@ def generate_network_architecture(
     layer_extent_transformed_vals = {}
     if rank == 0:
         for layer, extents in layer_extents.items():
-            (extent_u, extent_v, extent_l) = get_layer_extents(
-                layer_extents, layer
-            )
+            (extent_u, extent_v, extent_l) = get_layer_extents(layer_extents, layer)
             layer_extent_vals[layer] = (extent_u, extent_v, extent_l)
             layer_extent_transformed_vals[layer] = network_volume_transform(
                 extent_u, extent_v, extent_l
             )
             has_layer_alpha_shape = False
             if geometry_filepath:
-                this_layer_alpha_shape_path = (
-                    f"{layer_alpha_shape_path}/{layer}"
-                )
+                this_layer_alpha_shape_path = f"{layer_alpha_shape_path}/{layer}"
                 this_layer_alpha_shape = load_alpha_shape(
                     geometry_filepath, this_layer_alpha_shape_path
                 )
@@ -329,6 +335,25 @@ def generate_network_architecture(
                 if count <= 0:
                     continue
 
+                if layer.startswith("@"):
+                    # generate via callback
+                    module_path, _, obj_name = layer[1:].rpartition(".")
+                    if module_path == "__main__" or module_path == "":
+                        module = sys.modules["__main__"]
+                    else:
+                        module = importlib.import_module(module_path)
+                    callback = getattr(module, obj_name)
+
+                    nodes = callback(count, layer_extents[layer])
+                    if len(nodes) != count:
+                        logger.error(
+                            f"Generator {layer} produced mismatch between actual count {len(nodes)} and configured count {count}"
+                        )
+
+                    xyz_coords_lst.append(nodes.reshape(-1, 3))
+
+                    continue
+
                 alpha = layer_alpha_shapes[layer]
 
                 vert = alpha.points
@@ -350,9 +375,7 @@ def generate_network_architecture(
                     % (N, layer, population)
                 )
                 if False:  # verbose
-                    rbf_logger = logging.Logger.manager.loggerDict[
-                        "rbf.pde.nodes"
-                    ]
+                    rbf_logger = logging.Logger.manager.loggerDict["rbf.pde.nodes"]
                     rbf_logger.setLevel(logging.DEBUG)
 
                 min_energy_constraint = None
@@ -407,9 +430,7 @@ def generate_network_architecture(
         )
 
     if rank == 0:
-        logger.info(
-            f"Computing UVL coordinates of {len(all_xyz_coords1)} nodes..."
-        )
+        logger.info(f"Computing UVL coordinates of {len(all_xyz_coords1)} nodes...")
 
     all_xyz_coords_interp = None
     all_uvl_coords_interp = None
@@ -433,9 +454,7 @@ def generate_network_architecture(
     xyz_coords = comm.bcast(all_xyz_coords1, root=0)
     all_xyz_coords_interp = comm.bcast(all_xyz_coords_interp, root=0)
     all_uvl_coords_interp = comm.bcast(all_uvl_coords_interp, root=0)
-    generated_coords_count_dict = comm.bcast(
-        dict(generated_coords_count_dict), root=0
-    )
+    generated_coords_count_dict = comm.bcast(dict(generated_coords_count_dict), root=0)
 
     coords_offset = 0
     pop_coords_dict = {}
@@ -455,6 +474,7 @@ def generate_network_architecture(
             if i % size == rank:
                 uvl_coords = all_uvl_coords_interp[coord_ind, :].ravel()
                 xyz_coords1 = all_xyz_coords_interp[coord_ind, :].ravel()
+
                 if uvl_in_bounds(
                     all_uvl_coords_interp[coord_ind, :],
                     layer_extents,
@@ -462,9 +482,7 @@ def generate_network_architecture(
                 ):
                     xyz_error = np.add(
                         xyz_error,
-                        np.abs(
-                            np.subtract(xyz_coords[coord_ind, :], xyz_coords1)
-                        ),
+                        np.abs(np.subtract(xyz_coords[coord_ind, :], xyz_coords1)),
                     )
 
                     logger.info(
@@ -506,7 +524,6 @@ def generate_network_architecture(
 
         total_xyz_error = np.zeros((3,))
         comm.Allreduce(xyz_error, total_xyz_error, op=MPI.SUM)
-
         coords_count = 0
         coords_count = np.sum(np.asarray(comm.allgather(len(coords))))
 
@@ -522,6 +539,7 @@ def generate_network_architecture(
             )
 
         pop_coords_dict[population] = coords
+
         coords_offset += gen_coords_count
 
         if rank == 0:
@@ -571,6 +589,12 @@ def generate_network_architecture(
                 for i in range(delta):
                     for layer, count in pop_layers.items():
                         if count > 0:
+                            if layer.startswith("@"):
+                                logger.warning(
+                                    f"Generator {layer} did not return the specified number of coordinates"
+                                )
+                                continue
+
                             min_extent = layer_extents[layer][0]
                             max_extent = layer_extents[layer][1]
                             coord_u = np.random.uniform(
@@ -579,10 +603,7 @@ def generate_network_architecture(
                             coord_v = np.random.uniform(
                                 min_extent[1] + safety, max_extent[1] - safety
                             )
-                            if (
-                                pop_constraint is None
-                                or layer not in pop_constraint
-                            ):
+                            if pop_constraint is None or layer not in pop_constraint:
                                 coord_l = np.random.uniform(
                                     min_extent[2] + safety,
                                     max_extent[2] - safety,
@@ -605,15 +626,11 @@ def generate_network_architecture(
                                     coord_l,
                                 )
                             )
-
             sampled_coords = random_subset(all_coords, int(pop_count))
-            sampled_coords.sort(
-                key=lambda coord: coord[3]
-            )  ## sort on U coordinate
+            sampled_coords.sort(key=lambda coord: coord[3])  ## sort on U coordinate
 
             coords_dict = {
-                pop_start
-                + i: {
+                pop_start + i: {
                     "X Coordinate": np.asarray([x_coord], dtype=np.float32),
                     "Y Coordinate": np.asarray([y_coord], dtype=np.float32),
                     "Z Coordinate": np.asarray([z_coord], dtype=np.float32),

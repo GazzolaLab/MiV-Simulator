@@ -4,7 +4,6 @@ from typing import (
     Dict,
     Iterator,
     List,
-    Mapping,
     Optional,
     Tuple,
     Union,
@@ -28,7 +27,7 @@ import click
 import numpy as np
 import yaml
 from mpi4py import MPI
-from numpy import float64, uint32
+from numpy import float64
 from scipy import signal, sparse
 from yaml.nodes import ScalarNode
 
@@ -65,7 +64,7 @@ class Struct:
         return f"Struct({self.__dict__})"
 
     def __str__(self):
-        return f"<Struct>"
+        return "<Struct>"
 
 
 class ExprClosure:
@@ -75,9 +74,7 @@ class ExprClosure:
 
     def __init__(self, parameters, expr, consts=None, formals=None):
         self.sympy = importlib.import_module("sympy")
-        self.sympy_parser = importlib.import_module(
-            "sympy.parsing.sympy_parser"
-        )
+        self.sympy_parser = importlib.import_module("sympy.parsing.sympy_parser")
         self.sympy_abc = importlib.import_module("sympy.abc")
         self.parameters = parameters
         self.formals = formals
@@ -174,7 +171,7 @@ class Context:
         return f"Context({self.__dict__})"
 
     def __str__(self):
-        return f"<Context>"
+        return "<Context>"
 
 
 class RunningStats:
@@ -248,9 +245,7 @@ class RunningStats:
         combined.m2 = a.m2 + b.m2 + delta2 * a.n * b.n / combined.n
 
         combined.m3 = (
-            a.m3
-            + b.m3
-            + delta3 * a.n * b.n * (a.n - b.n) / (combined.n * combined.n)
+            a.m3 + b.m3 + delta3 * a.n * b.n * (a.n - b.n) / (combined.n * combined.n)
         )
         combined.m3 += 3.0 * delta * (a.n * b.m2 - b.n * a.m2) / combined.n
 
@@ -288,9 +283,7 @@ class EnumChoice(click.Choice):
         result = super().convert(value, param, ctx)
         # Find the original case in the enum
         if not self.case_sensitive and result not in self.choices:
-            result = next(
-                c for c in self.choices if result.lower() == c.lower()
-            )
+            result = next(c for c in self.choices if result.lower() == c.lower())
         if self.use_value:
             return next(e for e in self.enum if str(e.value) == result)
         return self.enum[result]
@@ -365,12 +358,10 @@ def write_to_yaml(file_path, data, convert_scalars=False):
     with open(file_path, "w") as outfile:
         if convert_scalars:
             data = yaml_convert_scalars(data)
-        yaml.dump(
-            data, outfile, default_flow_style=False, Dumper=ExplicitDumper
-        )
+        yaml.dump(data, outfile, default_flow_style=False, Dumper=ExplicitDumper)
 
 
-# !deprecated, use from_yaml instead
+# !for imperative API, use from_yaml instead
 def read_from_yaml(
     file_path: str, include_loader: None = None
 ) -> Dict[str, Dict[str, Dict[str, Union[Dict[str, float], Dict[str, int]]]]]:
@@ -439,6 +430,16 @@ def yaml_convert_scalars(data):
     elif hasattr(data, "item"):
         data = data.item()
     return data
+
+
+def import_object_by_path(path):
+    module_path, _, obj_name = path.rpartition(".")
+
+    if module_path == "__main__" or module_path == "":
+        module = sys.modules["__main__"]
+    else:
+        module = importlib.import_module(module_path)
+    return getattr(module, obj_name)
 
 
 def is_iterable(obj):
@@ -546,7 +547,7 @@ def consecutive(data):
 
 def ifilternone(iterable):
     for x in iterable:
-        if not (x is None):
+        if x is not None:
             yield x
 
 
@@ -665,9 +666,7 @@ def make_random_clusters(
 
     if isinstance(centers, numbers.Integral):
         centers = np.sort(
-            rng.uniform(
-                center_box[0], center_box[1], size=(centers, n_features)
-            ),
+            rng.uniform(center_box[0], center_box[1], size=(centers, n_features)),
             axis=0,
         )
     else:
@@ -682,8 +681,6 @@ def make_random_clusters(
 
     X = []
     y = []
-
-    n_centers = centers.shape[0]
 
     for i, (cid, n, std) in enumerate(
         zip(center_ids, n_samples_per_center, cluster_std)
@@ -731,12 +728,6 @@ def random_clustered_shuffle(
                29, 21, 27, 27, 21, 27, 25, 21, 25, 27, 25])
     """
 
-    if isinstance(centers, numbers.Integral):
-        n_centers = centers
-    else:
-        assert isinstance(centers, np.ndarray)
-        n_centers = len(centers)
-
     X, y = make_random_clusters(
         centers,
         n_samples_per_center,
@@ -759,9 +750,7 @@ def rejection_sampling(gen, n, clip):
         samples = []
         while remaining > 0:
             sample = gen(remaining)
-            filtered = sample[
-                np.where((sample >= clip_min) & (sample <= clip_max))
-            ]
+            filtered = sample[np.where((sample >= clip_min) & (sample <= clip_max))]
             samples.append(filtered)
             remaining -= len(filtered)
         result = np.concatenate(tuple(samples))
@@ -784,18 +773,83 @@ def NamedTupleWithDocstring(docstring, *ntargs):
     return NT
 
 
-def partitionn(
-    items: List[uint32], predicate: Callable = int, n: int = 2
-) -> Iterator[Any]:
+def partitionn(items, predicate, n=2, buffer_size=1000):
     """
-    Filter an iterator into N parts lazily
-    http://paddy3118.blogspot.com/2013/06/filtering-iterator-into-n-parts-lazily.html
+    Filter an iterator into N parts lazily using bounded memory.
+
+    Args:
+        items: Input iterator to partition
+        predicate: Function that returns the partition index for each item
+        n: Number of partitions (default=2)
+        buffer_size: Maximum number of items to buffer per partition (default=1000)
+
+    Returns:
+        List of N generators, one for each partition
     """
-    tees = itertools.tee(((predicate(item), item) for item in items), n)
-    return (
-        (lambda i: (item for pred, item in tees[i] if pred == i))(x)
-        for x in range(n)
-    )
+    # Convert to iterator
+    iterator = iter(items)
+
+    # Shared state between generators
+    state = {
+        "active": [False] * n,  # Track which partitions are being consumed
+        "buffers": [[] for _ in range(n)],  # Limited-size buffers for each partition
+        "exhausted": False,  # Whether input iterator is exhausted
+    }
+
+    def fill_buffers():
+        """Add items to buffers for active partitions until they're full or input is exhausted"""
+        if state["exhausted"]:
+            return False
+
+        added = False
+        try:
+            # Process items until all active buffers are full or input is exhausted
+            while any(state["active"]):
+                # Check if all active buffers are full
+                if all(
+                    len(buffer) >= buffer_size
+                    for i, buffer in enumerate(state["buffers"])
+                    if state["active"][i]
+                ):
+                    break
+
+                # Get next item and determine its partition
+                item = next(iterator)
+                part_id = predicate(item)
+
+                # Buffer item if its partition is active and not full
+                if (
+                    0 <= part_id < n
+                    and state["active"][part_id]
+                    and len(state["buffers"][part_id]) < buffer_size
+                ):
+                    state["buffers"][part_id].append(item)
+                    added = True
+        except StopIteration:
+            state["exhausted"] = True
+
+        return added
+
+    def generate_partition(part_id):
+        """Generate items for a specific partition"""
+        # Mark this partition as active
+        state["active"][part_id] = True
+
+        try:
+            while True:
+                # Yield items from buffer
+                while state["buffers"][part_id]:
+                    yield state["buffers"][part_id].pop(0)
+
+                # If we can't fill buffers and this one is empty, we're done
+                if not fill_buffers() and not state["buffers"][part_id]:
+                    break
+        finally:
+            # Mark partition as inactive when generator is closed
+            state["active"][part_id] = False
+
+    # Return a generator for each partition
+    return [generate_partition(i) for i in range(n)]
 
 
 def generator_peek(iterable):
@@ -864,12 +918,11 @@ def finalize_bins(bins, binsize):
     bin_ranges = [(int(min(ks)), int(max(ks))) for ks in bin_keys]
     dims = tuple((imax - imin + 1) for imin, imax in bin_ranges)
     if len(dims) > 1:
-        grid = sparse.dok_matrix(dims, dtype=np.int)
+        grid = sparse.dok_matrix(dims, dtype=int)
     else:
         grid = np.zeros(dims)
     bin_edges = [
-        [binsize * k for k in range(imin, imax + 1)]
-        for imin, imax in bin_ranges
+        [binsize * k for k in range(imin, imax + 1)] for imin, imax in bin_ranges
     ]
     for i in bins:
         idx = tuple(int(ii - imin) for ii, (imin, imax) in zip(i, bin_ranges))
@@ -925,18 +978,14 @@ def baks(spktimes, time, a=1.5, b=None):
 
     for i in range(n):
         numerator = (((time - spktimes[i]) ** 2) / 2.0 + 1.0 / b) ** (-a)
-        denominator = (((time - spktimes[i]) ** 2) / 2.0 + 1.0 / b) ** (
-            -a - 0.5
-        )
+        denominator = (((time - spktimes[i]) ** 2) / 2.0 + 1.0 / b) ** (-a - 0.5)
         sumnum = sumnum + numerator
         sumdenom = sumdenom + denominator
 
     h = (gamma(a) / gamma(a + 0.5)) * (sumnum / sumdenom)
     rate = np.zeros((len(time),))
     for j in range(n):
-        x = np.asarray(
-            -((time - spktimes[j]) ** 2) / (2.0 * h**2), dtype=np.float128
-        )
+        x = np.asarray(-((time - spktimes[j]) ** 2) / (2.0 * h**2), dtype=np.float128)
         K = (1.0 / (np.sqrt(2.0 * np.pi) * h)) * np.exp(x)
         rate = rate + K
 
@@ -975,9 +1024,7 @@ def mvcorrcoef(X, y):
     Xm = np.reshape(np.mean(X, axis=1), (X.shape[0], 1))
     ym = np.mean(y)
     r_num = np.sum(np.multiply(X - Xm, y - ym), axis=1)
-    r_den = np.sqrt(
-        np.sum(np.square(X - Xm), axis=1) * np.sum(np.square(y - ym))
-    )
+    r_den = np.sqrt(np.sum(np.square(X - Xm), axis=1) * np.sum(np.square(y - ym)))
     with np.errstate(divide="ignore", invalid="ignore"):
         r = np.true_divide(r_num, r_den)
         r[r == np.inf] = 0
@@ -1013,10 +1060,7 @@ def apply_filter(data, sos):
 def gauss2d(x=0, y=0, mx=0, my=0, sx=1, sy=1, A=1.0):
     ## prevent exp underflow/overflow
     exparg = np.clip(
-        (
-            (x - mx) ** 2.0 / (2.0 * sx**2.0)
-            + (y - my) ** 2.0 / (2.0 * sy**2.0)
-        ),
+        ((x - mx) ** 2.0 / (2.0 * sx**2.0) + (y - my) ** 2.0 / (2.0 * sy**2.0)),
         -500.0,
         500.0,
     )
@@ -1043,9 +1087,7 @@ def get_low_pass_filtered_trace(trace, t, down_dt=0.5, window_len_ms=2000.0):
     padded_trace[pad_len:-pad_len] = down_sampled
     padded_trace[:pad_len] = down_sampled[::-1][-pad_len:]
     padded_trace[-pad_len:] = down_sampled[::-1][:pad_len]
-    down_filtered = signal.filtfilt(
-        ramp_filter, [1.0], padded_trace, padlen=pad_len
-    )
+    down_filtered = signal.filtfilt(ramp_filter, [1.0], padded_trace, padlen=pad_len)
     down_filtered = down_filtered[pad_len:-pad_len]
     filtered = np.interp(t, down_t, down_filtered)
 
@@ -1074,9 +1116,7 @@ def get_trial_time_indices(time_vec, n_trials, t_offset=0.0):
         for i in range(n_trials)
     ]
     t_trial_inds = [
-        np.where(
-            (time_vec >= (t_trial_start + t_offset)) & (time_vec < t_trial_end)
-        )[0]
+        np.where((time_vec >= (t_trial_start + t_offset)) & (time_vec < t_trial_end))[0]
         for t_trial_start, t_trial_end in t_trial_ranges
     ]
     return t_trial_inds
@@ -1147,9 +1187,7 @@ def signal_power_spectrogram(signal, fs, window_size, window_overlap):
     win = get_window("hann", nperseg)
     noverlap = int(window_overlap * nperseg)
 
-    f, t, sxx = spectrogram(
-        x=signal, fs=fs, window=win, noverlap=noverlap, mode="psd"
-    )
+    f, t, sxx = spectrogram(x=signal, fs=fs, window=win, noverlap=noverlap, mode="psd")
 
     return f, t, sxx
 
@@ -1169,9 +1207,7 @@ def signal_psd(s, Fs, frequency_range=(0, 500), window_size=4096, overlap=0.9):
         return_onesided=True,
     )
 
-    freqinds = np.where(
-        (freqs >= frequency_range[0]) & (freqs <= frequency_range[1])
-    )
+    freqinds = np.where((freqs >= frequency_range[0]) & (freqs <= frequency_range[1]))
 
     freqs = freqs[freqinds]
     psd = psd[freqinds]
@@ -1181,50 +1217,3 @@ def signal_psd(s, Fs, frequency_range=(0, 500), window_size=4096, overlap=0.9):
     peak_index = np.argwhere(psd == np.max(psd))[0][0]
 
     return psd, freqs, peak_index
-
-
-def baks(spktimes, time, a=1.5, b=None):
-    """
-    Bayesian Adaptive Kernel Smoother (BAKS)
-    BAKS is a method for estimating firing rate from spike train data that uses kernel smoothing technique
-    with adaptive bandwidth determined using a Bayesian approach
-    ---------------INPUT---------------
-    - spktimes : spike event times [s]
-    - time : time points at which the firing rate is estimated [s]
-    - a : shape parameter (alpha)
-    - b : scale parameter (beta)
-    ---------------OUTPUT---------------
-    - rate : estimated firing rate [nTime x 1] (Hz)
-    - h : adaptive bandwidth [nTime x 1]
-
-    Based on "Estimation of neuronal firing rate using Bayesian adaptive kernel smoother (BAKS)"
-    https://github.com/nurahmadi/BAKS
-    """
-    from scipy.special import gamma
-
-    n = len(spktimes)
-    sumnum = 0
-    sumdenom = 0
-
-    if b is None:
-        b = 0.42
-    b = float(n) ** b
-
-    for i in range(n):
-        numerator = (((time - spktimes[i]) ** 2) / 2.0 + 1.0 / b) ** (-a)
-        denominator = (((time - spktimes[i]) ** 2) / 2.0 + 1.0 / b) ** (
-            -a - 0.5
-        )
-        sumnum = sumnum + numerator
-        sumdenom = sumdenom + denominator
-
-    h = (gamma(a) / gamma(a + 0.5)) * (sumnum / sumdenom)
-    rate = np.zeros((len(time),))
-    for j in range(n):
-        x = np.asarray(
-            -((time - spktimes[j]) ** 2) / (2.0 * h**2), dtype=np.float128
-        )
-        K = (1.0 / (np.sqrt(2.0 * np.pi) * h)) * np.exp(x)
-        rate = rate + K
-
-    return rate, h

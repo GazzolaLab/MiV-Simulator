@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional
 
 from dataclasses import dataclass
 
@@ -22,6 +22,7 @@ class ClampGo(Component):
         t_max: Optional[float] = 150.0
         t_min: Optional[float] = None
         templates: str = "templates"
+        mechanisms_path: str = "."
         dataset_path: Optional[str] = None
         spike_events_path: Optional[str] = None
         spike_events_namespace: str = "Spike Events"
@@ -58,6 +59,7 @@ class ClampGo(Component):
             t_max=self.config.t_max,
             t_min=self.config.t_min,
             template_paths=self.config.templates,
+            mechanisms_path=self.config.mechanisms_path,
             dataset_prefix=self.config.dataset_path,
             spike_events_path=self.config.spike_events_path,
             spike_events_namespace=self.config.spike_events_namespace,

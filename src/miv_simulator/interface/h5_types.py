@@ -11,7 +11,10 @@ class H5Types(Component):
         model_config = ConfigDict(extra="forbid")
 
         cell_distributions: config.CellDistributions = Field("???")
-        synapses: config.Synapses = Field("???")
+        projections: config.SynapticProjections = Field("???")
+        population_definitions: Dict[str, int] = Field("???")
+        ranks: int = 1
+        nodes: str = "1"
 
     def config_from_file(self, filename: str) -> Dict:
         return from_yaml(filename)
@@ -25,6 +28,16 @@ class H5Types(Component):
             io_utils.create_neural_h5(
                 self.output_filepath,
                 self.config.cell_distributions,
-                self.config.synapses,
+                synapses={
+                    post: {pre: True for pre in v}
+                    for post, v in self.config.projections.items()
+                },
+                population_definitions=self.config.population_definitions,
             )
         MPI.COMM_WORLD.barrier()
+
+    def compute_context(self):
+        context = super().compute_context()
+        del context["config"]["ranks"]
+        del context["config"]["nodes"]
+        return context

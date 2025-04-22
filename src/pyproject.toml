@@ -1,0 +1,18 @@
+[project]
+name = "miv_data"
+version = "0.1.0"
+description = "Mind-in-Vitro data"
+authors = []
+dependencies = []
+readme = "miv_data/README.md"
+requires-python = ">= 3.9"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["miv_data"]

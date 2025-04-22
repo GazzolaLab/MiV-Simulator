@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional
 
 from dataclasses import dataclass
 
@@ -26,6 +26,7 @@ class ClampOptimize(Component):
         opt_seed: Optional[int] = None
         opt_iter: int = 10
         templates: str = "templates"
+        mechanisms_path: str = "."
         dataset_path: Optional[str] = None
         param_config_name: Optional[str] = None
         param_type: str = "synaptic"
@@ -47,7 +48,6 @@ class ClampOptimize(Component):
         target_state_variable: Optional[str] = None
         target_state_filter: Optional[str] = None
         use_coreneuron: bool = False
-        cooperative_init: bool = False
         target: str = "rate"
 
     def __call__(self):
@@ -68,6 +68,7 @@ class ClampOptimize(Component):
             opt_seed=self.config.opt_seed,
             opt_iter=self.config.opt_iter,
             template_paths=self.config.templates,
+            mechanisms_path=self.config.mechanisms_path,
             dataset_prefix=self.config.dataset_path,
             param_config_name=self.config.param_config_name,
             param_type=self.config.param_type,
@@ -90,6 +91,5 @@ class ClampOptimize(Component):
             target_state_variable=self.config.target_state_variable,
             target_state_filter=self.config.target_state_filter,
             use_coreneuron=self.config.use_coreneuron,
-            cooperative_init=self.config.cooperative_init,
             target=self.config.target,
         )

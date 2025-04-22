@@ -8,18 +8,22 @@ from typing import (
     Tuple,
     Union,
 )
-
 import copy
 import itertools
 import math
 import sys
 import time
 import traceback
-from collections import defaultdict
+import uuid
+from collections import defaultdict, namedtuple
 from functools import reduce
 
 import numpy as np
-from miv_simulator.cells import BiophysCell, SCneuron, make_section_graph
+from miv_simulator.cells import (
+    BiophysCell,
+    SCneuron,
+    make_section_graph,
+)
 from miv_simulator.utils import (
     AbstractEnv,
     ExprClosure,
@@ -27,13 +31,12 @@ from miv_simulator.utils import (
     Promise,
     generator_ifempty,
     get_module_logger,
-    partitionn,
-    zip_longest,
 )
 from miv_simulator.utils.neuron import (
     default_ordered_sec_types,
     interplocs,
     mknetcon,
+    mknetcon_vecstim,
 )
 from neuroh5.io import write_cell_attributes
 from neuron import h
@@ -47,6 +50,68 @@ if TYPE_CHECKING:
 logger = get_module_logger(__name__)
 if hasattr(h, "nrnmpi_init"):
     h.nrnmpi_init()
+
+# Array dtype for core synapse properties
+SYNAPSE_CORE_DTYPE = np.dtype(
+    [
+        ("syn_id", np.uint32),  # Synapse ID (for indexing)
+        ("syn_type", np.uint8),  # Synapse type
+        ("swc_type", np.uint8),  # SWC type
+        ("syn_layer", np.int8),  # Layer
+        ("syn_loc", np.float32),  # Location in section
+        ("syn_section", np.uint32),  # Section index
+        ("source_gid", np.int32),  # Source cell GID
+        ("source_population", np.int8),  # Source population index
+        ("delay", np.float32),  # Connection delay
+    ]
+)
+
+
+SynParam = namedtuple(
+    "SynParam",
+    (
+        "population",
+        "source",
+        "sec_type",
+        "syn_name",
+        "param_path",
+        "param_range",
+        "phenotype",
+    ),
+    defaults=(None, None, None, None, None, None, None),
+)
+
+
+def syn_param_from_dict(d):
+    return SynParam(*[d[key] for key in SynParam._fields])
+
+
+def get_mech_rules_dict(cell, **rules):
+    """
+    Used by modify_mech_param. Takes in a series of arguments and constructs a validated rules dictionary that will be
+    used to update a cell's mechanism dictionary.
+    :param cell: :class:'BiophysCell'
+    :param rules: dict
+    :return: dict
+    """
+    rules_dict = {
+        name: rules[name]
+        for name in (
+            name
+            for name in ["value", "origin"]
+            if name in rules and rules[name] is not None
+        )
+    }
+    if "origin" in rules_dict:
+        origin_type = rules_dict["origin"]
+        valid_sec_types = [
+            sec_type for sec_type in cell.nodes if len(cell.nodes[sec_type]) > 0
+        ]
+        if origin_type not in valid_sec_types + ["parent", "branch_origin"]:
+            raise ValueError(
+                f"get_mech_rules_dict: cannot inherit from invalid origin type: {origin_type}"
+            )
+    return rules_dict
 
 
 def get_node_attribute(name, content, sec, secnodes, x=None):
@@ -118,8 +183,6 @@ def synapse_seg_density(
         total_seg_density = 0.0
         for sec_index, seg_list in seg_dict.items():
             for seg in seg_list:
-                L = seg.sec.L
-                nseg = seg.sec.nseg
                 if neurotree_dict is not None:
                     secnodes = secnodes_dict[sec_index]
                     layer = get_node_attribute(
@@ -156,7 +219,7 @@ def synapse_seg_density(
 
         if total_seg_density < 1e-6:
             logger.warning(
-                f"sections with zero {syn_type_label}"
+                f"sections with zero {syn_type_label} "
                 f"synapse density: {segdensity}; rans: {rans}; "
                 f"density_dict: {density_dict}; layers: {layers} "
                 f"morphology: {neurotree_dict}"
@@ -234,11 +297,9 @@ def synapse_seg_counts(
                 else:
                     ran = None
                 if ran is not None:
-                    l = L / nseg
-                    dens = ran.normal(
-                        density_dict["mean"], density_dict["variance"]
-                    )
-                    rc = dens * l
+                    pos = L / nseg
+                    dens = ran.normal(density_dict["mean"], density_dict["variance"])
+                    rc = dens * pos
                     segcount_total += rc
                     segcounts.append(rc)
                 else:
@@ -281,7 +342,6 @@ def distribute_uniform_synapses(
     syn_index = 0
 
     r = np.random.RandomState()
-    local_random.seed(int(seed))
 
     sec_interp_loc_dict = {}
     segcounts_per_sec = {}
@@ -293,7 +353,6 @@ def distribute_uniform_synapses(
         (seclst, maxdist) = cell_sec_dict[sec_name]
         secidxlst = cell_secidx_dict[sec_name]
         for sec, idx in zip(seclst, secidxlst):
-            npts_interp = max(int(round(sec.L)), 3)
             sec_interp_loc_dict[idx] = interplocs(sec)
         sec_dict = {int(idx): sec for sec, idx in zip(seclst, secidxlst)}
         seg_dict = {}
@@ -323,7 +382,6 @@ def distribute_uniform_synapses(
             neurotree_dict=neurotree_dict,
         )
         segcounts_per_sec[sec_name] = segcounts_dict
-        sample_size = total
         for syn_type_label, _ in layer_density_dict.items():
             syn_type = syn_type_dict[syn_type_label]
             segcounts = segcounts_dict[syn_type]
@@ -337,18 +395,15 @@ def distribute_uniform_synapses(
                     int_seg_count = math.floor(seg_count)
                     syn_count = 0
                     while syn_count < int_seg_count:
-                        syn_loc = seg_start + seg_range * (
-                            syn_count + 1
-                        ) / math.ceil(seg_count)
+                        syn_loc = seg_start + seg_range * (syn_count + 1) / math.ceil(
+                            seg_count
+                        )
                         assert (syn_loc <= 1) & (syn_loc >= 0)
                         if syn_loc < 1.0:
                             syn_cdist = math.sqrt(
                                 reduce(
                                     lambda a, b: a + b,
-                                    (
-                                        interp_loc[i](syn_loc) ** 2
-                                        for i in range(3)
-                                    ),
+                                    (interp_loc[i](syn_loc) ** 2 for i in range(3)),
                                 )
                             )
                             syn_cdists.append(syn_cdist)
@@ -433,7 +488,6 @@ def distribute_poisson_synapses(
         (seclst, maxdist) = cell_sec_dict[sec_name]
         secidxlst = cell_secidx_dict[sec_name]
         for sec, idx in zip(seclst, secidxlst):
-            npts_interp = max(int(round(sec.L)), 3)
             sec_interp_loc_dict[idx] = interplocs(sec)
         sec_dict = {int(idx): sec for sec, idx in zip(seclst, secidxlst)}
         if len(sec_dict) > 1:
@@ -484,7 +538,6 @@ def distribute_poisson_synapses(
                 seg_list = seg_dict[sec_index]
                 sec_seg_layers = layers[sec_index]
                 sec_seg_density = seg_density[sec_index]
-                start_seg = seg_list[0]
                 interval = 0.0
                 syn_loc = 0.0
                 for seg, layer, density in zip(
@@ -502,9 +555,7 @@ def distribute_poisson_synapses(
                         else:
                             while True:
                                 sample = r.exponential(beta)
-                                if (sample >= L_seg_start) and (
-                                    sample < L_seg_end
-                                ):
+                                if (sample >= L_seg_start) and (sample < L_seg_end):
                                     break
                         interval += sample
                         while interval < L_seg_end:
@@ -548,37 +599,6 @@ def distribute_poisson_synapses(
     return (syn_dict, seg_density_per_sec)
 
 
-class SynapseSource:
-    """This class provides information about the presynaptic (source) cell
-    connected to a synapse.
-
-    - gid - gid of source cell (int)
-    - population - population index of source cell (int)
-    - delay - connection delay (float)
-    """
-
-    __slots__ = "gid", "population", "delay"
-
-    def __init__(self) -> None:
-        self.gid = None
-        self.population = None
-        self.delay = None
-
-    def __repr__(self):
-        if self.delay is None:
-            repr_delay = "None"
-        else:
-            repr_delay = f"{self.delay:.02f}"
-        return f"SynapseSource({self.gid}, {self.population}, {repr_delay})"
-
-    def __str__(self):
-        if self.delay is None:
-            str_delay = "None"
-        else:
-            str_delay = f"{self.delay:.02f}"
-        return f"SynapseSource({self.gid}, {self.population}, {str_delay})"
-
-
 SynapsePointProcess = NamedTupleWithDocstring(
     """This class provides information about the point processes associated with a synapse.
       - mech - dictionary of synapse mechanisms
@@ -589,51 +609,946 @@ SynapsePointProcess = NamedTupleWithDocstring(
     ["mech", "netcon", "vecstim"],
 )
 
-Synapse = NamedTupleWithDocstring(
-    """A container for synapse configuration, synapse mechanism instantiation,
-     and associated netcon/vecstim instances.
-    - syn_type - enumerated synapse type (int)
-    - swc_type - enumerated swc type (int)
-    - syn_layer - enumerated synapse layer (int)
-    - syn_loc - synapse location in segment (float)
-    - syn_section - synapse section index (int)
-    - source: instance of SynapseSource with the slots:
-       - gid - source cell gid (int)
-       - population - enumerated source population index (int)
-       - delay - connection delay (float)
-    - attr_dict - dictionary of attributes per synapse mechanism
-      (for cases when multiple mechanisms are associated with a
-      synapse, e.g. GABA_A and GABA_B)
-    """,
-    "Synapse",
-    [
-        "syn_type",
-        "swc_type",
-        "syn_layer",
-        "syn_loc",
-        "syn_section",
-        "source",
-        "attr_dict",
-    ],
-)
+
+class SynapseMechanismParameterStore:
+    """Storage for synapse mechanism parameters with selective defaults"""
+
+    def __init__(self, mech_param_specs):
+        """
+        Initialize with mechanism parameter specifications
+
+        Args:
+            mech_param_specs: Dict mapping mechanism names to parameter specifications
+        """
+        self.mech_param_specs = mech_param_specs
+        self.mech_param_index = {name: idx for idx, name in enumerate(mech_param_specs)}
+
+        # Storage for per-mechanism parameters (will be created on demand)
+        self.gid_data = {}
+
+        # Track which parameters have arrays allocated
+        self.allocated_params = defaultdict(lambda: defaultdict(set))
+
+        # Default parameter values with selective application
+        # Format: {mech_name: {param_name: [(synapse_selector, value), ...]}
+        self.default_values = defaultdict(lambda: defaultdict(list))
+
+        # Storage for complex objects that can't be stored in arrays
+        self.complex_params = defaultdict(
+            lambda: defaultdict(lambda: defaultdict(dict))
+        )
+
+    def _ensure_gid_storage(self, gid, synapse_count=0):
+        """Create basic data structures for a gid if not already present"""
+        if gid not in self.gid_data:
+            self.gid_data[gid] = {
+                "arrays": {},  # Will hold parameter arrays
+                "has_mech": {},  # Will track which synapses have each mechanism
+                "synapse_count": synapse_count,  # Track active synapse count
+            }
+
+    def _ensure_mech_storage(self, gid, mech_name):
+        """Create storage for a mechanism if not already present"""
+        self._ensure_gid_storage(gid)
+
+        if mech_name not in self.gid_data[gid]["has_mech"]:
+            synapse_count = self.gid_data[gid]["synapse_count"]
+            # Create array to track which synapses have this mechanism
+            self.gid_data[gid]["has_mech"][mech_name] = np.zeros(
+                max(synapse_count, 1000), dtype=bool
+            )
+            # Initialize empty dict for parameter arrays
+            self.gid_data[gid]["arrays"][mech_name] = {}
+
+    def _ensure_param_array(self, gid, mech_name, param_name):
+        """Create parameter array if not already created"""
+        self._ensure_mech_storage(gid, mech_name)
+
+        # Check if already allocated
+        if param_name in self.gid_data[gid]["arrays"][mech_name]:
+            return
+
+        # Get array size based on synapse count
+        synapse_count = self.gid_data[gid]["synapse_count"]
+        array_size = max(synapse_count, 1000)  # Minimum size for efficiency
+
+        # Create array filled with NaN to indicate "use default value"
+        self.gid_data[gid]["arrays"][mech_name][param_name] = np.full(
+            array_size, np.nan, dtype=np.float32
+        )
+
+        # Mark parameter as allocated
+        self.allocated_params[gid][mech_name].add(param_name)
+
+    def _resize_arrays(self, gid, new_size):
+        """Resize all arrays for a gid to accommodate more synapses"""
+        if gid not in self.gid_data:
+            return
+
+        # Update synapse count
+        self.gid_data[gid]["synapse_count"] = new_size
+
+        # Resize all mechanism arrays
+        for mech_name in self.gid_data[gid]["has_mech"]:
+            # Resize has_mech array
+            old_has_mech = self.gid_data[gid]["has_mech"][mech_name]
+            new_has_mech = np.zeros(new_size, dtype=bool)
+            new_has_mech[: len(old_has_mech)] = old_has_mech
+            self.gid_data[gid]["has_mech"][mech_name] = new_has_mech
+
+            # Resize each parameter array
+            for param_name in self.gid_data[gid]["arrays"][mech_name]:
+                old_array = self.gid_data[gid]["arrays"][mech_name][param_name]
+                new_array = np.full(new_size, np.nan, dtype=np.float32)
+                new_array[: len(old_array)] = old_array
+                self.gid_data[gid]["arrays"][mech_name][param_name] = new_array
+
+    def _create_selector(self, gid, selector_spec):
+        """
+        Create a selector function from the given specification
+
+        Returns a function that takes (syn_id, syn_index) and returns True/False
+        """
+        if selector_spec is None:
+            # Global default - applies to all synapses
+            return lambda syn_id, idx: True
+
+        elif isinstance(selector_spec, (list, tuple, set, np.ndarray)):
+            # Set of specific synapse IDs
+            syn_id_set = set(selector_spec)
+            return lambda syn_id, idx: syn_id in syn_id_set
+
+        elif callable(selector_spec):
+            # Custom function
+            return lambda syn_id, idx: selector_spec(syn_id)
+
+        elif isinstance(selector_spec, dict):
+            # Filter criteria - similar to filter_synapses method
+            # This needs access to synapse properties
+            props = self.parent_storage.properties[gid]
+
+            # Create mask based on filter criteria
+            def filter_selector(syn_id, syn_index):
+                # Apply each filter criterion
+                if (
+                    "syn_types" in selector_spec
+                    and props["syn_type"][syn_index] not in selector_spec["syn_types"]
+                ):
+                    return False
+                if (
+                    "layers" in selector_spec
+                    and props["syn_layer"][syn_index] not in selector_spec["layers"]
+                ):
+                    return False
+                if (
+                    "sources" in selector_spec
+                    and props["source_population"][syn_index]
+                    not in selector_spec["sources"]
+                ):
+                    return False
+                if (
+                    "swc_types" in selector_spec
+                    and props["swc_type"][syn_index] not in selector_spec["swc_types"]
+                ):
+                    return False
+                return True
+
+            return filter_selector
+
+        else:
+            # Default to global selector if type is unrecognized
+            return lambda syn_id, idx: True
+
+    def set_default_value(
+        self, gid, mech_name, param_name, value, synapse_selector=None
+    ):
+        """
+        Set default value for a parameter that applies to a subset of synapses
+
+        Args:
+            gid: Cell GID
+            mech_name: Mechanism name
+            param_name: Parameter name
+            value: Parameter value
+            synapse_selector: Selection criteria for which synapses this default applies to:
+                - None: Global default for all synapses
+                - tuple/list of synapse IDs: Applies to specific synapse IDs
+                - callable: Function that takes synapse ID and returns True/False
+                - dict: Filter criteria like {'syn_types': [...], 'layers': [...]}
+        """
+        if mech_name not in self.mech_param_specs:
+            return False
+
+        if param_name not in self.mech_param_specs[mech_name]:
+            return False
+
+        # Create selector object based on input
+        selector = self._create_selector(gid, synapse_selector)
+
+        # Store complex objects with a type marker
+        if not isinstance(value, (int, float)) or np.isnan(value):
+            value = ("complex", value)
+
+        # Add default to the list for this parameter
+        self.default_values[gid][mech_name][param_name].append((selector, value))
+
+        return True
+
+    def get_default_value(self, gid, mech_name, param_name, syn_id, syn_index):
+        """
+        Get default value for a parameter, considering selective defaults
+
+        Returns the value from the most specific matching default, or None if no default applies
+        """
+        if gid not in self.default_values or mech_name not in self.default_values[gid]:
+            return None
+
+        if param_name not in self.default_values[gid][mech_name]:
+            return None
+
+        # Get all defaults for this parameter
+        defaults = self.default_values[gid][mech_name][param_name]
+
+        # Find the first matching default (most recently added takes precedence)
+        for selector, value in reversed(defaults):
+            if selector(syn_id, syn_index):
+                # Check if complex type
+                if isinstance(value, tuple) and value[0] == "complex":
+                    return value[1]
+                return value
+
+        return None
+
+    def has_default_params(self, gid, syn_id, syn_index, mech_name):
+        """
+        Check if a synapse has default parameters for a specific mechanism
+
+        Args:
+        gid: Cell GID
+        syn_id: Synapse ID
+        syn_index: Synapse array index
+        mech_name: Mechanism name
+
+        Returns:
+        bool: Whether the synapse has any default parameters for this mechanism
+        """
+        # Check if there are any defaults for this gid and mechanism
+        if gid not in self.default_values or mech_name not in self.default_values[gid]:
+            return False
+
+        # Check each parameter to see if any defaults apply to this synapse
+        for param_name, defaults in self.default_values[gid][mech_name].items():
+            for selector, value in defaults:
+                if selector(syn_id, syn_index):
+                    return True
+
+        # No defaults apply to this synapse
+        return False
+
+    def get_default_params(self, gid, syn_id, syn_index, mech_name):
+        """
+        Get the names of parameters that have defaults for a specific synapse and mechanism
+
+        Args:
+        gid: Cell GID
+        syn_id: Synapse ID
+        syn_index: Synapse array index
+        mech_name: Mechanism name
+
+        Returns:
+        set: Set of parameter names that have defaults for this synapse
+        """
+        result = set()
+
+        # Check if there are any defaults for this gid and mechanism
+        if gid not in self.default_values or mech_name not in self.default_values[gid]:
+            return result
+
+        # Find all parameters with defaults that apply to this synapse
+        for param_name, defaults in self.default_values[gid][mech_name].items():
+            for selector, value in defaults:
+                if selector(syn_id, syn_index):
+                    result.add(param_name)
+                    break  # Only need to find one matching default per parameter
+
+        return result
+
+    def set_synapse_parameter(
+        self, gid, syn_index, mech_name, param_name, value, syn_id=None
+    ):
+        """Set parameter value for a specific synapse"""
+        if mech_name not in self.mech_param_specs:
+            return False
+
+        if param_name not in self.mech_param_specs[mech_name]:
+            return False
+
+        # Ensure mechanism storage exists
+        self._ensure_mech_storage(gid, mech_name)
+
+        # Resize arrays if necessary
+        if syn_index >= self.gid_data[gid]["synapse_count"]:
+            new_size = max(
+                syn_index + 1, int(self.gid_data[gid]["synapse_count"] * 1.5)
+            )
+            self._resize_arrays(gid, new_size)
+
+        # Mark synapse as having this mechanism
+        self.gid_data[gid]["has_mech"][mech_name][syn_index] = True
+
+        # Handle different value types
+        if isinstance(value, (int, float, np.number)) and not isinstance(value, bool):
+            # For numeric values, create/use array storage
+            self._ensure_param_array(gid, mech_name, param_name)
+            self.gid_data[gid]["arrays"][mech_name][param_name][syn_index] = value
+
+            # Remove any complex parameter if it exists
+            if (
+                syn_index in self.complex_params[gid][mech_name]
+                and param_name in self.complex_params[gid][mech_name][syn_index]
+            ):
+                del self.complex_params[gid][mech_name][syn_index][param_name]
+        else:
+            # For complex values, store in separate structure
+            self.complex_params[gid][mech_name][syn_index][param_name] = value
+
+            # If parameter array exists, set special value
+            if param_name in self.gid_data[gid]["arrays"][mech_name]:
+                self.gid_data[gid]["arrays"][mech_name][param_name][syn_index] = -np.inf
+
+        return True
+
+    def get_synapse_parameter(self, gid, syn_index, mech_name, param_name, syn_id=None):
+        """Get parameter value for a specific synapse with proper fallback to defaults"""
+        # Use parameter value hierarchy to get value with fallback
+        value, source = self.get_parameter_value_hierarchy(
+            gid, syn_index, mech_name, param_name, syn_id
+        )
+        return value
+
+    def get_parameter_value_hierarchy(
+        self, gid, syn_index, mech_name, param_name, syn_id=None
+    ):
+        """
+        Get parameter value with complete hierarchy:
+        1. Specifically set value for this synapse
+        2. Default value that applies to this synapse
+        3. None if not found
+
+        Args:
+            gid: Cell GID
+            syn_index: Synapse array index
+            mech_name: Mechanism name
+            param_name: Parameter name
+            syn_id: Synapse ID for default lookup
+
+        Returns:
+            Tuple of (value, source) where source is 'specific', 'default', or None
+        """
+        # Check for specific value first
+        if gid in self.gid_data and mech_name in self.gid_data[gid]["arrays"]:
+            # Check if synapse has this mechanism
+            if (
+                syn_index < len(self.gid_data[gid]["has_mech"][mech_name])
+                and self.gid_data[gid]["has_mech"][mech_name][syn_index]
+            ):
+                # Check for complex parameter
+                if (
+                    syn_index in self.complex_params[gid][mech_name]
+                    and param_name in self.complex_params[gid][mech_name][syn_index]
+                ):
+                    return (
+                        self.complex_params[gid][mech_name][syn_index][param_name],
+                        "specific",
+                    )
+
+                # Check for array parameter
+                if param_name in self.gid_data[gid]["arrays"][mech_name]:
+                    value = self.gid_data[gid]["arrays"][mech_name][param_name][
+                        syn_index
+                    ]
+                    if not np.isnan(value) and value != -np.inf:
+                        return (value, "specific")
+
+        # Try to get default value
+        default_value = self.get_default_value(
+            gid, mech_name, param_name, syn_id, syn_index
+        )
+        if default_value is not None:
+            return (default_value, "default")
+
+        # No value found
+        return (None, None)
+
+    def has_mechanism(self, gid, syn_index, mech_name):
+        """Check if a synapse has a specific mechanism"""
+        if gid not in self.gid_data:
+            return False
+
+        if mech_name not in self.gid_data[gid]["has_mech"]:
+            return False
+
+        if syn_index >= len(self.gid_data[gid]["has_mech"][mech_name]):
+            return False
+
+        return self.gid_data[gid]["has_mech"][mech_name][syn_index]
+
+    def get_mechanism_parameters(
+        self,
+        gid,
+        syn_id,
+        syn_name,
+        throw_error_on_missing_id=True,
+        throw_error_on_missing_param=False,
+    ):
+        """
+        Get mechanism parameters with fallback to defaults
+
+        Args:
+            gid: Cell GID
+            syn_id: Synapse ID
+            syn_name: Synapse mechanism name
+            throw_error_on_missing_id: Whether to throw error if gid/syn_id not found
+            throw_error_on_missing_param: Whether to throw error if parameter missing
+
+        Returns:
+            Dict of parameter values
+        """
+        # Convert syn_name to mechanism name
+        mech_name = self.syn_mech_names[syn_name]
+
+        # Check if gid and syn_id exist
+        if gid not in self.syn_store.id_to_index:
+            if throw_error_on_missing_id:
+                raise RuntimeError(f"Gid {gid} not found")
+            return {}
+
+        if syn_id not in self.syn_store.id_to_index[gid]:
+            if throw_error_on_missing_id:
+                raise RuntimeError(f"Synapse {syn_id} not found for gid {gid}")
+            return {}
+
+        # Get array index
+        syn_index = self.syn_store.id_to_index[gid][syn_id]
+
+        # Start with default parameters
+        result = {}
+        default_params = self.syn_store.param_store.get_default_params(
+            gid, syn_id, syn_index, mech_name
+        )
+        if default_params:
+            result.update(default_params)
+
+        # Override with specific parameters if available
+        if self.syn_store.param_store.has_mechanism_parameters(
+            gid, syn_index, mech_name
+        ):
+            specific_params = self.syn_store.param_store.get_mechanism_parameters(
+                gid, syn_index, mech_name
+            )
+            if specific_params:
+                result.update(specific_params)
+
+        # Check if any parameters found
+        if not result and throw_error_on_missing_param:
+            raise RuntimeError(
+                f"No parameters found for gid {gid} synapse {syn_id} mechanism {syn_name}"
+            )
+
+        return result
+
+    def set_mechanism_parameters(self, gid, syn_index, mech_name, attrs, syn_id=None):
+        """Set multiple attributes for a mechanism at once"""
+        if mech_name not in self.mech_param_specs:
+            return False
+
+        changed = False
+        for param_name, value in attrs.items():
+            if param_name in self.mech_param_specs[mech_name]:
+                if self.set_param(gid, syn_index, mech_name, param_name, value, syn_id):
+                    changed = True
+
+        return changed
+
+    def set_mechanism_parameters_for_synapses(
+        self, gid, mech_name, attrs, synapse_selector
+    ):
+        """
+        Set mechanism attributes for a subset of synapses
+
+        Args:
+            gid: Cell GID
+            mech_name: Mechanism name
+            attrs: Dict of parameter values
+            synapse_selector: Selection criteria (same as set_default_value)
+        """
+        # If we're setting parameters for all synapses with the same value,
+        # use default values instead of individual settings
+        if synapse_selector is None:
+            # Global defaults for all synapses
+            for param_name, value in attrs.items():
+                self.set_default_value(gid, mech_name, param_name, value)
+            return True
+
+        # Get matching synapse IDs
+        matching_synapses = self._get_matching_synapses(gid, synapse_selector)
+
+        # Set parameters for each matching synapse
+        for syn_id, syn_index in matching_synapses:
+            self.set_mech_attrs(gid, syn_index, mech_name, attrs, syn_id)
+
+        return True
+
+    def _get_matching_synapses(self, gid, selector):
+        """
+        Get list of (syn_id, syn_index) pairs matching the selector
+        """
+        # Need access to parent storage to get synapse ID mapping
+        if not hasattr(self, "parent_storage"):
+            return []
+
+        result = []
+
+        # Handle different selector types
+        if selector is None:
+            # All synapses
+            return list(self.parent_storage.id_to_index[gid].items())
+
+        elif isinstance(selector, (list, tuple, set, np.ndarray)):
+            # Specific synapse IDs
+            for syn_id in selector:
+                if syn_id in self.parent_storage.id_to_index[gid]:
+                    result.append(
+                        (syn_id, self.parent_storage.id_to_index[gid][syn_id])
+                    )
+
+        elif callable(selector):
+            # Custom function
+            for syn_id, syn_index in self.parent_storage.id_to_index[gid].items():
+                if selector(syn_id):
+                    result.append((syn_id, syn_index))
+
+        elif isinstance(selector, dict):
+            # Filter criteria
+            props = self.parent_storage.properties[gid]
+            for syn_id, syn_index in self.parent_storage.id_to_index[gid].items():
+                # Apply each filter criterion
+                matches = True
+                if (
+                    "syn_types" in selector
+                    and props["syn_type"][syn_index] not in selector["syn_types"]
+                ):
+                    matches = False
+                if (
+                    matches
+                    and "layers" in selector
+                    and props["syn_layer"][syn_index] not in selector["layers"]
+                ):
+                    matches = False
+                if (
+                    matches
+                    and "sources" in selector
+                    and props["source_population"][syn_index] not in selector["sources"]
+                ):
+                    matches = False
+                if (
+                    matches
+                    and "swc_types" in selector
+                    and props["swc_type"][syn_index] not in selector["swc_types"]
+                ):
+                    matches = False
+
+                if matches:
+                    result.append((syn_id, syn_index))
+
+        return result
 
 
-class SynapseAttributes:
+class SynapseStore:
+    """Memory-efficient storage for synapses using NumPy arrays"""
+
+    def __init__(self, mech_param_specs, initial_size=1000):
+        """
+        Initialize synapse storage
+
+        Args:
+            mech_param_specs: Dict mapping mechanism names to parameter specifications
+            initial_size: minimum initial number of synapses per gid
+        """
+        self.mech_param_specs = mech_param_specs
+        self.param_store = SynapseMechanismParameterStore(mech_param_specs)
+        self.initial_size = initial_size
+
+        # Storage for core synapse properties
+        self.attrs = {}  # gid to synapse array
+
+        # Maps syn_id to array index for each gid
+        self.id_to_index = defaultdict(dict)
+
+        # Next available index for each gid
+        self.next_index = defaultdict(int)
+
+    def add_synapses(self, gid, attr_items):
+        """
+        Add multiple synapses at once
+
+        Args:
+            gid: Cell GID
+            syn_ids: List of synapse IDs
+            attr_items: Iterator of pairs (syn_id, syn_attr_dict)
+        """
+
+        # Create or resize array if needed
+        self._ensure_capacity(gid)
+
+        # Store properties
+        count = 0
+        for i, (syn_id, attrs) in enumerate(attr_items):
+            idx = self.next_index[gid] + i
+            self.id_to_index[gid][syn_id] = idx
+
+            # Set core properties
+            for field in attrs:
+                if field in SYNAPSE_CORE_DTYPE.names:
+                    self.attrs[gid][idx][field] = getattr(attrs, field)
+
+            # Set syn_id field
+            self.attrs[gid][idx]["syn_id"] = syn_id
+
+            count += 1
+
+        self.next_index[gid] += count
+
+    def add_synapses_from_arrays(
+        self, gid, syn_ids, syn_layers, syn_types, swc_types, syn_secs, syn_locs
+    ):
+        """
+        Add synapses efficiently from column arrays
+
+        Args:
+        gid: Cell GID
+        syn_ids: Array of synapse IDs
+        syn_layers: Array of layer indices
+        syn_types: Array of synapse types
+        swc_types: Array of SWC types
+        syn_secs: Array of section indices
+        syn_locs: Array of section locations
+        """
+        count = len(syn_ids)
+        if count == 0:
+            return
+
+        # Create or resize property array if needed
+        self._ensure_capacity(gid, count)
+
+        # Get array slice for new synapses
+        start_idx = self.next_index[gid]
+        end_idx = start_idx + count
+        array_slice = slice(start_idx, end_idx)
+
+        # Create index mapping
+        for i, syn_id in enumerate(syn_ids):
+            self.id_to_index[gid][syn_id] = start_idx + i
+
+        # Set core attributes
+        attrs = self.attrs[gid]
+        attrs["syn_id"][array_slice] = syn_ids
+        attrs["syn_type"][array_slice] = syn_types
+        attrs["swc_type"][array_slice] = swc_types
+        attrs["syn_layer"][array_slice] = syn_layers
+        attrs["syn_section"][array_slice] = syn_secs
+        attrs["syn_loc"][array_slice] = syn_locs
+
+        # Initialize source attributes with default values
+        attrs["source_gid"][array_slice] = -1  # Invalid GID
+        attrs["source_population"][array_slice] = -1  # Invalid population
+        attrs["delay"][array_slice] = 0.0  # Default delay
+
+        # Update next available index
+        self.next_index[gid] += count
+
+    def get_synapse(self, gid, syn_id):
+        """Get synapse wrapper for a specific ID"""
+        if gid not in self.attrs:
+            return None
+
+        if syn_id not in self.id_to_index[gid]:
+            return None
+
+        idx = self.id_to_index[gid][syn_id]
+        return SynapseView(self, gid, idx, syn_id)
+
+    def get_synapses_by_filter(self, gid, **filters):
+        """Get synapses matching filters (e.g., syn_type, layer, etc.)"""
+        if gid not in self.attrs:
+            return []
+
+        # Map of filter names to synapse field names
+        filter_name_map = {
+            "syn_types": "syn_type",
+            "layers": "syn_layer",
+            "sources": "source_population",
+            "swc_types": "swc_type",
+        }
+
+        # Start with all valid indices
+        valid_indices = np.arange(self.next_index[gid])
+
+        # Apply each filter
+        for field, value in filters.items():
+            dtype_field = filter_name_map[field]
+            if dtype_field in SYNAPSE_CORE_DTYPE.names:
+                if isinstance(value, (ndarray, list, set)):
+                    # Multiple allowed values
+                    mask = np.zeros(len(valid_indices), dtype=bool)
+                    for val in value:
+                        mask |= self.attrs[gid][dtype_field][valid_indices] == val
+                    valid_indices = valid_indices[mask]
+                else:
+                    # Single value
+                    valid_indices = valid_indices[
+                        self.attrs[gid][dtype_field][valid_indices] == value
+                    ]
+
+        # Convert indices to SynapseView objects
+        result = []
+        for idx in valid_indices:
+            syn_id = self.attrs[gid][idx]["syn_id"]
+            result.append(SynapseView(self, gid, idx, syn_id))
+        return result
+
+    def _ensure_capacity(self, gid, needed_size=0):
+        """Ensure arrays have enough capacity, resizing if necessary"""
+        if gid not in self.attrs:
+            # Initial creation - allocate with buffer
+            initial_size = max(needed_size, self.initial_size)
+            self.attrs[gid] = np.zeros(initial_size, dtype=SYNAPSE_CORE_DTYPE)
+
+        elif self.next_index[gid] + needed_size > len(self.attrs[gid]):
+            # Required to resize - allocate additional space
+            new_size = max(
+                int((self.next_index[gid] + needed_size) * 1.5),
+                len(self.attrs[gid]) * 2,
+            )
+
+            # Resize core attrs
+            new_array = np.zeros(new_size, dtype=SYNAPSE_CORE_DTYPE)
+            new_array[: self.next_index[gid]] = self.attrs[gid][: self.next_index[gid]]
+            self.attrs[gid] = new_array
+
+            # Create new parameter arrays and copy data
+            old_data = self.param_store.gid_data[gid]
+
+            # Copy parameter data
+            for mech_name in self.mech_param_specs:
+                self.param_store.gid_data[gid]["arrays"][mech_name][
+                    : self.next_index[gid]
+                ] = old_data["arrays"][mech_name][: self.next_index[gid]]
+                self.param_store.gid_data[gid]["has_mech"][mech_name][
+                    : self.next_index[gid]
+                ] = old_data["has_mech"][mech_name][: self.next_index[gid]]
+
+    def keys(self, gid):
+        """Iterate over syn_id keys for a gid"""
+        if gid not in self.attrs:
+            return
+
+        for syn_id in self.id_to_index[gid].keys():
+            yield syn_id
+
+    def items(self, gid):
+        """Iterate over (syn_id, synapse) pairs for a gid"""
+        if gid not in self.attrs:
+            return
+
+        for syn_id, idx in self.id_to_index[gid].items():
+            yield syn_id, SynapseView(self, gid, idx, syn_id)
+
+
+class SynapseView:
+    """View class that provides single synapse interface"""
+
+    def __init__(self, storage, gid, index, syn_id):
+        self.storage = storage
+        self.gid = gid
+        self.index = index
+        self.syn_id = syn_id
+        self._row = storage.attrs[gid][index]
+        self.source = SynapseSourceView(storage, gid, index)
+        self.mech_params = SynapseMechanismParameterView(storage, gid, index)
+
+    @property
+    def syn_type(self):
+        return self._row["syn_type"]
+
+    @syn_type.setter
+    def syn_type(self, value):
+        self._row["syn_type"] = value
+
+    @property
+    def swc_type(self):
+        return self._row["swc_type"]
+
+    @swc_type.setter
+    def swc_type(self, value):
+        self._row["swc_type"] = value
+
+    @property
+    def syn_layer(self):
+        return self._row["syn_layer"]
+
+    @syn_layer.setter
+    def syn_layer(self, value):
+        self._row["syn_layer"] = value
+
+    @property
+    def syn_loc(self):
+        return self._row["syn_loc"]
+
+    @syn_loc.setter
+    def syn_loc(self, value):
+        self._row["syn_loc"] = value
+
+    @property
+    def syn_section(self):
+        return self._row["syn_section"]
+
+    @syn_section.setter
+    def syn_section(self, value):
+        self._row["syn_section"] = value
+
+
+class SynapseSourceView:
+    """View class for synapse source properties"""
+
+    def __init__(self, storage, gid, index):
+        self.storage = storage
+        self._cell_gid = gid
+        self.index = index
+        self._row = storage.attrs[gid][index]
+
+    @property
+    def gid(self):
+        return self._row["source_gid"]
+
+    @gid.setter
+    def gid(self, value):
+        self._row["source_gid"] = value
+
+    @property
+    def population(self):
+        return self._row["source_population"]
+
+    @population.setter
+    def population(self, value):
+        self._row["source_population"] = value
+
+    @property
+    def delay(self):
+        return self._row["delay"]
+
+    @delay.setter
+    def delay(self, value):
+        self._row["delay"] = value
+
+    def __repr__(self):
+        if self.delay is None:
+            repr_delay = "None"
+        else:
+            repr_delay = f"{self.delay:.02f}"
+        return f"SynapseSource({self.gid}, {self.population}, {repr_delay})"
+
+
+class SynapseMechanismParameterView:
+    """View class that provides interface to synapse mechanism parameters"""
+
+    def __init__(self, storage, gid, index):
+        self.storage = storage
+        self.gid = gid
+        self.index = index
+        self.param_store = storage.param_store
+
+    def __getitem__(self, mech_index):
+        """Get attributes for a mechanism"""
+        # Convert string keys to int if needed
+        if isinstance(mech_index, str):
+            try:
+                mech_index = int(mech_index)
+            except ValueError:
+                return {}
+
+        # Find mechanism name from index
+        mech_name = None
+        for name, idx in self.storage.param_store.mech_param_index.items():
+            if idx == mech_index:
+                mech_name = name
+                break
+
+        if mech_name is None:
+            return {}
+
+        # Get mechanism attributes
+        return self.param_store.get_parameter_values(self.gid, self.index, mech_name)
+
+    def __setitem__(self, mech_index, attrs):
+        """Set attributes for a mechanism"""
+        # Convert string keys to int if needed
+        if isinstance(mech_index, str):
+            try:
+                mech_index = int(mech_index)
+            except ValueError:
+                return
+
+        # Find mechanism name from index
+        mech_name = None
+        for name, idx in self.storage.param_store.mech_param_index.items():
+            if idx == mech_index:
+                mech_name = name
+                break
+
+        if mech_name is None:
+            return
+
+        # Set mechanism attributes
+        self.param_store.set_parameter_values(self.gid, self.index, mech_name, attrs)
+
+    def __contains__(self, mech_index):
+        """Check if mechanism has any attributes set"""
+        # Convert string keys to int if needed
+        if isinstance(mech_index, str):
+            try:
+                mech_index = int(mech_index)
+            except ValueError:
+                return False
+
+        # Find mechanism name from index
+        mech_name = None
+        for name, idx in self.storage.param_store.mech_param_index.items():
+            if idx == mech_index:
+                mech_name = name
+                break
+
+        if mech_name is None:
+            return False
+
+        return self.param_store.has_mechanism_parameters(
+            self.gid, self.index, mech_name
+        )
+
+
+class SynapseManager:
     """This class provides an interface to store, retrieve, and modify
-    attributes of synaptic mechanisms. Handles instantiation of
-    complex subcellular gradients of synaptic mechanism attributes.
+    attributes of synaptic mechanisms.
     """
 
     def __init__(
         self,
         env: AbstractEnv,
         syn_mech_names: Dict[str, str],
-        syn_param_rules: Dict[
-            str, Dict[str, Union[str, List[str], Dict[str, int]]]
-        ],
+        syn_param_rules: Dict[str, Dict[str, Union[str, List[str], Dict[str, int]]]],
     ) -> None:
         """An Env object containing imported network configuration metadata
-        uses an instance of SynapseAttributes to track all metadata
+        uses an instance of SynapseManager to track all metadata
         related to the identity, location, and configuration of all
         synaptic connections in the network.
 
@@ -649,19 +1564,34 @@ class SynapseAttributes:
         self.env = env
         self.syn_mech_names = syn_mech_names
         self.syn_config = {
-            k: v["synapses"]
-            for k, v in env.celltypes.items()
-            if "synapses" in v
+            k: v["synapses"] for k, v in env.celltypes.items() if "synapses" in v
         }
         self.syn_param_rules = syn_param_rules
         self.syn_name_index_dict = {
             label: index for index, label in enumerate(syn_mech_names)
         }  # int : mech_name dict
-        self.syn_id_attr_dict = defaultdict(lambda: defaultdict(lambda: None))
+
+        # Define parameter specifications for each mechanism
+        mech_param_specs = {}
+        for mech_name, rule in syn_param_rules.items():
+            params = {}
+            idx = 0
+            # Add mechanism parameters
+            for param in rule.get("mech_params", []):
+                params[param] = idx
+                idx += 1
+            # Add netcon parameters
+            for param in rule.get("netcon_params", {}).keys():
+                params[param] = idx
+                idx += 1
+            mech_param_specs[mech_name] = params
+
+        # Synapse attribute storage
+        self.syn_store = SynapseStore(mech_param_specs)
         self.syn_id_attr_backup_dict = defaultdict(
             lambda: defaultdict(lambda: defaultdict(lambda: None))
         )
-        self.sec_dict = defaultdict(lambda: defaultdict(lambda: []))
+
         self.pps_dict = defaultdict(
             lambda: defaultdict(
                 lambda: SynapsePointProcess(mech={}, netcon={}, vecstim={})
@@ -669,6 +1599,7 @@ class SynapseAttributes:
         )
         self.presyn_names = {id: name for name, id in env.Populations.items()}
         self.filter_cache = {}
+        self.filter_id_cache = {}
 
     def init_syn_id_attrs_from_iter(
         self, cell_iter, attr_type="dict", attr_tuple_index=None, debug=False
@@ -678,7 +1609,6 @@ class SynapseAttributes:
         See `init_syn_id_attrs` for details on the format of the input dictionary.
         """
 
-        first_gid = True
         if attr_type == "dict":
             for gid, attr_dict in cell_iter:
                 syn_ids = attr_dict["syn_ids"]
@@ -751,41 +1681,17 @@ class SynapseAttributes:
           - syn_locs: section location for each synapse id
 
         """
-        if gid in self.syn_id_attr_dict:
-            raise RuntimeError(
-                f"Entry {gid} exists in synapse attribute dictionary"
-            )
-        else:
-            syn_dict = self.syn_id_attr_dict[gid]
-            sec_dict = self.sec_dict[gid]
-            for i, (
-                syn_id,
-                syn_layer,
-                syn_type,
-                swc_type,
-                syn_sec,
-                syn_loc,
-            ) in enumerate(
-                zip_longest(
-                    syn_ids,
-                    syn_layers,
-                    syn_types,
-                    swc_types,
-                    syn_secs,
-                    syn_locs,
-                )
-            ):
-                syn = Synapse(
-                    syn_type=syn_type,
-                    syn_layer=syn_layer,
-                    syn_section=syn_sec,
-                    syn_loc=syn_loc,
-                    swc_type=swc_type,
-                    source=SynapseSource(),
-                    attr_dict=defaultdict(dict),
-                )
-                syn_dict[syn_id] = syn
-                sec_dict[syn_sec].append((syn_id, syn))
+        if gid in self.syn_store.attrs:
+            raise RuntimeError(f"Entry {gid} exists in synapse attribute dictionary")
+
+        synapse_count = len(syn_ids)
+        if synapse_count == 0:
+            return
+
+        # Add the synapses to storage
+        self.syn_store.add_synapses_from_arrays(
+            gid, syn_ids, syn_layers, syn_types, swc_types, syn_secs, syn_locs
+        )
 
     def init_edge_attrs(
         self,
@@ -806,29 +1712,41 @@ class SynapseAttributes:
         """
 
         presyn_index = int(self.env.Populations[presyn_name])
-        connection_velocity = float(self.env.connection_velocity[presyn_name])
 
         if delays is None:
             delays = [2.0 * h.dt] * len(edge_syn_ids)
-        syn_id_dict = self.syn_id_attr_dict[gid]
 
-        for edge_syn_id, presyn_gid, delay in zip_longest(
-            edge_syn_ids, presyn_gids, delays
-        ):
-            syn = syn_id_dict[edge_syn_id]
-            if syn is None:
+        # Get storage for this gid
+        if gid not in self.syn_store.attrs:
+            raise RuntimeError(f"init_edge_attrs: gid {gid} has not been initialized")
+
+        # Determine synapse array indices
+        indices = []
+
+        for edge_syn_id in edge_syn_ids:
+            if edge_syn_id not in self.syn_store.id_to_index[gid]:
                 raise RuntimeError(
                     f"init_edge_attrs: gid {gid}: synapse id {edge_syn_id} has not been initialized"
                 )
 
-            if syn.source.gid is not None:
+            idx = self.syn_store.id_to_index[gid][edge_syn_id]
+
+            # Ensure source info is not already initialized
+            if self.syn_store.attrs[gid]["source_gid"][idx] != -1:
                 raise RuntimeError(
-                    "init_edge_attrs: gid {gid}: synapse id {edge_syn_id} has already been initialized with edge attributes"
+                    f"init_edge_attrs: gid {gid}: synapse id {edge_syn_id} has already been initialized with edge attributes"
                 )
 
-            syn.source.gid = presyn_gid
-            syn.source.population = presyn_index
-            syn.source.delay = delay
+            indices.append(idx)
+
+        indices = np.asarray(indices, dtype=np.int32)
+
+        attrs = self.syn_store.attrs[gid]
+
+        # Set source GIDs, presyn population index, delay
+        attrs["source_gid"][indices] = presyn_gids
+        attrs["source_population"][indices] = presyn_index
+        attrs["delay"][indices] = delays
 
     def init_edge_attrs_from_iter(
         self,
@@ -874,10 +1792,13 @@ class SynapseAttributes:
             edge_dists = edge_attrs["Connections"][distance_attr_index]
 
             if set_edge_delays:
-                delays = [
-                    max((distance / connection_velocity), 2.0 * h.dt)
-                    for distance in edge_dists
-                ]
+                delays = np.asarray(
+                    [
+                        max((distance / connection_velocity), 2.0 * h.dt)
+                        for distance in edge_dists
+                    ],
+                    dtype=np.float32,
+                )
             else:
                 delays = None
 
@@ -889,7 +1810,10 @@ class SynapseAttributes:
                 delays=delays,
             )
 
-    def add_pps(
+    def get_synapse(self, gid: int, syn_id: uint32):
+        return self.syn_store.get_synapse(gid, syn_id)
+
+    def add_point_process(
         self, gid: int, syn_id: uint32, syn_name: str, pps: "HocObject"
     ) -> "HocObject":
         """
@@ -905,13 +1829,13 @@ class SynapseAttributes:
         pps_dict = gid_pps_dict[syn_id]
         if syn_index in pps_dict.mech:
             raise RuntimeError(
-                f"add_pps: gid {gid} Synapse id {syn_id} already has mechanism {syn_name}"
+                f"add_point_process: gid {gid} Synapse id {syn_id} already has mechanism {syn_name}"
             )
         else:
             pps_dict.mech[syn_index] = pps
         return pps
 
-    def has_pps(self, gid, syn_id, syn_name):
+    def has_point_process(self, gid, syn_id, syn_name):
         """
         Returns True if the given synapse id already has the named mechanism, False otherwise.
 
@@ -925,7 +1849,7 @@ class SynapseAttributes:
         pps_dict = gid_pps_dict[syn_id]
         return syn_index in pps_dict.mech
 
-    def get_pps(
+    def get_point_process(
         self, gid: int, syn_id: uint32, syn_name: str, throw_error: bool = True
     ) -> "HocObject":
         """
@@ -944,7 +1868,7 @@ class SynapseAttributes:
         else:
             if throw_error:
                 raise RuntimeError(
-                    f"get_pps: gid {gid} synapse id {syn_id} has no point process for mechanism {syn_name}"
+                    f"get_point_process: gid {gid} synapse id {syn_id} has no point process for mechanism {syn_name}"
                 )
             else:
                 return None
@@ -1083,7 +2007,7 @@ class SynapseAttributes:
             else:
                 return None
 
-    def has_mech_attrs(self, gid, syn_id, syn_name):
+    def has_mechanism_parameters(self, gid, syn_id, syn_name):
         """
         Returns True if mechanism attributes have been specified for the given cell id/synapse id/mechanism name, False otherwise.
 
@@ -1092,34 +2016,193 @@ class SynapseAttributes:
         :param syn_name: synapse mechanism name
         :return: bool
         """
-        syn_index = self.syn_name_index_dict[syn_name]
-        syn_id_dict = self.syn_id_attr_dict[gid]
-        syn = syn_id_dict[syn_id]
-        return syn_index in syn.attr_dict
+        # Convert syn_name to mechanism name used in parameter store
+        mech_name = self.syn_mech_names[syn_name]
 
-    def get_mech_attrs(self, gid, syn_id, syn_name, throw_error=True):
+        # Get synapse array index
+        if (
+            gid not in self.syn_store.id_to_index
+            or syn_id not in self.syn_store.id_to_index[gid]
+        ):
+            return False
+
+        syn_index = self.syn_store.id_to_index[gid][syn_id]
+
+        # Check if mechanism exists for this synapse
+        return self.syn_store.param_store.has_mechanism_parameters(
+            gid, syn_index, mech_name
+        )
+
+    def get_mechanism_parameters(
+        self,
+        gid,
+        syn_id,
+        syn_name,
+        throw_error_on_missing_id=True,
+        throw_error_on_missing_param=True,
+    ):
         """
         Returns mechanism attribute dictionary associated with the given cell id/synapse id/mechanism name, False otherwise.
 
         :param gid: cell id
         :param syn_id: synapse id
         :param syn_name: synapse mechanism name
+        :param throw_error_on_missing_id: Whether to raise error if gid or syn_id not found
+        :param throw_error_on_missing_param: Whether to raise error if parameter value is not defined
         :return: dict
         """
-        syn_index = self.syn_name_index_dict[syn_name]
-        syn_id_dict = self.syn_id_attr_dict[gid]
-        syn = syn_id_dict[syn_id]
-        if syn_index in syn.attr_dict:
-            return syn.attr_dict[syn_index]
-        else:
-            if throw_error:
-                raise RuntimeError(
-                    f"get_mech_attrs: gid {gid} synapse {syn_id}: attributes for mechanism {syn_name} not found"
-                )
-            else:
-                return None
+        # Convert syn_name to mechanism name used in parameter store
+        mech_name = self.syn_mech_names[syn_name]
 
-    def add_mech_attrs(self, gid, syn_id, syn_name, params, append=False):
+        # Get synapse array index
+        if gid not in self.syn_store.id_to_index:
+            if throw_error_on_missing_id:
+                raise RuntimeError(f"get_mechanism_parameters: gid {gid} not found")
+            return None
+
+        if syn_id not in self.syn_store.id_to_index[gid]:
+            if throw_error_on_missing_id:
+                raise RuntimeError(
+                    f"get_mechanism_parameters: gid {gid} synapse {syn_id} not found"
+                )
+            return None
+
+        syn_index = self.syn_store.id_to_index[gid][syn_id]
+
+        # Check if mechanism exists
+        if not self.syn_store.param_store.has_mechanism_params(
+            gid, syn_index, mech_name
+        ):
+            if throw_error_on_missing_param:
+                raise RuntimeError(
+                    f"get_mechanism_parameters: gid {gid} synapse {syn_id}: attributes for synapse {syn_name} mechanism {mech_name} not found"
+                )
+            return None
+
+        return self.syn_store.param_store.get_parameter_values(
+            gid, syn_index, mech_name
+        )
+
+    def get_default_mechanism_parameters(
+        self,
+        gid,
+        syn_id,
+        syn_name,
+        throw_error_on_missing_id=True,
+        throw_error_on_missing_param=True,
+    ):
+        """
+        Returns default mechanism attribute dictionary associated with the given cell id/synapse id/mechanism name, False otherwise.
+
+        :param gid: cell id
+        :param syn_id: synapse id
+        :param syn_name: synapse mechanism name
+        :param throw_error_on_missing_id: Whether to raise error if gid or syn_id not found
+        :param throw_error_on_missing_param: Whether to raise error if parameter value is not defined
+        :return: dict
+        """
+        # Convert syn_name to mechanism name used in parameter store
+        mech_name = self.syn_mech_names[syn_name]
+
+        # Get synapse array index
+        if gid not in self.syn_store.id_to_index:
+            if throw_error_on_missing_id:
+                raise RuntimeError(f"get_mechanism_parameters: gid {gid} not found")
+            return None
+
+        if syn_id not in self.syn_store.id_to_index[gid]:
+            if throw_error_on_missing_id:
+                raise RuntimeError(
+                    f"get_mechanism_parameters: gid {gid} synapse {syn_id} not found"
+                )
+            return None
+
+        syn_index = self.syn_store.id_to_index[gid][syn_id]
+
+        return self.syn_store.param_store.get_default_params(gid, syn_index, mech_name)
+
+    def get_effective_mechanism_parameters(
+        self, gid, syn_id, syn_name, throw_error_on_missing=True
+    ):
+        """
+        Get all effective parameters for a mechanism with proper fallback to defaults
+
+        Args:
+            gid: Cell GID
+            syn_id: Synapse ID
+            syn_name: Synapse mechanism name
+            throw_error_on_missing: Whether to throw error if no parameters found
+
+        Returns:
+            Dict of resolved parameter values (with expressions evaluated)
+
+        Raises:
+            RuntimeError: If parameters cannot be found and throw_error_on_missing is True
+        """
+        # Convert syn_name to mechanism name
+        mech_name = self.syn_mech_names[syn_name]
+
+        # Check if synapse exists
+        if gid not in self.syn_store.id_to_index:
+            if throw_error_on_missing:
+                raise RuntimeError(
+                    f"get_effective_mechanism_parameters: gid {gid} not found"
+                )
+            return {}
+
+        if syn_id not in self.syn_store.id_to_index[gid]:
+            if throw_error_on_missing:
+                raise RuntimeError(
+                    f"get_effective_mechanism_parameters: gid {gid} synapse {syn_id} not found"
+                )
+            return {}
+
+        # Get array index
+        syn_index = self.syn_store.id_to_index[gid][syn_id]
+
+        # Get synapse properties for expression evaluation
+        syn_props = self.syn_store.attrs[gid][syn_index]
+
+        # Get all parameter names for this mechanism
+        all_params = set(self.syn_param_rules[mech_name].get("mech_params", []))
+        all_params.update(
+            self.syn_param_rules[mech_name].get("netcon_params", {}).keys()
+        )
+
+        # Get parameter values with fallback using the hierarchy
+        resolved_params = {}
+        for param_name in all_params:
+            value, source = self.syn_store.param_store.get_parameter_value_hierarchy(
+                gid, syn_index, mech_name, param_name, syn_id
+            )
+
+            if value is not None:
+                # Resolve any Promise or ExprClosure values
+                if isinstance(value, Promise):
+                    resolved_params[param_name] = value.clos(*value.args)
+                elif isinstance(value, ExprClosure):
+                    if value.parameters[0] == "delay":
+                        delay = syn_props["delay"]
+                        resolved_params[param_name] = value(delay)
+                    else:
+                        if throw_error_on_missing:
+                            raise RuntimeError(
+                                f"get_effective_mechanism_parameters: Unknown expression parameter "
+                                f"{value.parameters} for {param_name}"
+                            )
+                else:
+                    resolved_params[param_name] = value
+
+        # If no parameters found, raise error if requested
+        if not resolved_params and throw_error_on_missing:
+            raise RuntimeError(
+                f"get_effective_mechanism_parameters: No parameters found for gid {gid} "
+                f"synapse {syn_id} mechanism {syn_name}"
+            )
+
+        return resolved_params
+
+    def add_mechanism_parameters(self, gid, syn_id, syn_name, params, append=False):
         """
         Specifies mechanism attribute dictionary for the given cell id/synapse id/mechanism name. Assumes mechanism
         attributes have not been set yet for this synapse mechanism.
@@ -1130,7 +2213,7 @@ class SynapseAttributes:
         :param params: dict
         :param append: whether to append attribute values with the same attribute name
         """
-        self.add_mech_attrs_from_iter(
+        self.add_mechanism_parameters_from_iter(
             gid,
             syn_name,
             iter({syn_id: params}),
@@ -1138,38 +2221,115 @@ class SynapseAttributes:
             append=append,
         )
 
-    def stash_mech_attrs(self, pop_name, gid):
+    def add_default_mechanism_parameters(self, gid, syn_name, params, syn_ids):
         """
-        Preserves mechanism attributes for the given cell id.
+        Specifies default mechanism parameters for the given cell
+        id/mechanism name.
 
-        :param pop_name: population name
         :param gid: cell id
-        :param syn_id: synapse id
         :param syn_name: synapse mechanism name
-        """
-        rules = self.syn_param_rules
-        syn_id_dict = self.syn_id_attr_dict[gid]
-        syn_id_backup_dict = self.syn_id_attr_backup_dict[gid]
-        stash_id = uuid.uuid4()
-        syn_id_backup_dict[stash_id] = copy.deepcopy(syn_id_dict)
-        return stash_id
+        :param params: dict
+        :param syn_ids: tuple/list of synapse ids
 
-    def restore_mech_attrs(self, pop_name, gid, stash_id):
         """
-        Restored mechanism attributes for the given cell id.
+        for param_name, param_value in params.items():
+            self.syn_store.param_store.set_default_value(
+                gid, syn_name, param_name, param_value, syn_ids
+            )
 
-        :param pop_name: population name
-        :param gid: cell id
-        :param syn_id: synapse id
-        :param syn_name: synapse mechanism name
+    def add_mechanism_parameters_from_iter(
+        self, gid, syn_name, params_iter, multiple="error", append=False
+    ):
         """
-        rules = self.syn_param_rules
-        syn_id_backup_dict = self.syn_id_attr_backup_dict[gid][stash_id]
-        if syn_id_backup_dict is not None:
-            self.syn_id_attr_dict[gid] = copy.deepcopy(syn_id_backup_dict)
-            del self.syn_id_attr_backup_dict[gid][stash_id]
+        Adds mechanism attributes for the given cell id/synapse id/synapse mechanism.
 
-    def modify_mech_attrs(
+        Args:
+        gid: cell id
+        syn_name: synapse mechanism name
+        params_iter: iterator that yields (syn_id, params_dict) pairs
+        multiple: behavior when an attribute value is provided for a synapse that already has attributes:
+               - 'error' (default): raise an error
+               - 'skip': do not update attribute value
+               - 'overwrite': overwrite value
+        append: whether to append attribute values with the same attribute name
+        """
+        # Convert syn_name to the mechanism name used in parameter store
+        mech_name = self.syn_mech_names[syn_name]
+
+        # Check if gid exists
+        if gid not in self.syn_store.attrs:
+            raise RuntimeError(
+                f"add_mechanism_parameters_from_iter: gid {gid} not found"
+            )
+
+        # Process the iterator in batches for better performance
+        batch_size = 1000
+        batch = []
+
+        # Process each (syn_id, params_dict) pair
+        for syn_id, params_dict in params_iter:
+            batch.append((syn_id, params_dict))
+
+            # Process in batches to avoid memory issues with large inputs
+            if len(batch) >= batch_size:
+                self._process_mech_attrs_batch(gid, mech_name, batch, multiple, append)
+                batch = []
+
+        # Process any remaining items
+        if batch:
+            self._process_mech_attrs_batch(gid, mech_name, batch, multiple, append)
+
+    def _add_mechanism_parameters_batch(self, gid, mech_name, batch, multiple, append):
+        """Helper method to add a batch of mechanism attributes."""
+        for syn_id, params_dict in batch:
+            # Check if synapse exists
+            if syn_id not in self.syn_store.id_to_index[gid]:
+                raise RuntimeError(
+                    f"add_mechanism_parameters_from_iter: gid {gid} synapse id {syn_id} has not been created yet"
+                )
+
+            # Get array index for this synapse
+            syn_index = self.syn_store.id_to_index[gid][syn_id]
+
+            # Check if mechanism already has attributes
+            has_mech = self.syn_store.param_store.has_mechanism_parameters(
+                gid, syn_index, mech_name
+            )
+            if has_mech:
+                if multiple == "error":
+                    raise RuntimeError(
+                        f"add_mechanism_parameters_from_iter: gid {gid} synapse id {syn_id} mechanism {mech_name} already has parameters"
+                    )
+                elif multiple == "skip":
+                    continue
+                # For "overwrite", continue processing
+
+            # Process each parameter
+            for param_name, param_value in params_dict.items():
+                if param_value is None:
+                    raise RuntimeError(
+                        f"add_mechanism_parameters_from_iter: gid {gid} synapse id {syn_id} mechanism {mech_name} parameter {param_name} has no value"
+                    )
+
+                # Get current value if appending
+                if append and has_mech:
+                    current_value = self.syn_store.param_store.get_param(
+                        gid, syn_index, mech_name, param_name
+                    )
+
+                    if current_value is not None:
+                        # Convert to list if not already
+                        if not isinstance(current_value, list):
+                            current_value = [current_value]
+                        # Append new value
+                        param_value = current_value + [param_value]
+
+                # Set parameter value
+                self.syn_store.param_store.set_parameter_value(
+                    gid, syn_index, mech_name, param_name, param_value
+                )
+
+    def modify_mechanism_parameters(
         self, pop_name, gid, syn_id, syn_name, params, expr_param_check="ignore"
     ):
         """
@@ -1182,158 +2342,206 @@ class SynapseAttributes:
         :param params: dict
         """
         rules = self.syn_param_rules
-        syn_index = self.syn_name_index_dict[syn_name]
-        syn_id_dict = self.syn_id_attr_dict[gid]
         mech_name = self.syn_mech_names[syn_name]
-        syn = syn_id_dict[syn_id]
-        presyn_name = self.presyn_names.get(syn.source.population, None)
+
+        # Get synapse array index
+        if (
+            gid not in self.syn_store.id_to_index
+            or syn_id not in self.syn_store.id_to_index[gid]
+        ):
+            raise RuntimeError(
+                f"modify_mech_attrs: gid {gid} synapse id {syn_id} not found"
+            )
+
+        array_index = self.syn_store.id_to_index[gid][syn_id]
+
+        # Get synapse attrs
+        attrs = self.syn_store.attrs[gid]
+
+        # Get source population information
+        source_population = attrs["source_population"][array_index]
+        presyn_name = self.presyn_names.get(source_population, None)
+
+        # Get connection parameters
+        connection_syn_params = None
         if presyn_name:
             connection_syn_params = self.env.connection_config[pop_name][
                 presyn_name
             ].mechanisms
-        else:
-            connection_syn_params = None
 
+        # Determine mechanism parameters
         mech_params = {}
         if connection_syn_params is not None:
+            swc_type = attrs["swc_type"][array_index]
             if "default" in connection_syn_params:
                 section_syn_params = connection_syn_params["default"]
             else:
-                section_syn_params = connection_syn_params[syn.swc_type]
+                section_syn_params = connection_syn_params[swc_type]
             mech_params = section_syn_params.get(syn_name, {})
 
-        attr_dict = syn.attr_dict[syn_index]
+        # Process parameters
         for k, v in params.items():
-            if k in rules[mech_name]["mech_params"]:
-                mech_param = mech_params.get(k, None)
-                if isinstance(mech_param, ExprClosure):
-                    if mech_param.parameters[0] == "delay":
-                        new_val = mech_param(syn.source.delay)
-                    else:
-                        raise RuntimeError(
-                            f"modify_mech_attrs: unknown dependent expression parameter {mech_param.parameters}"
-                        )
-                else:
-                    new_val = v
-                assert new_val is not None
-                old_val = attr_dict.get(k, mech_param)
-                if isinstance(new_val, ExprClosure):
-                    if isinstance(old_val, Promise):
-                        old_val.clos = new_val
-                    else:
-                        attr_dict[k] = Promise(new_val, old_val)
-                elif isinstance(new_val, dict):
-                    if isinstance(old_val, Promise):
-                        for sk, sv in new_val.items():
-                            old_val.clos[sk] = sv
-                    elif isinstance(old_val, ExprClosure):
-                        for sk, sv in new_val.items():
-                            old_val[sk] = sv
-                    else:
-                        if expr_param_check == "ignore":
-                            pass
-                        else:
-                            raise RuntimeError(
-                                f"modify_mech_attrs: dictionary value provided to a non-expression parameter {k}"
-                            )
-                else:
-                    attr_dict[k] = new_val
-            elif k in rules[mech_name]["netcon_params"]:
-                mech_param = mech_params.get(k, None)
-                if isinstance(mech_param, ExprClosure):
-                    if mech_param.parameters[0] == "delay":
-                        new_val = mech_param(syn.source.delay)
+            if not (
+                (k in rules[mech_name]["mech_params"])
+                or (k in rules[mech_name]["netcon_params"])
+            ):
+                raise RuntimeError(f"modify_mech_attrs: unknown parameter type {k}")
 
-                    else:
-                        raise RuntimeError(
-                            f"modify_mech_attrs: unknown dependent expression parameter {mech_param.parameters}"
-                        )
+            # Get or evaluate parameter
+            mech_param = mech_params.get(k, None)
+            if isinstance(mech_param, ExprClosure):
+                if mech_param.parameters[0] == "delay":
+                    delay = attrs["delay"][array_index]
+                    new_val = mech_param(delay)
                 else:
-                    new_val = v
-                assert new_val is not None
-                old_val = attr_dict.get(k, mech_param)
-                if isinstance(new_val, ExprClosure):
-                    if isinstance(old_val, Promise):
-                        old_val.clos = new_val
-                    else:
-                        attr_dict[k] = Promise(new_val, old_val)
-                elif isinstance(new_val, dict):
-                    if isinstance(old_val, Promise):
-                        for sk, sv in new_val.items():
-                            old_val.clos[sk] = sv
-                    elif isinstance(old_val, ExprClosure):
-                        for sk, sv in new_val.items():
-                            old_val[sk] = sv
-                    else:
-                        if expr_param_check == "ignore":
-                            pass
-                        else:
-                            raise RuntimeError(
-                                "modify_mech_attrs: dictionary value provided to a non-expression parameter "
-                                f"{k} mechanism: {mech_name} presynaptic: {presyn_name} old value: {old_val}"
-                            )
-                else:
-                    attr_dict[k] = new_val
-
+                    raise RuntimeError(
+                        f"modify_mech_attrs: unknown expression parameter {mech_param.parameters}"
+                    )
             else:
-                raise RuntimeError(
-                    f"modify_mech_attrs: unknown type of parameter {k}"
-                )
-        syn.attr_dict[syn_index] = attr_dict
+                new_val = v
 
-    def add_mech_attrs_from_iter(
-        self, gid, syn_name, params_iter, multiple="error", append=False
-    ):
-        """
-        Adds mechanism attributes for the given cell id/synapse id/synapse mechanism.
+            assert new_val is not None
 
-        :param gid: cell id
-        :param syn_id: synapse id
-        :param syn_name: synapse mechanism name
-        :param params_iter: iterator
-        :param multiple: behavior when an attribute value is provided for a synapse that already has attributes:
-               - 'error' (default): raise an error
-               - 'skip': do not update attribute value
-               - 'overwrite': overwrite value
-        :param append: whether to append attribute values with the same attribute name
-        """
-        syn_index = self.syn_name_index_dict[syn_name]
-        syn_id_dict = self.syn_id_attr_dict[gid]
-        for syn_id, params_dict in params_iter:
-            syn = syn_id_dict[syn_id]
-            if syn is None:
-                raise RuntimeError(
-                    "add_mech_attrs_from_iter: "
-                    f"gid {gid} synapse id {syn_id} has not been created yet"
-                )
-            if syn_index in syn.attr_dict:
-                if multiple == "error":
-                    raise RuntimeError(
-                        "add_mech_attrs_from_iter: "
-                        f"gid {gid} synapse id {syn_id} mechanism {syn_name} already has parameters"
-                    )
-                elif multiple == "skip":
+            # Get current value if exists
+            old_val = self.syn_store.param_store.get_param(
+                gid, array_index, mech_name, k
+            )
+            if old_val is None:
+                old_val = mech_param
+
+            # Handle different value types
+            if isinstance(new_val, ExprClosure):
+                # Expression closure handling
+                if isinstance(old_val, Promise):
+                    old_val.clos = new_val
+                    value_to_store = old_val
+                else:
+                    value_to_store = Promise(new_val, old_val)
+
+            elif isinstance(new_val, dict):
+                # Dictionary value handling for expressions
+                if isinstance(old_val, Promise):
+                    for sk, sv in new_val.items():
+                        old_val.clos[sk] = sv
+                    value_to_store = old_val
+                elif isinstance(old_val, ExprClosure):
+                    for sk, sv in new_val.items():
+                        old_val[sk] = sv
+                    value_to_store = old_val
+                else:
+                    if expr_param_check != "ignore":
+                        raise RuntimeError(
+                            f"modify_mech_attrs: dictionary for non-expression parameter {k}"
+                        )
                     continue
-                elif multiple == "overwrite":
-                    pass
-                else:
-                    raise RuntimeError(
-                        f"add_mech_attrs_from_iter: unknown multiple value {multiple}"
-                    )
+            else:
+                # Simple value
+                value_to_store = new_val
 
-            attr_dict = syn.attr_dict[syn_index]
-            for k, v in params_dict.items():
-                if v is None:
-                    raise RuntimeError(
-                        "add_mech_attrs_from_iter: "
-                        f"gid {gid} synapse id {syn_id} mechanism {syn_name} parameter {k} has no value"
-                    )
-                if append:
-                    k_val = attr_dict.get(k, [])
-                    k_val.append(v)
-                    attr_dict[k] = k_val
-                else:
-                    attr_dict[k] = v
+            # Store the value
+            self.syn_store.param_store.set_param(
+                gid, array_index, mech_name, k, value_to_store
+            )
+
+    def stash_mech_attrs(self, pop_name, gid):
+        """
+        Preserves mechanism attributes for the given cell id.
+
+        Args:
+            pop_name: population name
+            gid: cell gid
+
+        Returns:
+            stash_id: Unique identifier for this stash
+        """
+        # Create a unique ID for this stash
+        stash_id = uuid.uuid4()
+
+        # Check if the gid exists in our storage
+        if gid not in self.syn_store.attrs:
+            return stash_id  # Return ID even if no data to stash
+
+        # Create backup structures
+        backup = {"param_arrays": {}, "complex_params": {}}
+
+        valid_count = self.syn_store.next_index[gid]
+
+        # Back up parameter arrays
+        if gid in self.syn_store.param_store.gid_data:
+            param_data = self.syn_store.param_store.gid_data[gid]
+
+            # Copy mechanism arrays
+            for mech_name, array in param_data["arrays"].items():
+                backup["param_arrays"][mech_name] = {
+                    "data": np.copy(array[:valid_count]),
+                    "has_mech": np.copy(
+                        param_data["has_mech"][mech_name][:valid_count]
+                    ),
+                }
+
+        # Back up complex parameters (deep copy)
+        if gid in self.syn_store.param_store.complex_params:
+            backup["complex_params"] = copy.deepcopy(
+                self.syn_store.param_store.complex_params[gid]
+            )
+
+        # Store backup in the backup dictionary
+        self.syn_id_attr_backup_dict[gid][stash_id] = backup
+
+        return stash_id
+
+    def restore_mech_attrs(self, pop_name, gid, stash_id):
+        """
+        Restores mechanism attributes for the given cell id from a previous stash.
+
+        Args:
+            pop_name: population name
+            gid: cell gid
+            stash_id: Unique identifier returned by stash_mech_attrs
+        """
+        # Check if stash exists
+        if (
+            gid not in self.syn_id_attr_backup_dict
+            or stash_id not in self.syn_id_attr_backup_dict[gid]
+        ):
+            raise RuntimeError(
+                f"restore_mech_attrs: No stash found for gid {gid} with id {stash_id}"
+            )
+
+        # Get backup data
+        backup = self.syn_id_attr_backup_dict[gid][stash_id]
+        valid_count = self.syn_store.next_index[gid]
+
+        # Restore parameter arrays
+        if backup["param_arrays"]:
+            for mech_name, mech_data in backup["param_arrays"].items():
+                if mech_name in self.syn_store.param_store.mech_param_specs:
+                    # Restore array data
+                    self.syn_store.param_store.gid_data[gid]["arrays"][mech_name][
+                        :valid_count
+                    ] = mech_data["data"]
+
+                    # Restore mechanism flags
+                    self.syn_store.param_store.gid_data[gid]["has_mech"][mech_name][
+                        :valid_count
+                    ] = mech_data["has_mech"]
+
+        # Restore complex parameters
+        if backup["complex_params"]:
+            # Clear existing complex params
+            if gid in self.syn_store.param_store.complex_params:
+                self.syn_store.param_store.complex_params[gid].clear()
+
+            # Set complex params from backup
+            self.syn_store.param_store.complex_params[gid] = copy.deepcopy(
+                backup["complex_params"]
+            )
+
+        # Remove the stash to free memory
+        del self.syn_id_attr_backup_dict[gid][stash_id]
+
+        # Clear any caches that might have stale data
+        self.clear_filter_cache()
 
     def filter_synapses(
         self,
@@ -1345,6 +2553,7 @@ class SynapseAttributes:
         sources: None = None,
         swc_types: None = None,
         cache: bool = False,
+        max_cache_items: int = 10000,
     ) -> Dict[Any, Any]:
         """
         Returns a subset of the synapses of the given cell according to the given criteria.
@@ -1357,15 +2566,8 @@ class SynapseAttributes:
         :param sources: list of enumerated type: population names of source projections
         :param swc_types: list of enumerated type: swc_type
         :param cache: bool
-        :return: dictionary { syn_id: { attribute: value } }
+        :return: iterator ( syn_id, synapse_view )
         """
-        matches = lambda items: all(
-            map(
-                lambda query_item: (query_item[0] is None)
-                or (query_item[1] in query_item[0]),
-                items,
-            )
-        )
 
         if cache:
             cache_args = tuple(
@@ -1383,80 +2585,200 @@ class SynapseAttributes:
             if cache_args in self.filter_cache:
                 return self.filter_cache[cache_args]
 
-        if sources is None:
-            source_indexes = None
-        else:
-            source_indexes = set(sources)
+        # Check if GID exists
+        if gid not in self.syn_store.attrs:
+            return []
 
-        sec_dict = self.sec_dict[gid]
+        # Get attr array for this GID
+        attrs = self.syn_store.attrs[gid]
+
+        # Start with all valid indices
+        valid_count = self.syn_store.next_index[gid]
+        mask = np.ones(valid_count, dtype=bool)
+
+        # Apply section filter (fast path)
         if syn_sections is not None:
-            # Fast path
-            it = itertools.chain.from_iterable(
-                [sec_dict[sec_index] for sec_index in syn_sections]
+            # Convert to set for fast lookup
+            section_set = set(syn_sections)
+            section_mask = np.isin(
+                attrs["syn_section"][:valid_count], list(section_set)
             )
-            syn_dict = {k: v for (k, v) in it}
-        else:
-            syn_dict = self.syn_id_attr_dict[gid]
+            mask &= section_mask
 
-        result = {
-            k: v
-            for k, v in syn_dict.items()
-            if matches(
-                [
-                    (syn_indexes, k),
-                    (syn_types, v.syn_type),
-                    (layers, v.syn_layer),
-                    (source_indexes, v.source.population),
-                    (swc_types, v.swc_type),
+        # Apply synapse ID filter
+        if syn_indexes is not None:
+            # Convert to set for fast lookup
+            syn_id_set = set(syn_indexes)
+            syn_id_mask = np.isin(attrs["syn_id"][:valid_count], list(syn_id_set))
+            mask &= syn_id_mask
+
+        # Apply synapse type filter
+        if syn_types is not None:
+            # Convert to set for fast lookup
+            type_set = set(syn_types)
+            type_mask = np.isin(attrs["syn_type"][:valid_count], list(type_set))
+            mask &= type_mask
+
+        # Apply layer filter
+        if layers is not None:
+            # Convert to set for fast lookup
+            layer_set = set(layers)
+            layer_mask = np.isin(attrs["syn_layer"][:valid_count], list(layer_set))
+            mask &= layer_mask
+
+        # Apply source population filter
+        if sources is not None:
+            # Convert to set for fast lookup
+            source_set = set(sources)
+            source_mask = np.isin(
+                attrs["source_population"][:valid_count], list(source_set)
+            )
+            mask &= source_mask
+
+        # Apply SWC type filter
+        if swc_types is not None:
+            # Convert to set for fast lookup
+            swc_set = set(swc_types)
+            swc_mask = np.isin(attrs["swc_type"][:valid_count], list(swc_set))
+            mask &= swc_mask
+
+        # Get array indices of matching synapses
+        matching_indices = np.where(mask)[0]
+
+        # For cache optimization, limit results
+        if cache:
+            # If too many items, don't cache
+            if len(matching_indices) > max_cache_items:
+                result_generator = self._generate_synapse_views(
+                    gid, matching_indices, attrs
+                )
+                return result_generator
+
+            # Otherwise, instantiate limited list for cache
+            result_items = []
+            for idx in matching_indices:
+                syn_id = attrs["syn_id"][idx]
+                syn_view = self.syn_store.get_synapse(gid, syn_id)
+                result_items.append((syn_id, syn_view))
+
+            # Cache the result
+            self.filter_cache[cache_args] = result_items
+            return result_items
+
+        # Return generator to avoid instantiating all synapses at once
+        return self._generate_synapse_views(gid, matching_indices, attrs)
+
+    def _generate_synapse_views(self, gid, indices, attrs):
+        """Helper to generate synapse views from array indices"""
+        for idx in indices:
+            syn_id = attrs["syn_id"][idx]
+            syn_view = self.syn_store.get_synapse(gid, syn_id)
+            yield (syn_id, syn_view)
+
+    def filter_synapse_ids(
+        self,
+        gid: int,
+        syn_sections: Optional[List[int]] = None,
+        syn_indexes: Optional[List[int]] = None,
+        syn_types: Optional[List[int]] = None,
+        layers: Optional[List[int]] = None,
+        sources: Optional[List[int]] = None,
+        swc_types: Optional[List[int]] = None,
+        cache: bool = False,
+    ) -> np.ndarray:
+        """
+        Returns a subset of the synapse ids of the given cell according to the given criteria.
+        Uses efficient array operations with the new SynapseStorage backend.
+
+        Args:
+            gid: Cell GID
+            syn_sections: List of section indices
+            syn_indexes: List of synapse IDs
+            syn_types: List of synapse types
+            layers: List of layer indices
+            sources: List of source population indices
+            swc_types: List of SWC types
+            cache: Whether to cache results
+
+        Returns:
+            array of synapse IDs
+        """
+        # Check cache first
+        if cache:
+            cache_args = tuple(
+                tuple(x) if isinstance(x, list) else x
+                for x in [
+                    gid,
+                    syn_sections,
+                    syn_indexes,
+                    syn_types,
+                    layers,
+                    sources,
+                    swc_types,
                 ]
             )
-        }
+            if cache_args in self.filter_id_cache:
+                return self.filter_id_cache[cache_args]
+
+        # Check if GID exists
+        if gid not in self.syn_store.attrs:
+            return np.array([], dtype=np.uint32)
+
+        # Get properties array for this GID
+        attrs = self.syn_store.attrs[gid]
+
+        # Start with all valid indices
+        valid_count = self.syn_store.next_index[gid]
+        mask = np.ones(valid_count, dtype=bool)
+
+        # Apply section filter
+        if syn_sections is not None:
+            section_set = set(syn_sections)
+            section_mask = np.isin(
+                attrs["syn_section"][:valid_count], list(section_set)
+            )
+            mask &= section_mask
+
+        # Apply synapse ID filter
+        if syn_indexes is not None:
+            syn_id_set = set(syn_indexes)
+            syn_id_mask = np.isin(attrs["syn_id"][:valid_count], list(syn_id_set))
+            mask &= syn_id_mask
+
+        # Apply synapse type filter
+        if syn_types is not None:
+            type_set = set(syn_types)
+            type_mask = np.isin(attrs["syn_type"][:valid_count], list(type_set))
+            mask &= type_mask
+
+        # Apply layer filter
+        if layers is not None:
+            layer_set = set(layers)
+            layer_mask = np.isin(attrs["syn_layer"][:valid_count], list(layer_set))
+            mask &= layer_mask
+
+        # Apply source population filter
+        if sources is not None:
+            source_set = set(sources)
+            source_mask = np.isin(
+                attrs["source_population"][:valid_count], list(source_set)
+            )
+            mask &= source_mask
+
+        # Apply SWC type filter
+        if swc_types is not None:
+            swc_set = set(swc_types)
+            swc_mask = np.isin(attrs["swc_type"][:valid_count], list(swc_set))
+            mask &= swc_mask
+
+        # Get synapse IDs of matching synapses
+        result = attrs["syn_id"][mask]
+
+        # Cache if requested
         if cache:
-            self.filter_cache[cache_args] = result
+            self.filter_id_cache[cache_args] = result
 
         return result
-
-    def partition_synapses_by_source(
-        self, gid: int, syn_ids: Optional[List[uint32]] = None
-    ) -> Dict[str, Optional[itertools.chain]]:
-        """
-        Partitions the synapse objects for the given cell based on the
-        presynaptic (source) population index.
-
-        :param gid: int
-        :param syn_ids: array of int
-
-        """
-        source_names = {id: name for name, id in self.env.Populations.items()}
-
-        source_order = {
-            id: i
-            for i, (name, id) in enumerate(sorted(self.env.Populations.items()))
-        }
-        source_inverse_order = {
-            i: id
-            for i, (name, id) in enumerate(sorted(self.env.Populations.items()))
-        }
-
-        if syn_ids is None:
-            syn_id_attr_dict = self.syn_id_attr_dict[gid]
-        else:
-            syn_id_attr_dict = {
-                syn_id: self.syn_id_attr_dict[gid][syn_id] for syn_id in syn_ids
-            }
-
-        source_parts = partitionn(
-            syn_id_attr_dict.items(),
-            lambda syn_id_syn: source_order[syn_id_syn[1].source.population],
-            n=len(source_names),
-        )
-
-        return {
-            source_names[
-                source_inverse_order[source_id_x[0]]
-            ]: generator_ifempty(source_id_x[1])
-            for source_id_x in enumerate(source_parts)
-        }
 
     def get_filtered_syn_ids(
         self,
@@ -1481,18 +2803,75 @@ class SynapseAttributes:
         :param cache:
         :return: sequence
         """
-        return list(
-            self.filter_synapses(
-                gid,
-                syn_sections=syn_sections,
-                syn_indexes=syn_indexes,
-                syn_types=syn_types,
-                layers=layers,
-                sources=sources,
-                swc_types=swc_types,
-                cache=cache,
-            ).keys()
+        return self.filter_synapse_ids(
+            gid,
+            syn_sections=syn_sections,
+            syn_indexes=syn_indexes,
+            syn_types=syn_types,
+            layers=layers,
+            sources=sources,
+            swc_types=swc_types,
+            cache=cache,
         )
+
+    def partition_synapses_by_source(
+        self, gid: int, syn_ids: Optional[List[uint32]] = None
+    ) -> Dict[str, Optional[itertools.chain]]:
+        """
+        Partitions the synapse objects for the given cell based on the
+        presynaptic (source) population index.
+
+        Args:
+            gid: cell id
+            syn_ids: optional list of synapse ids to partition (if None, use all)
+
+        Returns:
+            dict mapping source population names to iterators of (syn_id, synapse) pairs
+        """
+        # Get population names and ordering
+        source_names = {id: name for name, id in self.env.Populations.items()}
+
+        # Check if gid exists
+        if gid not in self.syn_store.attrs:
+            # Return empty iterators for all populations
+            return {name: itertools.chain() for name in source_names.values()}
+
+        # Get properties array for this gid
+        attrs = self.syn_store.attrs[gid]
+        valid_count = self.syn_store.next_index[gid]
+
+        # Filter by synapse IDs if specified
+        if syn_ids is not None:
+            # Create mask for specified synapse IDs
+            syn_id_set = set(syn_ids)
+            syn_mask = np.isin(attrs["syn_id"][:valid_count], list(syn_id_set))
+            valid_indices = np.arange(valid_count)[syn_mask]
+        else:
+            # Use all valid indices
+            valid_indices = np.arange(valid_count)
+
+        # Create result dictionary with generators for each population
+        result = {}
+
+        # For each population, create a generator that yields matching synapses
+        for pop_id, pop_name in source_names.items():
+            # Create mask for this population
+            pop_mask = attrs["source_population"][valid_indices] == pop_id
+            pop_indices = valid_indices[pop_mask]
+
+            # Create generator for this population's synapses
+            def create_population_generator(indices):
+                for idx in indices:
+                    syn_id = attrs["syn_id"][idx]
+                    syn_view = self.syn_store.get_synapse(gid, syn_id)
+                    yield (syn_id, syn_view)
+
+            # Use generator_ifempty to handle empty cases
+            result[pop_name] = generator_ifempty(
+                create_population_generator(pop_indices)
+            )
+
+        return result
 
     def partition_syn_ids_by_source(
         self, gid: int, syn_ids: Optional[List[uint32]] = None
@@ -1501,76 +2880,137 @@ class SynapseAttributes:
         Partitions the synapse ids for the given cell based on the
         presynaptic (source) population index.
 
-        :param gid: int
-        :param syn_ids: array of int
+        Args:
+        gid: cell id
+        syn_ids: optional list of synapse ids to partition (if None, use all)
 
+        Returns:
+        dict mapping source population names to iterators of synapse ids
         """
-        start_time = time.time()
+        # Get population names and ordering
         source_names = {id: name for name, id in self.env.Populations.items()}
 
-        source_order = {
-            id: i
-            for i, (name, id) in enumerate(sorted(self.env.Populations.items()))
-        }
-        source_inverse_order = {
-            i: id
-            for i, (name, id) in enumerate(sorted(self.env.Populations.items()))
-        }
+        # Check if GID exists
+        if gid not in self.syn_store.attrs:
+            # Return empty iterators for all populations
+            return {name: itertools.chain() for name in source_names.values()}
 
-        syn_id_attr_dict = self.syn_id_attr_dict[gid]
-        if syn_ids is None:
-            syn_ids = list(syn_id_attr_dict.keys())
+        # Get properties array for this GID
+        attrs = self.syn_store.attrs[gid]
+        valid_count = self.syn_store.next_index[gid]
 
-        def partition_pred(syn_id):
-            syn = syn_id_attr_dict[syn_id]
-            return source_order[syn.source.population]
+        # Filter by synapse IDs if specified
+        if syn_ids is not None:
+            # Create mask for specified synapse IDs
+            syn_id_set = set(syn_ids)
+            mask = np.isin(attrs["syn_id"][:valid_count], list(syn_id_set))
+            working_indices = np.arange(valid_count)[mask]
+        else:
+            # Use all valid indices
+            working_indices = np.arange(valid_count)
 
-        source_iter = partitionn(syn_ids, partition_pred, n=len(source_names))
+        # Create result dictionary with generators for each population
+        result = {}
 
-        return {
-            source_names[
-                source_inverse_order[source_id_x[0]]
-            ]: generator_ifempty(source_id_x[1])
-            for source_id_x in enumerate(source_iter)
-        }
+        # For each population, create a generator that yields matching synapse IDs
+        for pop_id, pop_name in source_names.items():
+            # Create mask for this population
+            pop_mask = attrs["source_population"][working_indices] == pop_id
+            pop_indices = working_indices[pop_mask]
+
+            # Get synapse IDs for this population
+            pop_syn_ids = attrs["syn_id"][pop_indices]
+
+            # Create generator from array
+            def create_id_generator(ids):
+                # Convert to Python list so we can iterate
+                id_list = ids.tolist()
+                return iter(id_list)
+
+            # Use generator_ifempty to handle empty cases
+            # This will return an empty iterator if there are no matches
+            result[pop_name] = generator_ifempty(create_id_generator(pop_syn_ids))
+
+        return result
 
     def del_syn_id_attr_dict(self, gid: int) -> None:
         """
         Removes the synapse attributes associated with the given cell gid.
+
+        Args:
+            gid: Cell gid to remove
         """
-        del self.syn_id_attr_dict[gid]
-        del self.sec_dict[gid]
+        # Remove from core properties storage
+        if gid in self.syn_store.attrs:
+            del self.syn_store.attrs[gid]
+
+        # Remove from index mapping
+        if gid in self.syn_store.id_to_index:
+            del self.syn_store.id_to_index[gid]
+
+        # Reset next index counter
+        if gid in self.syn_store.next_index:
+            del self.syn_store.next_index[gid]
+
+        # Clean up parameter storage
+        if gid in self.syn_store.param_store.gid_data:
+            del self.syn_store.param_store.gid_data[gid]
+
+        # Clean up complex parameter storage
+        if gid in self.syn_store.param_store.complex_params:
+            del self.syn_store.param_store.complex_params[gid]
+
+        # Clean up point process structures
+        if gid in self.pps_dict:
+            del self.pps_dict[gid]
+
+        # Clear any cached results that might reference this gid
+        self.clear_filter_cache()
 
     def clear(self):
-        self.syn_id_attr_dict = defaultdict(lambda: defaultdict(lambda: None))
-        self.sec_dict = defaultdict(lambda: defaultdict(lambda: []))
-        self.pps_dict = defaultdict(
-            lambda: defaultdict(
-                lambda: SynapsePointProcess(mech={}, netcon={}, vecstim={})
-            )
-        )
-        self.filter_cache = {}
+        """
+        Clears all synapse data structures.
+        """
+        # Clear core storage structures
+        self.syn_store.attrs.clear()
+        self.syn_store.id_to_index.clear()
+        self.syn_store.next_index.clear()
+
+        # Clear parameter store
+        self.syn_store.param_store.gid_data.clear()
+        self.syn_store.param_store.complex_params.clear()
+
+        # Clear point process structures
+        self.pps_dict.clear()
+
+        # Clear caches
+        self.filter_cache.clear()
+        self.filter_id_cache.clear()
 
     def clear_filter_cache(self):
+        self.filter_id_cache.clear()
         self.filter_cache.clear()
 
     def has_gid(self, gid):
-        return gid in self.syn_id_attr_dict
+        return gid in self.syn_store.attrs
 
     def gids(self):
-        return self.syn_id_attr_dict.keys()
+        return self.syn_store.attrs.keys()
 
-    def items(self):
-        return self.syn_id_attr_dict.items()
+    def synapse_ids(self, gid):
+        return self.syn_store.keys(gid)
 
-    def __getitem__(self, gid):
-        return self.syn_id_attr_dict[gid]
+    def items(self, gid=None):
+        if gid is None:
+            return self.syn_store.attrs.items()
+        else:
+            return self.syn_store.items(gid)
 
 
-def insert_hoc_cell_syns(
+def insert_cell_syns(
     env: AbstractEnv,
     gid: int,
-    cell: "HocObject",
+    cell: object,
     syn_ids: Union[List[uint32], itertools.chain],
     syn_params: Dict[
         str,
@@ -1586,7 +3026,7 @@ def insert_hoc_cell_syns(
     """
     TODO: Only config the point process object if it has not already been configured.
 
-    Insert mechanisms into given cell according to the synapse objects created in env.synapse_attributes.
+    Insert mechanisms into given cell according to the synapse objects created in env.synapse_manager.
     Configures mechanisms according to parameter values specified in syn_params.
 
     :param env: :class:'Env'
@@ -1603,6 +3043,7 @@ def insert_hoc_cell_syns(
 
     """
 
+    assert cell is not None
     swc_type_apical = env.SWC_Types["apical"]
     swc_type_basal = env.SWC_Types["basal"]
     swc_type_soma = env.SWC_Types["soma"]
@@ -1610,21 +3051,13 @@ def insert_hoc_cell_syns(
     swc_type_ais = env.SWC_Types["ais"]
     swc_type_hill = env.SWC_Types["hillock"]
 
-    syns_dict_dend = defaultdict(
-        lambda: defaultdict(lambda: defaultdict(lambda: None))
-    )
-    syns_dict_axon = defaultdict(
-        lambda: defaultdict(lambda: defaultdict(lambda: None))
-    )
-    syns_dict_ais = defaultdict(
-        lambda: defaultdict(lambda: defaultdict(lambda: None))
-    )
-    syns_dict_hill = defaultdict(
-        lambda: defaultdict(lambda: defaultdict(lambda: None))
-    )
-    syns_dict_soma = defaultdict(
-        lambda: defaultdict(lambda: defaultdict(lambda: None))
-    )
+    syns_dict_dend = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: None)))
+    syns_dict_axon = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: None)))
+    syns_dict_ais = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: None)))
+    syns_dict_hill = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: None)))
+    syns_dict_soma = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: None)))
+    layer_name_dict = dict({v: k for k, v in env.layers.items()})
+    swc_name_dict = dict({v: k for k, v in env.SWC_Types.items()})
 
     syns_dict_by_type = {
         swc_type_apical: syns_dict_dend,
@@ -1640,35 +3073,88 @@ def insert_hoc_cell_syns(
     is_reduced = False
     if hasattr(cell, "is_reduced"):
         is_reduced = cell.is_reduced
+        if callable(is_reduced):
+            is_reduced = is_reduced()
+        if isinstance(is_reduced, float):
+            is_reduced = is_reduced > 0.0
 
     cell_soma = None
     cell_dendrite = None
+    reduced_section_dict = {}
     if is_reduced:
-        if hasattr(cell, "soma"):
-            cell_soma = cell.soma
-            if isinstance(cell_soma, list):
-                cell_soma = cell_soma[0]
-        if hasattr(cell, "dend"):
-            cell_dendrite = cell.dend
+        for swc_type_name in env.SWC_Types:
+            for layer_name in env.layers:
+                swc_layer_key = f"{swc_type_name}_{layer_name}_list"
+                swc_layer_index_key = f"{swc_type_name}_{layer_name}_index"
+                sec_list = getattr(cell, swc_layer_key, None)
+                sec_index = getattr(cell, swc_layer_index_key, None)
+                if sec_list is not None:
+                    reduced_section_dict[swc_layer_key] = list(
+                        zip(
+                            np.asarray(sec_index, dtype=np.uint16),
+                            list(sec_list),
+                        )
+                    )
+        if len(reduced_section_dict) == 0:
+            if hasattr(cell, "soma"):
+                cell_soma = cell.soma
+                if isinstance(cell_soma, list):
+                    cell_soma = cell_soma[0]
+            if hasattr(cell, "dend"):
+                cell_dendrite = cell.dend
 
-    syn_attrs = env.synapse_attributes
-    syn_id_attr_dict = syn_attrs.syn_id_attr_dict[gid]
+    syn_manager = env.synapse_manager
 
-    make_syn_mech = (
-        make_unique_synapse_mech if unique else make_shared_synapse_mech
-    )
+    make_syn_mech = make_unique_synapse_mech if unique else make_shared_synapse_mech
+
+    mech_params = None
+    if "default" in syn_params:
+        mech_params = syn_params["default"]
+        for mech_name, mech_params in mech_params.items():
+            syn_manager.add_default_mechanism_parameters(
+                gid, mech_name, mech_params, syn_ids
+            )
 
     syn_count = 0
     nc_count = 0
     mech_count = 0
+    sec_dx = 0.0
+    sec_pos = 0.0
+    current_sec_list = None
+    current_sec_list_key = None
     for syn_id in syn_ids:
-        syn = syn_id_attr_dict[syn_id]
+        syn = syn_manager.get_synapse(gid, syn_id)
         swc_type = syn.swc_type
-        syn_loc = syn.syn_loc
+        swc_type_name = swc_name_dict[swc_type]
+        syn_loc = np.clip(syn.syn_loc, 0.05, 0.95)
         syn_section = syn.syn_section
+        syn_layer = syn.syn_layer
+        syn_layer_name = layer_name_dict[syn_layer]
+
+        try:
+            mech_params = syn_params[swc_type]
+        except Exception:
+            # default
+            mech_params = syn_params.get("default", None)
 
         if is_reduced:
-            if (swc_type == swc_type_soma) and (cell_soma is not None):
+            sec_index = 0
+            sec_list_key = f"{swc_type_name}_{syn_layer_name}_list"
+            if sec_list_key != current_sec_list_key:
+                current_sec_list_key = sec_list_key
+                current_sec_list = reduced_section_dict.get(sec_list_key, None)
+                sec_pos = 0.0
+                sec_dx = 0.0
+            if current_sec_list is not None:
+                if sec_pos >= 1.0:
+                    sec_index, sec = current_sec_list.pop(0)
+                    current_sec_list.append((sec_index, sec))
+                    sec_pos = 0.0
+                    sec_dx = 0.0
+                sec_index, sec = current_sec_list[0]
+                sec_dx = syn_loc - sec_dx
+                sec_pos += sec_dx
+            elif (swc_type == swc_type_soma) and (cell_soma is not None):
                 sec = cell_soma
             elif (swc_type == swc_type_axon) and (cell_soma is not None):
                 sec = cell_soma
@@ -1689,39 +3175,30 @@ def insert_hoc_cell_syns(
             syns_dict = syns_dict_by_type[swc_type]
         else:
             raise RuntimeError(
-                f"insert_hoc_cell_syns: unsupported synapse SWC type {swc_type} for synapse {syn_id}"
+                f"insert_cell_syns: unsupported synapse SWC type {swc_type} for synapse {syn_id}"
             )
-
-        if "default" in syn_params:
-            mech_params = syn_params["default"]
-        else:
-            try:
-                mech_params = syn_params[swc_type]
-            except:
-                # default
-                mech_params = syn_params
 
         for syn_name, params in mech_params.items():
             syn_mech = make_syn_mech(
                 syn_name=syn_name,
                 seg=sec(syn_loc),
                 syns_dict=syns_dict,
-                mech_names=syn_attrs.syn_mech_names,
+                mech_names=syn_manager.syn_mech_names,
             )
 
-            syn_attrs.add_pps(gid, syn_id, syn_name, syn_mech)
+            syn_manager.add_point_process(gid, syn_id, syn_name, syn_mech)
 
             mech_count += 1
 
             if insert_netcons or insert_vecstims:
-                syn_pps = syn_attrs.get_pps(gid, syn_id, syn_name)
-                this_vecstim, this_vecstim_nc = None, None
+                syn_pps = syn_manager.get_point_process(gid, syn_id, syn_name)
+                this_vecstim = None
                 this_nc = None
                 if insert_vecstims:
                     this_nc, this_vecstim = mknetcon_vecstim(
                         syn_pps, delay=syn.source.delay
                     )
-                    syn_attrs.add_vecstim(
+                    syn_manager.add_vecstim(
                         gid, syn_id, syn_name, this_vecstim, this_nc
                     )
                 if insert_netcons:
@@ -1732,11 +3209,11 @@ def insert_hoc_cell_syns(
                             syn_pps,
                             delay=syn.source.delay,
                         )
-                    syn_attrs.add_netcon(gid, syn_id, syn_name, this_nc)
+                    syn_manager.add_netcon(gid, syn_id, syn_name, this_nc)
                 config_syn(
                     syn_name=syn_name,
-                    rules=syn_attrs.syn_param_rules,
-                    mech_names=syn_attrs.syn_mech_names,
+                    rules=syn_manager.syn_param_rules,
+                    mech_names=syn_manager.syn_mech_names,
                     syn=syn_mech,
                     nc=this_nc,
                     **params,
@@ -1745,8 +3222,8 @@ def insert_hoc_cell_syns(
             else:
                 config_syn(
                     syn_name=syn_name,
-                    rules=syn_attrs.syn_param_rules,
-                    mech_names=syn_attrs.syn_mech_names,
+                    rules=syn_manager.syn_param_rules,
+                    mech_names=syn_manager.syn_mech_names,
                     syn=syn_mech,
                     **params,
                 )
@@ -1784,16 +3261,14 @@ def insert_biophys_cell_syns(
     :param insert_vecstims: bool; whether to build new vecstims for newly constructed netcons
     :param verbose: bool
     """
-    if not (gid in env.biophys_cells[postsyn_name]):
+    if gid not in env.biophys_cells[postsyn_name]:
         raise KeyError(
             f"insert_biophys_cell_syns: biophysical cell with gid {gid} does not exist"
         )
 
     cell = env.biophys_cells[postsyn_name][gid]
 
-    connection_syn_params = env.connection_config[postsyn_name][
-        presyn_name
-    ].mechanisms
+    connection_syn_params = env.connection_config[postsyn_name][presyn_name].mechanisms
 
     synapse_config = env.celltypes[postsyn_name]["synapses"]
 
@@ -1803,10 +3278,10 @@ def insert_biophys_cell_syns(
         else:
             unique = False
 
-    syn_count, mech_count, nc_count = insert_hoc_cell_syns(
+    syn_count, mech_count, nc_count = insert_cell_syns(
         env,
         gid,
-        cell.hoc_cell,
+        cell.hoc_cell if cell.hoc_cell is not None else cell.cell_obj,
         syn_ids,
         connection_syn_params,
         unique=unique,
@@ -1852,17 +3327,14 @@ def config_biophys_cell_syns(
     :param verbose: bool
     :param throw_error: bool; whether to require that all encountered syn_ids have inserted synapse
     """
-    syn_attrs = env.synapse_attributes
-    syn_id_attr_dict = syn_attrs.syn_id_attr_dict[gid]
+    syn_manager = env.synapse_manager
 
     if syn_ids is None:
-        syn_ids = list(syn_id_attr_dict.keys())
+        syn_ids = np.fromiter(syn_manager.synapse_ids(gid), dtype=np.uint32)
 
     if insert:
-        source_syn_ids_dict = syn_attrs.partition_syn_ids_by_source(
-            gid, syn_ids
-        )
-        if not (gid in env.biophys_cells[postsyn_name]):
+        source_syn_ids_dict = syn_manager.partition_syn_ids_by_source(gid, syn_ids)
+        if gid not in env.biophys_cells[postsyn_name]:
             raise KeyError(
                 f"config_biophys_cell_syns: insert: biophysical cell with gid {gid} does not exist"
             )
@@ -1882,7 +3354,7 @@ def config_biophys_cell_syns(
                 )
 
     cell = env.biophys_cells[postsyn_name][gid]
-    syn_count, mech_count, nc_count = config_hoc_cell_syns(
+    syn_count, mech_count, nc_count = config_cell_syns(
         env,
         gid,
         postsyn_name,
@@ -1902,7 +3374,7 @@ def config_biophys_cell_syns(
     return syn_count, nc_count
 
 
-def config_hoc_cell_syns(
+def config_cell_syns(
     env: AbstractEnv,
     gid: int,
     postsyn_name: str,
@@ -1916,58 +3388,65 @@ def config_hoc_cell_syns(
     throw_error: bool = False,
 ) -> Tuple[int, int, int]:
     """
-    Configures the given syn_ids, and call config_syn with mechanism and netcon parameters (which must not be empty).
-    If syn_ids=None, configures all synapses for the cell with the given gid.
-    If insert=True, iterate over sources and call insert_hoc_cell_syns
-    (requires the cell object is given or registered with h.ParallelContext on this rank).
+    Configures synapses for a cell with parameter values from synapse storage.
 
-        :param env: :class:'Env'
-        :param gid: int
-        :param postsyn_name: str
-        :param syn_ids: array of int
-        :param unique: bool; whether newly inserted synapses should be unique or shared per segment
-        :param insert: bool; whether to insert a synaptic point process if none exists at syn_id
-        :param insert_netcons: bool; whether to build new netcons for newly constructed synapses
-        :param insert_vecstims: bool; whether to build new vecstims for newly constructed netcons
-        :param verbose: bool
-        :param throw_error: bool; whether to require that all encountered syn_ids have inserted synapse
+    Args:
+        env: Environment containing configuration
+        gid: Cell GID
+        postsyn_name: Name of postsynaptic population
+        cell: Cell object (optional)
+        syn_ids: List of synapse IDs to configure (if None, configure all)
+        unique: Whether to use unique or shared synapses when inserting
+        insert: Whether to insert synapses if not present
+        insert_netcons: Whether to insert NetCons for new synapses
+        insert_vecstims: Whether to insert VecStims for new NetCons
+        verbose: Whether to print verbose output
+        throw_error: Whether to throw errors for missing synapses/parameters
+
+    Returns:
+        Tuple of (syn_count, mech_count, nc_count)
     """
     rank = int(env.pc.id())
-    syn_attrs = env.synapse_attributes
-    syn_id_attr_dict = syn_attrs.syn_id_attr_dict[gid]
+    syn_manager = env.synapse_manager
 
+    # Get synapse configuration for this population
     synapse_config = env.celltypes[postsyn_name]["synapses"]
-    weights_dict = synapse_config.get("weights", {})
-    param_closure_dict = {}
-    if "closure" in weights_dict:
-        param_closure_dict["weight"] = weights_dict["closure"]
 
+    # Determine if unique synapses are required
     if unique is None:
-        if "unique" in synapse_config:
-            unique = synapse_config["unique"]
-        else:
-            unique = False
+        unique = synapse_config.get("unique", False)
 
+    # Get all synapse IDs if not specified
     if syn_ids is None:
-        syn_ids = list(syn_id_attr_dict.keys())
+        syn_ids = np.fromiter(syn_manager.synapse_ids(gid), dtype=np.uint32)
 
+    # Handle synapse insertion if requested
     if insert:
-        source_syn_dict = syn_attrs.partition_synapses_by_source(gid, syn_ids)
+        insert_start_time = time.time()
 
-        last_time = time.time()
-        if (cell is None) and (not (env.pc.gid_exists(gid))):
+        # Verify cell access
+        if (cell is None) and (not env.pc.gid_exists(gid)):
             raise RuntimeError(
-                f"config_hoc_cell_syns: insert: cell with gid {gid} does not exist on rank {rank}"
+                f"config_cell_syns: insert: cell with gid {gid} does not exist on rank {rank}"
             )
+
         if cell is None:
             cell = env.pc.gid2cell(gid)
+
+        # Group synapses by source and insert
+        source_syn_dict = syn_manager.partition_synapses_by_source(gid, syn_ids)
+
         for presyn_name, source_syns in source_syn_dict.items():
             if (presyn_name is not None) and (source_syns is not None):
                 source_syn_ids = [x[0] for x in source_syns]
+
+                # Get connection parameters for this source
                 connection_syn_params = env.connection_config[postsyn_name][
                     presyn_name
                 ].mechanisms
-                syn_count, mech_count, nc_count = insert_hoc_cell_syns(
+
+                # Insert synapses for this source
+                syn_count, mech_count, nc_count = insert_cell_syns(
                     env,
                     gid,
                     cell,
@@ -1977,90 +3456,104 @@ def config_hoc_cell_syns(
                     insert_netcons=insert_netcons,
                     insert_vecstims=insert_vecstims,
                 )
+
                 if verbose:
                     logger.info(
-                        f"config_hoc_cell_syns: population: {postsyn_name}; cell {gid}: inserted {mech_count} mechanisms for source {presyn_name}"
+                        f"config_cell_syns: population: {postsyn_name}; cell {gid}: "
+                        f"inserted {mech_count} mechanisms for source {presyn_name}"
                     )
+
         if verbose:
             logger.info(
-                f"config_hoc_cell_syns: population: {postsyn_name}; cell {gid}: inserted mechanisms in {time.time() - last_time:.2f} s"
+                f"config_cell_syns: population: {postsyn_name}; cell {gid}: "
+                f"inserted mechanisms in {time.time() - insert_start_time:.2f} s"
             )
 
-    source_syn_dict = syn_attrs.partition_synapses_by_source(gid, syn_ids)
-
+    # Configure existing synapses
     total_nc_count = 0
     total_mech_count = 0
-    total_syn_id_count = 0
-    config_time = time.time()
+    total_syn_count = 0
+
+    # Group synapses by source for configuration
+    source_syn_dict = syn_manager.partition_synapses_by_source(gid, syn_ids)
+
+    # Get available synapse mechanism names
+    syn_names = set(syn_manager.syn_mech_names.keys())
+
     for presyn_name, source_syns in source_syn_dict.items():
         if source_syns is None:
             continue
 
-        nc_count = 0
-        mech_count = 0
-
-        syn_names = set(syn_attrs.syn_mech_names.keys())
-
+        # Process each synapse from this source
         for syn_id, syn in source_syns:
-            total_syn_id_count += 1
+            total_syn_count += 1
+
+            # Configure each mechanism type
             for syn_name in syn_names:
-                syn_index = syn_attrs.syn_name_index_dict[syn_name]
-                if syn_index in syn.attr_dict:
-                    this_pps = syn_attrs.get_pps(
-                        gid, syn_id, syn_name, throw_error=False
-                    )
-                    if this_pps is None and throw_error:
+                # Check if point process exists
+                if not syn_manager.has_point_process(gid, syn_id, syn_name):
+                    if throw_error:
                         raise RuntimeError(
-                            f"config_hoc_cell_syns: insert: cell gid {gid} synapse {syn_id} does not have a point "
-                            f"process for mechanism {syn_name}"
+                            f"config_cell_syns: cell gid {gid} synapse {syn_id} does not have "
+                            f"a point process for mechanism {syn_name}"
                         )
+                    continue
 
-                    this_netcon = syn_attrs.get_netcon(
-                        gid, syn_id, syn_name, throw_error=False
+                # Get point process and netcon
+                point_process = syn_manager.get_point_process(
+                    gid, syn_id, syn_name, throw_error=False
+                )
+
+                netcon = syn_manager.get_netcon(
+                    gid, syn_id, syn_name, throw_error=False
+                )
+
+                # Get effective parameters with proper fallback
+                try:
+                    params = syn_manager.get_effective_mechanism_parameters(
+                        gid, syn_id, syn_name, throw_error_on_missing=throw_error
                     )
-                    if this_netcon is None and throw_error:
-                        raise RuntimeError(
-                            f"config_hoc_cell_syns: insert: cell gid {gid} synapse {syn_id} does not have a "
-                            f"netcon for mechanism {syn_name}"
-                        )
+                except RuntimeError as e:
+                    if throw_error:
+                        raise
+                    logger.warning(
+                        f"config_cell_syns: {str(e)}, skipping mechanism {syn_name} "
+                        f"for synapse {syn_id}"
+                    )
+                    continue
 
-                    params = syn.attr_dict[syn_index]
-                    upd_params = {}
-                    for param_name, param_val in params.items():
-                        if param_val is None:
-                            raise RuntimeError(
-                                f"config_hoc_cell_syns: insert: cell gid {gid} synapse {syn_id} presyn source {presyn_name} does not have a "
-                                f"value set for parameter {param_name}"
-                            )
-                        if isinstance(param_val, Promise):
-                            new_param_val = param_val.clos(*param_val.args)
-                        else:
-                            new_param_val = param_val
-                        upd_params[param_name] = new_param_val
-
+                # Configure the mechanism with the parameters
+                try:
                     (mech_set, nc_set) = config_syn(
                         syn_name=syn_name,
-                        rules=syn_attrs.syn_param_rules,
-                        mech_names=syn_attrs.syn_mech_names,
-                        syn=this_pps,
-                        nc=this_netcon,
-                        **upd_params,
+                        rules=syn_manager.syn_param_rules,
+                        mech_names=syn_manager.syn_mech_names,
+                        syn=point_process,
+                        nc=netcon,
+                        **params,
                     )
-                    if mech_set:
-                        mech_count += 1
-                    if nc_set:
-                        nc_count += 1
 
-        total_nc_count += nc_count
-        total_mech_count += mech_count
+                    if mech_set:
+                        total_mech_count += 1
+                    if nc_set:
+                        total_nc_count += 1
+
+                except Exception as e:
+                    if throw_error:
+                        raise
+                    logger.warning(
+                        f"config_cell_syns: Error configuring mechanism {syn_name} "
+                        f"for synapse {syn_id}: {str(e)}"
+                    )
 
     if verbose:
         logger.info(
-            f"config_hoc_cell_syns: target: {postsyn_name}; cell {gid}: "
-            f"set parameters for {total_mech_count} syns and {total_nc_count} netcons for {total_syn_id_count} syn_ids"
+            f"config_cell_syns: target: {postsyn_name}; cell {gid}: "
+            f"set parameters for {total_mech_count} syns and {total_nc_count} netcons "
+            f"for {total_syn_count} syn_ids"
         )
 
-    return total_syn_id_count, total_mech_count, total_nc_count
+    return total_syn_count, total_mech_count, total_nc_count
 
 
 def config_syn(
@@ -2072,97 +3565,109 @@ def config_syn(
     **params,
 ) -> Tuple[bool, bool]:
     """
-    Initializes synaptic and connection mechanisms with parameters specified in the synapse attribute dictionaries.
+    Initializes synaptic and connection mechanisms with parameters.
 
-    :param syn_name: str
-    :param rules: dict to correctly parse params for specified hoc mechanism
-    :param mech_names: dict to convert syn_name to hoc mechanism name
-    :param syn: synaptic mechanism object
-    :param nc: :class:'h.NetCon'
-    :param params: dict
+    Args:
+        syn_name: Synapse mechanism name
+        rules: Dict to correctly parse params for specified mechanism
+        mech_names: Dict to convert syn_name to mechanism name
+        syn: Synaptic mechanism object
+        nc: NetCon object
+        **params: Parameter values
 
+    Returns:
+        Tuple of (mech_params_set, nc_params_set)
+
+    Raises:
+        RuntimeError: If required mechanism or parameter is missing
     """
+    # Get mechanism name
     if mech_names is not None:
         mech_name = mech_names[syn_name]
     else:
         mech_name = syn_name
+
+    # Check if mechanism rules exist
+    if mech_name not in rules:
+        raise RuntimeError(f"Mechanism rules not found for {mech_name}")
+
     mech_rules = rules[mech_name]
+
+    # Check required components for parameters
+    if syn is None and any(param in mech_rules["mech_params"] for param in params):
+        raise RuntimeError(f"Synapse mechanism object required for {syn_name}")
+
+    if nc is None and any(param in mech_rules["netcon_params"] for param in params):
+        raise RuntimeError(f"NetCon object required for {syn_name}")
 
     nc_param = False
     mech_param = False
 
+    # Apply parameters
     for param, val in params.items():
-        failed = True
+        # Skip None values
+        if val is None:
+            continue
+
+        # Check parameter type
         if param in mech_rules["mech_params"]:
-            if syn is None:
-                failed = False
-            else:
-                if isinstance(val, ExprClosure) and (nc is not None):
+            if syn is not None:
+                if isinstance(val, ExprClosure) and nc is not None:
+                    # Handle expression closures
                     param_vals = []
                     for clos_param in val.parameters:
                         if hasattr(nc, clos_param):
                             param_vals.append(getattr(nc, clos_param))
-                            mech_param = True
-                            failed = False
                         else:
-                            failed = True
-                            break
-                    if not failed:
-                        setattr(syn, param, val(*param_vals))
+                            raise RuntimeError(
+                                f"NetCon missing required attribute {clos_param} for {param}"
+                            )
+                    setattr(syn, param, val(*param_vals))
                 else:
-                    if val is not None:
-                        setattr(syn, param, val)
-                    mech_param = True
-                    failed = False
+                    setattr(syn, param, val)
+                mech_param = True
 
         elif param in mech_rules["netcon_params"]:
-            if nc is None:
-                failed = False
-            else:
+            if nc is not None:
                 i = mech_rules["netcon_params"][param]
-                if int(nc.wcnt()) >= i:
-                    old = nc.weight[i]
-                    if isinstance(val, ExprClosure):
-                        param_vals = []
-                        for clos_param in val.parameters:
-                            if hasattr(nc, clos_param):
-                                param_vals.append(getattr(nc, clos_param))
-                                nc_param = True
-                                failed = False
-                            else:
-                                failed = True
-                                break
-                        if not failed:
-                            nc.weight[i] = val(*param_vals)
-                    else:
-                        if val is None:
-                            raise AttributeError(
-                                f"config_syn: netcon attribute {param} is None for synaptic mechanism: {mech_name}"
-                            )
-                        if isinstance(val, list):
-                            if len(val) > 1:
-                                raise AttributeError(
-                                    "config_syn: netcon attribute {param} is list of length > 1 for synaptic mechanism: {mech_name}"
-                                )
-                            new = val[0]
+                if int(nc.wcnt()) <= i:
+                    raise RuntimeError(
+                        f"NetCon weight count ({nc.wcnt()}) too small for parameter {param}"
+                    )
+
+                if isinstance(val, ExprClosure):
+                    # Handle expression closures
+                    param_vals = []
+                    for clos_param in val.parameters:
+                        if hasattr(nc, clos_param):
+                            param_vals.append(getattr(nc, clos_param))
                         else:
-                            new = val
-                        nc.weight[i] = new
-                        nc_param = True
-                        failed = False
-        if failed:
-            raise AttributeError(
-                f"config_syn: problem setting attribute: {param} for synaptic mechanism: {mech_name}"
-            )
+                            raise RuntimeError(
+                                f"NetCon missing required attribute {clos_param} for {param}"
+                            )
+                    nc.weight[i] = val(*param_vals)
+                else:
+                    if isinstance(val, list):
+                        if len(val) > 1:
+                            raise RuntimeError(
+                                f"NetCon attribute {param} has list of length > 1"
+                            )
+                        new_val = val[0]
+                    else:
+                        new_val = val
+                    nc.weight[i] = new_val
+                nc_param = True
+
+        else:
+            raise RuntimeError(f"Unknown parameter {param} for mechanism {syn_name}")
+
     return (mech_param, nc_param)
 
 
 def syn_in_seg(
     syn_name: str,
     seg: Segment,
-    syns_dict: DefaultDict[
-        Section, DefaultDict[float, DefaultDict[str, "HocObject"]]
-    ],
+    syns_dict: DefaultDict[Section, DefaultDict[float, DefaultDict[str, "HocObject"]]],
 ) -> Optional["HocObject"]:
     """
     If a synaptic mechanism of the specified type already exists in the specified segment, it is returned. Otherwise,
@@ -2184,7 +3689,7 @@ def syn_in_seg(
 def make_syn_mech(mech_name: str, seg: Segment) -> "HocObject":
     """
     TODO: Why was the hasattr(h, mech_name) check removed?
-    :param mech_name: str (name of the point_process, specified by Env.synapse_attributes.syn_mech_names)
+    :param mech_name: str (name of the point_process, specified by Env.synapse_manager.syn_mech_names)
     :param seg: hoc segment
     :return: hoc point process
     """
@@ -2195,9 +3700,7 @@ def make_syn_mech(mech_name: str, seg: Segment) -> "HocObject":
 def make_shared_synapse_mech(
     syn_name: str,
     seg: Segment,
-    syns_dict: DefaultDict[
-        Section, DefaultDict[float, DefaultDict[str, "HocObject"]]
-    ],
+    syns_dict: DefaultDict[Section, DefaultDict[float, DefaultDict[str, "HocObject"]]],
     mech_names: Optional[Dict[str, str]] = None,
 ) -> "HocObject":
     """
@@ -2345,10 +3848,10 @@ def validate_syn_mech_param(env: AbstractEnv, syn_name, param_name):
     :param param_name: str
     :return: bool
     """
-    syn_mech_names = env.synapse_attributes.syn_mech_names
+    syn_mech_names = env.synapse_manager.syn_mech_names
     if syn_name not in syn_mech_names:
         return False
-    syn_param_rules = env.synapse_attributes.syn_param_rules
+    syn_param_rules = env.synapse_manager.syn_param_rules
     mech_name = syn_mech_names[syn_name]
     if mech_name not in syn_param_rules:
         return False
@@ -2374,7 +3877,6 @@ def modify_syn_param(
     value=None,
     append=False,
     filters=None,
-    origin_filters=None,
     update_targets=False,
     verbose=False,
 ):
@@ -2384,7 +3886,7 @@ def modify_syn_param(
     optimization.
 
     Calls update_syn_mech_by_sec_type to set placeholder values in the
-    syn_mech_attrs_dict of a SynapseAttributes object. If
+    syn_mech_attrs_dict of a SynapseManager object. If
     update_targets flag is True, the attributes of any target synaptic
     point_process and netcon objects that have been inserted will also
     be updated. Otherwise, they can be updated separately by calling
@@ -2397,14 +3899,11 @@ def modify_syn_param(
     :param value: float
     :param append: bool
     :param filters: dict
-    :param origin_filters: dict
     :param update_targets: bool
     :param verbose: bool
     """
     if sec_type not in cell.nodes:
-        raise ValueError(
-            f"modify_syn_mech_param: sec_type: {sec_type} not in cell"
-        )
+        raise ValueError(f"modify_syn_mech_param: sec_type: {sec_type} not in cell")
     if param_name is None:
         raise ValueError(
             f"modify_syn_mech_param: missing required parameter to modify synaptic mechanism: {syn_name} "
@@ -2426,10 +3925,6 @@ def modify_syn_param(
         syn_filters = get_syn_filter_dict(env, filters)
         rules["filters"] = syn_filters
 
-    if origin_filters is not None:
-        origin_syn_filters = get_syn_filter_dict(env, origin_filters)
-        rules["origin_filters"] = origin_syn_filters
-
     backup_mech_dict = copy.deepcopy(cell.mech_dict)
 
     mech_content = {param_name: rules}
@@ -2444,9 +3939,7 @@ def modify_syn_param(
         cell.mech_dict[sec_type]["synapses"][syn_name] = mech_content
     # This parameter of this syn_name has already been specified in this type of section, and the user wants to append
     # a new rule set
-    elif (
-        param_name in cell.mech_dict[sec_type]["synapses"][syn_name] and append
-    ):
+    elif param_name in cell.mech_dict[sec_type]["synapses"][syn_name] and append:
         cell.mech_dict[sec_type]["synapses"][syn_name][param_name].append(rules)
     # This syn_name has been specified, but not this parameter, or the user wants to replace an existing rule set
     else:
@@ -2478,7 +3971,7 @@ def update_syn_mech_by_sec_type(
     """For the provided sec_type and synaptic mechanism, this method
     loops through the parameters specified in the mechanism
     dictionary, interprets the rules, and sets placeholder values in
-    the syn_mech_attr_dict of a SynapseAttributes object.
+    the syn_mech_attr_dict of a SynapseManager object.
 
     :param cell: :class:'BiophysCell'
     :param env: :class:'Env'
@@ -2489,18 +3982,16 @@ def update_syn_mech_by_sec_type(
     :param verbose: bool
     """
     for param_name, param_content in mech_content.items():
-        mech_param_contents = param_content
-        for param_content_entry in mech_param_contents:
-            update_syn_mech_param_by_sec_type(
-                cell,
-                env,
-                sec_type,
-                syn_name,
-                param_name,
-                param_content_entry,
-                update_targets,
-                verbose,
-            )
+        update_syn_mech_param_by_sec_type(
+            cell,
+            env,
+            sec_type,
+            syn_name,
+            param_name,
+            param_content,
+            update_targets,
+            verbose,
+        )
 
 
 def update_syn_mech_param_by_sec_type(
@@ -2516,7 +4007,7 @@ def update_syn_mech_param_by_sec_type(
     """For the provided synaptic mechanism and parameter, this method
     loops through nodes of the provided sec_type, interprets the
     provided rules, and sets placeholder values in the
-    syn_mech_attr_dict of a SynapseAttributes object.  If filter
+    syn_mech_attr_dict of a SynapseManager object.  If filter
     queries are provided, their values are converted to enumerated
     types.
 
@@ -2531,16 +4022,18 @@ def update_syn_mech_param_by_sec_type(
     """
     new_rules = copy.deepcopy(rules)
     if "filters" in new_rules:
-        synapse_filters = get_syn_filter_dict(
-            env, new_rules["filters"], convert=True
-        )
+        synapse_filters = get_syn_filter_dict(env, new_rules["filters"], convert=True)
         del new_rules["filters"]
     else:
-        synapse_filters = None
+        synapse_filters = {}
 
     is_reduced = False
     if hasattr(cell, "is_reduced"):
         is_reduced = cell.is_reduced
+        if callable(is_reduced):
+            is_reduced = is_reduced()
+        if isinstance(is_reduced, float):
+            is_reduced = is_reduced > 0.0
 
     if is_reduced:
         synapse_filters["swc_types"] = [env.SWC_Types[sec_type]]
@@ -2551,7 +4044,6 @@ def update_syn_mech_param_by_sec_type(
             param_name,
             new_rules,
             synapse_filters=synapse_filters,
-            origin_filters=origin_filters,
             update_targets=update_targets,
             verbose=verbose,
         )
@@ -2584,7 +4076,7 @@ def apply_syn_mech_rules(
 ):
     """Provided a synaptic mechanism, a parameter, a node, a list of
     syn_ids, and a dict of rules. Interprets the provided rules and updates synaptic mechanisms.
-    Calls set_syn_mech_param to sets parameter values in the syn_mech_attr_dict of a SynapseAttributes object.
+    Calls set_syn_mech_param to sets parameter values in the syn_mech_attr_dict of a SynapseManager object.
 
     :param cell: :class:'BiophysCell'
     :param env: :class:'Env'
@@ -2597,31 +4089,20 @@ def apply_syn_mech_rules(
     :param verbose: bool
     """
     if syn_ids is None:
-        syn_attrs = env.synapse_attributes
+        syn_manager = env.synapse_manager
         if synapse_filters is None:
             synapse_filters = {}
         if node is None:
-            filtered_syns = syn_attrs.filter_synapses(
+            syn_ids = syn_manager.filter_synapse_ids(
                 cell.gid, cache=env.cache_queries, **synapse_filters
             )
         else:
-            filtered_syns = syn_attrs.filter_synapses(
+            syn_ids = syn_manager.filter_synapse_ids(
                 cell.gid,
                 syn_sections=[node.index],
                 cache=env.cache_queries,
                 **synapse_filters,
             )
-        if len(filtered_syns) == 0:
-            return
-        syn_distances = []
-        for syn_id, syn in filtered_syns.items():
-            syn_distances.append(
-                get_distance_to_node(
-                    cell, cell.tree.root, node, loc=syn.syn_loc
-                )
-            )
-        target_distance = min(syn_distances)
-        syn_ids = list(filtered_syns.keys())
 
     if "value" in rules:
         baseline = rules["value"]
@@ -2657,10 +4138,11 @@ def set_syn_mech_param(
     rules,
     update_targets=False,
     verbose=False,
+    batch_size=1000,
 ):
     """Provided a synaptic mechanism, a parameter, a node, a list of
     syn_ids, and a dict of rules. Sets placeholder values for each
-    provided syn_id in the syn_mech_attr_dict of a SynapseAttributes
+    provided syn_id in the syn_mech_attr_dict of a SynapseManager
     object. If update_targets flag is True, the attributes
     of any target synaptic point_process and netcon objects that have
     been inserted will also be updated. Otherwise, they can be updated
@@ -2677,21 +4159,38 @@ def set_syn_mech_param(
     :param update_targets: bool
     :param verbose: bool
     """
-    syn_attrs = env.synapse_attributes
-    for syn_id in syn_ids:
-        syn_attrs.modify_mech_attrs(
-            cell.pop_name, cell.gid, syn_id, syn_name, {param_name: baseline}
-        )
+    syn_manager = env.synapse_manager
+
+    syn_id_iter = iter(syn_ids)
+    while True:
+        batch = list(itertools.islice(syn_id_iter, batch_size))
+        if not batch:
+            break
+
+        for syn_id in batch:
+            syn_manager.modify_mech_attrs(
+                cell.population_name, cell.gid, syn_id, syn_name, {param_name: baseline}
+            )
 
     if update_targets:
-        config_biophys_cell_syns(
-            env,
-            cell.gid,
-            cell.pop_name,
-            syn_ids=syn_ids,
-            insert=False,
-            verbose=verbose,
-        )
+        syn_id_iter = iter(syn_ids)
+        while True:
+            batch_iterator = itertools.islice(syn_id_iter, batch_size)
+            try:
+                first_id = next(batch_iterator)
+            except StopIteration:
+                break
+
+            batch_syn_ids = itertools.chain([first_id], batch_iterator)
+
+            config_biophys_cell_syns(
+                env,
+                cell.gid,
+                cell.population_name,
+                syn_ids=batch_syn_ids,
+                insert=False,
+                verbose=verbose,
+            )
 
 
 def init_syn_mech_attrs(
@@ -2702,7 +4201,7 @@ def init_syn_mech_attrs(
 ) -> None:
     """Consults a dictionary specifying parameters of NEURON synaptic mechanisms (point processes) for each type of
     section in a BiophysCell. Traverses through the tree of SHocNode nodes following order of inheritance. Calls
-    update_syn_mech_by_sec_type to set placeholder values in the syn_mech_attrs_dict of a SynapseAttributes object. If
+    update_syn_mech_by_sec_type to set placeholder values in the syn_mech_attrs_dict of a SynapseManager object. If
     update_targets flag is True, the attributes of any target synaptic point_process and netcon objects that have been
     inserted will also be updated. Otherwise, they can be updated separately by calling config_syns.
 
@@ -2748,19 +4247,18 @@ def write_syn_spike_count(
 
     rank = int(env.pc.id())
 
-    syn_attrs = env.synapse_attributes
-    rules = syn_attrs.syn_param_rules
+    syn_manager = env.synapse_manager
+    rules = syn_manager.syn_param_rules
 
     filters_dict = None
     if filters is not None:
         filters_dict = get_syn_filter_dict(env, filters, convert=True)
 
     if syn_names is None:
-        syn_names = list(syn_attrs.syn_name_index_dict.keys())
+        syn_names = list(syn_manager.syn_name_index_dict.keys())
 
     output_dict = {
-        syn_name: defaultdict(lambda: defaultdict(int))
-        for syn_name in syn_names
+        syn_name: defaultdict(lambda: defaultdict(int)) for syn_name in syn_names
     }
 
     gids = []
@@ -2769,19 +4267,19 @@ def write_syn_spike_count(
 
     for gid in gids:
         if filters_dict is None:
-            syns_dict = syn_attrs.syn_id_attr_dict[gid]
+            syn_items = syn_manager.get_synapses(gid)
         else:
-            syns_dict = syn_attrs.filter_synapses(gid, **filters_dict)
+            syn_items = syn_manager.filter_synapses(gid, **filters_dict)
         logger.info(
-            f"write_syn_mech_spike_counts: rank {rank}: population {pop_name}: gid {gid}: {len(syns_dict)} synapses"
+            f"write_syn_mech_spike_counts: rank {rank}: population {pop_name}: gid {gid}"
         )
 
-        for syn_id, syn in syns_dict.items():
+        for syn_id, syn in syn_items:
             source_population = syn.source.population
-            syn_netcon_dict = syn_attrs.pps_dict[gid][syn_id].netcon
+            syn_netcon_dict = syn_manager.pps_dict[gid][syn_id].netcon
             for syn_name in syn_names:
-                mech_name = syn_attrs.syn_mech_names[syn_name]
-                syn_index = syn_attrs.syn_name_index_dict[syn_name]
+                mech_name = syn_manager.syn_mech_names[syn_name]
+                syn_index = syn_manager.syn_name_index_dict[syn_name]
                 if (
                     syn_index in syn_netcon_dict
                     and "count" in rules[mech_name]["netcon_state"]
@@ -2797,7 +4295,7 @@ def write_syn_spike_count(
 
         for gid, gid_syn_spk_count_dict in syn_attrs_dict.items():
             for source_index, source_count in gid_syn_spk_count_dict.items():
-                source_pop_name = syn_attrs.presyn_names[source_index]
+                source_pop_name = syn_manager.presyn_names[source_index]
                 attr_dict[gid][source_pop_name] = np.asarray(
                     [source_count], dtype="uint32"
                 )

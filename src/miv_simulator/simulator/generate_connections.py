@@ -10,7 +10,6 @@ from miv_simulator.connections import (
 )
 from miv_simulator import config
 from miv_simulator.env import Env
-from miv_simulator.geometry import make_distance_interpolant, measure_distances
 from miv_simulator.utils.neuron import configure_hoc
 from mpi4py import MPI
 from neuroh5.io import (
@@ -18,7 +17,7 @@ from neuroh5.io import (
     read_population_names,
     read_population_ranges,
 )
-from typing import Optional, Union, Tuple
+from typing import Optional, Union, Tuple, Dict
 
 sys_excepthook = sys.excepthook
 
@@ -34,7 +33,7 @@ def mpi_excepthook(type, value, traceback):
 sys.excepthook = mpi_excepthook
 
 
-# !deprecated, use distance connections instead
+# !for imperative API, use distance connections instead
 def generate_distance_connections(
     config,
     include,
@@ -62,7 +61,6 @@ def generate_distance_connections(
     env = Env(comm=MPI.COMM_WORLD, config=config, config_prefix=config_prefix)
 
     configure_hoc(
-        use_coreneuron=env.use_coreneuron,
         dt=env.dt,
         tstop=env.tstop,
         celsius=env.globals.get("celsius", None),
@@ -75,9 +73,7 @@ def generate_distance_connections(
     connectivity_seed = int(
         env.model_config["Random Seeds"]["Distance-Dependent Connectivity"]
     )
-    cluster_seed = int(
-        env.model_config["Random Seeds"]["Connectivity Clustering"]
-    )
+    cluster_seed = int(env.model_config["Random Seeds"]["Connectivity Clustering"])
 
     return generate_connections(
         filepath=coords_path,
@@ -85,16 +81,12 @@ def generate_distance_connections(
         include_forest_populations=include,
         synapses=env.connection_config,
         axon_extents=env.connection_extents,
-        template_path=env.template_path,
-        use_coreneuron=env.use_coreneuron,
-        dt=env.dt,
-        tstop=env.tstop,
-        celsius=env.celsius,
         output_filepath=connectivity_path,
         connectivity_namespace=connectivity_namespace,
         coordinates_namespace=coords_namespace,
         synapses_namespace=synapses_namespace,
         distances_namespace=distances_namespace,
+        populations_dict=env.Populations,
         io_size=io_size,
         chunk_size=chunk_size,
         value_chunk_size=value_chunk_size,
@@ -111,12 +103,12 @@ def generate_connections(
     include_forest_populations: Optional[list],
     synapses: config.Synapses,
     axon_extents: config.AxonExtents,
-    template_path: str,
     output_filepath: Optional[str],
     connectivity_namespace: str,
     coordinates_namespace: str,
     synapses_namespace: str,
     distances_namespace: str,
+    populations_dict: Dict[str, int],
     io_size: int,
     chunk_size: int,
     value_chunk_size: int,
@@ -124,6 +116,7 @@ def generate_connections(
     write_size: int,
     dry_run: bool,
     seeds: Union[Tuple[int], int, None],
+    debug: bool = False,
 ):
     logger = utils.get_script_logger(os.path.basename(__file__))
 
@@ -195,9 +188,7 @@ def generate_connections(
     soma_coords = comm.bcast(soma_coords, root=0)
 
     forest_populations = sorted(read_population_names(forest_filepath))
-    if (include_forest_populations is None) or (
-        len(include_forest_populations) == 0
-    ):
+    if (include_forest_populations is None) or (len(include_forest_populations) == 0):
         destination_populations = forest_populations
     else:
         destination_populations = []
@@ -209,7 +200,7 @@ def generate_connections(
             f"Generating connectivity for populations {destination_populations}..."
         )
 
-    # !deprecated, does not seem applicable any longer
+    # !for imperative API, does not seem applicable any longer
     # if len(soma_distances) == 0:
     #     (origin_ranges, ip_dist_u, ip_dist_v) = make_distance_interpolant(
     #         env, resolution=resolution, nsample=interp_chunk_size
@@ -241,7 +232,6 @@ def generate_connections(
             r = random.Random(seeds)
             seeds = [r.randint(0, 2**32 - 1) for _ in range(3)]
 
-        populations_dict = config.PopulationsDef.__members__
         generate_uv_distance_connections(
             comm,
             populations_dict,
@@ -260,6 +250,6 @@ def generate_connections(
             cache_size,
             write_size,
             dry_run=dry_run,
-            debug=False,
+            debug=debug,
         )
     MPI.Finalize()

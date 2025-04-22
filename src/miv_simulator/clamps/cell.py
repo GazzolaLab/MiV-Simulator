@@ -1,7 +1,7 @@
 from typing import Dict, List, Optional, Tuple, Union
 
 import uuid
-
+import warnings
 import numpy as np
 from miv_simulator import cells, synapses
 from miv_simulator.cells import BiophysCell
@@ -24,7 +24,6 @@ from miv_simulator.utils.neuron import (
 )
 from mpi4py import MPI  # Must come before importing NEURON
 from neuroh5.io import append_cell_attributes
-from neuron import h
 from numpy import ndarray
 from scipy.optimize import curve_fit
 
@@ -97,37 +96,18 @@ def init_biophys_cell(
     rank = int(env.pc.id())
 
     ## Determine template name for this cell type
-    template_name = env.celltypes[pop_name]["template"]
+    template_name = env.celltypes[pop_name].get("template", None)
 
     ## Determine if a mechanism configuration file exists for this cell type
     mech_dict = None
     if "mech_file_path" in env.celltypes[pop_name]:
         mech_dict = env.celltypes[pop_name]["mech_dict"]
 
-    ## Determine if correct_for_spines flag has been specified for this cell type
-    synapse_config = env.celltypes[pop_name]["synapses"]
-    if "correct_for_spines" in synapse_config:
-        correct_for_spines_flag = synapse_config["correct_for_spines"]
-    else:
-        correct_for_spines_flag = False
+    reduced_cons = cells.get_reduced_cell_constructor(template_name)
 
     ## Load cell gid and its synaptic attributes and connection data
-    if template_name.lower() == "pr_nrn":
-        cell = cells.make_PR_cell(
-            env,
-            pop_name,
-            gid,
-            tree_dict=cell_dict.get("morph", None),
-            synapses_dict=cell_dict.get("synapse", None),
-            connection_graph=cell_dict.get("connectivity", None),
-            weight_dict=cell_dict.get("weight", None),
-            mech_dict=mech_dict,
-            load_synapses=True,
-            load_weights=load_weights,
-            load_edges=load_connections,
-        )
-    elif template_name.lower() == "sc_nrn":
-        cell = cells.make_SC_cell(
+    if reduced_cons is not None:
+        cell = reduced_cons(
             env,
             pop_name,
             gid,
@@ -156,13 +136,6 @@ def init_biophys_cell(
             validate_tree=validate_tree,
         )
 
-    cells.init_biophysics(
-        cell,
-        reset_cable=True,
-        correct_cm=correct_for_spines_flag,
-        correct_g_pas=correct_for_spines_flag,
-        env=env,
-    )
     synapses.init_syn_mech_attrs(cell, env)
 
     if register_cell:
@@ -171,6 +144,11 @@ def init_biophys_cell(
     is_reduced = False
     if hasattr(cell, "is_reduced"):
         is_reduced = cell.is_reduced
+        if callable(is_reduced):
+            is_reduced = is_reduced()
+        if isinstance(is_reduced, float):
+            is_reduced = is_reduced > 0.0
+
     if not is_reduced:
         cells.report_topology(env, cell)
 
@@ -254,7 +232,7 @@ def fit_membrane_time_constant(t, v, t0, t1, rmse_max_tol=1.0):
     try:
         popt, pcov = curve_fit(exp_curve, t_window, v_window, p0=p0)
     except RuntimeError:
-        logging.info("Curve fit for membrane time constant failed")
+        warnings.warn("Curve fit for membrane time constant failed")
         return np.nan, np.nan, np.nan
 
     pred = exp_curve(t_window, *popt)
@@ -262,9 +240,8 @@ def fit_membrane_time_constant(t, v, t0, t1, rmse_max_tol=1.0):
     rmse = np.sqrt(np.mean((pred - v_window) ** 2))
 
     if rmse > rmse_max_tol:
-        logging.debug(
-            "RMSE %f for the Curve fit for membrane time constant exceeded the maximum tolerance of %f"
-            % (rmse, rmse_max_tol)
+        warnings.warn(
+            f"RMSE {rmse} for the Curve fit for membrane time constant exceeded the maximum tolerance of {rmse_max_tol}"
         )
         return np.nan, np.nan, np.nan
 
@@ -295,8 +272,8 @@ def measure_time_constant(
     """
 
     if np.max(t) < t0 or np.max(t) < t1:
-        logging.debug(
-            "measure_time_constant: time series ends before t0 = {t0} or t1 = {t1}"
+        warnings.warn(
+            f"measure_time_constant: time series ends before t0 = {t0} or t1 = {t1}"
         )
         return np.nan
 
@@ -313,17 +290,14 @@ def measure_time_constant(
         np.argwhere(t >= (t0 - baseline_interval) * 0.999)[0]
     )
     noise = np.std(v[noise_interval_start_index:start_index])
-    t_noise_start = t[noise_interval_start_index]
 
     if noise == 0:  # noiseless - likely a deterministic model
         snr = np.inf
     else:
         snr = signal / noise
     if snr < min_snr:
-        logging.debug(
-            "measure_time_constant: signal-to-noise ratio too low for time constant estimate ({:g} < {:g})".format(
-                snr, min_snr
-            )
+        warnings.warn(
+            f"measure_time_constant: signal-to-noise ratio too low for time constant estimate ({snr} < {min_snr})"
         )
         return np.nan
 
@@ -332,7 +306,7 @@ def measure_time_constant(
     )
 
     if not search_result.size:
-        logger.debug(
+        warnings.warn(
             "measure_time_constant: could not find interval for time constant estimate"
         )
         return np.nan
@@ -377,8 +351,8 @@ def measure_passive(
     t1 = iclamp_res["t1"]
 
     if np.max(t) < t0 or np.max(t) < t1:
-        logging.debug(
-            "measure_passive: time series ends before t0 = {t0} or t1 = {t1}"
+        warnings.warn(
+            f"measure_passive: time series ends before t0 = {t0} or t1 = {t1}"
         )
         return {"Rinp": np.nan, "tau": np.nan}
 
@@ -394,8 +368,7 @@ def measure_passive(
         "tau0": np.asarray([tau0], dtype=np.float32),
     }
 
-    logger.info(f"results = {results}")
-    env.synapse_attributes.del_syn_id_attr_dict(gid)
+    env.synapse_manager.del_syn_id_attr_dict(gid)
     if gid in env.biophys_cells[pop_name]:
         del env.biophys_cells[pop_name][gid]
 
@@ -410,7 +383,6 @@ def measure_ap(gid, pop_name, v_init, env: AbstractEnv, cell_dict={}):
 
     h.dt = env.dt
 
-    prelength = 100.0
     stimdur = 10.0
 
     soma = list(hoc_cell.soma)[0]
@@ -428,15 +400,11 @@ def measure_ap(gid, pop_name, v_init, env: AbstractEnv, cell_dict={}):
 
     results = {
         "spike threshold current": np.asarray([thr], dtype=np.float32),
-        "spike threshold trace t": np.asarray(
-            h.tlog.to_python(), dtype=np.float32
-        ),
-        "spike threshold trace v": np.asarray(
-            h.Vlog.to_python(), dtype=np.float32
-        ),
+        "spike threshold trace t": np.asarray(h.tlog.to_python(), dtype=np.float32),
+        "spike threshold trace v": np.asarray(h.Vlog.to_python(), dtype=np.float32),
     }
 
-    env.synapse_attributes.del_syn_id_attr_dict(gid)
+    env.synapse_manager.del_syn_id_attr_dict(gid)
     if gid in env.biophys_cells[pop_name]:
         del env.biophys_cells[pop_name][gid]
 
@@ -544,9 +512,7 @@ def measure_ap_rate(
         "ISI_mean": np.asarray([isimean], dtype=np.float32),
         "ISI_var": np.asarray([isivar], dtype=np.float32),
         "ISI_stdev": np.asarray([isistdev], dtype=np.float32),
-        "ISI_adaptation_1": np.asarray(
-            [isivect.x[0] / isimean], dtype=np.float32
-        ),
+        "ISI_adaptation_1": np.asarray([isivect.x[0] / isimean], dtype=np.float32),
         "ISI_adaptation_2": np.asarray(
             [isivect.x[0] / isivect.x[isilast]], dtype=np.float32
         ),
@@ -558,7 +524,7 @@ def measure_ap_rate(
         ),
     }
 
-    env.synapse_attributes.del_syn_id_attr_dict(gid)
+    env.synapse_manager.del_syn_id_attr_dict(gid)
     if gid in env.biophys_cells[pop_name]:
         del env.biophys_cells[pop_name][gid]
 
@@ -621,14 +587,16 @@ def measure_fi(gid, pop_name, v_init, env: AbstractEnv, cell_dict={}):
         "FI_curve_frequency": np.asarray(frs, dtype=np.float32),
     }
 
-    env.synapse_attributes.del_syn_id_attr_dict(gid)
+    env.synapse_manager.del_syn_id_attr_dict(gid)
     if gid in env.biophys_cells[pop_name]:
         del env.biophys_cells[pop_name][gid]
 
     return results
 
 
-def measure_gap_junction_coupling(gid, population, v_init, env: AbstractEnv):
+def measure_gap_junction_coupling(
+    gid, population, v_init, env: AbstractEnv, weight=5.4e-4, cell_dict={}
+):
     h("objref gjlist, cells, Vlog1, Vlog2")
 
     pc = env.pc
@@ -638,10 +606,12 @@ def measure_gap_junction_coupling(gid, population, v_init, env: AbstractEnv):
     biophys_cell1 = init_biophys_cell(
         env, population, gid, register_cell=False, cell_dict=cell_dict
     )
-    hoc_cell1 = biophys_cell1.hoc_cell
+    biophys_cell2 = init_biophys_cell(
+        env, population, gid + 1, register_cell=False, cell_dict=cell_dict
+    )
 
-    cell1 = cells.make_neurotree_hoc_cell(template_class, neurotree_dict=tree)
-    cell2 = cells.make_neurotree_hoc_cell(template_class, neurotree_dict=tree)
+    cell1 = biophys_cell1.hoc_cell
+    cell2 = biophys_cell2.hoc_cell
 
     h.cells.append(cell1)
     h.cells.append(cell2)
@@ -676,7 +646,7 @@ def measure_gap_junction_coupling(gid, population, v_init, env: AbstractEnv):
     stim2.dur = stimdur
     stim2.amp = -0.1
 
-    log_size = old_div(tstop, h.dt) + 1
+    log_size = (tstop // h.dt) + 1
 
     h.tlog = h.Vector(log_size, 0)
     h.tlog.record(h._ref_t)
@@ -688,12 +658,8 @@ def measure_gap_junction_coupling(gid, population, v_init, env: AbstractEnv):
     h.Vlog2.record(soma2(0.5)._ref_v)
 
     gjpos = 0.5
-    neuron_utils.mkgap(
-        env, cell1, source, gjpos, srcsec, ggid, ggid + 1, weight
-    )
-    neuron_utils.mkgap(
-        env, cell2, destination, gjpos, dstsec, ggid + 1, ggid, weight
-    )
+    neuron_utils.mkgap(env, cell1, source, gjpos, srcsec, ggid, ggid + 1, weight)
+    neuron_utils.mkgap(env, cell2, destination, gjpos, dstsec, ggid + 1, ggid, weight)
 
     pc.setup_transfer()
     pc.set_maxstep(10.0)
@@ -747,7 +713,7 @@ def measure_psc(
     h.Vlog.record(soma(0.5)._ref_v)
 
     h.ilog = h.Vector()
-    ilog.record(se._ref_i)
+    h.ilog.record(se._ref_i)
 
     h.tstop = tstop
 
@@ -762,7 +728,6 @@ def measure_psc(
     vec_v = vec_v[idx]
     vec_t = vec_t[idx]
 
-    t_holding = vec_t[0]
     i_holding = vec_i[0]
 
     i_peak = np.max(np.abs(vec_i[1:]))
@@ -813,8 +778,6 @@ def measure_psp(
         insert_vecstims=True,
     )
 
-    hoc_cell = biophys_cell.hoc_cell
-
     h.dt = env.dt
 
     prelength = 200.0
@@ -825,9 +788,9 @@ def measure_psp(
         rules["swc_types"] = [swc_type]
     if syn_layer is not None:
         rules["layers"] = [syn_layer]
-    syn_attrs = env.synapse_attributes
+    syn_manager = env.synapse_manager
     syn_filters = get_syn_filter_dict(env, rules=rules, convert=True)
-    syns = syn_attrs.filter_synapses(biophys_cell.gid, **syn_filters)
+    syns = syn_manager.filter_synapses(biophys_cell.gid, **syn_filters)
 
     print(
         "total number of %s %s synapses: %d"
@@ -838,8 +801,8 @@ def measure_psp(
     count = 0
     target_syn_pps = None
     for target_syn_id, target_syn in iter(syns.items()):
-        target_syn_pps = syn_attrs.get_pps(gid, target_syn_id, syn_mech_name)
-        target_syn_nc = syn_attrs.get_netcon(gid, target_syn_id, syn_mech_name)
+        target_syn_pps = syn_manager.get_pps(gid, target_syn_id, syn_mech_name)
+        target_syn_nc = syn_manager.get_netcon(gid, target_syn_id, syn_mech_name)
         target_syn_nc.weight[0] = weight
         setattr(target_syn_pps, "e", erev)
         vs = target_syn_nc.pre()
@@ -901,21 +864,13 @@ def measure_psp(
     print(f"measure_psp: amp_v = {amp_v:f} amp_i = {amp_i:f}")
 
     results = {
-        f"{presyn_name} {syn_mech_name} PSP": np.asarray(
-            [amp_v], dtype=np.float32
-        ),
-        f"{presyn_name} {syn_mech_name} PSP i": np.asarray(
-            vec_i, dtype=np.float32
-        ),
-        f"{presyn_name} {syn_mech_name} PSP v": np.asarray(
-            vec_v, dtype=np.float32
-        ),
-        f"{presyn_name} {syn_mech_name} PSP t": np.asarray(
-            vec_t, dtype=np.float32
-        ),
+        f"{presyn_name} {syn_mech_name} PSP": np.asarray([amp_v], dtype=np.float32),
+        f"{presyn_name} {syn_mech_name} PSP i": np.asarray(vec_i, dtype=np.float32),
+        f"{presyn_name} {syn_mech_name} PSP v": np.asarray(vec_v, dtype=np.float32),
+        f"{presyn_name} {syn_mech_name} PSP t": np.asarray(vec_t, dtype=np.float32),
     }
 
-    env.synapse_attributes.del_syn_id_attr_dict(gid)
+    env.synapse_manager.del_syn_id_attr_dict(gid)
     if gid in env.biophys_cells[pop_name]:
         del env.biophys_cells[pop_name][gid]
 

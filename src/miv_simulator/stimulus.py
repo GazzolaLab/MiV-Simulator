@@ -50,15 +50,13 @@ class ConstantInputCellConfig:
             mod_depth = phase_mod_config.mod_depth
             freq = phase_mod_config.frequency
 
-            self.phase_mod_function = (
-                lambda t, initial_phase=0.0: stationary_phase_mod(
-                    t,
-                    phase_range,
-                    phase_pref,
-                    phase_offset + initial_phase,
-                    mod_depth,
-                    freq,
-                )
+            self.phase_mod_function = lambda t, initial_phase=0.0: stationary_phase_mod(
+                t,
+                phase_range,
+                phase_pref,
+                phase_offset + initial_phase,
+                mod_depth,
+                freq,
             )
 
         if selectivity_attr_dict is not None:
@@ -73,17 +71,13 @@ class ConstantInputCellConfig:
             self.selectivity_type = selectivity_type
             self.peak_rate = peak_rate
 
-    def init_from_attr_dict(
-        self, selectivity_attr_dict: Dict[str, ndarray]
-    ) -> None:
+    def init_from_attr_dict(self, selectivity_attr_dict: Dict[str, ndarray]) -> None:
         self.selectivity_type = selectivity_attr_dict["Selectivity Type"][0]
         self.peak_rate = selectivity_attr_dict["Peak Rate"][0]
 
     def get_selectivity_attr_dict(self):
         return {
-            "Selectivity Type": np.array(
-                [self.selectivity_type], dtype=np.uint8
-            ),
+            "Selectivity Type": np.array([self.selectivity_type], dtype=np.uint8),
             "Peak Rate": np.array([self.peak_rate], dtype=np.float32),
         }
 
@@ -115,9 +109,7 @@ class ConstantInputCellConfig:
                 0.0,
             )
             t = d / velocity
-            rate_array *= self.phase_mod_function(
-                t, initial_phase=initial_phase
-            )
+            rate_array *= self.phase_mod_function(t, initial_phase=initial_phase)
             mean_rate_mod = np.mean(rate_array)
             if mean_rate_mod > 0.0:
                 rate_array *= mean_rate / mean_rate_mod
@@ -208,7 +200,7 @@ def get_equilibration(env: AbstractEnv) -> Tuple[ndarray, int]:
             env.stimulus_config["Equilibration Duration"]
             / env.stimulus_config["Temporal Resolution"]
         )
-        from scipy.signal import hann
+        from scipy.signal.windows import hann
 
         equilibrate_hann = hann(2 * equilibrate_len)[:equilibrate_len]
         equilibrate = (equilibrate_hann, equilibrate_len)
@@ -225,12 +217,8 @@ def get_2D_arena_bounds(arena, margin=0.0, margin_fraction=None):
     :return: tuple of (tuple of float)
     """
 
-    vertices_x = np.asarray(
-        [v[0] for v in arena.domain.vertices], dtype=np.float32
-    )
-    vertices_y = np.asarray(
-        [v[1] for v in arena.domain.vertices], dtype=np.float32
-    )
+    vertices_x = np.asarray([v[0] for v in arena.domain.vertices], dtype=np.float32)
+    vertices_y = np.asarray([v[1] for v in arena.domain.vertices], dtype=np.float32)
     if margin_fraction is not None:
         extent_x = np.abs(np.max(vertices_x) - np.min(vertices_x))
         extent_y = np.abs(np.max(vertices_y) - np.min(vertices_y))
@@ -248,21 +236,15 @@ def get_2D_arena_extents(arena):
     :return: tuple of (tuple of float)
     """
 
-    vertices_x = np.asarray(
-        [v[0] for v in arena.domain.vertices], dtype=np.float32
-    )
-    vertices_y = np.asarray(
-        [v[1] for v in arena.domain.vertices], dtype=np.float32
-    )
+    vertices_x = np.asarray([v[0] for v in arena.domain.vertices], dtype=np.float32)
+    vertices_y = np.asarray([v[1] for v in arena.domain.vertices], dtype=np.float32)
     extent_x = np.abs(np.max(vertices_x) - np.min(vertices_x))
     extent_y = np.abs(np.max(vertices_y) - np.min(vertices_y))
 
     return extent_x, extent_y
 
 
-def get_2D_arena_spatial_mesh(
-    arena, spatial_resolution=5.0, margin=0.0, indexing="ij"
-):
+def get_2D_arena_spatial_mesh(arena, spatial_resolution=5.0, margin=0.0, indexing="ij"):
     """
 
     :param arena: namedtuple
@@ -270,9 +252,7 @@ def get_2D_arena_spatial_mesh(
     :param margin: float
     :return: tuple of array
     """
-    arena_x_bounds, arena_y_bounds = get_2D_arena_bounds(
-        arena=arena, margin=margin
-    )
+    arena_x_bounds, arena_y_bounds = get_2D_arena_bounds(arena=arena, margin=margin)
     arena_x = np.arange(
         arena_x_bounds[0],
         arena_x_bounds[1] + spatial_resolution / 2.0,
@@ -295,9 +275,7 @@ def get_2D_arena_grid(arena, spatial_resolution=5.0, margin=0.0, indexing="ij"):
     :param margin: float
     :return: tuple of array
     """
-    arena_x_bounds, arena_y_bounds = get_2D_arena_bounds(
-        arena=arena, margin=margin
-    )
+    arena_x_bounds, arena_y_bounds = get_2D_arena_bounds(arena=arena, margin=margin)
     arena_x = np.arange(
         arena_x_bounds[0],
         arena_x_bounds[1] + spatial_resolution / 2.0,
@@ -399,15 +377,11 @@ def generate_input_spike_trains(
     abs_t = (t - t[0]) / 1000.0
     velocity = np.insert(abs_d[1:] / abs_t[1:], 0, abs_d[1] / abs_t[1])
 
-    equilibration_duration = float(
-        env.stimulus_config["Equilibration Duration"]
-    )
+    equilibration_duration = float(env.stimulus_config["Equilibration Duration"])
     temporal_resolution = float(env.stimulus_config["Temporal Resolution"])
 
     local_random = np.random.RandomState()
-    input_spike_train_seed = int(
-        env.model_config["Random Seeds"]["Input Spiketrains"]
-    )
+    input_spike_train_seed = int(env.model_config["Random Seeds"]["Input Spiketrains"])
 
     if phase_mod_config is not None:
         if (n_trials > 1) and (initial_phases is None):
@@ -449,7 +423,7 @@ def generate_input_spike_trains(
             velocity=velocity if phase_mod_config is not None else None,
             initial_phase=initial_phase,
         )
-        if (selectivity_type_name != "constant") and (equilibrate is not None):
+        if equilibrate is not None:
             equilibrate_filter, equilibrate_len = equilibrate
             rate_map[:equilibrate_len] = np.multiply(
                 rate_map[:equilibrate_len], equilibrate_filter
@@ -464,9 +438,7 @@ def generate_input_spike_trains(
         if merge_trials:
             spike_train += float(i) * trial_duration
         spike_trains.append(spike_train)
-        trial_indices.append(
-            np.ones((spike_train.shape[0],), dtype=np.uint8) * i
-        )
+        trial_indices.append(np.ones((spike_train.shape[0],), dtype=np.uint8) * i)
 
     if debug and rank == 0:
         callback, context = debug
@@ -494,14 +466,10 @@ def generate_input_spike_trains(
         spikes_attr_dict["Selectivity Type"] = np.array(
             [this_selectivity_type], dtype=np.uint8
         )
-        spikes_attr_dict["Trajectory Rate Map"] = np.asarray(
-            rate_map, dtype=np.float32
-        )
+        spikes_attr_dict["Trajectory Rate Map"] = np.asarray(rate_map, dtype=np.float32)
 
     if spike_hist_sum is not None:
-        spike_hist_edges = np.linspace(
-            min(t), max(t), spike_hist_resolution + 1
-        )
+        spike_hist_edges = np.linspace(min(t), max(t), spike_hist_resolution + 1)
         hist, edges = np.histogram(spike_train, bins=spike_hist_edges)
         spike_hist_sum[this_selectivity_type_name] = np.add(
             spike_hist_sum[this_selectivity_type_name], hist
@@ -560,9 +528,7 @@ def generate_input_features(
         rank = 0
 
     norm_u_arc_distance = norm_distances[0]
-    selectivity_seed_offset = int(
-        env.model_config["Random Seeds"]["Input Selectivity"]
-    )
+    selectivity_seed_offset = int(env.model_config["Random Seeds"]["Input Selectivity"])
 
     local_random = np.random.RandomState()
     local_random.seed(int(selectivity_seed_offset + gid))
@@ -695,9 +661,7 @@ def rate_maps_from_features(
     """Initializes presynaptic spike sources from a file with input selectivity features represented as firing rates."""
 
     if input_features_dict is not None:
-        if (input_features_path is not None) or (
-            input_features_namespace is not None
-        ):
+        if (input_features_path is not None) or (input_features_namespace is not None):
             raise RuntimeError(
                 "rate_maps_from_features: when input_features_dict is provided, input_features_path must be None"
             )
@@ -780,9 +744,7 @@ def rate_maps_from_features(
 
     for gid, selectivity_attr_dict in input_features_iter:
         this_selectivity_type = selectivity_attr_dict["Selectivity Type"][0]
-        this_selectivity_type_name = selectivity_type_names[
-            this_selectivity_type
-        ]
+        this_selectivity_type_name = selectivity_type_names[this_selectivity_type]
 
         input_cell_config = get_input_cell_config(
             selectivity_type=this_selectivity_type,
@@ -863,9 +825,7 @@ def arena_rate_maps_from_features(
     )
     for gid, selectivity_attr_dict in input_features_iter:
         this_selectivity_type = selectivity_attr_dict["Selectivity Type"][0]
-        this_selectivity_type_name = selectivity_type_names[
-            this_selectivity_type
-        ]
+        this_selectivity_type_name = selectivity_type_names[this_selectivity_type]
         input_cell_config = get_input_cell_config(
             population=population,
             selectivity_type=this_selectivity_type,
@@ -880,9 +840,7 @@ def arena_rate_maps_from_features(
     return input_rate_map_dict
 
 
-def oscillation_phase_mod_config(
-    env, population, soma_positions, local_random=None
-):
+def oscillation_phase_mod_config(env, population, soma_positions, local_random=None):
     """
     Obtains phase modulation configuration for a given neuronal population.
     """
@@ -898,12 +856,8 @@ def oscillation_phase_mod_config(
         num_cells=len(soma_positions),
         local_random=local_random,
     )
-    position_array = np.asarray(
-        [soma_positions[k] for k in sorted(soma_positions)]
-    )
-    population_phase_shifts = global_oscillation_phase_shift(
-        env, position_array
-    )
+    position_array = np.asarray([soma_positions[k] for k in sorted(soma_positions)])
+    population_phase_shifts = global_oscillation_phase_shift(env, position_array)
 
     phase_mod_config_dict = {}
     for i, gid in enumerate(sorted(soma_positions)):
@@ -934,9 +888,7 @@ def global_oscillation_phase_shift(env, position):
     return x * phase_slope + phase_offset
 
 
-def global_oscillation_phase_pref(
-    env, population, num_cells, local_random=None
-):
+def global_oscillation_phase_pref(env, population, num_cells, local_random=None):
     """
     Computes oscillatory phase preferences for all cells in the given population.
     Uses the "Global Oscillation" entry in the input configuration.
@@ -986,9 +938,7 @@ def global_oscillation_initial_phases(env, n_trials, local_random=None):
     return a
 
 
-def stationary_phase_mod(
-    t, phase_range, phase_pref, phase_offset, mod_depth, freq
-):
+def stationary_phase_mod(t, phase_range, phase_pref, phase_offset, mod_depth, freq):
     """
     Computes stationary oscillatory phase modulation with the given parameters.
     """

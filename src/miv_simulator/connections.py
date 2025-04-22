@@ -1,4 +1,4 @@
-"""Classes and procedures related to neuronal connectivity generation. """
+"""Classes and procedures related to neuronal connectivity generation."""
 
 from typing import Any, Callable, DefaultDict, Dict, List, Tuple, Union
 
@@ -65,12 +65,8 @@ class ConnectionProb:
                 else:
                     extent_offset = (0.0, 0.0)
 
-                u_extent = (float(extent_width[0]) / 2.0) - float(
-                    extent_offset[0]
-                )
-                v_extent = (float(extent_width[1]) / 2.0) - float(
-                    extent_offset[1]
-                )
+                u_extent = (float(extent_width[0]) / 2.0) - float(extent_offset[0])
+                v_extent = (float(extent_width[1]) / 2.0) - float(extent_offset[1])
                 self.width[source_population][layer] = {
                     "u": u_extent,
                     "v": v_extent,
@@ -95,16 +91,12 @@ class ConnectionProb:
                             norm.pdf(
                                 np.abs(distance_u)
                                 - self.offset[source_population][layer]["u"],
-                                scale=self.scale_factor[source_population][
-                                    layer
-                                ]["u"],
+                                scale=self.scale_factor[source_population][layer]["u"],
                             )
                             * norm.pdf(
                                 np.abs(distance_v)
                                 - self.offset[source_population][layer]["v"],
-                                scale=self.scale_factor[source_population][
-                                    layer
-                                ]["v"],
+                                scale=self.scale_factor[source_population][layer]["v"],
                             )
                         ),
                         otypes=[float],
@@ -135,9 +127,9 @@ class ConnectionProb:
         ]
         source_coords = self.soma_coords[source_population]
 
-        destination_distances = self.soma_distances[
-            self.destination_population
-        ][destination_gid]
+        destination_distances = self.soma_distances[self.destination_population][
+            destination_gid
+        ]
 
         source_distances = self.soma_distances[source_population]
 
@@ -277,23 +269,22 @@ def choose_synapse_projection(
         syn_config_contacts,
     ) in projection_synapse_dict.items():
         if (syn_type == syn_config_type) and (swc_type in syn_config_sections):
-            ord_indices = list_find_all(
-                lambda x: x == swc_type, syn_config_sections
-            )
+            ord_indices = list_find_all(lambda x: x == swc_type, syn_config_sections)
             for ord_index in ord_indices:
                 if syn_layer == syn_config_layers[ord_index]:
+                    if k not in population_dict:
+                        raise RuntimeError(
+                            f"Key {k} is not in population_dict; "
+                            f" population_dict is {population_dict}"
+                        )
                     projection_lst.append(population_dict[k])
-                    projection_prob_lst.append(
-                        syn_config_proportions[ord_index]
-                    )
+                    projection_prob_lst.append(syn_config_proportions[ord_index])
     if len(projection_lst) > 1:
         candidate_projections = np.asarray(projection_lst)
         candidate_probs = np.asarray(projection_prob_lst)
-        if log:
-            logger.info(f"{candidate_projections=} {candidate_probs=}")
-        projection = ranstream_syn.choice(
-            candidate_projections, 1, p=candidate_probs
-        )[0]
+        projection = ranstream_syn.choice(candidate_projections, 1, p=candidate_probs)[
+            0
+        ]
     elif len(projection_lst) > 0:
         projection = projection_lst[0]
     else:
@@ -353,27 +344,23 @@ def generate_synaptic_connections(
     """
     num_projections = len(projection_synapse_dict)
     source_populations = sorted(projection_synapse_dict)
-    prj_pop_index = {
-        population: i for (i, population) in enumerate(source_populations)
-    }
+    prj_pop_index = {population: i for (i, population) in enumerate(source_populations)}
     synapse_prj_counts = np.zeros((num_projections,))
     synapse_prj_partition = defaultdict(lambda: defaultdict(list))
     maxit = 10
     it = 0
     syn_cdist_dict = {}
     ## assign each synapse to a projection
-    while (np.count_nonzero(synapse_prj_counts) < num_projections) and (
-        it < maxit
-    ):
+    while (np.count_nonzero(synapse_prj_counts) < num_projections) and (it < maxit):
         log_flag = it > 1
         if log_flag:
             logger.info(
                 f"generate_synaptic_connections: gid {gid}: iteration {it}: "
-                f"source_populations = {source_populations} "
-                f"synapse_prj_counts = {synapse_prj_counts}"
+                f"source_populations = {source_populations}\n"
+                f"synapse_prj_counts = {synapse_prj_counts}\n"
+                f"number of synapses in synapse_dict = {len(synapse_dict['syn_ids'])}"
             )
-        if debug_flag:
-            logger.info(f"synapse_dict = {synapse_dict}")
+
         synapse_prj_counts.fill(0)
         synapse_prj_partition.clear()
         for syn_id, syn_cdist, syn_type, swc_type, syn_layer in zip(
@@ -397,13 +384,13 @@ def generate_synaptic_connections(
                 logger.info(
                     f"generate_synaptic_connections: {gid=}: "
                     f"{syn_id=} {syn_type=} {swc_type=} "
-                    f"{syn_layer=} {projection=}"
+                    f"{syn_layer=} {projection=} "
                     f"{ranstream_syn=}"
                 )
             log_flag = False
-            assert (
-                projection is not None
-            ), f"generate_synaptic_connections: {gid=}: {syn_id=} {syn_type=} {swc_type=} {syn_layer=} {projection=} {ranstream_syn=} {population_dict=} {projection_synapse_dict=}\n{synapse_dict['syn_types']=}"
+            assert projection is not None, (
+                f"generate_synaptic_connections: {gid=}: {syn_id=} {syn_type=} {swc_type=} {syn_layer=} {projection=} {ranstream_syn=} {population_dict=} {projection_synapse_dict=}\n {synapse_dict['syn_types']=}"
+            )
             synapse_prj_counts[prj_pop_index[projection]] += 1
             synapse_prj_partition[projection][syn_layer].append(syn_id)
         it += 1
@@ -452,9 +439,7 @@ def generate_synaptic_connections(
                 )
             }
             if len(source_gids) > 0:
-                ordered_syn_ids = sorted(
-                    syn_ids, key=lambda x: syn_cdist_dict[x]
-                )
+                ordered_syn_ids = sorted(syn_ids, key=lambda x: syn_cdist_dict[x])
                 n_syn_groups = int(
                     math.ceil(float(len(syn_ids)) / float(syn_config_contacts))
                 )
@@ -470,7 +455,7 @@ def generate_synaptic_connections(
                 if len(source_gid_counts) == 0:
                     logger.warning(
                         f"Rank {rank}: source vertices list is empty for gid: {destination_gid} "
-                        f"source: {projection} layer: layer? "
+                        f"source: {projection} layer: {prj_layer} "
                         f"source probs: {source_probs} distances_u: {distances_u} distances_v: {distances_v}"
                     )
 
@@ -498,9 +483,7 @@ def generate_synaptic_connections(
                     np.asarray([], dtype=np.uint32),
                     {
                         "Synapses": {"syn_id": np.asarray([], dtype=np.uint32)},
-                        "Connections": {
-                            "distance": np.asarray([], dtype=np.float32)
-                        },
+                        "Connections": {"distance": np.asarray([], dtype=np.float32)},
                     },
                 )
                 cluster_seed += 1
@@ -523,16 +506,14 @@ def generate_synaptic_connections(
             logger.warning(
                 f"Rank {rank}: source gid list is empty for gid: {destination_gid} source: {projection}"
             )
-        assert (
-            len(prj_source_vertices_array) > 0
-        ), f"Rank {rank}: source gid list is empty. The cell density might be too small."
+        assert len(prj_source_vertices_array) > 0, (
+            f"Rank {rank}: source gid list is empty. The cell density might be too small."
+        )
         count += len(prj_source_vertices_array)
         gid_dict[destination_gid] = (
             prj_source_vertices_array,
             {
-                "Synapses": {
-                    "syn_id": np.asarray(prj_syn_ids_array, dtype=np.uint32)
-                },
+                "Synapses": {"syn_id": np.asarray(prj_syn_ids_array, dtype=np.uint32)},
                 "Connections": {"distance": prj_distances_array},
             },
         )
@@ -593,9 +574,7 @@ def generate_uv_distance_connections(
 
     destination_population = connection_prob.destination_population
 
-    source_populations = sorted(
-        connection_config[destination_population].keys()
-    )
+    source_populations = sorted(connection_config[destination_population].keys())
 
     for source_population in source_populations:
         if rank == 0:
@@ -611,7 +590,7 @@ def generate_uv_distance_connections(
             projection_config[source_population].layers,
             projection_config[source_population].sections,
             projection_config[source_population].proportions,
-            projection_config[source_population].get("contacts", 1),
+            projection_config[source_population].contacts,
         )
         for source_population in source_populations
     }
@@ -643,11 +622,10 @@ def generate_uv_distance_connections(
             last_gid_time = time.time()
 
             projection_prob_dict = {}
+
             for source_population in source_populations:
                 source_layers = projection_config[source_population].layers
-                projection_prob_dict[
-                    source_population
-                ] = connection_prob.get_prob(
+                projection_prob_dict[source_population] = connection_prob.get_prob(
                     destination_gid, source_population, source_layers
                 )
 
@@ -704,6 +682,7 @@ def generate_uv_distance_connections(
                     projection_dict,
                     io_size=io_size,
                     comm=comm,
+                    chunk_size=value_chunk_size,
                 )
                 if rank == 0:
                     if connection_dict:
@@ -727,7 +706,11 @@ def generate_uv_distance_connections(
         projection_dict = {}
     if not dry_run:
         append_graph(
-            connectivity_path, projection_dict, io_size=io_size, comm=comm
+            connectivity_path,
+            projection_dict,
+            io_size=io_size,
+            comm=comm,
+            chunk_size=value_chunk_size,
         )
         if rank == 0:
             if connection_dict:

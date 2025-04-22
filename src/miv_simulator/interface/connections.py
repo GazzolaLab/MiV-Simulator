@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import Tuple
 
 import logging
 
@@ -18,8 +18,9 @@ class Connections(Component):
         forest_filepath: str = Field("???")
         axon_extents: config.AxonExtents = Field("???")
         synapses: config.Synapses = Field("???")
+        population_definitions: Dict[str, int] = Field("???")
+        layer_definitions: Dict[str, int] = Field("???")
         include_forest_populations: Optional[list] = None
-        template_path: str = "./templates"
         connectivity_namespace: str = "Connections"
         coordinates_namespace: str = "Coordinates"
         synapses_namespace: str = "Synapse Attributes"
@@ -30,7 +31,8 @@ class Connections(Component):
         value_chunk_size: int = 1000
         cache_size: int = 1
         write_size: int = 1
-        ranks_: int = 8
+        ranks: int = -1
+        nodes: str = "1"
 
     def config_from_file(self, filename: str) -> Dict:
         return from_yaml(filename)
@@ -45,22 +47,42 @@ class Connections(Component):
             filepath=self.config.filepath,
             forest_filepath=self.config.forest_filepath,
             include_forest_populations=self.config.include_forest_populations,
-            synapses=self.config.synapses,
+            synapses={
+                post: {
+                    pre: config.Synapse(**syn).to_config(self.config.layer_definitions)
+                    for pre, syn in v.items()
+                }
+                for post, v in self.config.synapses.items()
+            },
             axon_extents=self.config.axon_extents,
-            template_path=self.config.template_path,
             output_filepath=self.output_filepath,
             connectivity_namespace=self.config.connectivity_namespace,
             coordinates_namespace=self.config.coordinates_namespace,
             synapses_namespace=self.config.synapses_namespace,
             distances_namespace=self.config.distances_namespace,
+            populations_dict=self.config.population_definitions,
             io_size=self.config.io_size,
             chunk_size=self.config.chunk_size,
             value_chunk_size=self.config.value_chunk_size,
             cache_size=self.config.cache_size,
             write_size=self.config.write_size,
             dry_run=False,
-            seeds=self.seed,
+            seeds=[18000000, 2000000, 1500000],
         )
 
     def on_write_meta_data(self):
         return MPI.COMM_WORLD.Get_rank() == 0
+
+    def compute_context(self):
+        context = super().compute_context()
+        del context["config"]["filepath"]
+        del context["config"]["forest_filepath"]
+        del context["config"]["io_size"]
+        del context["config"]["chunk_size"]
+        del context["config"]["value_chunk_size"]
+        del context["config"]["cache_size"]
+        del context["config"]["write_size"]
+        del context["config"]["ranks"]
+        del context["config"]["nodes"]
+        context["predicate"]["uses"] = sorted([u.hash for u in self.uses])
+        return context

@@ -87,9 +87,7 @@ def transform_volume(transform, u, v, l, rotate=None):
     return xyz
 
 
-def get_layer_extents(
-    layer_extents: config.LayerExtents, layer: config.LayerName
-):
+def get_layer_extents(layer_extents: config.LayerExtents, layer: config.LayerName):
     min_u, max_u = 0.0, 0.0
     min_v, max_v = 0.0, 0.0
     min_l, max_l = 0.0, 0.0
@@ -185,9 +183,7 @@ def euclidean_distance(a, b):
 
 
 def make_uvl_distance(vol, xyz_coords, rotate=None):
-    f = lambda u, v, l: euclidean_distance(
-        vol(u, v, l, rotate=rotate), xyz_coords
-    )
+    f = lambda u, v, l: euclidean_distance(vol(u, v, l, rotate=rotate), xyz_coords)
     return f
 
 
@@ -232,9 +228,7 @@ def generate_nodes(alpha, nsample, nodeitr):
         node_count = len(in_nodes)
         N = int(1.5 * N)
 
-    logger.info(
-        "%i interior nodes generated (%i iterations)" % (node_count, itr)
-    )
+    logger.info("%i interior nodes generated (%i iterations)" % (node_count, itr))
 
     xyz_coords = in_nodes.reshape(-1, 3)
 
@@ -305,9 +299,7 @@ def get_volume_distances(
         )
 
         resample = 10
-        span_U, span_V, span_L = ip_vol._resample_uvl(
-            resample, resample, resample
-        )
+        span_U, span_V, span_L = ip_vol._resample_uvl(resample, resample, resample)
         if origin_spec is None:
             origin_coords = np.asarray(
                 [np.median(span_U), np.median(span_V), np.max(span_L)]
@@ -522,8 +514,7 @@ def interp_soma_distances(
             local_dist_dict[gid] = (distance_u[i], distance_v[i])
             if rank == 0:
                 logger.info(
-                    "gid %i: distances: %f %f"
-                    % (gid, distance_u[i], distance_v[i])
+                    "gid %i: distances: %f %f" % (gid, distance_u[i], distance_v[i])
                 )
         if allgather:
             dist_dicts = comm.allgather(local_dist_dict)
@@ -538,7 +529,7 @@ def interp_soma_distances(
     return soma_distances
 
 
-# !deprecated, use distance interpolant
+# !for imperative API, use distance interpolant
 def make_distance_interpolant(
     comm, geometry_config, make_volume, resolution=[30, 30, 10], nsample=1000
 ):
@@ -601,7 +592,7 @@ def distance_interpolant(
 
     vol_dist = get_volume_distances(
         ip_volume,
-        origin_spec=config.Origin(**origin).as_spec(),
+        origin_spec=origin,
         nsample=n_sample,
         comm=comm,
         alpha_radius=alpha_radius,
@@ -639,45 +630,53 @@ def distance_interpolant(
     ip_dist_u = None
     ip_dist_v = None
     if rank == 0:
-        from scipy.interpolate import RBFInterpolator
+        i = 2
+        while i > 0:
+            i = i - 1
+            # try with RBF first
+            try:
+                logger.info("Computing U volume distance interpolants...")
+                ip_dist_u = RBFInterpolant(
+                    obs_uvs,
+                    dist_us,
+                    order=interp_order,
+                    phi=interp_basis,
+                    sigma=interp_sigma,
+                )
+                logger.info("Computing V volume distance interpolants...")
+                ip_dist_v = RBFInterpolant(
+                    obs_uvs,
+                    dist_vs,
+                    order=interp_order,
+                    phi=interp_basis,
+                    sigma=interp_sigma,
+                )
+                i = 0
+            except:
+                # fall-back on scipy
+                logger.info("RBFInterpolator failed, trying again with scipy ...")
 
-        # todo(frthf): does it make sense to use scipy's interpolator here?
-        def RBFInterpolant(
-            y,
-            d,
-            sigma=0.0,
-            phi="phs3",
-            eps=1.0,
-            order=None,
-            neighbors=None,
-            check_cond=True,
-        ):
-            return RBFInterpolator(
-                y=y,
-                d=d,
-                smoothing=sigma,
-                kernel="gaussian",
-                degree=order,
-                neighbors=neighbors,
-                epsilon=eps,
-            )
+                from scipy.interpolate import RBFInterpolator
 
-        logger.info("Computing U volume distance interpolants...")
-        ip_dist_u = RBFInterpolant(
-            obs_uvs,
-            dist_us,
-            order=interp_order,
-            phi=interp_basis,
-            sigma=interp_sigma,
-        )
-        logger.info("Computing V volume distance interpolants...")
-        ip_dist_v = RBFInterpolant(
-            obs_uvs,
-            dist_vs,
-            order=interp_order,
-            phi=interp_basis,
-            sigma=interp_sigma,
-        )
+                def RBFInterpolant(
+                    y,
+                    d,
+                    sigma=0.0,
+                    phi="phs3",
+                    eps=1.0,
+                    order=None,
+                    neighbors=None,
+                    check_cond=True,
+                ):
+                    return RBFInterpolator(
+                        y=y,
+                        d=d,
+                        smoothing=sigma,
+                        kernel="gaussian",
+                        degree=order,
+                        neighbors=neighbors,
+                        epsilon=eps,
+                    )
 
     origin_ranges = comm.bcast(origin_ranges, root=0)
     ip_dist_u = comm.bcast(ip_dist_u, root=0)
@@ -686,7 +685,7 @@ def distance_interpolant(
     return origin_ranges, ip_dist_u, ip_dist_v
 
 
-# !deprecated, use measure_soma_distances
+# !for imperative API, use measure_soma_distances
 def measure_distances(
     comm,
     geometry_config,
@@ -851,9 +850,7 @@ def icp_transform(
     for pop in populations:
         coords_dict = soma_coords[pop]
         if rank == 0:
-            logger.info(
-                f"Computing point transformation for population {pop}..."
-            )
+            logger.info(f"Computing point transformation for population {pop}...")
         count = 0
         xyz_coords = []
         gids = []
@@ -888,9 +885,7 @@ def icp_transform(
             for i, gid in zip(list(range(0, estimate.size)), gids):
                 est_xyz_coords = estimate[i]
                 k_est_xyz_coords[i, :] = est_xyz_coords
-                f_uvl_distance = make_uvl_distance(
-                    est_xyz_coords, rotate=rotate
-                )
+                f_uvl_distance = make_uvl_distance(est_xyz_coords, rotate=rotate)
                 uvl_coords, err = dlib.find_min_global(
                     f_uvl_distance, limits[0], limits[1], opt_iter
                 )
