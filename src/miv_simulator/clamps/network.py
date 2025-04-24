@@ -607,10 +607,15 @@ def init(
                 register_cell(env, presyn_name, presyn_gid, cell)
 
     for gid in my_cell_index_set:
-        synapses.config_biophys_cell_syns(
+        syn_count, mech_count, nc_count = synapses.config_cell_syns(
             env, gid, pop_name, insert=True, insert_netcons=True, verbose=True
         )
         record_cell(env, pop_name, gid)
+        logger.info(
+            f"Rank {env.comm.rank}: configured {syn_count} synapses, "
+            f"{mech_count} mechanisms, "
+            f"{nc_count} network connections for gid {gid}"
+        )
     gc.collect()
 
     if plot_cell:
@@ -845,7 +850,7 @@ def run_with(env, param_dict, cvode=False, pc_runworker=False):
         for gid in param_dict[pop_name]:
             stash_id = stash_id_dict[pop_name][gid]
             syn_manager.restore_mech_attrs(pop_name, gid, stash_id)
-            synapses.config_biophys_cell_syns(env, gid, pop_name, insert=False)
+            synapses.config_cell_syns(env, gid, pop_name, insert=False)
 
     return spikedata.get_env_spike_dict(env, include_artificial=None)
 

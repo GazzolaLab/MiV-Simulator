@@ -415,7 +415,6 @@ def connect_cells(env: Env) -> None:
             logger.info(f"connect_cells: rank {rank}: gid {gid} does not exist")
         assert gid in env.gidset
         assert env.pc.gid_exists(gid)
-        postsyn_cell = env.pc.gid2cell(gid)
         postsyn_name = find_gid_pop(env.celltypes, gid)
 
         first_gid = None
@@ -432,11 +431,6 @@ def connect_cells(env: Env) -> None:
             env,
             gid,
             postsyn_name,
-            cell=(
-                postsyn_cell.hoc_cell
-                if hasattr(postsyn_cell, "hoc_cell")
-                else postsyn_cell
-            ),
             unique=unique,
             insert=True,
             insert_netcons=True,
@@ -459,11 +453,6 @@ def connect_cells(env: Env) -> None:
 
         if gid in env.recording_sets.get(postsyn_name, {}):
             cells.record_cell(env, postsyn_name, gid)
-
-        if env.cleanup:
-            syn_manager.del_syn_id_attr_dict(gid)
-            if gid in env.biophys_cells[postsyn_name]:
-                del env.biophys_cells[postsyn_name][gid]
 
     comm0.Free()
     gc.collect()
@@ -724,14 +713,12 @@ def connect_cell_selection(env):
         if first_gid is None:
             first_gid = gid
 
-        cell = env.pc.gid2cell(gid)
         pop_name = find_gid_pop(env.celltypes, gid)
 
         syn_count, mech_count, nc_count = synapses.config_cell_syns(
             env,
             gid,
             pop_name,
-            cell=cell.hoc_cell if hasattr(cell, "hoc_cell") else cell,
             unique=unique,
             insert=True,
             insert_netcons=True,
