@@ -763,6 +763,7 @@ class BiophysCell:
         self.mech_dict = dict(mech_dict) if mech_dict is not None else None
         self.spike_detector = None
         self.spike_onset_delay = 0.0
+        self.sections = None
 
         if hoc_cell is not None:
             import_morphology_from_hoc(self, hoc_cell)
@@ -784,10 +785,9 @@ class BiophysCell:
         sorted_nodes = list(nx.topological_sort(self.tree))
         if len(sorted_nodes) > 0:
             self.root = sorted_nodes[0]
-        self.sections = None
         if (hoc_cell is not None) and hasattr(hoc_cell, "sections"):
             self.sections = hoc_cell.sections
-        if (cell_obj is not None) and hasattr(cell_obj, "sections"):
+        elif (cell_obj is not None) and hasattr(cell_obj, "sections"):
             self.sections = cell_obj.sections
 
         init_spike_detector(self)

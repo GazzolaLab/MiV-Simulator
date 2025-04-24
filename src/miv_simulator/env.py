@@ -94,7 +94,6 @@ class Env(AbstractEnv):
         spike_input_namespace: None = None,
         spike_input_attr: None = None,
         coordinates_namespace: str = "Coordinates",
-        cleanup: bool = True,
         cache_queries: bool = False,
         profile_memory: bool = False,
         use_coreneuron: bool = False,
@@ -127,7 +126,6 @@ class Env(AbstractEnv):
         :param dt: float; simulation time step
         :param ldbal: bool; estimate load balance based on cell complexity
         :param lptbal: bool; calculate load balance with LPT algorithm
-        :param cleanup: bool; clean up auxiliary cell and synapse structures after network init
         :param profile: bool; profile memory usage
         :param cache_queries: bool; whether to use a cache to speed up queries to filter_synapses
         :param verbose: bool; print verbose diagnostic messages while constructing the network
@@ -166,10 +164,6 @@ class Env(AbstractEnv):
 
         self.use_coreneuron = use_coreneuron
         self.coreneuron_gpu = coreneuron_gpu
-
-        # If true, the biophysical cells and synapses dictionary will be freed
-        # as synapses and connections are instantiated.
-        self.cleanup = cleanup
 
         # If true, compute and print memory usage at various points
         # during simulation initialization

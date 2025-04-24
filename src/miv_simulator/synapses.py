@@ -21,7 +21,6 @@ from functools import reduce
 import numpy as np
 from miv_simulator.cells import (
     BiophysCell,
-    SCneuron,
     make_section_graph,
 )
 from miv_simulator.utils import (
@@ -3010,30 +3009,23 @@ class SynapseManager:
 def insert_cell_syns(
     env: AbstractEnv,
     gid: int,
-    cell: object,
+    postsyn_name: str,
+    presyn_name: str,
     syn_ids: Union[List[uint32], itertools.chain],
-    syn_params: Dict[
-        str,
-        Union[
-            Dict[str, Dict[str, Union[int, float]]],
-            Dict[str, Union[Dict[str, Union[int, float]], Dict[str, float]]],
-        ],
-    ],
     unique: bool = False,
     insert_netcons: bool = False,
     insert_vecstims: bool = False,
+    verbose: bool = False,
 ) -> Tuple[int, int, int]:
     """
-    TODO: Only config the point process object if it has not already been configured.
-
     Insert mechanisms into given cell according to the synapse objects created in env.synapse_manager.
     Configures mechanisms according to parameter values specified in syn_params.
 
     :param env: :class:'Env'
     :param gid: cell id (int)
-    :param cell: hoc cell object
+    :param postsyn_name: str
+    :param presyn_name: str
     :param syn_ids: synapse ids (array of int)
-    :param syn_params: dictionary of the form { mech_name: params }
     :param unique: True, if unique mechanisms are to be inserted for each synapse; False, if synapse mechanisms within
             a compartment will be shared.
     :param insert_netcons: bool; whether to build new netcons for newly constructed synapses
@@ -3043,7 +3035,25 @@ def insert_cell_syns(
 
     """
 
+    if gid not in env.biophys_cells[postsyn_name]:
+        raise KeyError(
+            f"insert_cell_syns: biophysical cell with gid {gid} does not exist"
+        )
+
+    cell = env.biophys_cells[postsyn_name][gid]
+
+    syn_params = env.connection_config[postsyn_name][presyn_name].mechanisms
+
+    synapse_config = env.celltypes[postsyn_name]["synapses"]
+
+    if unique is None:
+        if "unique" in synapse_config:
+            unique = synapse_config["unique"]
+        else:
+            unique = False
+
     assert cell is not None
+
     swc_type_apical = env.SWC_Types["apical"]
     swc_type_basal = env.SWC_Types["basal"]
     swc_type_soma = env.SWC_Types["soma"]
@@ -3068,8 +3078,16 @@ def insert_cell_syns(
         swc_type_soma: syns_dict_soma,
     }
     py_sections = None
+    if hasattr(cell, "hoc_cell"):
+        if cell.hoc_cell is not None:
+            cell = cell.hoc_cell
+    if hasattr(cell, "cell_obj"):
+        if cell.cell_obj is not None:
+            cell = cell.cell_obj
+
     if hasattr(cell, "sections"):
-        py_sections = [sec for sec in cell.sections]
+        if cell.sections is not None:
+            py_sections = [sec for sec in cell.sections]
     is_reduced = False
     if hasattr(cell, "is_reduced"):
         is_reduced = cell.is_reduced
@@ -3140,6 +3158,7 @@ def insert_cell_syns(
         if is_reduced:
             sec_index = 0
             sec_list_key = f"{swc_type_name}_{syn_layer_name}_list"
+
             if sec_list_key != current_sec_list_key:
                 current_sec_list_key = sec_list_key
                 current_sec_list = reduced_section_dict.get(sec_list_key, None)
@@ -3230,148 +3249,13 @@ def insert_cell_syns(
 
         syn_count += 1
 
+    if verbose:
+        logger.info(
+            f"insert_cell_syns: source: {presyn_name} target: {postsyn_name} cell {gid}: created {mech_count} mechanisms and {nc_count} "
+            f"netcons for {syn_count} syn_ids"
+        )
+
     return syn_count, mech_count, nc_count
-
-
-def insert_biophys_cell_syns(
-    env: AbstractEnv,
-    gid: int,
-    postsyn_name: str,
-    presyn_name: str,
-    syn_ids: itertools.chain,
-    unique: None = None,
-    insert_netcons: bool = True,
-    insert_vecstims: bool = True,
-    verbose: bool = False,
-) -> None:
-    """
-
-    1) make syns (if not unique, keep track of syn_in_seg for shared synapses)
-    2) initialize syns with syn_mech_params from config_file
-    3) make netcons
-    4) initialize netcons with syn_mech_params environment configuration
-
-    :param env: :class:'Env'
-    :param gid: int
-    :param postsyn_name: str
-    :param presyn_name: str
-    :param syn_ids: array of int
-    :param unique: bool; whether to insert synapses if none exist at syn_id
-    :param insert_netcons: bool; whether to build new netcons for newly constructed synapses
-    :param insert_vecstims: bool; whether to build new vecstims for newly constructed netcons
-    :param verbose: bool
-    """
-    if gid not in env.biophys_cells[postsyn_name]:
-        raise KeyError(
-            f"insert_biophys_cell_syns: biophysical cell with gid {gid} does not exist"
-        )
-
-    cell = env.biophys_cells[postsyn_name][gid]
-
-    connection_syn_params = env.connection_config[postsyn_name][presyn_name].mechanisms
-
-    synapse_config = env.celltypes[postsyn_name]["synapses"]
-
-    if unique is None:
-        if "unique" in synapse_config:
-            unique = synapse_config["unique"]
-        else:
-            unique = False
-
-    syn_count, mech_count, nc_count = insert_cell_syns(
-        env,
-        gid,
-        cell.hoc_cell if cell.hoc_cell is not None else cell.cell_obj,
-        syn_ids,
-        connection_syn_params,
-        unique=unique,
-        insert_netcons=insert_netcons,
-        insert_vecstims=insert_vecstims,
-    )
-
-    if verbose:
-        logger.info(
-            f"insert_biophys_cell_syns: source: {presyn_name} target: {postsyn_name} cell {gid}: created {mech_count} mechanisms and {nc_count} "
-            f"netcons for {syn_count} syn_ids"
-        )
-
-
-def config_biophys_cell_syns(
-    env: AbstractEnv,
-    gid: int,
-    postsyn_name: str,
-    syn_ids: None = None,
-    unique: None = None,
-    insert: bool = False,
-    insert_netcons: bool = False,
-    insert_vecstims: bool = False,
-    verbose: bool = False,
-    throw_error: bool = False,
-) -> Tuple[int, int]:
-    """
-    Configures the given syn_ids, and call config_syn with mechanism
-    and netcon parameters (which must not be empty).  If syn_ids=None,
-    configures all synapses for the cell with the given gid.  If
-    insert=True, iterate over sources and call
-    insert_biophys_cell_syns (requires a BiophysCell with the
-    specified gid to be present in the Env).
-
-    :param gid: int
-    :param env: :class:'Env'
-    :param postsyn_name: str
-    :param syn_ids: array of int
-    :param unique: bool; whether newly inserted synapses should be unique or shared per segment
-    :param insert: bool; whether to insert a synaptic point process if none exists at syn_id
-    :param insert_netcons: bool; whether to build new netcons for newly constructed synapses
-    :param insert_vecstims: bool; whether to build new vecstims for newly constructed netcons
-    :param verbose: bool
-    :param throw_error: bool; whether to require that all encountered syn_ids have inserted synapse
-    """
-    syn_manager = env.synapse_manager
-
-    if syn_ids is None:
-        syn_ids = np.fromiter(syn_manager.synapse_ids(gid), dtype=np.uint32)
-
-    if insert:
-        source_syn_ids_dict = syn_manager.partition_syn_ids_by_source(gid, syn_ids)
-        if gid not in env.biophys_cells[postsyn_name]:
-            raise KeyError(
-                f"config_biophys_cell_syns: insert: biophysical cell with gid {gid} does not exist"
-            )
-
-        for presyn_name, source_syn_ids in source_syn_ids_dict.items():
-            if (presyn_name is not None) and (source_syn_ids is not None):
-                insert_biophys_cell_syns(
-                    env,
-                    gid,
-                    postsyn_name,
-                    presyn_name,
-                    source_syn_ids,
-                    unique=unique,
-                    insert_netcons=insert_netcons,
-                    insert_vecstims=insert_vecstims,
-                    verbose=verbose,
-                )
-
-    cell = env.biophys_cells[postsyn_name][gid]
-    syn_count, mech_count, nc_count = config_cell_syns(
-        env,
-        gid,
-        postsyn_name,
-        cell=cell.hoc_cell,
-        syn_ids=syn_ids,
-        insert=False,
-        verbose=False,
-        throw_error=throw_error,
-    )
-
-    if verbose:
-        logger.info(
-            f"config_biophys_cell_syns: target: {postsyn_name}; cell {gid}: set parameters for {mech_count} syns and {nc_count} "
-            f"netcons for {syn_count} syn_ids"
-        )
-
-    return syn_count, nc_count
 
 
 def config_cell_syns(
@@ -3388,7 +3272,9 @@ def config_cell_syns(
     throw_error: bool = False,
 ) -> Tuple[int, int, int]:
     """
-    Configures synapses for a cell with parameter values from synapse storage.
+    Configures synapses for a cell with parameter values from synapse storage.  If syn_ids=None, configures all synapses for the cell
+    with the given gid.  If insert=True, iterate over sources and call
+    insert_cell_syns.
 
     Args:
         env: Environment containing configuration
@@ -3440,21 +3326,17 @@ def config_cell_syns(
             if (presyn_name is not None) and (source_syns is not None):
                 source_syn_ids = [x[0] for x in source_syns]
 
-                # Get connection parameters for this source
-                connection_syn_params = env.connection_config[postsyn_name][
-                    presyn_name
-                ].mechanisms
-
                 # Insert synapses for this source
                 syn_count, mech_count, nc_count = insert_cell_syns(
                     env,
                     gid,
-                    cell,
+                    postsyn_name,
+                    presyn_name,
                     source_syn_ids,
-                    connection_syn_params,
                     unique=unique,
                     insert_netcons=insert_netcons,
                     insert_vecstims=insert_vecstims,
+                    verbose=verbose,
                 )
 
                 if verbose:
@@ -3626,7 +3508,6 @@ def config_syn(
                 else:
                     setattr(syn, param, val)
                 mech_param = True
-
         elif param in mech_rules["netcon_params"]:
             if nc is not None:
                 i = mech_rules["netcon_params"][param]
@@ -4183,7 +4064,7 @@ def set_syn_mech_param(
 
             batch_syn_ids = itertools.chain([first_id], batch_iterator)
 
-            config_biophys_cell_syns(
+            config_cell_syns(
                 env,
                 cell.gid,
                 cell.population_name,
@@ -4194,7 +4075,7 @@ def set_syn_mech_param(
 
 
 def init_syn_mech_attrs(
-    cell: Union[SCneuron, BiophysCell],
+    cell: BiophysCell,
     env: Optional[AbstractEnv] = None,
     reset_mech_dict: bool = False,
     update_targets: bool = False,
