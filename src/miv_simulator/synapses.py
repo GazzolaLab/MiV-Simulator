@@ -2168,7 +2168,7 @@ class SynapseManager:
             self.syn_param_rules[mech_name].get("netcon_params", {}).keys()
         )
 
-        # Get parameter values with fallback using the hierarchy
+       # Get parameter values with fallback using the hierarchy
         resolved_params = {}
         for param_name in all_params:
             value, source = self.syn_store.param_store.get_parameter_value_hierarchy(
@@ -3197,6 +3197,7 @@ def insert_cell_syns(
                 f"insert_cell_syns: unsupported synapse SWC type {swc_type} for synapse {syn_id}"
             )
 
+
         for syn_name, params in mech_params.items():
             syn_mech = make_syn_mech(
                 syn_name=syn_name,
@@ -3403,7 +3404,7 @@ def config_cell_syns(
                         f"for synapse {syn_id}"
                     )
                     continue
-
+                
                 # Configure the mechanism with the parameters
                 try:
                     (mech_set, nc_set) = config_syn(

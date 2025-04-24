@@ -454,10 +454,6 @@ def connect_cells(env: Env) -> None:
         if gid in env.recording_sets.get(postsyn_name, {}):
             cells.record_cell(env, postsyn_name, gid)
 
-        if env.cleanup:
-            syn_manager.del_syn_id_attr_dict(gid)
-            if gid in env.biophys_cells[postsyn_name]:
-                del env.biophys_cells[postsyn_name][gid]
 
     comm0.Free()
     gc.collect()

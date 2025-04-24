@@ -747,8 +747,6 @@ class BiophysCell:
         :param env: :class:'Env'
         """
 
-        print(f"BiophysCell: cell_obj = {cell_obj}")
-
         self._gid = gid
         self._population_name = population_name
         self.tree = nx.DiGraph()
