@@ -454,7 +454,6 @@ def connect_cells(env: Env) -> None:
         if gid in env.recording_sets.get(postsyn_name, {}):
             cells.record_cell(env, postsyn_name, gid)
 
-
     comm0.Free()
     gc.collect()
 
