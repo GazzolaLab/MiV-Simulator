@@ -745,7 +745,7 @@ class SynapseMechanismParameterStore:
                 self.selector_sizes[gid] = max(len(selector_spec), selector_size)
             else:
                 self.selector_sizes[gid] = len(selector_spec)
-            
+
             # Create mask based on filter criteria
             def filter_selector(syn_id, syn_index):
                 # Apply each filter criterion
