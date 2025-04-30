@@ -87,11 +87,14 @@ def syn_param_from_dict(d):
 
 def get_mech_rules_dict(cell, **rules):
     """
-    Used by modify_mech_param. Takes in a series of arguments and constructs a validated rules dictionary that will be
-    used to update a cell's mechanism dictionary.
+    Used by modify_syn_param. Takes in a series of arguments and
+    constructs a validated rules dictionary that will be used to
+    update a cell's mechanism dictionary.
+
     :param cell: :class:'BiophysCell'
     :param rules: dict
     :return: dict
+
     """
     rules_dict = {
         name: rules[name]
@@ -2339,7 +2342,9 @@ class SynapseManager:
         :param syn_id: synapse id
         :param syn_name: synapse mechanism name
         :param params: dict
+        :param expr_param_check: how to handle expression parameters
         """
+
         rules = self.syn_param_rules
         mech_name = self.syn_mech_names[syn_name]
 
@@ -2349,7 +2354,7 @@ class SynapseManager:
             or syn_id not in self.syn_store.id_to_index[gid]
         ):
             raise RuntimeError(
-                f"modify_mech_attrs: gid {gid} synapse id {syn_id} not found"
+                f"modify_mechanism_parameters: gid {gid} synapse id {syn_id} not found"
             )
 
         array_index = self.syn_store.id_to_index[gid][syn_id]
@@ -2384,7 +2389,9 @@ class SynapseManager:
                 (k in rules[mech_name]["mech_params"])
                 or (k in rules[mech_name]["netcon_params"])
             ):
-                raise RuntimeError(f"modify_mech_attrs: unknown parameter type {k}")
+                raise RuntimeError(
+                    f"modify_mechanism_parameters: unknown parameter type {k}"
+                )
 
             # Get or evaluate parameter
             mech_param = mech_params.get(k, None)
@@ -2394,23 +2401,21 @@ class SynapseManager:
                     new_val = mech_param(delay)
                 else:
                     raise RuntimeError(
-                        f"modify_mech_attrs: unknown expression parameter {mech_param.parameters}"
+                        f"modify_mechanism_parameters: unknown expression parameter {mech_param.parameters}"
                     )
             else:
                 new_val = v
 
             assert new_val is not None
 
-            # Get current value if exists
-            old_val = self.syn_store.param_store.get_param(
-                gid, array_index, mech_name, k
+            value_result, source = (
+                self.syn_store.param_store.get_parameter_value_hierarchy(
+                    gid, array_index, mech_name, k, syn_id
+                )
             )
-            if old_val is None:
-                old_val = mech_param
+            old_val = value_result if value_result is not None else mech_param
 
-            # Handle different value types
             if isinstance(new_val, ExprClosure):
-                # Expression closure handling
                 if isinstance(old_val, Promise):
                     old_val.clos = new_val
                     value_to_store = old_val
@@ -2430,16 +2435,14 @@ class SynapseManager:
                 else:
                     if expr_param_check != "ignore":
                         raise RuntimeError(
-                            f"modify_mech_attrs: dictionary for non-expression parameter {k}"
+                            f"modify_mechanism_parameters: dictionary for non-expression parameter {k}"
                         )
                     continue
             else:
-                # Simple value
                 value_to_store = new_val
 
-            # Store the value
-            self.syn_store.param_store.set_param(
-                gid, array_index, mech_name, k, value_to_store
+            self.syn_store.param_store.set_synapse_parameter(
+                gid, array_index, mech_name, k, value_to_store, syn_id
             )
 
     def stash_mech_attrs(self, pop_name, gid):
@@ -4049,7 +4052,7 @@ def set_syn_mech_param(
             break
 
         for syn_id in batch:
-            syn_manager.modify_mech_attrs(
+            syn_manager.modify_mechanism_parameters(
                 cell.population_name, cell.gid, syn_id, syn_name, {param_name: baseline}
             )
 
