@@ -910,7 +910,6 @@ class SynapseMechanismParameterStore:
             new_size = max(
                 syn_index + 1, int(self.gid_data[gid]["synapse_count"] * 1.1)
             )
-            synapse_count = self.gid_data[gid]["synapse_count"]
             self._resize_arrays(gid, new_size)
 
         # Mark synapse as having this mechanism
