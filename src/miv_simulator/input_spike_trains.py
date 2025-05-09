@@ -1,33 +1,26 @@
-import copy
 import gc
 import math
 import os
 import sys
 import time
-from collections import defaultdict
-from typing import Dict, Union, List
+from typing import Dict, Union, List, Optional
 
 import h5py
 import numpy as np
-from miv_simulator.env import Env
-from miv_simulator import stimulus
+from miv_simulator.utils.io import make_h5types
 from miv_simulator.utils import (
-    Struct,
     config_logging,
     get_script_logger,
-    is_interactive,
 )
 from mpi4py import MPI
 from neuroh5.io import (
-    NeuroH5CellAttrGen,
     append_cell_attributes,
     bcast_cell_attributes,
     read_population_ranges,
 )
+from miv_simulator.input_features import EncoderTimeConfig, InputFeaturePopulation
 
 logger = get_script_logger(os.path.basename(__file__))
-
-context = Struct(**dict(locals()))
 
 sys_excepthook = sys.excepthook
 
@@ -43,108 +36,35 @@ def mpi_excepthook(type, value, traceback):
 sys.excepthook = mpi_excepthook
 
 
-def debug_callback(context):
-    from miv_simulator.plotting import plot_1D_rate_map
-
-    fig_title = "%s %s %s cell %i" % (
-        context.trajectory_id,
-        context.population,
-        context.this_selectivity_type_name,
-        context.gid,
-    )
-    fig_options = copy.copy(context.fig_options)
-    if context.save_fig is not None:
-        fig_options.saveFig = f"{context.save_fig} {fig_title}"
-    plot_1D_rate_map(
-        t=context.t,
-        rate_map=context.rate_map,
-        peak_rate=context.env.stimulus_config["Peak Rate"][context.population][
-            context.this_selectivity_type
-        ],
-        spike_train=context.spike_train,
-        title=fig_title,
-        **fig_options(),
-    )
-
-
-def plot_summed_spike_psth(
-    t,
-    trajectory_id,
-    selectivity_type_name,
-    merged_spike_hist_sum,
-    spike_hist_resolution,
-    fig_options,
-):
-    import matplotlib.pyplot as plt
-    from miv_simulator.plotting import clean_axes, save_figure
-
-    spike_hist_edges = np.linspace(min(t), max(t), spike_hist_resolution + 1)
-    for population, this_selectivity_type_name in merged_spike_hist_sum.items():
-        for this_selectivity_type_name in merged_spike_hist_sum[population]:
-            fig_title = f"{population} {this_selectivity_type_name} summed spike PSTH"
-            fig, axes = plt.subplots()
-            axes.plot(
-                spike_hist_edges[1:],
-                merged_spike_hist_sum[population][selectivity_type_name],
-            )
-            axes.set_xlabel("Time (ms)", fontsize=fig_options.fontSize)
-            axes.set_ylabel("Population spike count", fontsize=fig_options.fontSize)
-            axes.set_ylim(
-                0.0,
-                np.max(merged_spike_hist_sum[population][selectivity_type_name]) * 1.1,
-            )
-            axes.set_title(
-                f"Summed spike PSTH\n{population} {selectivity_type_name} cells",
-                fontsize=fig_options.fontSize,
-            )
-            clean_axes(axes)
-
-            if fig_options.saveFig is not None:
-                save_title = f"Summed spike PSTH {trajectory_id} {population} {selectivity_type_name}"
-                save_fig = f"{fig_options.saveFig} {save_title}"
-                save_figure(save_fig, fig=fig, **fig_options())
-
-            if fig_options.showFig:
-                fig.show()
-
-
 def generate_input_spike_trains(
-    config,
-    selectivity_path,
-    selectivity_namespace,
-    coords_path,
-    distances_namespace,
-    arena_id,
-    populations,
-    n_trials,
-    io_size,
-    chunk_size,
-    value_chunk_size,
-    cache_size,
-    write_size,
-    output_path,
-    spikes_namespace,
-    spike_train_attr_name,
-    phase_mod,
-    gather,
-    debug,
-    plot,
-    show_fig,
-    save_fig,
-    save_fig_dir,
-    font_size,
-    fig_format,
-    verbose,
-    dry_run,
-    config_prefix="",
+    env,
+    population: InputFeaturePopulation,
+    output_path: str,
+    output_spikes_namespace: str,
+    output_spike_train_attr_name: str,
+    signal_id: str,
+    signal: Optional[np.ndarray] = None,
+    signal_path: Optional[str] = None,
+    signal_namespace: Optional[str] = None,
+    coords_path: Optional[str] = None,
+    distances_namespace: Optional[str] = None,
+    io_size: int = 1,
+    chunk_size: int = 1000,
+    value_chunk_size: int = 1000,
+    cache_size: int = 1,
+    write_size: int = 1,
+    phase_mod: bool = False,
+    debug: bool = False,
+    debug_count: int = 10,
+    verbose: bool = False,
+    dry_run: bool = False,
 ):
     """
-    :param config: str (.yaml file name)
-    :param selectivity_path: str (path to file)
-    :param selectivity_namespace: str
-    :param arena_id: str
-    :param populations: str
-    :param n_trials: int
+    :param env: env.Env
+    :population: InputFeaturePopulation,
+    :param signal_path: str (path to file)
+    :param signal_namespace: str
+    :param signal_id: str
     :param io_size: int
     :param chunk_size: int
     :param value_chunk_size: int
@@ -153,14 +73,7 @@ def generate_input_spike_trains(
     :param output_path: str (path to file)
     :param spikes_namespace: str
     :param spike_train_attr_name: str
-    :param gather: bool
     :param debug: bool
-    :param plot: bool
-    :param show_fig: bool
-    :param save_fig: str (base file name)
-    :param save_fig_dir:  str (path to dir)
-    :param font_size: float
-    :param fig_format: str
     :param verbose: bool
     :param dry_run: bool
     """
@@ -174,36 +87,17 @@ def generate_input_spike_trains(
             "generate_input_spike_trains: when phase_mod is True, coords_path is required"
         )
 
-    env = Env(
-        comm=comm,
-        config=config,
-        template_paths=None,
-        config_prefix=config_prefix,
-    )
     if io_size == -1:
         io_size = comm.size
     if rank == 0:
-        logger.info("%i ranks have been allocated" % comm.size)
+        logger.info(f"{comm.size} ranks have been allocated")
 
-    if save_fig is not None:
-        plot = True
-
-    if plot:
-        from miv_simulator.plotting import default_fig_options
-
-        fig_options = copy.copy(default_fig_options)
-        fig_options.saveFigDir = save_fig_dir
-        fig_options.fontSize = font_size
-        fig_options.figFormat = fig_format
-        fig_options.showFig = show_fig
-
-    population_ranges = read_population_ranges(selectivity_path, comm)[0]
-
-    if not populations:
-        populations = sorted(population_ranges.keys())
+    population_name = population.name
 
     soma_positions_dict = None
     if coords_path is not None:
+        population_ranges = read_population_ranges(coords_path, comm)[0]
+        populations = sorted(population_ranges.keys())
         soma_positions_dict = {}
         for population in populations:
             reference_u_arc_distance_bounds = None
@@ -231,270 +125,166 @@ def generate_input_spike_trains(
             soma_positions_dict[population] = abs_positions
             del distances
 
-    if arena_id not in env.stimulus_config["Arena"]:
-        raise RuntimeError(
-            "Arena with ID: %s not specified by configuration at file path: %s"
-            % (arena_id, config)
-        )
-    arena = env.stimulus_config["Arena"][arena_id]
+    # TODO: equilibration support
+    # equilibrate = stimulus.get_equilibration(env)
 
-    valid_selectivity_namespaces = dict()
-    if rank == 0:
-        for population in populations:
-            if population not in population_ranges:
-                raise RuntimeError(
-                    "generate_input_spike_trains: specified population: %s not found in "
-                    "provided selectivity_path: %s" % (population, selectivity_path)
-                )
-            if population not in env.stimulus_config["Selectivity Type Probabilities"]:
-                raise RuntimeError(
-                    "generate_input_spike_trains: selectivity type not specified for "
-                    "population: %s" % population
-                )
-            valid_selectivity_namespaces[population] = []
-            with h5py.File(selectivity_path, "r") as selectivity_f:
-                for this_namespace in selectivity_f["Populations"][population]:
-                    if f"{selectivity_namespace} {arena_id}" == this_namespace:
-                        valid_selectivity_namespaces[population].append(this_namespace)
-                if len(valid_selectivity_namespaces[population]) == 0:
+    if signal is None:
+        if signal_path is None:
+            raise RuntimeError(
+                "generate_input_spike_trains: neither signal array nor signal file path is provided"
+            )
+        if rank == 0:
+            with h5py.File(signal_path, "r") as signal_f:
+                signal_ns = signal_f[signal_namespace]
+                if signal_id not in signal_ns:
                     raise RuntimeError(
-                        "generate_input_spike_trains: no selectivity data in arena: %s found "
-                        "for specified population: %s in provided selectivity_path: %s"
-                        % (arena_id, population, selectivity_path)
+                        f"generate_input_spike_trains: no signal {signal_id} in namespace {signal_namespace} found "
+                        f"for specified signal_path: {signal_path}"
                     )
+                signal = signal_ns[signal_id]
+        comm.barrier()
+        signal = comm.bcast(signal, root=0)
+
+    output_namespace = f"{output_spikes_namespace} {signal_id}"
+
+    write_every = max(1, int(math.floor(write_size / comm.size)))
+    req = comm.Ibarrier()
+    gc.collect()
+    req.wait()
+
+    # TODO: phase modulation
+    # phase_mod_config_dict = None
+    # if phase_mod:
+    #    phase_mod_config_dict = stimulus.oscillation_phase_mod_config(
+    #        env, population, soma_positions_dict[population]
+    #    )
+
+    # Obtain feature modality
+    feature_modality = population.modality
+
+    # Process the signal using the modality
+    processed_signal = feature_modality.preprocess_signal(signal)
+
+    # Prepare encoder time configuration
+    dt_ms = 1.0  # TODO: Encoder timestep [ms]
+    sample_duration_ms = dt_ms  # TODO: Duration of one sample [ms]
+
+    # Initialize the encoders with appropriate time config
+    time_config = EncoderTimeConfig(duration_ms=sample_duration_ms, dt_ms=dt_ms)
+
+    # Get responses and generate spike times
+    process_time = time.time()
+    if rank == 0:
+        logger.info(
+            f"Generating input source spike trains for population {population}..."
+        )
+
+    start_time = time.time()
+    spikes_attr_dict = dict()
+    gid_count = 0
+
+    feature_items = list(population.features.items())
+    n_iter = comm.allreduce(len(feature_items), op=MPI.MAX)
+
+    if not dry_run and rank == 0:
+        if output_path is None:
+            raise RuntimeError("generate_input_spike_trains: missing output_path")
+        if not os.path.isfile(output_path):
+            make_h5types(env, output_path)
     comm.barrier()
 
-    valid_selectivity_namespaces = comm.bcast(valid_selectivity_namespaces, root=0)
-    selectivity_type_names = {val: key for (key, val) in env.selectivity_types.items()}
+    local_random = np.random.RandomState()
 
-    equilibrate = stimulus.get_equilibration(env)
+    for iter_count in range(n_iter):
+        if iter_count < len(feature_items):
+            gid, input_feature = feature_items[iter_count]
+        else:
+            gid, input_feature = None, None
+        if gid is not None:
+            if rank == 0:
+                logger.info(f"Rank {rank}: generating spike trains for gid {gid}...")
 
-    if rank == 0:
-        logger.info(f"valid selectivity name spaces: {valid_selectivity_namespaces}")
-        logger.info(f"trajectories: {arena.trajectories}")
-    for trajectory_id in sorted(arena.trajectories.keys()):
-        trajectory = arena.trajectories[trajectory_id]
-        t, x, y, d = None, None, None, None
-        if rank == 0:
-            t, x, y, d = stimulus.generate_linear_trajectory(
-                trajectory,
-                temporal_resolution=env.stimulus_config["Temporal Resolution"],
-                equilibration_duration=env.stimulus_config["Equilibration Duration"],
-            )
+            # TODO: phase modulation configuration
+            # phase_mod_config = None
+            # if phase_mod_config_dict is not None:
+            #    phase_mod_config = phase_mod_config_dict[gid]
 
-        t = comm.bcast(t, root=0)
-        x = comm.bcast(x, root=0)
-        y = comm.bcast(y, root=0)
-        d = comm.bcast(d, root=0)
-        trajectory = t, x, y, d
+            # TODO: get the filtered signal from the input filter
+            #       when debug mode is enabled
+            # activation = feature.input_filter(processed_signal)
 
-        trajectory_namespace = f"Trajectory {arena_id} {trajectory_id}"
-        output_namespace = f"{spikes_namespace} {arena_id} {trajectory_id}"
+            # Initialize feature encoder
+            input_feature.initialize_encoder(time_config, local_random)
 
-        if not dry_run and rank == 0:
-            if output_path is None:
-                raise RuntimeError("generate_input_spike_trains: missing output_path")
-            if not os.path.isfile(output_path):
-                with h5py.File(output_path, "w") as output_file:
-                    input_file = h5py.File(selectivity_path, "r")
-                    input_file.copy("/H5Types", output_file)
-                    input_file.close()
-            with h5py.File(output_path, "a") as f:
-                if trajectory_namespace not in f:
-                    logger.info(
-                        f"Appending {trajectory_namespace} datasets to file at path: {output_path}"
-                    )
-                group = f.create_group(trajectory_namespace)
-                for key, value in zip(["t", "x", "y", "d"], [t, x, y, d]):
-                    dataset = group.create_dataset(key, data=value, dtype="float32")
-                else:
-                    loaded_t = f[trajectory_namespace]["t"][:]
-                    if len(t) != len(loaded_t):
-                        raise RuntimeError(
-                            "generate_input_spike_trains: file at path: %s already contains the "
-                            "namespace: %s, but the dataset sizes are inconsistent with the provided input"
-                            "configuration" % (output_path, trajectory_namespace)
-                        )
-        comm.barrier()
+            # Get spike response
+            response = input_feature.get_response(processed_signal)[0]
+            print(f"response = {response}")
 
-        if rank == 0:
-            context.update(locals())
+            # TODO: optional phase modulation
+            spikes_attr_dict[gid] = {
+                output_spike_train_attr_name: np.concatenate(response, dtype=np.float32)
+            }
 
-        spike_hist_sum_dict = {}
-        spike_hist_resolution = 1000
-
-        write_every = max(1, int(math.floor(write_size / comm.size)))
-        for population in populations:
-            req = comm.Ibarrier()
-            gc.collect()
-            req.wait()
-
-            pop_start = int(population_ranges[population][0])
-            num_cells = int(population_ranges[population][1])
-
-            phase_mod_config_dict = None
-            if phase_mod:
-                phase_mod_config_dict = stimulus.oscillation_phase_mod_config(
-                    env, population, soma_positions_dict[population]
-                )
-
-            this_spike_hist_sum = defaultdict(lambda: np.zeros(spike_hist_resolution))
-
-            process_time = dict()
-            for this_selectivity_namespace in sorted(
-                valid_selectivity_namespaces[population]
+            gid_count += 1
+            if (iter_count > 0 and iter_count % write_every == 0) or (
+                debug and iter_count == debug_count
             ):
+                req = comm.Ibarrier()
+                total_gid_count = comm.reduce(gid_count, root=0, op=MPI.SUM)
                 if rank == 0:
                     logger.info(
-                        f"Generating input source spike trains for population {population} [{this_selectivity_namespace}]..."
+                        f"generated spike trains for {total_gid_count} {population} cells"
                     )
-
-                start_time = time.time()
-                req = comm.Ibarrier()
-                selectivity_attr_gen = NeuroH5CellAttrGen(
-                    selectivity_path,
-                    population,
-                    namespace=this_selectivity_namespace,
-                    comm=comm,
-                    io_size=io_size,
-                    cache_size=cache_size,
-                )
                 req.wait()
-                spikes_attr_dict = dict()
-                gid_count = 0
-                for iter_count, (gid, selectivity_attr_dict) in enumerate(
-                    selectivity_attr_gen
-                ):
-                    if gid is not None:
-                        if rank == 0:
-                            logger.info(
-                                f"Rank {rank}: generating spike trains for gid {gid}..."
-                            )
-                        context.update(locals())
-                        phase_mod_config = None
-                        if phase_mod_config_dict is not None:
-                            phase_mod_config = phase_mod_config_dict[gid]
-                        spikes_attr_dict[gid] = stimulus.generate_input_spike_trains(
-                            env,
-                            population,
-                            selectivity_type_names,
-                            trajectory,
-                            gid,
-                            selectivity_attr_dict,
-                            n_trials=n_trials,
-                            spike_train_attr_name=spike_train_attr_name,
-                            spike_hist_resolution=spike_hist_resolution,
-                            equilibrate=equilibrate,
-                            phase_mod_config=phase_mod_config,
-                            spike_hist_sum=this_spike_hist_sum,
-                            return_selectivity_features=False,
-                            debug=(debug_callback, context) if debug else False,
-                        )
-                        gid_count += 1
 
-                    if (iter_count > 0 and iter_count % write_every == 0) or (
-                        debug and iter_count == 10
-                    ):
-                        req = comm.Ibarrier()
-                        total_gid_count = comm.reduce(gid_count, root=0, op=MPI.SUM)
-                        if rank == 0:
-                            logger.info(
-                                "generated spike trains for %i %s cells"
-                                % (total_gid_count, population)
-                            )
-                        req.wait()
-
-                        req = comm.Ibarrier()
-                        if not dry_run:
-                            append_cell_attributes(
-                                output_path,
-                                population,
-                                spikes_attr_dict,
-                                namespace=output_namespace,
-                                comm=comm,
-                                io_size=io_size,
-                                chunk_size=chunk_size,
-                                value_chunk_size=value_chunk_size,
-                            )
-                        req.wait()
-                        req = comm.Ibarrier()
-                        del spikes_attr_dict
-                        spikes_attr_dict = dict()
-                        gc.collect()
-                        req.wait()
-                        if debug and iter_count == 10:
-                            break
-
-            if not dry_run:
+                print(f"spikes_attr_dict = {spikes_attr_dict}")
                 req = comm.Ibarrier()
-                append_cell_attributes(
-                    output_path,
-                    population,
-                    spikes_attr_dict,
-                    namespace=output_namespace,
-                    comm=comm,
-                    io_size=io_size,
-                    chunk_size=chunk_size,
-                    value_chunk_size=value_chunk_size,
-                )
+                if not dry_run:
+                    append_cell_attributes(
+                        output_path,
+                        population_name,
+                        spikes_attr_dict,
+                        namespace=output_namespace,
+                        comm=comm,
+                        io_size=io_size,
+                        chunk_size=chunk_size,
+                        value_chunk_size=value_chunk_size,
+                    )
                 req.wait()
                 req = comm.Ibarrier()
                 del spikes_attr_dict
                 spikes_attr_dict = dict()
+                gc.collect()
                 req.wait()
-            process_time = time.time() - start_time
+                if debug and iter_count == debug_count:
+                    break
 
-            req = comm.Ibarrier()
-            total_gid_count = comm.reduce(gid_count, root=0, op=MPI.SUM)
-            if rank == 0:
-                logger.info(
-                    "generated spike trains for %i %s cells in %.2f s"
-                    % (total_gid_count, population, process_time)
-                )
-            req.wait()
+    if not dry_run:
+        req = comm.Ibarrier()
+        append_cell_attributes(
+            output_path,
+            population_name,
+            spikes_attr_dict,
+            namespace=output_namespace,
+            comm=comm,
+            io_size=io_size,
+            chunk_size=chunk_size,
+            value_chunk_size=value_chunk_size,
+        )
+        req.wait()
+        req = comm.Ibarrier()
+        del spikes_attr_dict
+        spikes_attr_dict = dict()
+        req.wait()
+    process_time = time.time() - start_time
 
-            if gather:
-                spike_hist_sum_dict[population] = this_spike_hist_sum
-
-        if gather:
-            this_spike_hist_sum = {
-                key: dict(val.items()) for key, val in spike_hist_sum_dict.items()
-            }
-            spike_hist_sum = comm.gather(this_spike_hist_sum, root=0)
-
-            if rank == 0:
-                merged_spike_hist_sum = defaultdict(
-                    lambda: defaultdict(lambda: np.zeros(spike_hist_resolution))
-                )
-                for each_spike_hist_sum in spike_hist_sum:
-                    for population in each_spike_hist_sum:
-                        for selectivity_type_name in each_spike_hist_sum[population]:
-                            merged_spike_hist_sum[population][selectivity_type_name] = (
-                                np.add(
-                                    merged_spike_hist_sum[population][
-                                        selectivity_type_name
-                                    ],
-                                    each_spike_hist_sum[population][
-                                        selectivity_type_name
-                                    ],
-                                )
-                            )
-
-                if plot:
-                    if save_fig is not None:
-                        fig_options.saveFig = save_fig
-
-                        plot_summed_spike_psth(
-                            t,
-                            trajectory_id,
-                            selectivity_type_name,
-                            merged_spike_hist_sum,
-                            spike_hist_resolution,
-                            fig_options,
-                        )
-
-    if is_interactive and rank == 0:
-        context.update(locals())
+    req = comm.Ibarrier()
+    total_gid_count = comm.reduce(gid_count, root=0, op=MPI.SUM)
+    if rank == 0:
+        logger.info(
+            f"generated spike trains for {total_gid_count} {population} cells in {process_time:.2f} s"
+        )
+    req.wait()
 
 
 def import_input_spike_train(
@@ -502,14 +292,14 @@ def import_input_spike_train(
     output_filepath: str,
     namespace: str = "Custom",
     attr_name: str = "Input Spikes",
-    population: str = "STIM",
+    population_name: str = "STIM",
 ) -> None:
-    """Takes data representing spike trains and writes it to a input spike HD5 output file
+    """Takes data representing spike trains and writes it to a input spike HDF5 output file
 
     :param data: A dictionary where keys represent the global ID of input neurons and value are array-likes with spike times in seconds
-    :param output_filepath: Output HD5 file path
-    :param namespace: HD5 target namespace
-    :param attr_name: HD5 attribute name
+    :param output_filepath: Output HDF5 file path
+    :param namespace: HDF5 target namespace
+    :param attr_name: HDF5 attribute name
     :param population: Neuron population
     """
 
@@ -532,7 +322,7 @@ def import_input_spike_train(
 
     append_cell_attributes(
         output_filepath,
-        population,
+        population_name,
         output_spike_attr_dict,
         namespace=namespace,
     )

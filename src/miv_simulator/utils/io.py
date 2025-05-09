@@ -357,10 +357,9 @@ def create_neural_h5(
 
 def make_h5types(
     env: AbstractEnv,
-    config: str,
     output_file: str,
     gap_junctions: bool = False,
-    config_prefix="",
+    config_prefix: str = "",
 ):
     return create_neural_h5(
         output_file,
@@ -380,7 +379,7 @@ def mkout(env: AbstractEnv, results_filename: str) -> None:
     :return:
     """
     if "Cell Data" in env.model_config:
-        dataset_path = os.path.join(env.dataset_prefix, env.datasetName)
+        dataset_path = os.path.join(env.dataset_prefix, env.dataset_name)
         data_file_path = os.path.join(dataset_path, env.model_config["Cell Data"])
         data_file = h5py.File(data_file_path, "r")
         results_file = h5py.File(results_filename, "a")

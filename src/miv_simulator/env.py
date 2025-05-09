@@ -46,12 +46,6 @@ NetclampConfig = namedtuple(
     ["template_params", "weight_generators", "optimize_parameters"],
 )
 
-ArenaConfig = namedtuple("Arena", ["name", "domain", "trajectories", "properties"])
-
-DomainConfig = namedtuple("Domain", ["vertices", "simplices"])
-
-StimulusConfig = namedtuple("Stimulus", ["velocity", "path"])
-
 
 class Env(AbstractEnv):
     """
@@ -226,6 +220,7 @@ class Env(AbstractEnv):
 
         # stimulus onset time [ms]
         self.stimulus_onset = float(stimulus_onset)
+        self.stimulus_config = {}
 
         # number of trials
         self.n_trials = int(n_trials)
@@ -266,6 +261,10 @@ class Env(AbstractEnv):
 
         self.model_config = self.comm.bcast(self.model_config, root=0)
 
+        self.Populations = {}
+        self.SWC_Type_index = {}
+        self.Synapse_Type_Index = {}
+        self.layer_type_index = {}
         if "Definitions" in self.model_config:
             self.parse_definitions()
             self.SWC_Type_index = {item[1]: item[0] for item in self.SWC_Types.items()}
@@ -277,14 +276,14 @@ class Env(AbstractEnv):
         if "Global Parameters" in self.model_config:
             self.parse_globals()
 
-        self.geometry = None
+        self.geometry = {}
         if "Geometry" in self.model_config:
             self.geometry = self.model_config["Geometry"]
             if "Origin" in self.geometry["Parametric Surface"]:
                 self.parse_origin_coords()
 
         self.coordinates_ns = coordinates_namespace
-        self.celltypes = self.model_config["Cell Types"]
+        self.celltypes = self.model_config.get("Cell Types", {})
         self.cell_attribute_info = {}
         self.phenotype_dict = {}
         self.phenotype_ids = {}
@@ -294,19 +293,18 @@ class Env(AbstractEnv):
         if "Model Name" in self.model_config:
             self.modelName = self.model_config["Model Name"]
         # The dataset to use for constructing the network
+        self.dataset_name = ""
         if "Dataset Name" in self.model_config:
-            self.datasetName = self.model_config["Dataset Name"]
+            self.dataset_name = self.model_config.get("Dataset Name", None)
 
         if rank == 0:
-            self.logger.info(f"env.dataset_prefix = {str(self.dataset_prefix)}")
+            self.logger.info(f"env.dataset_prefix = {self.dataset_prefix}")
 
         # Cell selection for simulations of subsets of the network
         self.cell_selection = None
         self.cell_selection_path = cell_selection_path
         if rank == 0:
-            self.logger.info(
-                f"env.cell_selection_path = {str(self.cell_selection_path)}"
-            )
+            self.logger.info(f"env.cell_selection_path = {self.cell_selection_path}")
             if cell_selection_path is not None:
                 with open(cell_selection_path) as fp:
                     self.cell_selection = yaml.load(fp, IncludeLoader)
@@ -319,15 +317,14 @@ class Env(AbstractEnv):
         self.spike_input_attribute_info = None
         if self.spike_input_path is not None:
             if rank == 0:
-                self.logger.info(f"env.spike_input_path = {str(self.spike_input_path)}")
+                self.logger.info(f"env.spike_input_path = {self.spike_input_path}")
                 self.spike_input_attribute_info = read_cell_attribute_info(
                     self.spike_input_path,
                     sorted(self.Populations.keys()),
                     comm=comm0,
                 )
                 self.logger.info(
-                    "env.spike_input_attribute_info = %s"
-                    % str(self.spike_input_attribute_info)
+                    f"env.spike_input_attribute_info = {self.spike_input_attribute_info}"
                 )
             self.spike_input_attribute_info = self.comm.bcast(
                 self.spike_input_attribute_info, root=0
@@ -348,12 +345,13 @@ class Env(AbstractEnv):
                     f"{self.modelName}_results_{self.results_file_id}.h5"
                 )
 
+        self.connection_config = {}
         if "Connection Generator" in self.model_config:
             self.parse_connection_config()
             self.parse_gapjunction_config()
 
         if self.dataset_prefix is not None:
-            self.dataset_path = os.path.join(self.dataset_prefix, self.datasetName)
+            self.dataset_path = os.path.join(self.dataset_prefix, self.dataset_name)
             if "Cell Data" in self.model_config:
                 self.data_file_path = os.path.join(
                     self.dataset_path, self.model_config["Cell Data"]
@@ -400,13 +398,6 @@ class Env(AbstractEnv):
         if "Network Clamp" in self.model_config:
             self.parse_netclamp_config()
 
-        self.stimulus_config = None
-        self.arena_id = None
-        self.stimulus_id = None
-        if "Stimulus" in self.model_config:
-            self.parse_stimulus_config()
-            self.init_stimulus_config(**kwargs)
-
         self.analysis_config = None
         if "Analysis" in self.model_config:
             self.analysis_config = self.model_config["Analysis"]
@@ -441,18 +432,18 @@ class Env(AbstractEnv):
                 f"env.microcircuit_input_sources = {self.microcircuit_input_sources}"
             )
 
-        # Configuration profile for optogenetic stimulation
-        self.opsin_config = None
-        if "Stimulus" in self.model_config:
-            if "Opsin" in self.model_config["Stimulus"]:
-                config = self.model_config["Stimulus"]["Opsin"]
-                self.opsin_config = {
-                    "nstates": int(config["nstates"]),
-                    "opsin type": config["opsin type"],
-                    "protocol": config["protocol"],
-                    "protocol parameters": config.get("protocol parameters", dict()),
-                    "rho parameters": config.get("rho parameters", dict()),
-                }
+        # TODO: Configuration profile for optogenetic stimulation
+        # self.opsin_config = None
+        # if "Stimulus" in self.model_config:
+        #     if "Opsin" in self.model_config["Stimulus"]:
+        #         config = self.model_config["Stimulus"]["Opsin"]
+        #         self.opsin_config = {
+        #             "nstates": int(config["nstates"]),
+        #             "opsin type": config["opsin type"],
+        #             "protocol": config["protocol"],
+        #             "protocol parameters": config.get("protocol parameters", dict()),
+        #             "rho parameters": config.get("rho parameters", dict()),
+        #         }
 
         # Configuration profile for recording intracellular quantities
         self.recording_profile = None
@@ -513,112 +504,6 @@ class Env(AbstractEnv):
         self.syns_set = defaultdict(set)
 
         comm0.Free()
-
-    def parse_arena_domain(self, config):
-        vertices = config["vertices"]
-        simplices = config["simplices"]
-
-        return DomainConfig(vertices, simplices)
-
-    def parse_arena_trajectory(self, config):
-        velocity = float(config["run velocity"])
-        path_config = config["path"]
-
-        path_x = []
-        path_y = []
-        for v in path_config:
-            path_x.append(v[0])
-            path_y.append(v[1])
-
-        path = np.column_stack(
-            (
-                np.asarray(path_x, dtype=np.float32),
-                np.asarray(path_y, dtype=np.float32),
-            )
-        )
-
-        return StimulusConfig(velocity, path)
-
-    def init_stimulus_config(
-        self,
-        arena_id: Optional[str] = None,
-        stimulus_id: Optional[str] = None,
-        **kwargs,
-    ) -> None:
-        if arena_id is not None:
-            if arena_id in self.stimulus_config["Arena"]:
-                self.arena_id = arena_id
-            else:
-                raise RuntimeError(
-                    "init_stimulus_config: arena id parameter not found in stimulus configuration"
-                )
-            if stimulus_id is None:
-                self.stimulus_id = None
-            else:
-                if stimulus_id in self.stimulus_config["Arena"][arena_id].trajectories:
-                    self.stimulus_id = stimulus_id
-                else:
-                    raise RuntimeError(
-                        "init_stimulus_config: stimulus id parameter not found in stimulus configuration"
-                    )
-
-    def parse_stimulus_config(self) -> None:
-        stimulus_dict = self.model_config["Stimulus"]
-        stimulus_config = {}
-
-        for k, v in stimulus_dict.items():
-            if k == "Selectivity Type Probabilities":
-                selectivity_type_prob_dict = {}
-                for pop, dvals in v.items():
-                    pop_selectivity_type_prob_dict = {}
-                    for (
-                        selectivity_type_name,
-                        selectivity_type_prob,
-                    ) in dvals.items():
-                        pop_selectivity_type_prob_dict[
-                            int(self.selectivity_types[selectivity_type_name])
-                        ] = float(selectivity_type_prob)
-                    selectivity_type_prob_dict[pop] = pop_selectivity_type_prob_dict
-                stimulus_config["Selectivity Type Probabilities"] = (
-                    selectivity_type_prob_dict
-                )
-            elif k == "Peak Rate":
-                peak_rate_dict = {}
-                for pop, dvals in v.items():
-                    pop_peak_rate_dict = {}
-                    for selectivity_type_name, peak_rate in dvals.items():
-                        pop_peak_rate_dict[
-                            int(self.selectivity_types[selectivity_type_name])
-                        ] = float(peak_rate)
-                    peak_rate_dict[pop] = pop_peak_rate_dict
-                stimulus_config["Peak Rate"] = peak_rate_dict
-            elif k == "Arena":
-                stimulus_config["Arena"] = {}
-                for arena_id, arena_val in v.items():
-                    arena_properties = {}
-                    arena_domain = None
-                    arena_trajectories = {}
-                    for kk, vv in arena_val.items():
-                        if kk == "Domain":
-                            arena_domain = self.parse_arena_domain(vv)
-                        elif kk == "Trajectory":
-                            for name, trajectory_config in vv.items():
-                                trajectory = self.parse_arena_trajectory(
-                                    trajectory_config
-                                )
-                                arena_trajectories[name] = trajectory
-                        else:
-                            arena_properties[kk] = vv
-                    stimulus_config["Arena"][arena_id] = ArenaConfig(
-                        arena_id,
-                        arena_domain,
-                        arena_trajectories,
-                        arena_properties,
-                    )
-            else:
-                stimulus_config[k] = v
-
-        self.stimulus_config = stimulus_config
 
     def parse_netclamp_config(self):
         """
