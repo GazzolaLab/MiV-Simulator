@@ -1,6 +1,8 @@
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+import matplotlib.cm as cm
 from typing import Tuple, List, Callable, Optional
 from miv_simulator.env import Env
 from miv_simulator.input_features import (
@@ -13,6 +15,21 @@ from miv_simulator.input_features import (
 )
 from miv_simulator.input_spike_trains import generate_input_spike_trains
 from mpi4py import MPI
+import h5py
+
+
+# Define a custom reduction operation that concatenates lists
+def list_concat(a, b, datatype):
+    """Concatenate two lists of lists"""
+    if a is None:
+        return b
+    if b is None:
+        return a
+    return a + b
+
+
+# Create MPI concatenation operation
+list_concat_op = MPI.Op.Create(list_concat, commute=True)
 
 
 class TemporalModality(InputModality):
@@ -209,6 +226,10 @@ class TemporalModality(InputModality):
         t_min, t_max = self.feature_coordinate_system.bounds[0]
         f_min, f_max = self.feature_coordinate_system.bounds[1]
 
+        print(
+            f"generate_feature_distribution: t_min = {t_min} t_max = {t_max} f_min = {f_min} f_max = {f_max}"
+        )
+
         # Create a grid of features over the feature space
         # Distribute time positions uniformly
         n_time_positions = int(np.sqrt(n_features))
@@ -221,9 +242,15 @@ class TemporalModality(InputModality):
         log_f_min = np.log(max(1.0, f_min))
         log_f_max = np.log(f_max)
 
+        print(
+            f"generate_feature_distribution: n_features = {n_features} n_time_positions = {n_time_positions}"
+        )
+
         # Generate positions on a grid
         for i in range(n_time_positions):
             time_pos = t_min + (t_max - t_min) * (i + 0.5) / n_time_positions
+
+            print(f"generate_feature_distribution {i}: time_pos = {time_pos}")
 
             for j in range(n_frequency_positions + (1 if i < remaining else 0)):
                 # Log spacing in frequency
@@ -253,15 +280,12 @@ class TemporalFeaturePopulation(InputFeaturePopulation):
     def generate_features(
         self,
         start_gid: int = 0,
-        gid_step: int = 1,
         n_features: Optional[int] = None,
         local_random: Optional[np.random.RandomState] = None,
         rank: Optional[int] = None,
         size: Optional[int] = None,
     ) -> List[InputFeature]:
         """Generate a population of features using the modality's distribution method."""
-
-        assert gid_step >= 1
 
         if local_random is None:
             local_random = np.random.RandomState()
@@ -276,7 +300,7 @@ class TemporalFeaturePopulation(InputFeaturePopulation):
             n_features, local_random
         )
 
-        print(f"generate_features: positions = {positions}")
+        print(f"positions = {positions}")
 
         if (rank is not None) and (size is not None):
             feature_indices = list(range(rank, self.n_features, size))
@@ -285,8 +309,10 @@ class TemporalFeaturePopulation(InputFeaturePopulation):
 
         features = []
 
-        for i, position in zip(feature_indices, positions):
-            gid = start_gid + i * gid_step
+        for i in feature_indices:
+            gid = start_gid + i
+
+            position = positions[i]
 
             # Generate encoding based on distribution
             encoding = self._generate_encoding(position, local_random)
@@ -327,7 +353,12 @@ sys.excepthook = mpi_excepthook
 
 
 if __name__ == "__main__":
+    dry_run = False
+    plot = True
+
     comm = MPI.COMM_WORLD
+    rank = comm.rank
+
     # np.seterr(all="raise")
     dataset_prefix = "./datasets"
     config = {}
@@ -339,8 +370,8 @@ if __name__ == "__main__":
     # Set up parameters
     sample_dt_ms = 1.0
     sample_rate = 1000.0 / sample_dt_ms  # Sample rate [Hz]
-    duration = 1.0  # Overall signal duration [s]
-    n_features = 20  # Number of features in the population
+    duration = 10.0  # Overall signal duration [s]
+    n_features = 200  # Number of features in the population
 
     # Create an instance of the temporal modality
     temporal_modality = TemporalModality(
@@ -383,7 +414,9 @@ if __name__ == "__main__":
     cell_distribution[temporal_feature_population.name] = {"All": n_features}
 
     # Generate the features
-    features = temporal_feature_population.generate_features()
+    features = temporal_feature_population.generate_features(
+        rank=comm.rank, size=comm.size
+    )
 
     # Create test signals with different frequencies
     t = np.linspace(0, duration, int(duration * sample_rate), endpoint=False)
@@ -423,173 +456,314 @@ if __name__ == "__main__":
         feature.initialize_encoder(time_config)
 
     # Get responses for each feature
-    activations = []
-    spike_responses = []
+    local_activations = []
+    local_spike_responses = []
+
+    local_positions = list(
+        [feature.position for feature in temporal_feature_population.features.values()]
+    )
+
+    local_times = np.vstack(local_positions)[:, 0]
+    print(
+        f"rank {rank}: local_times range: {np.min(local_times)} / {np.max(local_times)}"
+    )
 
     for feature in temporal_feature_population.features.values():
         # Get the activation level from the input filter
         activation = feature.input_filter(processed_stimulus)
-        activations.append(activation)
+        local_activations.append(activation)
 
         # Get spike response
         response = feature.get_response(processed_stimulus)
-        spike_responses.append(response)
+        local_spike_responses.append(response)
 
-    # Visualize the results
-    # Plot for the input signal
-    fig, axs = plt.subplots(
-        3, 1, figsize=(12, 12), gridspec_kw={"height_ratios": [2, 3, 3]}
-    )
+    spike_responses = comm.reduce(local_spike_responses, op=list_concat_op, root=0)
+    activations = comm.reduce(local_activations, op=list_concat_op, root=0)
+    positions = np.array(comm.reduce(local_positions, op=list_concat_op, root=0))
 
-    # Plot the input signal
-    axs[0].plot(t, stimulus)
-    axs[0].set_title("Input Signal: Frequency Changes Over Time")
-    axs[0].set_ylabel("Amplitude")
+    if plot and (rank == 0):
+        print(f"rank {rank}: spike_responses length = {len(spike_responses)}")
+        print(f"rank {rank}: activations length = {len(activations)}")
+        print(f"rank {rank}: positions.shape = {positions.shape}")
 
-    # Add frequency transition markers and labels
-    for i, freq in enumerate([5, 10, 20, 40]):
-        pos = i * segment_length
-        axs[0].axvline(x=t[pos], color="r", linestyle="--", alpha=0.5)
-        axs[0].text(
-            t[pos + segment_length // 2],
-            1.1,
-            f"{freq} Hz",
-            horizontalalignment="center",
-            verticalalignment="center",
+        # Visualize the results
+        # Plot for the input signal
+        fig, axs = plt.subplots(
+            3, 1, figsize=(12, 12), gridspec_kw={"height_ratios": [2, 3, 3]}
         )
 
-    # Plot the feature positions in feature space
-    positions = np.array(
-        [feature.position for feature in temporal_feature_population.features.values()]
-    )
-    times = positions[:, 0]
-    freqs = positions[:, 1]
+        # Plot the input signal
+        axs[0].plot(t, stimulus)
+        axs[0].set_title("Input Signal: Frequency Changes Over Time")
+        axs[0].set_ylabel("Amplitude")
 
-    # Create a color map based on mean activation levels
-    mean_activations = np.array([np.mean(act) for act in activations])
-    normalized_activations = (
-        mean_activations / np.max(mean_activations)
-        if np.max(mean_activations) > 0
-        else mean_activations
-    )
+        # Add frequency transition markers and labels
+        for i, freq in enumerate([5, 10, 20, 40]):
+            pos = i * segment_length
+            axs[0].axvline(x=t[pos], color="r", linestyle="--", alpha=0.5)
+            axs[0].text(
+                t[pos + segment_length // 2],
+                1.1,
+                f"{freq} Hz",
+                horizontalalignment="center",
+                verticalalignment="center",
+            )
 
-    # Plot feature positions colored by activation level
-    scatter = axs[1].scatter(
-        times,
-        freqs,
-        c=normalized_activations,
-        cmap="viridis",
-        s=100,
-        alpha=0.8,
-        edgecolors="k",
-    )
-    axs[1].set_title("Feature Population Distribution")
-    axs[1].set_xlabel("Time Position")
-    axs[1].set_ylabel("Frequency Preference (Hz)")
-    cbar = plt.colorbar(scatter, ax=axs[1])
-    cbar.set_label("Mean Activation Level")
+        # Plot the feature positions in feature space
+        times = positions[:, 0]
+        freqs = positions[:, 1]
 
-    # Highlight the key frequency bands
-    for i, freq in enumerate([5, 10, 20, 40]):
-        axs[1].axhline(y=freq, color="r", linestyle="--", alpha=0.3)
-        axs[1].text(
-            1.02,
-            freq,
-            f"{freq} Hz",
-            horizontalalignment="left",
-            verticalalignment="center",
+        print(f"rank {rank}: times.shape = {times.shape}")
+        print(f"rank {rank}: times range = {np.min(times)} / {np.max(times)} ")
+
+        # Create a color map based on mean activation levels
+        mean_activations = np.array([np.mean(act) for act in activations])
+        normalized_activations = (
+            mean_activations / np.max(mean_activations)
+            if np.max(mean_activations) > 0
+            else mean_activations
         )
 
-    # Plot spike raster
-    # Sort features by frequency for better visualization
-    sorted_indices = np.argsort(freqs)
-    sorted_features = [
-        temporal_feature_population.features[gid]
-        for gid in np.array(list(temporal_feature_population.features.keys()))[
-            sorted_indices
-        ]
-    ]
-    sorted_responses = [spike_responses[i] for i in sorted_indices]
-    sorted_freqs = freqs[sorted_indices]
+        # Plot feature positions colored by activation level
+        scatter = axs[1].scatter(
+            times,
+            freqs,
+            c=normalized_activations,
+            cmap="viridis",
+            s=100,
+            alpha=0.8,
+            edgecolors="k",
+        )
+        axs[1].set_title("Feature Population Distribution")
+        axs[1].set_xlabel("Time Position")
+        axs[1].set_ylabel("Frequency Preference (Hz)")
+        cbar = plt.colorbar(scatter, ax=axs[1])
+        cbar.set_label("Mean Activation Level")
 
-    # Create spike raster
-    for i, (feature, response) in enumerate(zip(sorted_features, sorted_responses)):
-        if isinstance(response, list):
-            # If the response is already spike times, use directly
-            spike_times = response
-        # Convert to spike times (assuming binary spike array)
-        elif len(response.shape) >= 3:  # [samples, timesteps, neurons]
-            binary_spikes = response[0, :, 0]  # Take first sample, first neuron
-            spike_times = t[binary_spikes > 0]
-        else:
-            # Use all responses above threshold as "spikes"
-            spike_times = t[response > 0.5] if len(response) > 0 else []
-
-        # Plot spike times as vertical lines
-        for spike_time in spike_times[0]:
-            norm_spike_time = spike_time / 1000.0
-            axs[2].plot(
-                [norm_spike_time, norm_spike_time],
-                [i - 0.4, i + 0.4],
-                "k-",
-                linewidth=1.5,
+        # Highlight the key frequency bands
+        for i, freq in enumerate([5, 10, 20, 40]):
+            axs[1].axhline(y=freq, color="r", linestyle="--", alpha=0.3)
+            axs[1].text(
+                1.02,
+                freq,
+                f"{freq} Hz",
+                horizontalalignment="left",
+                verticalalignment="center",
             )
 
-    # Add labels for y-axis showing feature frequencies
-    axs[2].set_yticks(range(len(sorted_features)))
-    axs[2].set_yticklabels([f"{freq:.1f} Hz" for freq in sorted_freqs])
-    axs[2].set_title("Spike Responses (Features Sorted by Frequency)")
-    axs[2].set_xlabel("Time (s)")
-    axs[2].set_xlim(0, duration)
+        # Plot spike raster
+        # Sort features by frequency for better visualization
+        sorted_indices = np.argsort(freqs)
+        sorted_responses = [spike_responses[i] for i in sorted_indices]
+        sorted_freqs = freqs[sorted_indices]
 
-    plt.tight_layout()
-    plt.show()
+        # Create a color map for frequencies
+        # Use the log scale for better color distribution across frequency range
+        log_freqs = np.log(sorted_freqs)
+        norm = mcolors.Normalize(vmin=np.min(log_freqs), vmax=np.max(log_freqs))
+        cmap = plt.get_cmap("plasma")
 
-    # Print a summary of the results
-    print("\nFeature Population Summary:")
-    print(f"Total features: {len(temporal_feature_population.features)}")
+        # Create spike raster
+        for i, response in enumerate(sorted_responses):
+            if isinstance(response, list):
+                # If the response is already spike times, use directly
+                spike_times = response
+            # Convert to spike times (assuming binary spike array)
+            elif len(response.shape) >= 3:  # [samples, timesteps, neurons]
+                binary_spikes = response[0, :, 0]  # Take first sample, first neuron
+                spike_times = t[binary_spikes > 0]
+            else:
+                # Use all responses above threshold as "spikes"
+                spike_times = t[response > 0.5] if len(response) > 0 else []
 
-    # Group features by frequency ranges
-    freq_ranges = [(0, 7.5), (7.5, 15), (15, 30), (30, 60), (60, 100)]
-    for freq_range in freq_ranges:
-        features_in_range = [
-            f
-            for f in temporal_feature_population.features.values()
-            if freq_range[0] <= f.position[1] < freq_range[1]
+            # Get color for this feature based on its frequency
+            log_freq = np.log(sorted_freqs[i])
+            color = cmap(norm(log_freq))
+
+            # Plot spike times as vertical lines with frequency-based color
+            for spike_time in spike_times[0]:
+                norm_spike_time = spike_time / 1000.0
+                axs[2].plot(
+                    [norm_spike_time, norm_spike_time],
+                    [i - 0.4, i + 0.4],
+                    color=color,
+                    linewidth=2.0,
+                )
+
+        # Create frequency range labels for y-axis
+        # Define frequency bins (can be adjusted based on your needs)
+        freq_bins = [1, 5, 10, 20, 40, 100]  # Bin edges
+        n_ticks = 6  # Number of tick marks to show
+
+        # Find which bin each feature belongs to
+        bin_indices = np.digitize(sorted_freqs, freq_bins) - 1
+        bin_indices = np.clip(
+            bin_indices, 0, len(freq_bins) - 2
+        )  # Ensure valid bin indices
+
+        # Calculate positions for tick marks
+        tick_positions = []
+        tick_labels = []
+
+        for i in range(len(freq_bins) - 1):
+            # Find features in this bin
+            features_in_bin = np.where(bin_indices == i)[0]
+
+            if len(features_in_bin) > 0:
+                # Put tick at the middle of this frequency range
+                tick_pos = np.mean(features_in_bin)
+                tick_positions.append(tick_pos)
+
+                # Create label for this range
+                if i == len(freq_bins) - 2:  # Last bin
+                    tick_labels.append(f"{freq_bins[i]}-{freq_bins[i + 1]} Hz")
+                else:
+                    tick_labels.append(f"{freq_bins[i]}-{freq_bins[i + 1]} Hz")
+
+        # Add boundary ticks
+        tick_positions.insert(0, 0)
+        tick_labels.insert(0, f"< {freq_bins[0]} Hz")
+        tick_positions.append(len(positions) - 1)
+        tick_labels.append(f"> {freq_bins[-1]} Hz")
+
+        # Set the y-axis ticks and labels
+        axs[2].set_yticks(tick_positions)
+        axs[2].set_yticklabels(tick_labels, fontsize=9)
+
+        # Add horizontal lines to separate frequency ranges
+        for i in range(1, len(freq_bins)):
+            # Find the boundary between bins
+            boundary_idx = np.where(sorted_freqs >= freq_bins[i])[0]
+            if len(boundary_idx) > 0:
+                boundary_pos = boundary_idx[0] - 0.5
+                axs[2].axhline(
+                    y=boundary_pos,
+                    color="gray",
+                    linestyle="-",
+                    alpha=0.5,
+                    linewidth=0.5,
+                )
+
+        # Add a colorbar to show the frequency mapping
+        # Create a mappable object for the colorbar
+        sm = cm.ScalarMappable(norm=norm, cmap=cmap)
+        sm.set_array([])  # This is required for the colorbar to work
+
+        # Add colorbar to the right of the spike raster
+        cbar = plt.colorbar(sm, ax=axs[2])
+        cbar.set_label("Frequency Preference (Hz)")
+
+        # Set the colorbar ticks to show actual frequency values instead of log values
+        freq_ticks = np.array(
+            [1, 5, 10, 20, 40, 100]
+        )  # Choose meaningful frequency values
+        log_freq_ticks = np.log(freq_ticks)
+        # Only use ticks that are within the data range
+        valid_ticks = freq_ticks[
+            (log_freq_ticks >= np.min(log_freqs))
+            & (log_freq_ticks <= np.max(log_freqs))
         ]
-        if features_in_range:
-            print(
-                f"\nFeatures tuned to {freq_range[0]}-{freq_range[1]} Hz: {len(features_in_range)}"
-            )
-            mean_acts = [
-                np.mean(activations[i])
-                for i, f in enumerate(temporal_feature_population.features.values())
-                if freq_range[0] <= f.position[1] < freq_range[1]
+        valid_log_ticks = np.log(valid_ticks)
+        cbar.set_ticks(valid_log_ticks)
+        cbar.set_ticklabels([f"{int(f)} Hz" for f in valid_ticks])
+
+        plt.tight_layout()
+        plt.show()
+
+        # Print a summary of the results
+        print("\nFeature Population Summary:")
+        print(f"Total features: {len(positions)}")
+
+        # Group features by frequency ranges
+        freq_ranges = [(0, 7.5), (7.5, 15), (15, 30), (30, 60), (60, 100)]
+        for freq_range in freq_ranges:
+            features_in_range = [
+                position
+                for position in positions
+                if freq_range[0] <= position[1] < freq_range[1]
             ]
-            print(f"  Mean activation: {np.mean(mean_acts):.4f}")
+            if features_in_range:
+                print(
+                    f"\nFeatures tuned to {freq_range[0]}-{freq_range[1]} Hz: {len(features_in_range)}"
+                )
+                mean_acts = [
+                    np.mean(activations[i])
+                    for i, position in enumerate(positions)
+                    if freq_range[0] <= position[1] < freq_range[1]
+                ]
+                print(f"  Mean activation: {np.mean(mean_acts):.4f}")
 
-    # Find features with highest activations
-    feature_indices = list(range(len(activations)))
-    feature_indices.sort(key=lambda i: np.mean(activations[i]), reverse=True)
+        # Find features with highest activations
+        feature_indices = list(range(len(activations)))
+        feature_indices.sort(key=lambda i: np.mean(activations[i]), reverse=True)
 
-    print("\nTop 5 most active features:")
-    for i in range(min(5, len(feature_indices))):
-        idx = feature_indices[i]
-        feature = list(temporal_feature_population.features.values())[idx]
-        print(
-            f"  Feature at position {feature.position}: mean activation = {np.mean(activations[idx]):.4f}"
+        print("\nTop 5 most active features:")
+        for i in range(min(5, len(feature_indices))):
+            idx = feature_indices[i]
+            position = positions[idx]
+            print(
+                f"  Feature at position {position}: mean activation = {np.mean(activations[idx]):.4f}"
+            )
+    comm.barrier()
+
+    signal_id = "test_temporal_features_20240510"
+    output_path = "temporal_input_spike_trains_10s.h5"
+
+    if not dry_run:
+        generate_input_spike_trains(
+            env,
+            temporal_feature_population,
+            signal=stimulus,
+            signal_id=signal_id,
+            coords_path=None,
+            output_path=output_path,
+            output_spikes_namespace="Temporal Feature Spikes",
+            output_spike_train_attr_name="Spike Train",
+            io_size=1,
+            chunk_size=10000,
+            value_chunk_size=10000,
         )
 
-    generate_input_spike_trains(
-        env,
-        temporal_feature_population,
-        signal=stimulus,
-        signal_id="test_temporal_features_20240508",
-        coords_path=None,
-        output_path="temporal_input_spike_trains.h5",
-        output_spikes_namespace="Temporal Feature Spikes",
-        output_spike_train_attr_name="Spike Train",
-        io_size=1,
-        chunk_size=10000,
-        value_chunk_size=10000,
-    )
+    # Save the input signal and metadata to the output file on rank 0
+    if comm.rank == 0 and not dry_run:
+        print(f"Saving input signal to {output_path}")
+        with h5py.File(output_path, "a") as f:
+            # Create a group for signals if it doesn't exist
+            if "Signals" not in f:
+                signals_group = f.create_group("Signals")
+            else:
+                signals_group = f["Signals"]
+
+            # Create a group for the specific signal
+            if signal_id in signals_group:
+                del signals_group[signal_id]
+            signal_group = signals_group.create_group(signal_id)
+
+            signal_group.create_dataset("data", data=stimulus, compression="gzip")
+
+            # Save metadata
+            signal_group.attrs["duration"] = duration
+            signal_group.attrs["sample_rate"] = sample_rate
+            signal_group.attrs["sample_dt_ms"] = sample_dt_ms
+            signal_group.attrs["description"] = (
+                "Synthetic signal with changing frequency (5Hz, 10Hz, 20Hz, 40Hz)"
+            )
+
+            # Save frequency information for each segment
+            frequencies = np.array([5.0, 10.0, 20.0, 40.0])
+            signal_group.create_dataset("frequencies", data=frequencies)
+
+            # Save time points
+            signal_group.create_dataset("time", data=t, compression="gzip")
+
+            # Save segment information
+            segment_starts = np.array(
+                [0, segment_length, 2 * segment_length, 3 * segment_length]
+            )
+            segment_ends = np.array(
+                [segment_length, 2 * segment_length, 3 * segment_length, len(stimulus)]
+            )
+            signal_group.create_dataset("segment_starts", data=segment_starts)
+            signal_group.create_dataset("segment_ends", data=segment_ends)
+
+    comm.barrier()
