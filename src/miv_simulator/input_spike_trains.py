@@ -218,12 +218,13 @@ def generate_input_spike_trains(
 
             # Get spike response
             response = input_feature.get_response(processed_signal)[0]
-            print(f"response = {response}")
 
-            # TODO: optional phase modulation
-            spikes_attr_dict[gid] = {
-                output_spike_train_attr_name: np.concatenate(response, dtype=np.float32)
-            }
+            if len(response) > 0:
+                spikes_attr_dict[gid] = {
+                    output_spike_train_attr_name: np.concatenate(
+                        response, dtype=np.float32
+                    )
+                }
 
             gid_count += 1
             if (iter_count > 0 and iter_count % write_every == 0) or (
@@ -237,7 +238,6 @@ def generate_input_spike_trains(
                     )
                 req.wait()
 
-                print(f"spikes_attr_dict = {spikes_attr_dict}")
                 req = comm.Ibarrier()
                 if not dry_run:
                     append_cell_attributes(

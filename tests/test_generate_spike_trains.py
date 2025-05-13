@@ -1,4 +1,5 @@
 import sys
+import logging
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
@@ -300,8 +301,6 @@ class TemporalFeaturePopulation(InputFeaturePopulation):
             n_features, local_random
         )
 
-        print(f"positions = {positions}")
-
         if (rank is not None) and (size is not None):
             feature_indices = list(range(rank, self.n_features, size))
         else:
@@ -359,6 +358,8 @@ if __name__ == "__main__":
     comm = MPI.COMM_WORLD
     rank = comm.rank
 
+    logging.basicConfig(level=logging.INFO)
+
     # np.seterr(all="raise")
     dataset_prefix = "./datasets"
     config = {}
@@ -371,7 +372,7 @@ if __name__ == "__main__":
     sample_dt_ms = 1.0
     sample_rate = 1000.0 / sample_dt_ms  # Sample rate [Hz]
     duration = 10.0  # Overall signal duration [s]
-    n_features = 200  # Number of features in the population
+    n_features = 1000  # Number of features in the population
 
     # Create an instance of the temporal modality
     temporal_modality = TemporalModality(
@@ -707,7 +708,7 @@ if __name__ == "__main__":
     comm.barrier()
 
     signal_id = "test_temporal_features_20240510"
-    output_path = "temporal_input_spike_trains_10s.h5"
+    output_path = "temporal_input_spike_trains_n1000_10s.h5"
 
     if not dry_run:
         generate_input_spike_trains(
