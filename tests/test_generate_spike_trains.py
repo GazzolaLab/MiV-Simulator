@@ -227,10 +227,6 @@ class TemporalModality(InputModality):
         t_min, t_max = self.feature_coordinate_system.bounds[0]
         f_min, f_max = self.feature_coordinate_system.bounds[1]
 
-        print(
-            f"generate_feature_distribution: t_min = {t_min} t_max = {t_max} f_min = {f_min} f_max = {f_max}"
-        )
-
         # Create a grid of features over the feature space
         # Distribute time positions uniformly
         n_time_positions = int(np.sqrt(n_features))
@@ -243,15 +239,9 @@ class TemporalModality(InputModality):
         log_f_min = np.log(max(1.0, f_min))
         log_f_max = np.log(f_max)
 
-        print(
-            f"generate_feature_distribution: n_features = {n_features} n_time_positions = {n_time_positions}"
-        )
-
         # Generate positions on a grid
         for i in range(n_time_positions):
             time_pos = t_min + (t_max - t_min) * (i + 0.5) / n_time_positions
-
-            print(f"generate_feature_distribution {i}: time_pos = {time_pos}")
 
             for j in range(n_frequency_positions + (1 if i < remaining else 0)):
                 # Log spacing in frequency
@@ -465,9 +455,6 @@ if __name__ == "__main__":
     )
 
     local_times = np.vstack(local_positions)[:, 0]
-    print(
-        f"rank {rank}: local_times range: {np.min(local_times)} / {np.max(local_times)}"
-    )
 
     for feature in temporal_feature_population.features.values():
         # Get the activation level from the input filter
@@ -483,10 +470,6 @@ if __name__ == "__main__":
     positions = np.array(comm.reduce(local_positions, op=list_concat_op, root=0))
 
     if plot and (rank == 0):
-        print(f"rank {rank}: spike_responses length = {len(spike_responses)}")
-        print(f"rank {rank}: activations length = {len(activations)}")
-        print(f"rank {rank}: positions.shape = {positions.shape}")
-
         # Visualize the results
         # Plot for the input signal
         fig, axs = plt.subplots(
@@ -513,9 +496,6 @@ if __name__ == "__main__":
         # Plot the feature positions in feature space
         times = positions[:, 0]
         freqs = positions[:, 1]
-
-        print(f"rank {rank}: times.shape = {times.shape}")
-        print(f"rank {rank}: times range = {np.min(times)} / {np.max(times)} ")
 
         # Create a color map based on mean activation levels
         mean_activations = np.array([np.mean(act) for act in activations])
