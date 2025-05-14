@@ -27,12 +27,6 @@ sys.excepthook = mpi_excepthook
 
 
 @click.command()
-@click.option(
-    "--arena-id",
-    required=False,
-    type=str,
-    help="name of arena used for spatial stimulus",
-)
 @click.option("--config", "-c", required=True, type=str)
 @click.option(
     "--config-prefix",
@@ -74,16 +68,9 @@ sys.excepthook = mpi_excepthook
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
 )
 @click.option("--io-size", type=int, default=-1)
-@click.option(
-    "--trajectory-id",
-    required=True,
-    type=str,
-    help="name of trajectory used for spatial stimulus",
-)
 @click.option("--write-selection", is_flag=True)
 @click.option("--verbose", "-v", is_flag=True)
 def main(
-    arena_id,
     config,
     config_prefix,
     dataset_prefix,
@@ -95,7 +82,6 @@ def main(
     spike_input_attr,
     output_path,
     io_size,
-    trajectory_id,
     write_selection,
     verbose,
 ):
@@ -120,8 +106,6 @@ def main(
         spike_input_namespace=spike_input_namespace,
         spike_input_attr=spike_input_attr,
         coordinates_namespace=coordinates_namespace,
-        arena_id=arena_id,
-        trajectory_id=trajectory_id,
         io_size=io_size,
         config_prefix=config_prefix,
     )

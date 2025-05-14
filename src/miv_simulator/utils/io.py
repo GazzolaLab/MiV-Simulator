@@ -795,6 +795,10 @@ def write_connection_selection(
         write_kwds["comm"] = env.comm
     if "io_size" not in write_kwds:
         write_kwds["io_size"] = env.io_size
+    if "chunk_size" not in write_kwds:
+        write_kwds["chunk_size"] = 10000
+    if "value_chunk_size" not in write_kwds:
+        write_kwds["value_chunk_size"] = 100000
 
     connectivity_file_path = env.connectivity_file_path
     forest_file_path = env.forest_file_path

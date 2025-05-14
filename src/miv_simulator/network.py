@@ -1303,10 +1303,7 @@ def init_input_cells(env: Env) -> None:
     trial_dur_attr = "Trial Duration"
     for pop_name in pop_names:
         if "spike train" in env.celltypes[pop_name]:
-            if env.arena_id and env.stimulus_id:
-                vecstim_namespace = f"{env.celltypes[pop_name]['spike train']['namespace']} {env.arena_id} {env.stimulus_id}"
-            else:
-                vecstim_namespace = env.celltypes[pop_name]["spike train"]["namespace"]
+            vecstim_namespace = env.celltypes[pop_name]["spike train"]["namespace"]
             vecstim_attr = env.celltypes[pop_name]["spike train"]["attribute"]
 
             has_vecstim = False
@@ -1431,7 +1428,7 @@ def init_input_cells(env: Env) -> None:
                                 env.n_trials,
                             )
                             spiketrain += (
-                                float(env.stimulus_config["Equilibration Duration"])
+                                float(env.stimulus_config.get("Equilibration Duration", 0))
                                 + env.stimulus_onset
                             )
                             if len(spiketrain) > 0:
@@ -1551,7 +1548,7 @@ def init_input_cells(env: Env) -> None:
                                 env.n_trials,
                             )
                             spiketrain += (
-                                float(env.stimulus_config["Equilibration Duration"])
+                                float(env.stimulus_config.get("Equilibration Duration", 0))
                                 + env.stimulus_onset
                             )
                             if len(spiketrain) > 0:
@@ -1615,7 +1612,7 @@ def init(env: Env, subworld_size: Optional[int] = None) -> None:
         if rank == 0:
             logger.info(f"*** Gap junctions created in {env.connectgjstime:.02f} s")
 
-    if env.opsin_config is not None:
+    if hasattr(env, 'opsin_config') and env.opsin_config is not None:
         st = time.time()
         opsin_pop_dict = {
             pop_name: set(env.cells[pop_name].keys()).difference(

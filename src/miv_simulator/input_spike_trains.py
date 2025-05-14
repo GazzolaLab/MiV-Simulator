@@ -227,37 +227,37 @@ def generate_input_spike_trains(
                 }
 
             gid_count += 1
-            if (iter_count > 0 and iter_count % write_every == 0) or (
-                debug and iter_count == debug_count
-            ):
-                req = comm.Ibarrier()
-                total_gid_count = comm.reduce(gid_count, root=0, op=MPI.SUM)
-                if rank == 0:
-                    logger.info(
-                        f"generated spike trains for {total_gid_count} {population} cells"
-                    )
-                req.wait()
+        if (iter_count > 0 and iter_count % write_every == 0) or (
+            debug and iter_count == debug_count
+        ):
+            req = comm.Ibarrier()
+            total_gid_count = comm.reduce(gid_count, root=0, op=MPI.SUM)
+            if rank == 0:
+                logger.info(
+                    f"generated spike trains for {total_gid_count} {population_name} cells"
+                )
+            req.wait()
 
-                req = comm.Ibarrier()
-                if not dry_run:
-                    append_cell_attributes(
-                        output_path,
-                        population_name,
-                        spikes_attr_dict,
-                        namespace=output_namespace,
-                        comm=comm,
-                        io_size=io_size,
-                        chunk_size=chunk_size,
-                        value_chunk_size=value_chunk_size,
-                    )
-                req.wait()
-                req = comm.Ibarrier()
-                del spikes_attr_dict
-                spikes_attr_dict = dict()
-                gc.collect()
-                req.wait()
-                if debug and iter_count == debug_count:
-                    break
+            req = comm.Ibarrier()
+            if not dry_run:
+                append_cell_attributes(
+                    output_path,
+                    population_name,
+                    spikes_attr_dict,
+                    namespace=output_namespace,
+                    comm=comm,
+                    io_size=io_size,
+                    chunk_size=chunk_size,
+                    value_chunk_size=value_chunk_size,
+                )
+            req.wait()
+            req = comm.Ibarrier()
+            del spikes_attr_dict
+            spikes_attr_dict = dict()
+            gc.collect()
+            req.wait()
+            if debug and iter_count == debug_count:
+                break
 
     if not dry_run:
         req = comm.Ibarrier()

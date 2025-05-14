@@ -1,3 +1,4 @@
+import os
 import sys
 import logging
 import numpy as np
@@ -343,7 +344,7 @@ sys.excepthook = mpi_excepthook
 
 if __name__ == "__main__":
     dry_run = False
-    plot = True
+    plot = False
 
     comm = MPI.COMM_WORLD
     rank = comm.rank
@@ -351,7 +352,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     # np.seterr(all="raise")
-    dataset_prefix = "./datasets"
+    dataset_prefix = "/scratch1/03320/iraikov/striped2/MiV/results/livn"
     config = {}
     params = dict(locals())
     # params["config"] = params.pop("config_file")
@@ -688,7 +689,9 @@ if __name__ == "__main__":
     comm.barrier()
 
     signal_id = "test_temporal_features_20240510"
-    output_path = "temporal_input_spike_trains_n1000_10s.h5"
+    output_path = os.path.join(
+        dataset_prefix, "temporal_input_spike_trains_n1000_10s.h5"
+    )
 
     if not dry_run:
         generate_input_spike_trains(
@@ -701,6 +704,7 @@ if __name__ == "__main__":
             output_spikes_namespace="Temporal Feature Spikes",
             output_spike_train_attr_name="Spike Train",
             io_size=1,
+            write_size=50,
             chunk_size=10000,
             value_chunk_size=10000,
         )
