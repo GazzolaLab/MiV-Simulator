@@ -4,6 +4,7 @@
 Routines and objective functions related to optimization of synaptic parameters.
 """
 
+import gc
 import numpy as np
 from mpi4py import MPI
 from collections import namedtuple
@@ -319,7 +320,7 @@ def update_network_params(env, param_tuples):
                         # origin=None if is_reduced else "soma",
                         update_targets=True,
                     )
-
+                gc.collect()
 
 def update_run_params(env, param_tuples):
     for population in env.biophys_cells:

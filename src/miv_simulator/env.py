@@ -394,6 +394,8 @@ class Env(AbstractEnv):
         if node_allocation:
             self.node_allocation = set(node_allocation)
 
+        self.stimulus_config = self.model_config.get("Stimulus", {})
+
         self.netclamp_config = None
         if "Network Clamp" in self.model_config:
             self.parse_netclamp_config()
