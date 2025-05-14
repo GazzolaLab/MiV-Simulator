@@ -263,9 +263,7 @@ def optimization_params(
 
 def update_network_params(env, param_tuples):
     for population in env.biophys_cells:
-        synapse_config = env.celltypes[population].get("synapses", {})
         phenotype_dict = env.phenotype_dict.get(population, None)
-        weights_dict = synapse_config.get("weights", {})
 
         for param_tuple, param_value in param_tuples:
             if param_tuple.population != population:
@@ -304,9 +302,6 @@ def update_network_params(env, param_tuples):
 
                 biophys_cell = biophys_cell_dict[gid]
                 biophys_cell.pop_name = population
-                is_reduced = False
-                if hasattr(biophys_cell, "is_reduced"):
-                    is_reduced = biophys_cell.is_reduced
 
                 for this_sec_type in sec_types:
                     synapses.modify_syn_param(
@@ -322,11 +317,9 @@ def update_network_params(env, param_tuples):
                     )
                 gc.collect()
 
+
 def update_run_params(env, param_tuples):
     for population in env.biophys_cells:
-        synapse_config = env.celltypes[population].get("synapses", {})
-        weights_dict = synapse_config.get("weights", {})
-
         for param_tuple, param_value in param_tuples:
             if param_tuple.population != population:
                 continue
@@ -424,8 +417,7 @@ def distgfs_broker_bcast(broker, tag):
                 )
                 source = status.Get_source()
                 data_dict[source] = data
-            else:
-                time.sleep(1)
+
     if broker.worker_id == 1:
         broker.group_comm.bcast(data_dict, root=0)
     else:
@@ -477,7 +469,6 @@ def opt_reduce_every_features_constraints(items):
 
 def opt_reduce_every_constraints(items):
     result = {}
-    features = {}
     for yd, cd in items:
         for k in yd:
             result[k] = (yd[k], cd[k])
@@ -496,7 +487,6 @@ def opt_reduce_mean(xs):
 
 
 def opt_reduce_mean_features(xs, index, feature_dtypes):
-    ks = index
     vs = []
     fs = []
     ax = {}
