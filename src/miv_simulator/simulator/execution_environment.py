@@ -183,7 +183,7 @@ class ExecutionEnvironment(AbstractEnv):
                 "gapjunctions": None,  # TODO
                 "recording_profile": None,  # TODO
                 "dt": 0.025,  # TODO: understand the implications of this
-                "datasetName": "",
+                "dataset_name": "",
                 "gidset": self.gidset,
                 "SWC_Types": config.SWCTypesDef.__members__,
                 "template_paths": [templates],
