@@ -30,7 +30,10 @@ class Network(Interface):
 
         populations = self.config.populations
         if populations is None:
-            populations = list(config.synapses.keys())
+            populations = []
+            for pre, v in config.synapses.items():
+                populations.append(pre)
+                populations.extend(list(v.keys()))
 
         self.h5_types = get(
             "miv_simulator.interface.h5_types",
