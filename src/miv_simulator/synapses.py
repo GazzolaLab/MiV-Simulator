@@ -3148,9 +3148,9 @@ def insert_cell_syns(
     mech_params = None
     if "default" in syn_params:
         mech_params = syn_params["default"]
-        for mech_name, mech_params in mech_params.items():
+        for mech_name, mech_param_config in mech_params.items():
             syn_manager.add_default_mechanism_parameters(
-                gid, mech_name, mech_params, syn_ids
+                gid, mech_name, mech_param_config, syn_ids
             )
 
     syn_count = 0
@@ -3169,11 +3169,12 @@ def insert_cell_syns(
         syn_layer = syn.syn_layer
         syn_layer_name = layer_name_dict[syn_layer]
 
-        try:
+        if swc_type in syn_params:
             mech_params = syn_params[swc_type]
-        except Exception:
-            # default
-            mech_params = syn_params.get("default", None)
+        elif str(swc_type) in syn_params:
+            mech_params = syn_params[str(swc_type)]
+        elif "default" in syn_params:
+            mech_params = syn_params["default"]
 
         if is_reduced:
             sec_index = 0
