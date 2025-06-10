@@ -1177,12 +1177,3 @@ class H5FileManager:
                 f_dst.create_group("Projections")
             with h5py.File(src, "r") as f_src:
                 copy_dataset(f_src, f_dst, projection_dset_path)
-
-    def copy_stim_coordinates(self):
-        with h5py.File(self.cells_filepath, "a") as f:
-            if "/Populations/STIM" not in f:
-                return
-            f.copy(
-                "/Populations/STIM/Generated Coordinates",
-                "/Populations/STIM/Coordinates",
-            )

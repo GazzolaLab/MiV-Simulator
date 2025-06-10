@@ -63,7 +63,7 @@ class NeuroH5Graph(Component):
         self.graph.import_h5types(self.architecture.config.filepath)
         self.graph.import_soma_coordinates(
             self.architecture.config.filepath,
-            populations=list(populations),
+            populations=read_population_names(self.architecture.config.filepath),
         )
         for p in self.synapse_forest.keys():
             self.graph.import_synapse_attributes(
@@ -71,7 +71,6 @@ class NeuroH5Graph(Component):
                 self.synapse_forest[p].output_filepath,
                 self.synapses[p].output_filepath,
             )
-        self.graph.copy_stim_coordinates()
 
         for p, c in self.connections.items():
             self.graph.import_projections(p, c.output_filepath)
