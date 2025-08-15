@@ -374,31 +374,53 @@ def compute_objectives(local_features, operational_config, opt_targets):
     all_features_dict = {}
     constraints = []
 
+    active_threshold = 0.01
     target_populations = operational_config["target_populations"]
+    temporal_resolution = operational_config["temporal_resolution"]
     for pop_name in target_populations:
         pop_features_dicts = [
             features_dict[0][pop_name] for features_dict in local_features
         ]
 
         sum_mean_rate = 0.0
-        sum_snr = 0.0
         n_total = 0
         n_active = 0
-        n_target_rate_map = 0
+        time_bins_ref = None
+        sum_active_per_bin = None
         for pop_feature_dict in pop_features_dicts:
             n_active_local = pop_feature_dict["n_active"]
             n_total_local = pop_feature_dict["n_total"]
-            n_target_rate_map_local = pop_feature_dict["n_target_rate_map"]
-            sum_mean_rate_local = pop_feature_dict["sum_mean_rate"]
-            sum_snr_local = pop_feature_dict["sum_snr"]
+            time_bins = pop_feature_dict["time_bins"]
+            if time_bins_ref is None:
+                time_bins_ref = time_bins
+            spike_density_dict = pop_feature_dict["spike_density_dict"]
+            sum_mean_rate_local = 0.0
+            t_start = time_bins_ref[0]
+            t_end = time_bins_ref[-1] + (time_bins_ref[1] - time_bins_ref[0])
+            # time bins for fraction active per time bin calculation
+            fr_time_bins = np.arange(t_start, t_end, temporal_resolution)
+            bin_width = time_bins_ref[1] - time_bins_ref[0]
+            time_centers = time_bins_ref + bin_width / 2
+            fr_time_centers = fr_time_bins + temporal_resolution / 2
+            if sum_active_per_bin is None:
+                sum_active_per_bin = np.zeros_like(time_centers)
+            for gid, dens_dict in spike_density_dict.items():
+                mean_rate = np.mean(dens_dict["rate"])
+                if mean_rate > 0.0:
+                    sum_mean_rate_local += mean_rate
+                ip_rate = np.interp1d(
+                    fr_time_centers,
+                    dens_dict["rate"],
+                    kind="linear",
+                    bounds_error=False,
+                    fill_value=0.0,
+                )
+                active_per_bin = ip_rate > active_threshold
+                sum_active_per_bin += active_per_bin
 
             n_total += n_total_local
             n_active += n_active_local
-            n_target_rate_map += n_target_rate_map_local
             sum_mean_rate += sum_mean_rate_local
-
-            if sum_snr_local is not None:
-                sum_snr += sum_snr_local
 
         if n_active > 0:
             mean_rate = sum_mean_rate / n_active
@@ -407,24 +429,25 @@ def compute_objectives(local_features, operational_config, opt_targets):
 
         if n_total > 0:
             fraction_active = n_active / n_total
+            mean_fraction_active_per_bin = np.mean(sum_active_per_bin / float(n_total))
+            std_fraction_active_per_bin = np.std(sum_active_per_bin / float(n_total))
         else:
             fraction_active = 0.0
-
-        mean_snr = None
-        if n_target_rate_map > 0:
-            mean_snr = sum_snr / n_target_rate_map
+            mean_fraction_active_per_bin = 0.0
+            std_fraction_active_per_bin = 0.0
 
         logger.info(
             f"population {pop_name}: n_active = {n_active} n_total = {n_total} mean rate = {mean_rate}"
         )
-        logger.info(
-            f"population {pop_name}: n_target_rate_map = {n_target_rate_map} snr: sum = {sum_snr} mean = {mean_snr}"
-        )
 
+        all_features_dict[f"{pop_name} mean fraction active per time bin"] = (
+            mean_fraction_active_per_bin
+        )
+        all_features_dict[f"{pop_name} std fraction active per time bin"] = (
+            std_fraction_active_per_bin
+        )
         all_features_dict[f"{pop_name} fraction active"] = fraction_active
         all_features_dict[f"{pop_name} firing rate"] = mean_rate
-        if mean_snr is not None:
-            all_features_dict[f"{pop_name} snr"] = mean_snr
 
         rate_constr = mean_rate if mean_rate > 0.0 else -1.0
         constraints.append(rate_constr)

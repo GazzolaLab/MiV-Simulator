@@ -377,27 +377,21 @@ def network_features(env, t_start, t_stop, target_populations):
 
     for pop_name in target_populations:
         n_active = 0
-        sum_mean_rate = 0.0
         spike_density_dict = spikedata.spike_density_estimate(
             pop_name, pop_spike_dict[pop_name], time_bins
         )
         for gid, dens_dict in spike_density_dict.items():
             mean_rate = np.mean(dens_dict["rate"])
-            sum_mean_rate += mean_rate
             if mean_rate > 0.0:
                 n_active += 1
 
         n_total = len(env.cells[pop_name]) - len(env.artificial_cells[pop_name])
 
-        n_target_rate_map = 0
-        sum_snr = None
-
         pop_features_dict = {}
         pop_features_dict["n_total"] = n_total
         pop_features_dict["n_active"] = n_active
-        pop_features_dict["n_target_rate_map"] = n_target_rate_map
-        pop_features_dict["sum_mean_rate"] = sum_mean_rate
-        pop_features_dict["sum_snr"] = sum_snr
+        pop_features_dict["time_bins"] = time_bins
+        pop_features_dict["spike_density_dict"] = spike_density_dict
 
         features_dict[pop_name] = pop_features_dict
 
