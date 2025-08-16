@@ -70,6 +70,10 @@ class Synapses(Component):
     def on_write_meta_data(self):
         return MPI.COMM_WORLD.Get_rank() == 0
 
+    def on_after_dispatch(self, success):
+        # ensure shutdown
+        MPI.COMM_WORLD.Abort(int(not success))
+
     def compute_context(self):
         context = super().compute_context()
         del context["config"]["forest_filepath"]

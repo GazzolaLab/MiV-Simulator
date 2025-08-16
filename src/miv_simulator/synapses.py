@@ -2425,10 +2425,11 @@ class SynapseManager:
 
             assert new_val is not None
 
-            value_result, source = (
-                self.syn_store.param_store.get_parameter_value_hierarchy(
-                    gid, array_index, mech_name, k, syn_id
-                )
+            (
+                value_result,
+                source,
+            ) = self.syn_store.param_store.get_parameter_value_hierarchy(
+                gid, array_index, mech_name, k, syn_id
             )
             old_val = value_result if value_result is not None else mech_param
 

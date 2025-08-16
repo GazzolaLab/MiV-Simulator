@@ -2,6 +2,7 @@
 
 
 import click
+from mpi4py import MPI
 from miv_simulator.simulator.distribute_synapses import (
     distribute_synapse_locations,
 )
@@ -75,3 +76,5 @@ def main(
         config_prefix=config_prefix,
         mechanisms_path=mechanisms_path,
     )
+
+    MPI.COMM_WORLD.Abort(0)

@@ -264,7 +264,7 @@ def distribute_synapses(
     dry_run: bool,
 ):
     logger = utils.get_script_logger(os.path.basename(__file__))
-
+    write_size = 1
     comm = MPI.COMM_WORLD
     rank = comm.rank
 
@@ -413,7 +413,15 @@ def distribute_synapses(
             else:
                 logger.info(f"Rank {rank} gid is None")
             gc.collect()
-            if (not dry_run) and (write_size > 0) and (gid_count % write_size == 0):
+
+            # Check if any rank has reached the write_size threshold and
+            #  ensure that all ranks in that group call collectively
+            local_should_write = (
+                (not dry_run) and (write_size > 0) and (gid_count % write_size == 0)
+            )
+            global_should_write = comm.allreduce(local_should_write, op=MPI.LOR)
+
+            if global_should_write:
                 append_cell_attributes(
                     output_filepath,
                     population,
@@ -428,7 +436,13 @@ def distribute_synapses(
             syn_stats[population] = syn_stats_dict
             count += 1
 
-        if not dry_run:
+        # Final write for any remaining synapse data - allreduce to ensure all ranks participate
+        local_should_write_final = not dry_run
+        global_should_write_final = comm.allreduce(
+            local_should_write_final, op=MPI.LAND
+        )
+
+        if global_should_write_final:
             append_cell_attributes(
                 output_filepath,
                 population,
@@ -447,7 +461,3 @@ def distribute_synapses(
                 f"to compute synapse locations for {np.sum(global_count)} cells"
             )
             logger.info(summary)
-
-        comm.barrier()
-
-    MPI.Finalize()
