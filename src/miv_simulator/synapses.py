@@ -3134,13 +3134,12 @@ def insert_cell_syns(
                             list(sec_list),
                         )
                     )
-        if len(reduced_section_dict) == 0:
-            if hasattr(cell, "soma"):
-                cell_soma = cell.soma
-                if isinstance(cell_soma, list):
-                    cell_soma = cell_soma[0]
-            if hasattr(cell, "dend"):
-                cell_dendrite = cell.dend
+        if hasattr(cell, "soma"):
+            cell_soma = cell.soma
+            if isinstance(cell_soma, list):
+                cell_soma = cell_soma[0]
+        if hasattr(cell, "dend"):
+            cell_dendrite = cell.dend
 
     syn_manager = env.synapse_manager
 
