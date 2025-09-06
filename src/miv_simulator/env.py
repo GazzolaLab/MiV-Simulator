@@ -58,7 +58,7 @@ class Env(AbstractEnv):
         config: Optional[str] = None,
         template_paths: str = "templates",
         hoc_lib_path: Optional[str] = None,
-        mechanisms_path: Optional[str] = None,
+        mechanisms_path: Optional[str] = "mechanisms",
         dataset_prefix: Optional[str] = None,
         results_path: Optional[str] = None,
         results_file_id: Optional[str] = None,

@@ -2425,10 +2425,11 @@ class SynapseManager:
 
             assert new_val is not None
 
-            value_result, source = (
-                self.syn_store.param_store.get_parameter_value_hierarchy(
-                    gid, array_index, mech_name, k, syn_id
-                )
+            (
+                value_result,
+                source,
+            ) = self.syn_store.param_store.get_parameter_value_hierarchy(
+                gid, array_index, mech_name, k, syn_id
             )
             old_val = value_result if value_result is not None else mech_param
 
@@ -3133,13 +3134,12 @@ def insert_cell_syns(
                             list(sec_list),
                         )
                     )
-        if len(reduced_section_dict) == 0:
-            if hasattr(cell, "soma"):
-                cell_soma = cell.soma
-                if isinstance(cell_soma, list):
-                    cell_soma = cell_soma[0]
-            if hasattr(cell, "dend"):
-                cell_dendrite = cell.dend
+        if hasattr(cell, "soma"):
+            cell_soma = cell.soma
+            if isinstance(cell_soma, list):
+                cell_soma = cell_soma[0]
+        if hasattr(cell, "dend"):
+            cell_dendrite = cell.dend
 
     syn_manager = env.synapse_manager
 
