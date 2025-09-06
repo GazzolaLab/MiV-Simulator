@@ -217,7 +217,7 @@ def generate_input_spike_trains(
             input_feature.initialize_encoder(time_config, local_random)
 
             # Get spike response
-            response = input_feature.get_response(processed_signal)[0]
+            response = input_feature.get_response(processed_signal)
 
             if len(response) > 0:
                 spikes_attr_dict[gid] = {
