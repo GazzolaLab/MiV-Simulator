@@ -93,6 +93,9 @@ def generate_input_spike_trains(
         logger.info(f"{comm.size} ranks have been allocated")
 
     population_name = population.name
+    start_gid = 0
+    if hasattr(population, "start_gid"):
+        start_gid = population.start_gid
 
     soma_positions_dict = None
     if coords_path is not None:
@@ -186,6 +189,8 @@ def generate_input_spike_trains(
     feature_items = list(population.features.items())
     n_iter = comm.allreduce(len(feature_items), op=MPI.MAX)
 
+    logger.info(f"n_iter = {n_iter} feature_items = {feature_items}")
+
     if not dry_run and rank == 0:
         if output_path is None:
             raise RuntimeError("generate_input_spike_trains: missing output_path")
@@ -198,6 +203,7 @@ def generate_input_spike_trains(
     for iter_count in range(n_iter):
         if iter_count < len(feature_items):
             gid, input_feature = feature_items[iter_count]
+            gid += start_gid
         else:
             gid, input_feature = None, None
         if gid is not None:
@@ -218,13 +224,11 @@ def generate_input_spike_trains(
 
             # Get spike response
             response = input_feature.get_response(processed_signal)
+            if isinstance(response, list):
+                response = np.concatenate(np.concatenate(response, dtype=np.float32))
 
             if len(response) > 0:
-                spikes_attr_dict[gid] = {
-                    output_spike_train_attr_name: np.concatenate(
-                        response, dtype=np.float32
-                    )
-                }
+                spikes_attr_dict[gid] = {output_spike_train_attr_name: response}
 
             gid_count += 1
         if (iter_count > 0 and iter_count % write_every == 0) or (
