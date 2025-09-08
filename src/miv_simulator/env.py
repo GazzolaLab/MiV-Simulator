@@ -889,6 +889,26 @@ class Env(AbstractEnv):
                                 weights_dict["closure"] = clos
                         synapses_dict["weights"] = weights_dicts
 
+    def register_population(self, population_name, population_cell_distribution):
+        if population_name in self.Populations:
+            return None
+
+        max_pop_enum = 0
+        pop_offset = 0
+        for this_pop_name, this_pop_enum in self.Populations.items():
+            max_pop_enum = max(this_pop_enum, max_pop_enum)
+            pop_offset += self.celltypes[this_pop_name]["num"]
+
+        pop_id = max_pop_enum + 1
+        self.Populations[population_name] = pop_id
+        cell_distribution = {}
+        if "Cell Distribution" in self.geometry:
+            cell_distribution = self.geometry["Cell Distribution"]
+        else:
+            self.geometry["Cell Distribution"] = population_cell_distribution
+        cell_distribution[population_name] = population_cell_distribution
+        return {"population_id": pop_id, "population_start_gid": pop_offset}
+
     def clear(self):
         self.gidset = set()
         self.gjlist = []
