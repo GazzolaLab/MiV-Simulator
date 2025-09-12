@@ -93,9 +93,6 @@ def generate_input_spike_trains(
         logger.info(f"{comm.size} ranks have been allocated")
 
     population_name = population.name
-    start_gid = 0
-    if hasattr(population, "start_gid"):
-        start_gid = population.start_gid
 
     soma_positions_dict = None
     if coords_path is not None:
@@ -189,8 +186,6 @@ def generate_input_spike_trains(
     feature_items = list(population.features.items())
     n_iter = comm.allreduce(len(feature_items), op=MPI.MAX)
 
-    logger.info(f"n_iter = {n_iter} feature_items = {feature_items}")
-
     if not dry_run and rank == 0:
         if output_path is None:
             raise RuntimeError("generate_input_spike_trains: missing output_path")
@@ -203,7 +198,6 @@ def generate_input_spike_trains(
     for iter_count in range(n_iter):
         if iter_count < len(feature_items):
             gid, input_feature = feature_items[iter_count]
-            gid += start_gid
         else:
             gid, input_feature = None, None
         if gid is not None:
@@ -225,7 +219,17 @@ def generate_input_spike_trains(
             # Get spike response
             response = input_feature.get_response(processed_signal)
             if isinstance(response, list):
-                response = np.concatenate(np.concatenate(response, dtype=np.float32))
+                response_length = 0
+                for x in response:
+                    response_length += len(x)
+                if response_length > 0:
+                    try:
+                        response = np.concatenate(np.concatenate(response, dtype=np.float32))
+                    except Exception as e:
+                        logger.error(f"error concatenating response: {response}")
+                        raise e
+                else:
+                    response = np.asarray([], dtype=np.float32)
             else:
                 response = response.reshape((-1,)).astype(np.float32)
 
