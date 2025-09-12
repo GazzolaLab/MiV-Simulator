@@ -226,6 +226,8 @@ def generate_input_spike_trains(
             response = input_feature.get_response(processed_signal)
             if isinstance(response, list):
                 response = np.concatenate(np.concatenate(response, dtype=np.float32))
+            else:
+                response = response.reshape((-1,)).astype(np.float32)
 
             if len(response) > 0:
                 spikes_attr_dict[gid] = {output_spike_train_attr_name: response}
