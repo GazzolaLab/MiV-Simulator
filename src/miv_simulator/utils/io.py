@@ -1025,21 +1025,23 @@ def write_input_cell_selection(
         has_spike_train = False
         spike_input_source_loc = []
         if (env.spike_input_attribute_info is not None) and (
-            env.spike_input_ns is not None
+            len(env.spike_input_namespaces) > 0
         ):
             if (pop_name in env.spike_input_attribute_info) and (
-                env.spike_input_ns in env.spike_input_attribute_info[pop_name]
+                set(env.spike_input_namespaces).intersection(set(env.spike_input_attribute_info[pop_name].keys()))
             ):
                 has_spike_train = True
-                spike_input_source_loc.append(
-                    (env.spike_input_path, env.spike_input_ns)
+                for ns in env.spike_input_namespaces:
+                    spike_input_source_loc.append(
+                        (env.spike_input_path, ns)
                 )
-        if (env.cell_attribute_info is not None) and (env.spike_input_ns is not None):
+        if (env.cell_attribute_info is not None) and (len(env.spike_input_namespaces) > 0):
             if (pop_name in env.cell_attribute_info) and (
-                env.spike_input_ns in env.cell_attribute_info[pop_name]
+                set(env.spike_input_namespaces).intersection(set(env.cell_attribute_info[pop_name].keys()))
             ):
                 has_spike_train = True
-                spike_input_source_loc.append((input_file_path, env.spike_input_ns))
+                for ns in env.spike_input_namespaces:
+                    spike_input_source_loc.append((input_file_path, ns))
 
         if rank == 0:
             logger.info(
@@ -1083,7 +1085,7 @@ def write_input_cell_selection(
             write_selection_file_path,
             pop_name,
             spikes_output_dict,
-            namespace=env.spike_input_ns,
+            namespace=env.spike_input_namespaces[0],
             **write_kwds,
         )
 
