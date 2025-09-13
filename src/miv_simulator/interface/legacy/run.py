@@ -106,7 +106,7 @@ class RunNetwork(Component):
             cell_selection_path=None,
             microcircuit_inputs=False,
             spike_input_path=self.config.spike_input_path,
-            spike_input_namespace=self.config.spike_input_namespace,
+            spike_input_namespaces=[self.config.spike_input_namespace],
             spike_input_attr=self.config.spike_input_attr,
             cleanup=True,
             cache_queries=False,

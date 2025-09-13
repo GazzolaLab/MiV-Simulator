@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Union, List, Any, Optional
 
 import logging
 import os
@@ -84,9 +84,9 @@ class Env(AbstractEnv):
         lptbal: bool = False,
         cell_selection_path: None = None,
         microcircuit_inputs: bool = False,
-        spike_input_path: None = None,
-        spike_input_namespace: None = None,
-        spike_input_attr: None = None,
+        spike_input_path: Optional[str] = None,
+        spike_input_namespaces: List[str] = [],
+        spike_input_attr: Optional[str] = None,
         coordinates_namespace: str = "Coordinates",
         cache_queries: bool = False,
         profile_memory: bool = False,
@@ -312,7 +312,7 @@ class Env(AbstractEnv):
 
         # Spike input path
         self.spike_input_path = spike_input_path
-        self.spike_input_ns = spike_input_namespace
+        self.spike_input_namespaces = spike_input_namespaces
         self.spike_input_attr = spike_input_attr
         self.spike_input_attribute_info = None
         if self.spike_input_path is not None:

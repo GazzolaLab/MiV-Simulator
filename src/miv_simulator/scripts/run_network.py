@@ -187,6 +187,7 @@ sys.excepthook = mpi_excepthook
 @click.option(
     "--spike-input-namespace",
     required=False,
+    multiple=True,
     type=str,
     help="namespace for input spikes when cell selection is specified",
 )
@@ -290,6 +291,7 @@ def main(
     np.seterr(all="raise")
     params = dict(locals())
     params["config"] = params.pop("config_file")
+    params["spike_input_namespaces"] = params.get("spike_input_namespace", [])
     env = Env(**params)
 
     compile_and_load(directory=env.mechanisms_path)
