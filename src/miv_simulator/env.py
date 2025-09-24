@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Union, List, Any, Optional
+from typing import Dict, Union, List, Optional
 
 import logging
 import os
@@ -312,6 +312,8 @@ class Env(AbstractEnv):
 
         # Spike input path
         self.spike_input_path = spike_input_path
+        if isinstance(spike_input_namespaces, str):
+            spike_input_namespaces = [spike_input_namespaces]
         self.spike_input_namespaces = spike_input_namespaces
         self.spike_input_attr = spike_input_attr
         self.spike_input_attribute_info = None
