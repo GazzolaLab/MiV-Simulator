@@ -7,7 +7,6 @@ import os
 import sys
 import datetime
 import copy
-import pprint
 
 os.environ["DISTWQ_CONTROLLER_RANK"] = "-1"
 
@@ -160,7 +159,6 @@ def optimize_network(
         kv = arg.split("=")
         if len(kv) > 1:
             k, v = kv
-            sys.stdout.flush()
             network_config[k.replace("--", "").replace("-", "_")] = v
         else:
             k = kv[0]
@@ -401,9 +399,9 @@ def compute_objectives(local_features, operational_config, opt_targets):
             t_end = time_bins_ref[-1] + (time_bins_ref[1] - time_bins_ref[0])
             # time bins for fraction active per time bin calculation
             fr_time_bins = np.arange(t_start, t_end, temporal_resolution)
-            bin_width = time_bins_ref[1] - time_bins_ref[0]
-            time_centers = time_bins_ref + bin_width / 2
-            fr_time_centers = (fr_time_bins + temporal_resolution / 2).astype(np.float32)
+            fr_time_centers = (fr_time_bins + temporal_resolution / 2).astype(
+                np.float32
+            )
             if sum_active_per_bin is None:
                 sum_active_per_bin = np.zeros_like(fr_time_centers, dtype=np.float32)
             for gid, dens_dict in spike_density_dict.items():
