@@ -59,6 +59,7 @@ sys.excepthook = mpi_excepthook
 @click.option(
     "--spike-input-namespace",
     required=False,
+    multiple=True,
     type=str,
     help="namespace for input spikes",
 )
@@ -125,7 +126,7 @@ def main(
         dataset_prefix=dataset_prefix,
         results_path=output_path,
         spike_input_path=spike_input_path,
-        spike_input_namespace=spike_input_namespace,
+        spike_input_namespaces=spike_input_namespace,
         spike_input_attr=spike_input_attr,
         arena_id=arena_id,
         stimulus_id=stimulus_id,

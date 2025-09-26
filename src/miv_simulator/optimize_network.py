@@ -399,21 +399,19 @@ def compute_objectives(local_features, operational_config, opt_targets):
             t_end = time_bins_ref[-1] + (time_bins_ref[1] - time_bins_ref[0])
             # time bins for fraction active per time bin calculation
             fr_time_bins = np.arange(t_start, t_end, temporal_resolution)
-            bin_width = time_bins_ref[1] - time_bins_ref[0]
-            time_centers = time_bins_ref + bin_width / 2
-            fr_time_centers = fr_time_bins + temporal_resolution / 2
+            fr_time_centers = (fr_time_bins + temporal_resolution / 2).astype(
+                np.float32
+            )
             if sum_active_per_bin is None:
-                sum_active_per_bin = np.zeros_like(time_centers)
+                sum_active_per_bin = np.zeros_like(fr_time_centers, dtype=np.float32)
             for gid, dens_dict in spike_density_dict.items():
                 mean_rate = np.mean(dens_dict["rate"])
                 if mean_rate > 0.0:
                     sum_mean_rate_local += mean_rate
-                ip_rate = np.interp1d(
+                ip_rate = np.interp(
                     fr_time_centers,
-                    dens_dict["rate"],
-                    kind="linear",
-                    bounds_error=False,
-                    fill_value=0.0,
+                    dens_dict["time"].astype(np.float32),
+                    dens_dict["rate"].astype(np.float32),
                 )
                 active_per_bin = ip_rate > active_threshold
                 sum_active_per_bin += active_per_bin

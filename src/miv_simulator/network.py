@@ -1203,10 +1203,10 @@ def make_input_cell_selection(env):
 
         has_spike_train = False
         if (env.spike_input_attribute_info is not None) and (
-            env.spike_input_ns is not None
+            len(env.spike_input_namespaces) > 0
         ):
             if (pop_name in env.spike_input_attribute_info) and (
-                env.spike_input_ns in env.spike_input_attribute_info[pop_name]
+                set(env.spike_input_namespaces).intersection(set(env.spike_input_attribute_info[pop_name].keys()))
             ):
                 has_spike_train = True
 
@@ -1309,18 +1309,19 @@ def init_input_cells(env: Env) -> None:
             has_vecstim = False
             vecstim_source_loc = []
             if (env.spike_input_attribute_info is not None) and (
-                env.spike_input_ns is not None
+                len(env.spike_input_namespaces) > 0
             ):
                 if (pop_name in env.spike_input_attribute_info) and (
-                    env.spike_input_ns in env.spike_input_attribute_info[pop_name]
+                    set(env.spike_input_namespaces).intersection(set(env.spike_input_attribute_info[pop_name].keys()))
                 ):
                     has_vecstim = True
-                    vecstim_source_loc.append(
-                        (
-                            env.spike_input_path,
-                            env.spike_input_ns,
-                            env.spike_input_attr,
-                        )
+                    for ns in env.spike_input_namespaces:
+                        vecstim_source_loc.append(
+                            (
+                                env.spike_input_path,
+                                ns,
+                                env.spike_input_attr,
+                            )
                     )
             if (env.cell_attribute_info is not None) and (
                 vecstim_namespace is not None
@@ -1454,23 +1455,25 @@ def init_input_cells(env: Env) -> None:
             has_spike_train = False
             spike_input_source_loc = []
             if (env.spike_input_attribute_info is not None) and (
-                env.spike_input_ns is not None
+                    len(env.spike_input_namespaces) > 0
             ):
                 if (pop_name in env.spike_input_attribute_info) and (
-                    env.spike_input_ns in env.spike_input_attribute_info[pop_name]
+                    set(env.spike_input_namespaces).intersection(set(env.spike_input_attribute_info[pop_name].keys()))
                 ):
                     has_spike_train = True
-                    spike_input_source_loc.append(
-                        (env.spike_input_path, env.spike_input_ns)
+                    for ns in env.spike_input_namespaces:
+                        spike_input_source_loc.append(
+                            (env.spike_input_path, ns)
                     )
             if (env.cell_attribute_info is not None) and (
-                env.spike_input_ns is not None
+                len(env.spike_input_namespaces) > 0
             ):
                 if (pop_name in env.cell_attribute_info) and (
-                    env.spike_input_ns in env.cell_attribute_info[pop_name]
+                        set(env.spike_input_namespaces).intersection(set(env.cell_attribute_info[pop_name].keys()))
                 ):
                     has_spike_train = True
-                    spike_input_source_loc.append((input_file_path, env.spike_input_ns))
+                    for ns in env.spike_input_namespaces:
+                        spike_input_source_loc.append((input_file_path, ns))
 
             if rank == 0:
                 logger.info(
@@ -1525,7 +1528,7 @@ def init_input_cells(env: Env) -> None:
                     elif len(this_gid_range) > 0:
                         raise RuntimeError(
                             f"init_input_cells: unable to determine spike train attribute for population {pop_name} in spike input file {env.spike_input_path};"
-                            f" namespace {env.spike_input_ns}; attr keys {list(cell_spikes_attr_info.keys())}"
+                            f" namespaces {env.spike_input_namespaces}; attr keys {list(cell_spikes_attr_info.keys())}"
                         )
                     for gid, cell_spikes_tuple in cell_spikes_iter:
                         if not (env.pc.gid_exists(gid)):
@@ -1566,7 +1569,7 @@ def init_input_cells(env: Env) -> None:
                 if rank == 0:
                     logger.warning(
                         f"No spike train data found for population {pop_name} in spike input file {env.spike_input_path}; "
-                        f"namespace: {env.spike_input_ns}"
+                        f"namespaces: {env.spike_input_namespaces}"
                     )
 
     gc.collect()
