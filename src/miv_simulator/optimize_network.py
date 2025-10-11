@@ -2,7 +2,7 @@
 """
 Network model optimization script for optimization with dmosopt
 """
-
+import gc
 import os
 import sys
 import datetime
@@ -410,9 +410,9 @@ def compute_objectives(local_features, operational_config, opt_targets):
                     sum_mean_rate_local += mean_rate
                 ip_rate = np.interp(
                     fr_time_centers,
-                    dens_dict["time"].astype(np.float32),
+                    time_bins_ref,
                     dens_dict["rate"].astype(np.float32),
-                )
+                ).astype(np.float32)
                 active_per_bin = ip_rate > active_threshold
                 sum_active_per_bin += active_per_bin
 
@@ -449,6 +449,8 @@ def compute_objectives(local_features, operational_config, opt_targets):
 
         rate_constr = mean_rate if mean_rate > 0.0 else -1.0
         constraints.append(rate_constr)
+
+    gc.collect()
 
     objective_names = operational_config["objective_names"]
     feature_dtypes = [(feature_name, np.float32) for feature_name in objective_names]

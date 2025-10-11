@@ -370,15 +370,20 @@ def update_run_params(env, param_tuples):
 def network_features(env, t_start, t_stop, target_populations):
     features_dict = dict()
 
-    temporal_resolution = float(env.stimulus_config["Temporal Resolution"])
-    time_bins = np.arange(t_start, t_stop, temporal_resolution)
+    analysis_config = env.analysis_config
+    if analysis_config is None:
+        analysis_config = {}
+    fr_inference_config = analysis_config.get("Firing Rate Inference", {})
+    
+    temporal_resolution = float(fr_inference_config.get("Temporal Resolution", 2.0))
+    time_bins = np.arange(t_start, t_stop, temporal_resolution).astype(np.float32)
 
     pop_spike_dict = spikedata.get_env_spike_dict(env, include_artificial=False)
 
     for pop_name in target_populations:
         n_active = 0
         spike_density_dict = spikedata.spike_density_estimate(
-            pop_name, pop_spike_dict[pop_name], time_bins
+            pop_name, pop_spike_dict[pop_name], time_bins, return_time_bins=False
         )
         for gid, dens_dict in spike_density_dict.items():
             mean_rate = np.mean(dens_dict["rate"])
