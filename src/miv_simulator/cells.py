@@ -792,6 +792,12 @@ class BiophysCell:
 
         init_spike_detector(self)
 
+    def position(self, x: float, y: float, z: float) -> None:
+        target = self.hoc_cell if self.hoc_cell is not None else self.cell_obj
+        if target is None or not hasattr(target, "position"):
+            raise RuntimeError("cell has no position()")
+        target.position(x, y, z)
+
     @property
     def gid(self) -> int:
         return self._gid
