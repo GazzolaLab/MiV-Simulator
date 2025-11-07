@@ -1206,7 +1206,9 @@ def make_input_cell_selection(env):
             len(env.spike_input_namespaces) > 0
         ):
             if (pop_name in env.spike_input_attribute_info) and (
-                set(env.spike_input_namespaces).intersection(set(env.spike_input_attribute_info[pop_name].keys()))
+                set(env.spike_input_namespaces).intersection(
+                    set(env.spike_input_attribute_info[pop_name].keys())
+                )
             ):
                 has_spike_train = True
 
@@ -1312,7 +1314,9 @@ def init_input_cells(env: Env) -> None:
                 len(env.spike_input_namespaces) > 0
             ):
                 if (pop_name in env.spike_input_attribute_info) and (
-                    set(env.spike_input_namespaces).intersection(set(env.spike_input_attribute_info[pop_name].keys()))
+                    set(env.spike_input_namespaces).intersection(
+                        set(env.spike_input_attribute_info[pop_name].keys())
+                    )
                 ):
                     has_vecstim = True
                     for ns in env.spike_input_namespaces:
@@ -1322,7 +1326,7 @@ def init_input_cells(env: Env) -> None:
                                 ns,
                                 env.spike_input_attr,
                             )
-                    )
+                        )
             if (env.cell_attribute_info is not None) and (
                 vecstim_namespace is not None
             ):
@@ -1455,21 +1459,23 @@ def init_input_cells(env: Env) -> None:
             has_spike_train = False
             spike_input_source_loc = []
             if (env.spike_input_attribute_info is not None) and (
-                    len(env.spike_input_namespaces) > 0
+                len(env.spike_input_namespaces) > 0
             ):
                 if (pop_name in env.spike_input_attribute_info) and (
-                    set(env.spike_input_namespaces).intersection(set(env.spike_input_attribute_info[pop_name].keys()))
+                    set(env.spike_input_namespaces).intersection(
+                        set(env.spike_input_attribute_info[pop_name].keys())
+                    )
                 ):
                     has_spike_train = True
                     for ns in env.spike_input_namespaces:
-                        spike_input_source_loc.append(
-                            (env.spike_input_path, ns)
-                    )
+                        spike_input_source_loc.append((env.spike_input_path, ns))
             if (env.cell_attribute_info is not None) and (
                 len(env.spike_input_namespaces) > 0
             ):
                 if (pop_name in env.cell_attribute_info) and (
-                        set(env.spike_input_namespaces).intersection(set(env.cell_attribute_info[pop_name].keys()))
+                    set(env.spike_input_namespaces).intersection(
+                        set(env.cell_attribute_info[pop_name].keys())
+                    )
                 ):
                     has_spike_train = True
                     for ns in env.spike_input_namespaces:

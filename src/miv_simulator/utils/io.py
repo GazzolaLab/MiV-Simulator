@@ -1028,16 +1028,20 @@ def write_input_cell_selection(
             len(env.spike_input_namespaces) > 0
         ):
             if (pop_name in env.spike_input_attribute_info) and (
-                set(env.spike_input_namespaces).intersection(set(env.spike_input_attribute_info[pop_name].keys()))
+                set(env.spike_input_namespaces).intersection(
+                    set(env.spike_input_attribute_info[pop_name].keys())
+                )
             ):
                 has_spike_train = True
                 for ns in env.spike_input_namespaces:
-                    spike_input_source_loc.append(
-                        (env.spike_input_path, ns)
-                )
-        if (env.cell_attribute_info is not None) and (len(env.spike_input_namespaces) > 0):
+                    spike_input_source_loc.append((env.spike_input_path, ns))
+        if (env.cell_attribute_info is not None) and (
+            len(env.spike_input_namespaces) > 0
+        ):
             if (pop_name in env.cell_attribute_info) and (
-                set(env.spike_input_namespaces).intersection(set(env.cell_attribute_info[pop_name].keys()))
+                set(env.spike_input_namespaces).intersection(
+                    set(env.cell_attribute_info[pop_name].keys())
+                )
             ):
                 has_spike_train = True
                 for ns in env.spike_input_namespaces:

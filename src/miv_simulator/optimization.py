@@ -374,7 +374,7 @@ def network_features(env, t_start, t_stop, target_populations):
     if analysis_config is None:
         analysis_config = {}
     fr_inference_config = analysis_config.get("Firing Rate Inference", {})
-    
+
     temporal_resolution = float(fr_inference_config.get("Temporal Resolution", 2.0))
     time_bins = np.arange(t_start, t_stop, temporal_resolution).astype(np.float32)
 
