@@ -1246,7 +1246,7 @@ def make_input_cell_selection(env):
         )
 
         created_input_gids = []
-        for i, gid in enumerate(input_gid_ranges):
+        for i, gid in enumerate(sorted(input_gid_ranges)):
             if (i % nhosts == rank) and not env.pc.gid_exists(gid):
                 input_cell = cells.make_input_cell(
                     env, gid, pop_index, input_source_dict
