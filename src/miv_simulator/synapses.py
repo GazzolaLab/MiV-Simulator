@@ -2397,7 +2397,13 @@ class SynapseManager:
             if "default" in connection_syn_params:
                 section_syn_params = connection_syn_params["default"]
             else:
-                section_syn_params = connection_syn_params[swc_type]
+                for k in [swc_type, int(swc_type), str(int(swc_type))]:
+                    try:
+                        section_syn_params = connection_syn_params[k]
+                        break
+                    except KeyError:
+                        pass
+
             mech_params = section_syn_params.get(syn_name, {})
 
         # Process parameters
