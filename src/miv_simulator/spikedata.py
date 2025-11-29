@@ -59,7 +59,9 @@ def get_env_spike_dict(
             for j in range(0, len(ids)):
                 gid = ids[j]
                 t = ts[j]
-                if (not include_artificial) and (gid in env.artificial_cells[pop_name]):
+                if (not include_artificial) and (
+                    gid in env.artificial_cells.get(pop_name, {})
+                ):
                     continue
                 if gid in spkdict:
                     spkdict[gid].append(t)
