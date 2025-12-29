@@ -2797,8 +2797,7 @@ class SynapseManager:
             swc_mask = np.isin(attrs["swc_type"][:valid_count], list(swc_set))
             mask &= swc_mask
 
-        # Get synapse IDs of matching synapses
-        result = attrs["syn_id"][mask]
+        result = attrs["syn_id"][:valid_count][mask]
 
         # Cache if requested
         if cache:
