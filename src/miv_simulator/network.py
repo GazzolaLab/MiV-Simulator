@@ -851,11 +851,22 @@ def make_cells(env: Env) -> None:
     for pop_name in pop_names:
         env.pc.barrier()
 
+        pop_attr_info = env.cell_attribute_info.get(pop_name, {})
+        has_trees = "Trees" in pop_attr_info
+        has_coords = env.coordinates_ns in pop_attr_info
+
+        if not has_trees and not has_coords:
+            if rank == 0:
+                logger.warning(
+                    f"make_cells: no cell attribute data for population {pop_name}; skipping"
+                )
+            continue
+
         if rank == 0:
             logger.info(f"*** Creating population {pop_name}")
             logger.info(
                 f"Coordinates namespace is {env.coordinates_ns}\n"
-                f"population attributes are {env.cell_attribute_info[pop_name]}"
+                f"population attributes are {pop_attr_info}"
             )
 
         ## Determine template name for this cell type
@@ -876,9 +887,7 @@ def make_cells(env: Env) -> None:
         reduced_cons = cells.get_reduced_cell_constructor(template_name)
 
         num_cells = 0
-        if (pop_name in env.cell_attribute_info) and (
-            "Trees" in env.cell_attribute_info[pop_name]
-        ):
+        if has_trees:
             if rank == 0:
                 logger.info(f"*** Reading trees for population {pop_name}")
 
@@ -932,9 +941,7 @@ def make_cells(env: Env) -> None:
                 num_cells += 1
             del trees
 
-        elif (pop_name in env.cell_attribute_info) and (
-            env.coordinates_ns in env.cell_attribute_info[pop_name]
-        ):
+        elif has_coords:
             if rank == 0:
                 logger.info(f"*** Reading coordinates for population {pop_name}")
 
@@ -983,10 +990,6 @@ def make_cells(env: Env) -> None:
                 cell.position(cell_x, cell_y, cell_z)
                 cells.register_cell(env, pop_name, gid, cell)
                 num_cells += 1
-        else:
-            raise RuntimeError(
-                f"make_cells: unknown cell configuration type for cell type {pop_name}"
-            )
 
         h.define_shape()
 
