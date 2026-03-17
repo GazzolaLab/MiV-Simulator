@@ -1555,6 +1555,44 @@ class SynapseMechanismParameterView:
         )
 
 
+def _build_synapse_filter_mask(
+    attrs,
+    valid_count,
+    syn_sections=None,
+    syn_indexes=None,
+    syn_types=None,
+    layers=None,
+    sources=None,
+    swc_types=None,
+):
+    """Build a boolean mask over the valid synapse entries using the given filter criteria.
+
+    :param attrs: structured numpy array of synapse attributes for a single gid
+    :param valid_count: number of valid entries in attrs
+    :param syn_sections: list of section indices to include (or None)
+    :param syn_indexes: list of synapse IDs to include (or None)
+    :param syn_types: list of synapse types to include (or None)
+    :param layers: list of layer indices to include (or None)
+    :param sources: list of source population indices to include (or None)
+    :param swc_types: list of SWC types to include (or None)
+    :return: boolean numpy array of length valid_count
+    """
+    mask = np.ones(valid_count, dtype=bool)
+    if syn_sections is not None:
+        mask &= np.isin(attrs["syn_section"][:valid_count], list(set(syn_sections)))
+    if syn_indexes is not None:
+        mask &= np.isin(attrs["syn_id"][:valid_count], list(set(syn_indexes)))
+    if syn_types is not None:
+        mask &= np.isin(attrs["syn_type"][:valid_count], list(set(syn_types)))
+    if layers is not None:
+        mask &= np.isin(attrs["syn_layer"][:valid_count], list(set(layers)))
+    if sources is not None:
+        mask &= np.isin(attrs["source_population"][:valid_count], list(set(sources)))
+    if swc_types is not None:
+        mask &= np.isin(attrs["swc_type"][:valid_count], list(set(swc_types)))
+    return mask
+
+
 class SynapseManager:
     """This class provides an interface to store, retrieve, and modify
     attributes of synaptic mechanisms.
@@ -2298,7 +2336,7 @@ class SynapseManager:
         if batch:
             self._process_mech_attrs_batch(gid, mech_name, batch, multiple, append)
 
-    def _add_mechanism_parameters_batch(self, gid, mech_name, batch, multiple, append):
+    def _process_mech_attrs_batch(self, gid, mech_name, batch, multiple, append):
         """Helper method to add a batch of mechanism attributes."""
         for syn_id, params_dict in batch:
             # Check if synapse exists
@@ -2609,60 +2647,18 @@ class SynapseManager:
         if gid not in self.syn_store.attrs:
             return []
 
-        # Get attr array for this GID
         attrs = self.syn_store.attrs[gid]
-
-        # Start with all valid indices
         valid_count = self.syn_store.next_index[gid]
-        mask = np.ones(valid_count, dtype=bool)
-
-        # Apply section filter (fast path)
-        if syn_sections is not None:
-            # Convert to set for fast lookup
-            section_set = set(syn_sections)
-            section_mask = np.isin(
-                attrs["syn_section"][:valid_count], list(section_set)
-            )
-            mask &= section_mask
-
-        # Apply synapse ID filter
-        if syn_indexes is not None:
-            # Convert to set for fast lookup
-            syn_id_set = set(syn_indexes)
-            syn_id_mask = np.isin(attrs["syn_id"][:valid_count], list(syn_id_set))
-            mask &= syn_id_mask
-
-        # Apply synapse type filter
-        if syn_types is not None:
-            # Convert to set for fast lookup
-            type_set = set(syn_types)
-            type_mask = np.isin(attrs["syn_type"][:valid_count], list(type_set))
-            mask &= type_mask
-
-        # Apply layer filter
-        if layers is not None:
-            # Convert to set for fast lookup
-            layer_set = set(layers)
-            layer_mask = np.isin(attrs["syn_layer"][:valid_count], list(layer_set))
-            mask &= layer_mask
-
-        # Apply source population filter
-        if sources is not None:
-            # Convert to set for fast lookup
-            source_set = set(sources)
-            source_mask = np.isin(
-                attrs["source_population"][:valid_count], list(source_set)
-            )
-            mask &= source_mask
-
-        # Apply SWC type filter
-        if swc_types is not None:
-            # Convert to set for fast lookup
-            swc_set = set(swc_types)
-            swc_mask = np.isin(attrs["swc_type"][:valid_count], list(swc_set))
-            mask &= swc_mask
-
-        # Get array indices of matching synapses
+        mask = _build_synapse_filter_mask(
+            attrs,
+            valid_count,
+            syn_sections,
+            syn_indexes,
+            syn_types,
+            layers,
+            sources,
+            swc_types,
+        )
         matching_indices = np.where(mask)[0]
 
         # For cache optimization, limit results
@@ -2744,54 +2740,18 @@ class SynapseManager:
         if gid not in self.syn_store.attrs:
             return np.array([], dtype=np.uint32)
 
-        # Get properties array for this GID
         attrs = self.syn_store.attrs[gid]
-
-        # Start with all valid indices
         valid_count = self.syn_store.next_index[gid]
-        mask = np.ones(valid_count, dtype=bool)
-
-        # Apply section filter
-        if syn_sections is not None:
-            section_set = set(syn_sections)
-            section_mask = np.isin(
-                attrs["syn_section"][:valid_count], list(section_set)
-            )
-            mask &= section_mask
-
-        # Apply synapse ID filter
-        if syn_indexes is not None:
-            syn_id_set = set(syn_indexes)
-            syn_id_mask = np.isin(attrs["syn_id"][:valid_count], list(syn_id_set))
-            mask &= syn_id_mask
-
-        # Apply synapse type filter
-        if syn_types is not None:
-            type_set = set(syn_types)
-            type_mask = np.isin(attrs["syn_type"][:valid_count], list(type_set))
-            mask &= type_mask
-
-        # Apply layer filter
-        if layers is not None:
-            layer_set = set(layers)
-            layer_mask = np.isin(attrs["syn_layer"][:valid_count], list(layer_set))
-            mask &= layer_mask
-
-        # Apply source population filter
-        if sources is not None:
-            source_set = set(sources)
-            source_mask = np.isin(
-                attrs["source_population"][:valid_count], list(source_set)
-            )
-            mask &= source_mask
-
-        # Apply SWC type filter
-        if swc_types is not None:
-            swc_set = set(swc_types)
-            swc_mask = np.isin(attrs["swc_type"][:valid_count], list(swc_set))
-            mask &= swc_mask
-
-        # Get synapse IDs of matching synapses
+        mask = _build_synapse_filter_mask(
+            attrs,
+            valid_count,
+            syn_sections,
+            syn_indexes,
+            syn_types,
+            layers,
+            sources,
+            swc_types,
+        )
         result = attrs["syn_id"][mask]
 
         # Cache if requested
@@ -3027,6 +2987,59 @@ class SynapseManager:
             return self.syn_store.items(gid)
 
 
+def _unwrap_hoc_cell(cell):
+    """Unwrap hoc_cell/cell_obj wrapper attributes to reach the raw NEURON cell object."""
+    if hasattr(cell, "hoc_cell") and cell.hoc_cell is not None:
+        cell = cell.hoc_cell
+    if hasattr(cell, "cell_obj") and cell.cell_obj is not None:
+        cell = cell.cell_obj
+    return cell
+
+
+def _get_cell_is_reduced(cell):
+    """Return True if the cell uses a reduced morphology representation."""
+    is_reduced = False
+    if hasattr(cell, "is_reduced"):
+        is_reduced = cell.is_reduced
+        if callable(is_reduced):
+            is_reduced = is_reduced()
+        if isinstance(is_reduced, float):
+            is_reduced = is_reduced > 0.0
+    return is_reduced
+
+
+def _build_reduced_cell_sections(cell, env):
+    """For reduced-morphology cells, build the per-(swc_type, layer) section lists.
+
+    Returns a tuple of:
+        reduced_section_dict : dict mapping f"{swc_type_name}_{layer_name}_list" keys to
+                               lists of (section_index, section) pairs
+        cell_soma            : the soma section (or None)
+        cell_dendrite        : the dendrite section (or None)
+    """
+    reduced_section_dict = {}
+    for swc_type_name in env.SWC_Types:
+        for layer_name in env.layers:
+            swc_layer_key = f"{swc_type_name}_{layer_name}_list"
+            swc_layer_index_key = f"{swc_type_name}_{layer_name}_index"
+            sec_list = getattr(cell, swc_layer_key, None)
+            sec_index = getattr(cell, swc_layer_index_key, None)
+            if sec_list is not None:
+                reduced_section_dict[swc_layer_key] = list(
+                    zip(
+                        np.asarray(sec_index, dtype=np.uint16),
+                        list(sec_list),
+                    )
+                )
+    cell_soma = None
+    if hasattr(cell, "soma"):
+        cell_soma = cell.soma
+        if isinstance(cell_soma, list):
+            cell_soma = cell_soma[0]
+    cell_dendrite = getattr(cell, "dend", None)
+    return reduced_section_dict, cell_soma, cell_dendrite
+
+
 def insert_cell_syns(
     env: AbstractEnv,
     gid: int,
@@ -3098,48 +3111,20 @@ def insert_cell_syns(
         swc_type_hill: syns_dict_hill,
         swc_type_soma: syns_dict_soma,
     }
-    py_sections = None
-    if hasattr(cell, "hoc_cell"):
-        if cell.hoc_cell is not None:
-            cell = cell.hoc_cell
-    if hasattr(cell, "cell_obj"):
-        if cell.cell_obj is not None:
-            cell = cell.cell_obj
+    cell = _unwrap_hoc_cell(cell)
 
-    if hasattr(cell, "sections"):
-        if cell.sections is not None:
-            py_sections = [sec for sec in cell.sections]
-    is_reduced = False
-    if hasattr(cell, "is_reduced"):
-        is_reduced = cell.is_reduced
-        if callable(is_reduced):
-            is_reduced = is_reduced()
-        if isinstance(is_reduced, float):
-            is_reduced = is_reduced > 0.0
+    py_sections = None
+    if hasattr(cell, "sections") and cell.sections is not None:
+        py_sections = [sec for sec in cell.sections]
+    is_reduced = _get_cell_is_reduced(cell)
 
     cell_soma = None
     cell_dendrite = None
     reduced_section_dict = {}
     if is_reduced:
-        for swc_type_name in env.SWC_Types:
-            for layer_name in env.layers:
-                swc_layer_key = f"{swc_type_name}_{layer_name}_list"
-                swc_layer_index_key = f"{swc_type_name}_{layer_name}_index"
-                sec_list = getattr(cell, swc_layer_key, None)
-                sec_index = getattr(cell, swc_layer_index_key, None)
-                if sec_list is not None:
-                    reduced_section_dict[swc_layer_key] = list(
-                        zip(
-                            np.asarray(sec_index, dtype=np.uint16),
-                            list(sec_list),
-                        )
-                    )
-        if hasattr(cell, "soma"):
-            cell_soma = cell.soma
-            if isinstance(cell_soma, list):
-                cell_soma = cell_soma[0]
-        if hasattr(cell, "dend"):
-            cell_dendrite = cell.dend
+        reduced_section_dict, cell_soma, cell_dendrite = _build_reduced_cell_sections(
+            cell, env
+        )
 
     syn_manager = env.synapse_manager
 
@@ -3929,13 +3914,7 @@ def update_syn_mech_param_by_sec_type(
     else:
         synapse_filters = {}
 
-    is_reduced = False
-    if hasattr(cell, "is_reduced"):
-        is_reduced = cell.is_reduced
-        if callable(is_reduced):
-            is_reduced = is_reduced()
-        if isinstance(is_reduced, float):
-            is_reduced = is_reduced > 0.0
+    is_reduced = _get_cell_is_reduced(cell)
 
     if is_reduced:
         synapse_filters["swc_types"] = [env.SWC_Types[sec_type]]
@@ -4101,11 +4080,15 @@ def init_syn_mech_attrs(
     reset_mech_dict: bool = False,
     update_targets: bool = False,
 ) -> None:
-    """Consults a dictionary specifying parameters of NEURON synaptic mechanisms (point processes) for each type of
-    section in a BiophysCell. Traverses through the tree of SHocNode nodes following order of inheritance. Calls
-    update_syn_mech_by_sec_type to set placeholder values in the syn_mech_attrs_dict of a SynapseManager object. If
-    update_targets flag is True, the attributes of any target synaptic point_process and netcon objects that have been
-    inserted will also be updated. Otherwise, they can be updated separately by calling config_syns.
+    """
+    Consults a dictionary specifying parameters of NEURON synaptic
+    mechanisms (point processes) for each type of section in a
+    BiophysCell. Calls update_syn_mech_by_sec_type to set placeholder
+    values in the syn_mech_attrs_dict of a SynapseManager object. If
+    update_targets flag is True, the attributes of any target synaptic
+    point_process and netcon objects that have been inserted will also
+    be updated. Otherwise, they can be updated separately by calling
+    config_syns.
 
     :param cell: :class:'BiophysCell'
     :param env: :class:'Env'
