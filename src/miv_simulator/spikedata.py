@@ -295,6 +295,7 @@ def spike_density_estimate(
     trajectory_id=None,
     output_file_path=None,
     progress=False,
+    return_time_bins=True,
     inferred_rate_attr_name="Inferred Rate Map",
     **kwargs,
 ):
@@ -339,7 +340,7 @@ def spike_density_estimate(
     spk_rate_dict = {
         ind: baks(spkts / 1000.0, time_bins / 1000.0, **baks_args)[0].reshape((-1,))
         if len(spkts) > 1
-        else np.zeros(time_bins.shape)
+        else np.zeros(time_bins.shape, dtype=np.float32)
         for ind, spkts in seq
     }
 
@@ -360,13 +361,14 @@ def spike_density_estimate(
             output_file_path, population, attr_dict, namespace=namespace
         )
 
-    result = {
-        ind: {"rate": rate, "time": time_bins} for ind, rate in spk_rate_dict.items()
-    }
-
-    result = {
-        ind: {"rate": rate, "time": time_bins} for ind, rate in spk_rate_dict.items()
-    }
+    if return_time_bins:
+        result = {
+            ind: {"rate": rate, "time": time_bins} for ind, rate in spk_rate_dict.items()
+        }
+    else:
+        result = {
+            ind: {"rate": rate} for ind, rate in spk_rate_dict.items()
+        }
 
     return result
 

@@ -984,7 +984,7 @@ def baks(spktimes, time, a=1.5, b=None):
 
     threshold = 6.0
     h = (gamma(a) / gamma(a + 0.5)) * (sumnum / sumdenom)
-    rate = np.zeros((len(time),))
+    rate = np.zeros((len(time),), dtype=np.float32)
     for j in range(n):
         time_diff = time - spktimes[j]
         abs_diff = np.abs(time_diff)
