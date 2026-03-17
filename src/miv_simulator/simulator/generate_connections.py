@@ -5,8 +5,8 @@ import random
 import h5py
 from miv_simulator import utils
 from miv_simulator.connections import (
-    ConnectionProb,
     generate_uv_distance_connections,
+    ConnectionProbability,
 )
 from miv_simulator import config
 from miv_simulator.env import Env
@@ -216,7 +216,7 @@ def generate_connections(
                 f"Generating connection probabilities for population {destination_population}..."
             )
 
-        connection_prob = ConnectionProb(
+        connection_prob = ConnectionProbability(
             destination_population,
             soma_coords,
             soma_distances,

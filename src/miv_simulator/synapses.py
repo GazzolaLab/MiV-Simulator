@@ -3955,9 +3955,12 @@ def apply_syn_mech_rules(
     update_targets=False,
     verbose=False,
 ):
-    """Provided a synaptic mechanism, a parameter, a node, a list of
-    syn_ids, and a dict of rules. Interprets the provided rules and updates synaptic mechanisms.
-    Calls set_syn_mech_param to sets parameter values in the syn_mech_attr_dict of a SynapseManager object.
+    """
+    Provided a synaptic mechanism, a parameter, a node, a list of
+    syn_ids, and a dict of rules. Interprets the provided rules and
+    updates synaptic mechanisms.  Calls set_syn_mech_param to sets
+    parameter values in the syn_mech_attr_dict of a SynapseManager
+    object.
 
     :param cell: :class:'BiophysCell'
     :param env: :class:'Env'
@@ -3968,6 +3971,7 @@ def apply_syn_mech_rules(
     :param rules: dict
     :param update_targets: bool
     :param verbose: bool
+
     """
     if syn_ids is None:
         syn_manager = env.synapse_manager

@@ -27,7 +27,7 @@ from scipy.stats import norm
 logger = get_module_logger(__name__)
 
 
-class ConnectionProb:
+class ConnectionProbability:
     """An object of this class will instantiate functions that describe
     the connection probabilities for each presynaptic population. These
     functions can then be used to get the distribution of connection
@@ -43,8 +43,8 @@ class ConnectionProb:
         extents: Dict[str, Dict[str, Dict[str, List[Union[float, int]]]]],
     ) -> None:
         """
-        Warning: This method does not produce an absolute probability. It must be normalized so that the total area
-        (volume) under the distribution is 1 before sampling.
+        Warning: This method does not produce an absolute probability.
+        It must be normalized so that the total area (volume) under the distribution is 1 before sampling.
         :param destination_population: post-synaptic population name
         :param soma_distances: a dictionary that contains per-population dicts of u, v distances of cell somas
         :param extent: dict: {source: 'width': (tuple of float), 'offset': (tuple of float)}
@@ -148,7 +148,7 @@ class ConnectionProb:
             layer_key = "default"
         else:
             raise RuntimeError(
-                f"connections.get_prob: gid {destination_gid}: missing configuration for {source_population} layer {source_layer}"
+                f"connections.get_probability: gid {destination_gid}: missing configuration for {source_population} layer {source_layer}"
             )
 
         source_width = self.width[source_population][layer_key]
@@ -184,7 +184,7 @@ class ConnectionProb:
             np.asarray(source_gid_lst, dtype=np.uint32),
         )
 
-    def get_prob(
+    def get_probability(
         self, destination_gid: int, source: str, source_layers: List[int]
     ) -> Dict[int, Tuple[ndarray, ndarray, ndarray, ndarray]]:
         """
@@ -214,7 +214,7 @@ class ConnectionProb:
                 layer_key = "default"
             else:
                 raise RuntimeError(
-                    f"connections.get_prob: gid {destination_gid}: missing configuration for {source} layer {layer}"
+                    f"connections.get_probability: gid {destination_gid}: missing configuration for {source} layer {layer}"
                 )
             p = self.p_dist[source][layer_key](distance_u, distance_v)
             psum = np.sum(p)
@@ -302,6 +302,250 @@ def choose_synapse_projection(
         return None
 
 
+def _partition_synapses_to_projections(
+    gid: int,
+    ranstream_syn: RandomState,
+    synapse_dict: Dict[str, ndarray],
+    population_dict: Dict[str, int],
+    projection_synapse_dict: Dict[
+        str, Tuple[int, List[int], List[int], List[float], int]
+    ],
+    rank: int,
+) -> Tuple[Dict[int, float], DefaultDict]:
+    """
+    Assign every synapse to a named projection by matching each synapse's
+    (layer, swc_type, syn_type) triple against projection_synapse_dict, then
+    randomly choosing among matching projections weighted by their proportions.
+
+    Retries up to 10 times until every projection has at least one synapse.
+    Validates the result and raises AssertionError if any projection is empty.
+
+    :param gid: GID of the destination neuron (for log messages).
+    :param ranstream_syn: RandomState for synapse-to-projection sampling.
+    :param synapse_dict: dict with arrays 'syn_ids', 'syn_cdists', 'syn_types',
+        'swc_types', 'syn_layers'.
+    :param population_dict: mapping of population name -> population index.
+    :param projection_synapse_dict: mapping of projection name ->
+        (syn_type, layers, sections, proportions, contacts).
+    :param rank: MPI rank (for log messages).
+    :return: (syn_cdist_dict, synapse_prj_partition) where syn_cdist_dict maps
+        syn_id -> cable distance and synapse_prj_partition is a nested
+        defaultdict: projection -> layer -> [syn_id, ...].
+    :raises AssertionError: if any projection ends up with an empty synapse list.
+    """
+    num_projections = len(projection_synapse_dict)
+    source_populations = sorted(projection_synapse_dict)
+    prj_pop_index = {population: i for (i, population) in enumerate(source_populations)}
+    synapse_prj_counts = np.zeros((num_projections,))
+    synapse_prj_partition = defaultdict(lambda: defaultdict(list))
+    syn_cdist_dict: Dict[int, float] = {}
+    maxit = 10
+    it = 0
+
+    while (np.count_nonzero(synapse_prj_counts) < num_projections) and (it < maxit):
+        log_flag = it > 1
+        if log_flag:
+            logger.info(
+                f"generate_synaptic_connections: gid {gid}: iteration {it}: "
+                f"source_populations = {source_populations}\n"
+                f"synapse_prj_counts = {synapse_prj_counts}\n"
+                f"number of synapses in synapse_dict = {len(synapse_dict['syn_ids'])}"
+            )
+        synapse_prj_counts.fill(0)
+        synapse_prj_partition.clear()
+        for syn_id, syn_cdist, syn_type, swc_type, syn_layer in zip(
+            synapse_dict["syn_ids"],
+            synapse_dict["syn_cdists"],
+            synapse_dict["syn_types"],
+            synapse_dict["swc_types"],
+            synapse_dict["syn_layers"],
+        ):
+            syn_cdist_dict[syn_id] = syn_cdist
+            projection = choose_synapse_projection(
+                ranstream_syn,
+                syn_layer,
+                swc_type,
+                syn_type,
+                population_dict,
+                projection_synapse_dict,
+                log=log_flag,
+            )
+            if log_flag:
+                logger.info(
+                    f"generate_synaptic_connections: {gid=}: "
+                    f"{syn_id=} {syn_type=} {swc_type=} "
+                    f"{syn_layer=} {projection=} "
+                    f"{ranstream_syn=}"
+                )
+            log_flag = False
+            assert projection is not None, (
+                f"generate_synaptic_connections: {gid=}: {syn_id=} {syn_type=} {swc_type=} {syn_layer=} {projection=} {ranstream_syn=} {population_dict=} {projection_synapse_dict=}\n {synapse_dict['syn_types']=}"
+            )
+            synapse_prj_counts[prj_pop_index[projection]] += 1
+            synapse_prj_partition[projection][syn_layer].append(syn_id)
+        it += 1
+
+    empty_projections = []
+    for projection in projection_synapse_dict:
+        logger.debug(
+            f"Rank {rank}: gid {gid}: source {projection} has {len(synapse_prj_partition[projection])} synapses"
+        )
+        if not (len(synapse_prj_partition[projection]) > 0):
+            empty_projections.append(projection)
+    if len(empty_projections) > 0:
+        logger.warning(
+            f"Rank {rank}: gid {gid}: projections {empty_projections} have an empty synapse list; "
+            f"swc types are {set(synapse_dict['swc_types'].flat)} layers are {set(synapse_dict['syn_layers'].flat)}"
+        )
+    assert len(empty_projections) == 0
+
+    return syn_cdist_dict, synapse_prj_partition
+
+
+def _select_layer_source_vertices(
+    rank: int,
+    destination_gid: int,
+    projection: str,
+    prj_layer: int,
+    syn_ids: List[int],
+    syn_config_contacts: int,
+    syn_cdist_dict: Dict[int, float],
+    source_probs: ndarray,
+    source_gids: ndarray,
+    distances_u: ndarray,
+    distances_v: ndarray,
+    ranstream_con: RandomState,
+    cluster_seed: int,
+    random_choice: Callable,
+) -> Tuple[ndarray, List[int], ndarray]:
+    """
+    Select source GIDs for a single (projection, layer) group of synapses
+    using distance-weighted probability sampling and spatial clustering.
+
+    Synapses are sorted by cable distance, grouped into
+    ceil(n_syn / contacts) sampling groups, and source GIDs are assigned
+    via random_choice + random_clustered_shuffle.
+
+    Returns empty arrays when source_gids is empty (no candidates in extent).
+
+    :param rank: MPI rank (for log messages).
+    :param destination_gid: GID of the post-synaptic neuron.
+    :param projection: source population name (for log messages).
+    :param prj_layer: layer index (for log messages).
+    :param syn_ids: synapse IDs assigned to this projection+layer.
+    :param syn_config_contacts: number of contacts per source neuron.
+    :param syn_cdist_dict: mapping syn_id -> cable distance.
+    :param source_probs: distance-weighted sampling probabilities.
+    :param source_gids: candidate source GID array.
+    :param distances_u: u-axis distances for each source GID.
+    :param distances_v: v-axis distances for each source GID.
+    :param ranstream_con: RandomState for source GID sampling.
+    :param cluster_seed: seed for random_clustered_shuffle.
+    :param random_choice: callable (ranstream, n, probs) -> count array.
+    :return: (source_vertices, ordered_syn_ids, distances) — all empty when
+        there are no candidate source GIDs.
+    """
+    if len(source_gids) == 0:
+        return (
+            np.asarray([], dtype=np.uint32),
+            [],
+            np.asarray([], dtype=np.float32),
+        )
+
+    distance_dict = {
+        gid: du + dv for gid, du, dv in zip(source_gids, distances_u, distances_v)
+    }
+    ordered_syn_ids = sorted(syn_ids, key=lambda x: syn_cdist_dict[x])
+    n_syn_groups = int(math.ceil(float(len(syn_ids)) / float(syn_config_contacts)))
+    source_gid_counts = random_choice(ranstream_con, n_syn_groups, source_probs)
+
+    if syn_config_contacts > 1:
+        ncontacts = int(math.ceil(syn_config_contacts))
+        for i in range(len(source_gid_counts)):
+            if source_gid_counts[i] > 0:
+                source_gid_counts[i] *= ncontacts
+
+    if len(source_gid_counts) == 0:
+        logger.warning(
+            f"Rank {rank}: source vertices list is empty for gid: {destination_gid} "
+            f"source: {projection} layer: {prj_layer} "
+            f"source probs: {source_probs} distances_u: {distances_u} distances_v: {distances_v}"
+        )
+
+    source_vertices = np.asarray(
+        random_clustered_shuffle(
+            len(source_gids),
+            source_gid_counts,
+            center_ids=source_gids,
+            cluster_std=2.0,
+            random_seed=cluster_seed,
+        ),
+        dtype=np.uint32,
+    )[: len(syn_ids)]
+    assert len(source_vertices) == len(syn_ids)
+
+    distances = np.asarray(
+        [distance_dict[gid] for gid in source_vertices], dtype=np.float32
+    ).reshape(-1)
+
+    return source_vertices, ordered_syn_ids, distances
+
+
+def _consolidate_projection_connections(
+    rank: int,
+    destination_gid: int,
+    projection: str,
+    prj_source_vertices: List[ndarray],
+    prj_syn_ids: List[List[int]],
+    prj_distances: List[ndarray],
+    gid_dict: Dict,
+) -> int:
+    """
+    Concatenate per-layer accumulator lists, write the result into
+    gid_dict[destination_gid], and return the number of connections created.
+
+    :param rank: MPI rank (for log/assert messages).
+    :param destination_gid: GID of the post-synaptic neuron.
+    :param projection: source population name (for log messages).
+    :param prj_source_vertices: per-layer source GID arrays.
+    :param prj_syn_ids: per-layer cable-distance-ordered synapse ID lists.
+    :param prj_distances: per-layer source-to-destination distance arrays.
+    :param gid_dict: connection_dict[projection], mutated in place.
+    :return: number of connections written.
+    :raises AssertionError: if the resulting source vertex array is empty.
+    """
+    sv_arr = (
+        np.concatenate(prj_source_vertices)
+        if prj_source_vertices
+        else np.asarray([], dtype=np.uint32)
+    )
+    si_arr = (
+        np.concatenate(prj_syn_ids) if prj_syn_ids else np.asarray([], dtype=np.uint32)
+    )
+    dist_arr = (
+        np.concatenate(prj_distances)
+        if prj_distances
+        else np.asarray([], dtype=np.float32)
+    )
+
+    if len(sv_arr) == 0:
+        logger.warning(
+            f"Rank {rank}: source gid list is empty for gid: {destination_gid} source: {projection}"
+        )
+    assert len(sv_arr) > 0, (
+        f"Rank {rank}: source gid list is empty. The cell density might be too small."
+    )
+
+    gid_dict[destination_gid] = (
+        sv_arr,
+        {
+            "Synapses": {"syn_id": np.asarray(si_arr, dtype=np.uint32)},
+            "Connections": {"distance": dist_arr},
+        },
+    )
+    return len(sv_arr)
+
+
 def generate_synaptic_connections(
     rank: int,
     gid: int,
@@ -342,180 +586,57 @@ def generate_synaptic_connections(
     :param random_choice: random choice procedure (default uses np.ranstream.multinomial)
 
     """
-    num_projections = len(projection_synapse_dict)
-    source_populations = sorted(projection_synapse_dict)
-    prj_pop_index = {population: i for (i, population) in enumerate(source_populations)}
-    synapse_prj_counts = np.zeros((num_projections,))
-    synapse_prj_partition = defaultdict(lambda: defaultdict(list))
-    maxit = 10
-    it = 0
-    syn_cdist_dict = {}
-    ## assign each synapse to a projection
-    while (np.count_nonzero(synapse_prj_counts) < num_projections) and (it < maxit):
-        log_flag = it > 1
-        if log_flag:
-            logger.info(
-                f"generate_synaptic_connections: gid {gid}: iteration {it}: "
-                f"source_populations = {source_populations}\n"
-                f"synapse_prj_counts = {synapse_prj_counts}\n"
-                f"number of synapses in synapse_dict = {len(synapse_dict['syn_ids'])}"
-            )
+    syn_cdist_dict, synapse_prj_partition = _partition_synapses_to_projections(
+        gid=gid,
+        ranstream_syn=ranstream_syn,
+        synapse_dict=synapse_dict,
+        population_dict=population_dict,
+        projection_synapse_dict=projection_synapse_dict,
+        rank=rank,
+    )
 
-        synapse_prj_counts.fill(0)
-        synapse_prj_partition.clear()
-        for syn_id, syn_cdist, syn_type, swc_type, syn_layer in zip(
-            synapse_dict["syn_ids"],
-            synapse_dict["syn_cdists"],
-            synapse_dict["syn_types"],
-            synapse_dict["swc_types"],
-            synapse_dict["syn_layers"],
-        ):
-            syn_cdist_dict[syn_id] = syn_cdist
-            projection = choose_synapse_projection(
-                ranstream_syn,
-                syn_layer,
-                swc_type,
-                syn_type,
-                population_dict,
-                projection_synapse_dict,
-                log=log_flag,
-            )
-            if log_flag:
-                logger.info(
-                    f"generate_synaptic_connections: {gid=}: "
-                    f"{syn_id=} {syn_type=} {swc_type=} "
-                    f"{syn_layer=} {projection=} "
-                    f"{ranstream_syn=}"
-                )
-            log_flag = False
-            assert projection is not None, (
-                f"generate_synaptic_connections: {gid=}: {syn_id=} {syn_type=} {swc_type=} {syn_layer=} {projection=} {ranstream_syn=} {population_dict=} {projection_synapse_dict=}\n {synapse_dict['syn_types']=}"
-            )
-            synapse_prj_counts[prj_pop_index[projection]] += 1
-            synapse_prj_partition[projection][syn_layer].append(syn_id)
-        it += 1
-
-    empty_projections = []
-
-    for projection in projection_synapse_dict:
-        logger.debug(
-            f"Rank {rank}: gid {destination_gid}: source {projection} has {len(synapse_prj_partition[projection])} synapses"
-        )
-        if not (len(synapse_prj_partition[projection]) > 0):
-            empty_projections.append(projection)
-
-    if len(empty_projections) > 0:
-        logger.warning(
-            f"Rank {rank}: gid {destination_gid}: projections {empty_projections} have an empty synapse list; "
-            f"swc types are {set(synapse_dict['swc_types'].flat)} layers are {set(synapse_dict['syn_layers'].flat)}"
-        )
-    assert len(empty_projections) == 0
-
-    ## Choose source connections based on distance-weighted probability
     count = 0
     for projection, prj_layer_dict in synapse_prj_partition.items():
-        (
-            syn_config_type,
-            syn_config_layers,
-            syn_config_sections,
-            syn_config_proportions,
-            syn_config_contacts,
-        ) = projection_synapse_dict[projection]
+        (_, _, _, _, syn_config_contacts) = projection_synapse_dict[projection]
         gid_dict = connection_dict[projection]
-        prj_source_vertices = []
-        prj_syn_ids = []
-        prj_distances = []
-        for prj_layer, syn_ids in prj_layer_dict.items():
-            (
-                source_probs,
-                source_gids,
-                distances_u,
-                distances_v,
-            ) = projection_prob_dict[projection][prj_layer]
-            distance_dict = {
-                source_gid: distance_u + distance_v
-                for (source_gid, distance_u, distance_v) in zip(
-                    source_gids, distances_u, distances_v
-                )
-            }
-            if len(source_gids) > 0:
-                ordered_syn_ids = sorted(syn_ids, key=lambda x: syn_cdist_dict[x])
-                n_syn_groups = int(
-                    math.ceil(float(len(syn_ids)) / float(syn_config_contacts))
-                )
-                source_gid_counts = random_choice(
-                    ranstream_con, n_syn_groups, source_probs
-                )
-                total_count = 0
-                if syn_config_contacts > 1:
-                    ncontacts = int(math.ceil(syn_config_contacts))
-                    for i in range(0, len(source_gid_counts)):
-                        if source_gid_counts[i] > 0:
-                            source_gid_counts[i] *= ncontacts
-                if len(source_gid_counts) == 0:
-                    logger.warning(
-                        f"Rank {rank}: source vertices list is empty for gid: {destination_gid} "
-                        f"source: {projection} layer: {prj_layer} "
-                        f"source probs: {source_probs} distances_u: {distances_u} distances_v: {distances_v}"
-                    )
+        prj_source_vertices: List[ndarray] = []
+        prj_syn_ids: List[List[int]] = []
+        prj_distances: List[ndarray] = []
 
-                source_vertices = np.asarray(
-                    random_clustered_shuffle(
-                        len(source_gids),
-                        source_gid_counts,
-                        center_ids=source_gids,
-                        cluster_std=2.0,
-                        random_seed=cluster_seed,
-                    ),
-                    dtype=np.uint32,
-                )[0 : len(syn_ids)]
-                assert len(source_vertices) == len(syn_ids)
-                distances = np.asarray(
-                    [distance_dict[gid] for gid in source_vertices],
-                    dtype=np.float32,
-                ).reshape(
-                    -1,
-                )
+        for prj_layer, syn_ids in prj_layer_dict.items():
+            source_probs, source_gids, distances_u, distances_v = projection_prob_dict[
+                projection
+            ][prj_layer]
+            source_vertices, ordered_syn_ids, distances = _select_layer_source_vertices(
+                rank=rank,
+                destination_gid=destination_gid,
+                projection=projection,
+                prj_layer=prj_layer,
+                syn_ids=syn_ids,
+                syn_config_contacts=syn_config_contacts,
+                syn_cdist_dict=syn_cdist_dict,
+                source_probs=source_probs,
+                source_gids=source_gids,
+                distances_u=distances_u,
+                distances_v=distances_v,
+                ranstream_con=ranstream_con,
+                cluster_seed=cluster_seed,
+                random_choice=random_choice,
+            )
+            if len(source_vertices) > 0:
                 prj_source_vertices.append(source_vertices)
                 prj_syn_ids.append(ordered_syn_ids)
                 prj_distances.append(distances)
-                gid_dict[destination_gid] = (
-                    np.asarray([], dtype=np.uint32),
-                    {
-                        "Synapses": {"syn_id": np.asarray([], dtype=np.uint32)},
-                        "Connections": {"distance": np.asarray([], dtype=np.float32)},
-                    },
-                )
                 cluster_seed += 1
-        if len(prj_source_vertices) > 0:
-            prj_source_vertices_array = np.concatenate(prj_source_vertices)
-        else:
-            prj_source_vertices_array = np.asarray([], dtype=np.uint32)
-        del prj_source_vertices
-        if len(prj_syn_ids) > 0:
-            prj_syn_ids_array = np.concatenate(prj_syn_ids)
-        else:
-            prj_syn_ids_array = np.asarray([], dtype=np.uint32)
-        del prj_syn_ids
-        if len(prj_distances) > 0:
-            prj_distances_array = np.concatenate(prj_distances)
-        else:
-            prj_distances_array = np.asarray([], dtype=np.float32)
-        del prj_distances
-        if len(prj_source_vertices_array) == 0:
-            logger.warning(
-                f"Rank {rank}: source gid list is empty for gid: {destination_gid} source: {projection}"
-            )
-        assert len(prj_source_vertices_array) > 0, (
-            f"Rank {rank}: source gid list is empty. The cell density might be too small."
-        )
-        count += len(prj_source_vertices_array)
-        gid_dict[destination_gid] = (
-            prj_source_vertices_array,
-            {
-                "Synapses": {"syn_id": np.asarray(prj_syn_ids_array, dtype=np.uint32)},
-                "Connections": {"distance": prj_distances_array},
-            },
+
+        count += _consolidate_projection_connections(
+            rank=rank,
+            destination_gid=destination_gid,
+            projection=projection,
+            prj_source_vertices=prj_source_vertices,
+            prj_syn_ids=prj_syn_ids,
+            prj_distances=prj_distances,
+            gid_dict=gid_dict,
         )
 
     return count
@@ -525,7 +646,7 @@ def generate_uv_distance_connections(
     comm: Intracomm,
     population_dict: Dict[str, int],
     connection_config: Dict[str, Dict[str, SynapseConfig]],
-    connection_prob: ConnectionProb,
+    connection_prob: ConnectionProbability,
     forest_path: str,
     synapse_seed: int,
     connectivity_seed: int,
@@ -546,7 +667,7 @@ def generate_uv_distance_connections(
 
     :param comm: mpi4py MPI communicator
     :param connection_config: connection configuration object (instance of env.ConnectionConfig)
-    :param connection_prob: ConnectionProb instance
+    :param connection_prob: ConnectionProbability instance
     :param forest_path: location of file with neuronal trees and synapse information
     :param synapse_seed: random seed for synapse partitioning
     :param connectivity_seed: random seed for connectivity generation
@@ -625,8 +746,10 @@ def generate_uv_distance_connections(
 
             for source_population in source_populations:
                 source_layers = projection_config[source_population].layers
-                projection_prob_dict[source_population] = connection_prob.get_prob(
-                    destination_gid, source_population, source_layers
+                projection_prob_dict[source_population] = (
+                    connection_prob.get_probability(
+                        destination_gid, source_population, source_layers
+                    )
                 )
 
                 for layer, (
