@@ -846,9 +846,9 @@ class Env(AbstractEnv):
             self.cell_attribute_info = read_cell_attribute_info(
                 self.data_file_path, population_names, comm=comm0
             )
-            self.logger.info(f"population_names = {str(population_names)}")
-            self.logger.info(f"population_ranges = {str(population_ranges)}")
-            self.logger.info(f"attribute info: {str(self.cell_attribute_info)}")
+            self.logger.info(f"population_names = {population_names}")
+            self.logger.info(f"population_ranges = {population_ranges}")
+            self.logger.info(f"attribute info: {self.cell_attribute_info}")
         population_ranges = self.comm.bcast(population_ranges, root=0)
         population_names = self.comm.bcast(population_names, root=0)
         self.cell_attribute_info = self.comm.bcast(self.cell_attribute_info, root=0)

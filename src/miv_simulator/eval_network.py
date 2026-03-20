@@ -71,24 +71,29 @@ def eval_network(
     param_config_name = operational_config["param_config_name"]
     objective_names = operational_config["objective_names"]
 
-    # Load optimized parameters from JSON
-    with open(params_path) as f:
-        all_params = json.load(f)
-
-    if params_label is None:
-        params_label = next(iter(all_params))
-    logger.info(f"Loading parameters from label '{params_label}' in {params_path}")
-
-    params_entry = all_params[params_label]
-    params_dict = params_entry["parameters"]
-    logger.info(f"Loaded {len(params_dict)} optimized parameters")
-
     # Set results file id
     network_config.setdefault("results_file_id", f"eval_network_{run_ts}")
 
     # Initialize the network
     comm = MPI.COMM_WORLD
-    env = init_network(comm=comm, subworld_size=1, kwargs=network_config)
+    env = init_network(comm=comm, subworld_size=None, kwargs=network_config)
+
+    rank = int(env.pc.id())
+
+    # Load optimized parameters from JSON
+    params_dict = None
+    if rank == 0:
+        with open(params_path) as f:
+            all_params = json.load(f)
+        if params_label is None:
+            params_label = next(iter(all_params))
+        logger.info(f"Loading parameters from label '{params_label}' in {params_path}")
+
+        params_entry = all_params[params_label]
+        params_dict = params_entry["parameters"]
+        logger.info(f"Loaded {len(params_dict)} optimized parameters")
+    env.pc.barrier()
+    params_label, params_dict = env.comm.bcast((params_label, params_dict), root=0)
 
     # Build optimization parameter structure from network config
     opt_param_config = optimization_params(
@@ -114,11 +119,13 @@ def eval_network(
         param_tuple_values.append((param_tuple, param_value))
 
     # Apply parameters to the network
-    logger.info("Applying optimized parameters to network")
+    if rank == 0:
+        logger.info("Applying optimized parameters to network")
     update_network_params(env, param_tuple_values)
 
     # Run simulation with output enabled
-    logger.info(f"Running simulation (t_stop={env.tstop} ms)")
+    if rank == 0:
+        logger.info(f"Running simulation (t_stop={env.tstop} ms)")
     network.run(env, output=True)
 
     # Extract features from simulation output
@@ -130,32 +137,34 @@ def eval_network(
     objectives_arr, features_arr, constraints_arr = result[0]
 
     # Log results
-    logger.info("=== Evaluation Results ===")
-    for name, val in zip(objective_names, objectives_arr.tolist()):
-        logger.info(f"  objective  {name}: {val:.6f}")
-    for name, val in zip(objective_names, features_arr[0].tolist()):
-        logger.info(f"  feature    {name}: {val:.6f}")
-    for pop_name, val in zip(target_populations, constraints_arr.tolist()):
-        logger.info(f"  constraint {pop_name} positive rate: {val:.6f}")
+    if rank == 0:
+        logger.info("=== Evaluation Results ===")
+        for name, val in zip(objective_names, objectives_arr.tolist()):
+            logger.info(f"  objective  {name}: {val:.6f}")
+        for name, val in zip(objective_names, features_arr[0].tolist()):
+            logger.info(f"  feature    {name}: {val:.6f}")
+        for pop_name, val in zip(target_populations, constraints_arr.tolist()):
+            logger.info(f"  constraint {pop_name} positive rate: {val:.6f}")
 
-    if output_path is not None:
-        output_data = {
-            params_label: {
-                "parameters": params_dict,
-                "objectives": dict(
-                    zip(objective_names, [float(v) for v in objectives_arr])
-                ),
-                "features": dict(
-                    zip(objective_names, [float(v) for v in features_arr[0]])
-                ),
-                "constraints": {
-                    f"{pop} positive rate": float(c)
-                    for pop, c in zip(target_populations, constraints_arr)
-                },
+        if output_path is not None:
+            output_data = {
+                params_label: {
+                    "parameters": params_dict,
+                    "objectives": dict(
+                        zip(objective_names, [float(v) for v in objectives_arr])
+                    ),
+                    "features": dict(
+                        zip(objective_names, [float(v) for v in features_arr[0]])
+                    ),
+                    "constraints": {
+                        f"{pop} positive rate": float(c)
+                        for pop, c in zip(target_populations, constraints_arr)
+                    },
+                }
             }
-        }
-        with open(output_path, "w") as f:
-            json.dump(output_data, f, indent=4)
-        logger.info(f"Wrote evaluation results to {output_path}")
-
+            with open(output_path, "w") as f:
+                json.dump(output_data, f, indent=4)
+            logger.info(f"Wrote evaluation results to {output_path}")
+    env.pc.barrier()
+    
     network.shutdown(env)
