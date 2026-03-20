@@ -16,6 +16,7 @@ from miv_simulator.utils import (
     get_module_logger,
     read_from_yaml,
 )
+from miv_simulator.utils import io as io_utils
 from miv_simulator.optimization import (
     network_features,
     optimization_params,
@@ -80,6 +81,13 @@ def eval_network(
 
     rank = int(env.pc.id())
 
+    if env.cleanup:
+        raise RuntimeError(
+            "eval_network requires cleanup=False. "
+            "With cleanup=True, network.init() deletes biophys_cells after wiring each "
+            "gid, so update_network_params() cannot apply the optimized parameters."
+        )
+
     # Load optimized parameters from JSON
     params_dict = None
     if rank == 0:
@@ -123,14 +131,28 @@ def eval_network(
         logger.info("Applying optimized parameters to network")
     update_network_params(env, param_tuple_values)
 
-    # Run simulation with output enabled
+    # Run without checkpoint output so spike vectors remain in memory for feature extraction.
+    # network.run(output=True) calls spikeout(clear_data=env.checkpoint_clear_data) at each
+    # checkpoint segment; with the default checkpoint_clear_data=True this empties env.t_vec
+    # and env.id_vec, causing network_features() to return all-zero rates.
     if rank == 0:
         logger.info(f"Running simulation (t_stop={env.tstop} ms)")
-    network.run(env, output=True)
+    network.run(env, output=False)
 
-    # Extract features from simulation output
+    # Extract features from in-memory spike data before any output flushing
     t_stop = env.tstop
     features = network_features(env, t_start, t_stop, target_populations)
+
+    # Write simulation output to disk
+    if rank == 0:
+        logger.info(f"Writing output to {env.results_file_path}")
+        io_utils.mkout(env, env.results_file_path)
+    env.pc.barrier()
+    io_utils.spikeout(env, env.results_file_path)
+    if env.recording_profile is not None:
+        io_utils.recsout(env, env.results_file_path)
+    if rank == 0:
+        io_utils.lfpout(env, env.results_file_path)
 
     # Compute objectives using same reduction as the optimizer controller
     result = compute_objectives([{0: features}], operational_config, opt_targets)
@@ -166,5 +188,5 @@ def eval_network(
                 json.dump(output_data, f, indent=4)
             logger.info(f"Wrote evaluation results to {output_path}")
     env.pc.barrier()
-    
+
     network.shutdown(env)

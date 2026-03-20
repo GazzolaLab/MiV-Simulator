@@ -117,11 +117,17 @@ FEATURES_DICT = {
 # ---------------------------------------------------------------------------
 
 
-def _make_mock_env(tstop=500.0):
+def _make_mock_env(tstop=500.0, cleanup=False, recording_profile=None):
     env = MagicMock()
     env.tstop = tstop
+    env.cleanup = cleanup
+    env.recording_profile = recording_profile
+    env.results_file_path = "/tmp/fake_results.h5"
     env.netclamp_config.optimize_parameters = {}
     env.phenotype_ids = {}
+    # Single-process test: rank 0 performs I/O and bcast passes the value through
+    env.pc.id.return_value = 0
+    env.comm.bcast.side_effect = lambda obj, root: obj
     return env
 
 
@@ -156,6 +162,7 @@ def _patch_all(tmp_params_path, tmp_output_path=None):
             "miv_simulator.eval_network.compute_objectives",
             return_value=COMPUTE_OBJECTIVES_RESULT,
         ),
+        patch("miv_simulator.eval_network.io_utils"),
     ]
 
 
@@ -218,6 +225,7 @@ def test_explicit_params_label_is_used(params_json):
         patches[5],
         patches[6],
         patches[7],
+        patches[8],
     ):
         from miv_simulator.eval_network import eval_network
 
@@ -253,6 +261,7 @@ def test_default_label_picks_first_key(multi_label_params_json):
         patches[5],
         patches[6],
         patches[7],
+        patches[8],
     ):
         from miv_simulator.eval_network import eval_network
 
@@ -293,6 +302,7 @@ def test_all_param_names_mapped(params_json):
         patches[5],
         patches[6],
         patches[7],
+        patches[8],
     ):
         from miv_simulator.eval_network import eval_network
 
@@ -341,6 +351,7 @@ def test_nested_path_fallback(tmp_path):
         patches[5],
         patches[6],
         patches[7],
+        patches[8],
     ):
         from miv_simulator.eval_network import eval_network
 
@@ -360,8 +371,9 @@ def test_nested_path_fallback(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def test_network_run_called_with_output_true(params_json):
-    """network.run must be called with output=True (not the optimizer's False)."""
+def test_network_run_called_with_output_false(params_json):
+    """network.run must be called with output=False so spike vectors stay in memory
+    for feature extraction (network.run(output=True) clears them at each checkpoint)."""
     mock_network = MagicMock()
 
     patches = _patch_all(params_json)
@@ -376,6 +388,7 @@ def test_network_run_called_with_output_true(params_json):
         patches[5],
         patches[6],
         patches[7],
+        patches[8],
     ):
         from miv_simulator.eval_network import eval_network
 
@@ -387,9 +400,11 @@ def test_network_run_called_with_output_true(params_json):
 
     mock_network.run.assert_called_once()
     _, kwargs = mock_network.run.call_args
-    assert (
-        kwargs.get("output", None) is True or mock_network.run.call_args[0][1] is True
+    output_flag = kwargs.get(
+        "output",
+        mock_network.run.call_args[0][1] if mock_network.run.call_args[0][1:] else None,
     )
+    assert output_flag is False
 
 
 # ---------------------------------------------------------------------------
@@ -411,6 +426,7 @@ def test_output_json_written_with_correct_structure(params_json, tmp_path):
         patches[5],
         patches[6],
         patches[7],
+        patches[8],
     ):
         from miv_simulator.eval_network import eval_network
 
@@ -447,6 +463,7 @@ def test_output_json_objectives_match_compute_objectives(params_json, tmp_path):
         patches[5],
         patches[6],
         patches[7],
+        patches[8],
     ):
         from miv_simulator.eval_network import eval_network
 
@@ -479,6 +496,7 @@ def test_output_json_constraints_keyed_by_population(params_json, tmp_path):
         patches[5],
         patches[6],
         patches[7],
+        patches[8],
     ):
         from miv_simulator.eval_network import eval_network
 
@@ -509,6 +527,7 @@ def test_no_output_file_when_output_path_is_none(params_json, tmp_path):
         patches[5],
         patches[6],
         patches[7],
+        patches[8],
     ):
         from miv_simulator.eval_network import eval_network
 
@@ -567,6 +586,7 @@ def test_kwargs_from_operational_config_forwarded_to_init_network(params_json):
             "miv_simulator.eval_network.compute_objectives",
             return_value=COMPUTE_OBJECTIVES_RESULT,
         ),
+        patch("miv_simulator.eval_network.io_utils"),
     ):
         from miv_simulator.eval_network import eval_network
 
@@ -617,6 +637,7 @@ def test_explicit_network_kwargs_not_overwritten_by_op_config(params_json):
             "miv_simulator.eval_network.compute_objectives",
             return_value=COMPUTE_OBJECTIVES_RESULT,
         ),
+        patch("miv_simulator.eval_network.io_utils"),
     ):
         from miv_simulator.eval_network import eval_network
 
@@ -670,6 +691,7 @@ def test_network_shutdown_called(params_json):
             "miv_simulator.eval_network.compute_objectives",
             return_value=COMPUTE_OBJECTIVES_RESULT,
         ),
+        patch("miv_simulator.eval_network.io_utils"),
     ):
         from miv_simulator.eval_network import eval_network
 
@@ -680,3 +702,110 @@ def test_network_shutdown_called(params_json):
         )
 
     mock_network.shutdown.assert_called_once_with(mock_env)
+
+
+# ---------------------------------------------------------------------------
+# Tests: cleanup guard
+# ---------------------------------------------------------------------------
+
+
+def test_cleanup_true_raises_runtime_error(params_json):
+    """eval_network must raise RuntimeError immediately when env.cleanup=True.
+
+    With cleanup=True, network.init() deletes biophys_cells after wiring each gid,
+    so update_network_params() would silently apply no parameters.
+    """
+    mock_env = _make_mock_env(cleanup=True)
+
+    patches = _patch_all(params_json)
+    patches[2] = patch("miv_simulator.eval_network.init_network", return_value=mock_env)
+
+    with pytest.raises(RuntimeError, match="cleanup=False"):
+        with (
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patches[4],
+            patches[5],
+            patches[6],
+            patches[7],
+            patches[8],
+        ):
+            from miv_simulator.eval_network import eval_network
+
+            eval_network(
+                config_path="config.yaml",
+                params_path=params_json,
+                params_label="run_label",
+            )
+
+
+# ---------------------------------------------------------------------------
+# Tests: explicit output writing after feature extraction
+# ---------------------------------------------------------------------------
+
+
+def test_io_utils_mkout_spikeout_lfpout_called(params_json):
+    """After the simulation, mkout/spikeout/lfpout must be called to write output."""
+    mock_io_utils = MagicMock()
+    mock_env = _make_mock_env(recording_profile=None)
+
+    patches = _patch_all(params_json)
+    patches[2] = patch("miv_simulator.eval_network.init_network", return_value=mock_env)
+    patches[8] = patch("miv_simulator.eval_network.io_utils", mock_io_utils)
+
+    with (
+        patches[0],
+        patches[1],
+        patches[2],
+        patches[3],
+        patches[4],
+        patches[5],
+        patches[6],
+        patches[7],
+        patches[8],
+    ):
+        from miv_simulator.eval_network import eval_network
+
+        eval_network(
+            config_path="config.yaml",
+            params_path=params_json,
+            params_label="run_label",
+        )
+
+    mock_io_utils.mkout.assert_called_once_with(mock_env, mock_env.results_file_path)
+    mock_io_utils.spikeout.assert_called_once_with(mock_env, mock_env.results_file_path)
+    mock_io_utils.lfpout.assert_called_once_with(mock_env, mock_env.results_file_path)
+    mock_io_utils.recsout.assert_not_called()
+
+
+def test_io_utils_recsout_called_when_recording_profile_set(params_json):
+    """recsout must be called when env.recording_profile is not None."""
+    mock_io_utils = MagicMock()
+    mock_env = _make_mock_env(recording_profile={"dt": 0.1})
+
+    patches = _patch_all(params_json)
+    patches[2] = patch("miv_simulator.eval_network.init_network", return_value=mock_env)
+    patches[8] = patch("miv_simulator.eval_network.io_utils", mock_io_utils)
+
+    with (
+        patches[0],
+        patches[1],
+        patches[2],
+        patches[3],
+        patches[4],
+        patches[5],
+        patches[6],
+        patches[7],
+        patches[8],
+    ):
+        from miv_simulator.eval_network import eval_network
+
+        eval_network(
+            config_path="config.yaml",
+            params_path=params_json,
+            params_label="run_label",
+        )
+
+    mock_io_utils.recsout.assert_called_once_with(mock_env, mock_env.results_file_path)
