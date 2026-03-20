@@ -1,6 +1,6 @@
 [project]
 name = "miv-simulator"
-version = "0.2.1"
+version = "0.3.0"
 description = "Mind-In-Vitro simulator"
 authors = []
 dependencies = [
