@@ -141,6 +141,7 @@ class Env(AbstractEnv):
         self.biophys_cells = defaultdict(lambda: dict())
         self.spike_onset_delay = {}
         self.recording_sets = {}
+        self.cleanup = None
 
         self.pc = None
         if comm is None:
