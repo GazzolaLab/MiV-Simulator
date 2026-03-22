@@ -87,6 +87,33 @@ OPT_CONFIG = OptConfig(
     opt_targets=OPT_TARGETS,
 )
 
+# ---------------------------------------------------------------------------
+# Test data: tuple sec_type  (e.g. "AAC.CA2.('apical', 'basal').AMPA.weight")
+# ---------------------------------------------------------------------------
+
+# SynParam where sec_type is a tuple; both apical and basal dendrites share
+# the same synaptic weight.  The optimizer encodes this in the parameter name
+# using Python's repr of the tuple: "('apical', 'basal')".
+AAC_PARAM_TUPLE = SynParam(
+    population="AAC",
+    source="CA2",
+    sec_type=("apical", "basal"),
+    syn_name="AMPA",
+    param_path="weight",
+    param_range=[0.0, 10.0],
+    phenotype=None,
+)
+AAC_PARAM_NAME = "AAC.CA2.('apical', 'basal').AMPA.weight"
+AAC_PARAM_VALUE = 3.5
+
+AAC_OPT_CONFIG = OptConfig(
+    param_bounds={AAC_PARAM_NAME: AAC_PARAM_TUPLE.param_range},
+    param_names=[AAC_PARAM_NAME],
+    param_initial_dict={AAC_PARAM_NAME: 1.0},
+    param_tuples=[AAC_PARAM_TUPLE],
+    opt_targets=OPT_TARGETS,
+)
+
 # Fake compute_objectives output:
 #   (objectives_arr, features_arr, constraints_arr)
 OBJECTIVES_ARR = np.array([0.25, 1.44], dtype=np.float32)
@@ -364,6 +391,140 @@ def test_nested_path_fallback(tmp_path):
     values = {pt.population: v for pt, v in captured["param_tuple_values"]}
     assert values["PYR"] == pytest.approx(7.7)
     assert values["PVBC"] == pytest.approx(3.3)
+
+
+# ---------------------------------------------------------------------------
+# Tests: tuple sec_type parameter path parsing and propagation
+# ---------------------------------------------------------------------------
+
+
+def test_tuple_sec_type_flat_key_lookup(tmp_path):
+    """
+    A param_name like "AAC.CA2.('apical', 'basal').AMPA.weight" must be found
+    by the flat-path branch (param_name in params_dict) and its value forwarded
+    to update_network_params with the correct SynParam intact.
+    """
+    data = {"lbl": {"parameters": {AAC_PARAM_NAME: AAC_PARAM_VALUE}}}
+    p = tmp_path / "aac_flat.json"
+    p.write_text(json.dumps(data))
+
+    captured = {}
+
+    def fake_update(env, ptv):
+        captured["param_tuple_values"] = ptv
+
+    patches = _patch_all(str(p))
+    patches[3] = patch(
+        "miv_simulator.eval_network.optimization_params",
+        return_value=AAC_OPT_CONFIG,
+    )
+    patches[4] = patch(
+        "miv_simulator.eval_network.update_network_params", side_effect=fake_update
+    )
+
+    with (
+        patches[0],
+        patches[1],
+        patches[2],
+        patches[3],
+        patches[4],
+        patches[5],
+        patches[6],
+        patches[7],
+        patches[8],
+    ):
+        from miv_simulator.eval_network import eval_network
+
+        eval_network(
+            config_path="config.yaml",
+            params_path=str(p),
+            params_label="lbl",
+        )
+
+    assert len(captured["param_tuple_values"]) == 1
+    param_tuple, value = captured["param_tuple_values"][0]
+    assert param_tuple.sec_type == ("apical", "basal")
+    assert value == pytest.approx(AAC_PARAM_VALUE)
+
+
+def test_tuple_sec_type_nested_path_fallback(tmp_path):
+    """
+    When the flat key is absent the nested-dict fallback uses str(sec_type) as
+    the key.  str(('apical', 'basal')) == "('apical', 'basal')", so the JSON
+    must contain that exact string as a nested dict key.
+    """
+    nested_params = {
+        "AAC": {"CA2": {"('apical', 'basal')": {"AMPA": {"weight": AAC_PARAM_VALUE}}}}
+    }
+    data = {"lbl": {"parameters": nested_params}}
+    p = tmp_path / "aac_nested.json"
+    p.write_text(json.dumps(data))
+
+    captured = {}
+
+    def fake_update(env, ptv):
+        captured["param_tuple_values"] = ptv
+
+    patches = _patch_all(str(p))
+    patches[3] = patch(
+        "miv_simulator.eval_network.optimization_params",
+        return_value=AAC_OPT_CONFIG,
+    )
+    patches[4] = patch(
+        "miv_simulator.eval_network.update_network_params", side_effect=fake_update
+    )
+
+    with (
+        patches[0],
+        patches[1],
+        patches[2],
+        patches[3],
+        patches[4],
+        patches[5],
+        patches[6],
+        patches[7],
+        patches[8],
+    ):
+        from miv_simulator.eval_network import eval_network
+
+        eval_network(
+            config_path="config.yaml",
+            params_path=str(p),
+            params_label="lbl",
+        )
+
+    assert len(captured["param_tuple_values"]) == 1
+    param_tuple, value = captured["param_tuple_values"][0]
+    assert param_tuple.sec_type == ("apical", "basal")
+    assert value == pytest.approx(AAC_PARAM_VALUE)
+
+
+def test_tuple_sec_type_propagated_to_modify_syn_param():
+    """
+    update_network_params must call modify_syn_param once per element of a
+    tuple sec_type; i.e. separately for 'apical' and for 'basal'.
+    """
+    from miv_simulator.optimization import update_network_params
+
+    mock_cell = MagicMock()
+    env = MagicMock()
+    env.biophys_cells = {"AAC": {1: mock_cell}}
+    env.phenotype_dict.get.return_value = None
+
+    with patch("miv_simulator.optimization.synapses.modify_syn_param") as mock_msp:
+        update_network_params(env, [(AAC_PARAM_TUPLE, AAC_PARAM_VALUE)])
+
+    assert mock_msp.call_count == 2
+
+    sec_types_called = [call.args[2] for call in mock_msp.call_args_list]
+    assert set(sec_types_called) == {"apical", "basal"}
+
+    for call in mock_msp.call_args_list:
+        _, kwargs = call
+        assert kwargs["param_name"] == "weight"
+        assert kwargs["value"] == pytest.approx(AAC_PARAM_VALUE)
+        assert kwargs["filters"] == {"sources": ["CA2"]}
+        assert kwargs["update_targets"] is True
 
 
 # ---------------------------------------------------------------------------
