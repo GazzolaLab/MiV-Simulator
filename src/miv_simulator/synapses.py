@@ -525,70 +525,6 @@ class SynapseMechanismParameterStore:
 
         return self.gid_data[gid]["has_mech"][mech_name][syn_index]
 
-    def get_mechanism_parameters(
-        self,
-        gid,
-        syn_id,
-        syn_name,
-        throw_error_on_missing_id=True,
-        throw_error_on_missing_param=False,
-    ):
-        """
-        Get mechanism parameters with fallback to defaults
-
-        Args:
-            gid: Cell GID
-            syn_id: Synapse ID
-            syn_name: Synapse mechanism name
-            throw_error_on_missing_id: Whether to throw error if gid/syn_id not found
-            throw_error_on_missing_param: Whether to throw error if parameter missing
-
-        Returns:
-            Dict of parameter values
-        """
-        # Convert syn_name to mechanism name
-        mech_name = self.syn_mech_names[syn_name]
-
-        # Check if gid and syn_id exist
-        if gid not in self.syn_store.id_to_index:
-            if throw_error_on_missing_id:
-                raise RuntimeError(f"Gid {gid} not found")
-            return {}
-
-        if syn_id not in self.syn_store.id_to_index[gid]:
-            if throw_error_on_missing_id:
-                raise RuntimeError(f"Synapse {syn_id} not found for gid {gid}")
-            return {}
-
-        # Get array index
-        syn_index = self.syn_store.id_to_index[gid][syn_id]
-
-        # Start with default parameters
-        result = {}
-        default_params = self.syn_store.param_store.get_default_params(
-            gid, syn_id, syn_index, mech_name
-        )
-        if default_params:
-            result.update(default_params)
-
-        # Override with specific parameters if available
-        if self.syn_store.param_store.has_mechanism_parameters(
-            gid, syn_index, mech_name
-        ):
-            specific_params = self.syn_store.param_store.get_mechanism_parameters(
-                gid, syn_index, mech_name
-            )
-            if specific_params:
-                result.update(specific_params)
-
-        # Check if any parameters found
-        if not result and throw_error_on_missing_param:
-            raise RuntimeError(
-                f"No parameters found for gid {gid} synapse {syn_id} mechanism {syn_name}"
-            )
-
-        return result
-
     def set_mechanism_parameters(self, gid, syn_index, mech_name, attrs, syn_id=None):
         """Set multiple attributes for a mechanism at once"""
         if mech_name not in self.mech_param_specs:
@@ -1641,18 +1577,27 @@ class SynapseManager:
         syn_index = self.syn_store.id_to_index[gid][syn_id]
 
         # Check if mechanism exists
-        if not self.syn_store.param_store.has_mechanism_params(
-            gid, syn_index, mech_name
-        ):
+        if not self.syn_store.param_store.has_mechanism(gid, syn_index, mech_name):
             if throw_error_on_missing_param:
                 raise RuntimeError(
                     f"get_mechanism_parameters: gid {gid} synapse {syn_id}: attributes for synapse {syn_name} mechanism {mech_name} not found"
                 )
             return None
 
-        return self.syn_store.param_store.get_parameter_values(
-            gid, syn_index, mech_name
+        all_params = list(self.syn_param_rules[mech_name].get("mech_params", []))
+        all_params += list(
+            self.syn_param_rules[mech_name].get("netcon_params", {}).keys()
         )
+        return {
+            p: v
+            for p in all_params
+            for v in [
+                self.syn_store.param_store.get_synapse_parameter(
+                    gid, syn_index, mech_name, p
+                )
+            ]
+            if v is not None
+        }
 
     def get_default_mechanism_parameters(
         self,
@@ -1787,7 +1732,7 @@ class SynapseManager:
         self.add_mechanism_parameters_from_iter(
             gid,
             syn_name,
-            iter({syn_id: params}),
+            iter({syn_id: params}.items()),
             multiple="error",
             append=append,
         )
@@ -1803,9 +1748,10 @@ class SynapseManager:
         :param syn_ids: tuple/list of synapse ids
 
         """
+        mech_name = self.syn_mech_names[syn_name]
         for param_name, param_value in params.items():
             self.syn_store.param_store.set_default_value(
-                gid, syn_name, param_name, param_value, syn_ids
+                gid, mech_name, param_name, param_value, syn_ids
             )
 
     def add_mechanism_parameters_from_iter(
@@ -1863,7 +1809,7 @@ class SynapseManager:
             syn_index = self.syn_store.id_to_index[gid][syn_id]
 
             # Check if mechanism already has attributes
-            has_mech = self.syn_store.param_store.has_mechanism_parameters(
+            has_mech = self.syn_store.param_store.has_mechanism(
                 gid, syn_index, mech_name
             )
             if has_mech:
@@ -1884,7 +1830,7 @@ class SynapseManager:
 
                 # Get current value if appending
                 if append and has_mech:
-                    current_value = self.syn_store.param_store.get_param(
+                    current_value = self.syn_store.param_store.get_synapse_parameter(
                         gid, syn_index, mech_name, param_name
                     )
 
@@ -1896,7 +1842,7 @@ class SynapseManager:
                         param_value = current_value + [param_value]
 
                 # Set parameter value
-                self.syn_store.param_store.set_parameter_value(
+                self.syn_store.param_store.set_synapse_parameter(
                     gid, syn_index, mech_name, param_name, param_value
                 )
 

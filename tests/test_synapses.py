@@ -23,6 +23,7 @@ from miv_simulator.synapses import (
     _build_synapse_filter_mask,
     get_mech_rules_dict,
     get_syn_filter_dict,
+    modify_syn_param,
     syn_param_from_dict,
     validate_syn_mech_param,
 )
@@ -1158,3 +1159,294 @@ class TestSynapseManagerPointProcessStorage:
         vs, nc = syn_manager.get_vecstim(GID, 0, "AMPA")
         assert vs is fake_vs
         assert nc is fake_nc
+
+
+# ===========================================================================
+# TestAddDefaultMechanismParameters
+# ===========================================================================
+
+
+class TestAddDefaultMechanismParameters:
+    """Verify that add_default_mechanism_parameters stores defaults under the
+    mechanism name (e.g. 'ExpSyn'), not the synapse label (e.g. 'AMPA'), so
+    that get_effective_mechanism_parameters can retrieve them."""
+
+    def test_default_params_readable_via_get_effective(self, populated_manager):
+        """Defaults written via add_default_mechanism_parameters must be
+        returned by get_effective_mechanism_parameters for the same synapse."""
+        populated_manager.add_default_mechanism_parameters(
+            GID, "AMPA", {"tau": 3.0, "e": -70.0}, syn_ids=None
+        )
+        params = populated_manager.get_effective_mechanism_parameters(GID, 0, "AMPA")
+        assert pytest.approx(params["tau"]) == 3.0
+        assert pytest.approx(params["e"]) == -70.0
+
+    def test_default_applies_to_all_synapses(self, populated_manager):
+        populated_manager.add_default_mechanism_parameters(
+            GID, "AMPA", {"tau": 5.0}, syn_ids=None
+        )
+        for sid in range(6):  # first 6 are GC (AMPA)
+            params = populated_manager.get_effective_mechanism_parameters(
+                GID, sid, "AMPA"
+            )
+            assert pytest.approx(params["tau"]) == 5.0
+
+    def test_gaba_label_resolves_to_exp2syn(self, populated_manager):
+        """The GABA label must map to Exp2Syn parameters correctly."""
+        populated_manager.add_default_mechanism_parameters(
+            GID, "GABA", {"tau1": 1.0, "tau2": 8.0}, syn_ids=None
+        )
+        params = populated_manager.get_effective_mechanism_parameters(GID, 0, "GABA")
+        assert pytest.approx(params["tau1"]) == 1.0
+        assert pytest.approx(params["tau2"]) == 8.0
+
+
+# ===========================================================================
+# TestAddMechanismParametersFromIter
+# ===========================================================================
+
+
+class TestAddMechanismParametersFromIter:
+    """Tests for add_mechanism_parameters_from_iter / _process_mech_attrs_batch."""
+
+    @pytest.fixture
+    def single_manager(self, syn_manager):
+        """SynapseManager with one synapse registered for GID."""
+        n = 3
+        syn_ids = np.arange(n, dtype=np.uint32)
+        syn_manager.init_syn_id_attrs(
+            GID,
+            syn_ids,
+            np.zeros(n, dtype=np.int8),
+            np.zeros(n, dtype=np.uint8),
+            np.full(n, SWC_APICAL, dtype=np.uint8),
+            np.zeros(n, dtype=np.uint16),
+            np.full(n, 0.5, dtype=np.float32),
+        )
+        syn_manager.init_edge_attrs(
+            GID, "GC", np.arange(n, dtype=np.int32), syn_ids, delays=[2.0] * n
+        )
+        return syn_manager
+
+    def test_sets_parameter_via_iter(self, single_manager):
+        single_manager.add_mechanism_parameters_from_iter(
+            GID, "AMPA", iter([(0, {"tau": 4.0})])
+        )
+        params = single_manager.get_effective_mechanism_parameters(GID, 0, "AMPA")
+        assert pytest.approx(params["tau"]) == 4.0
+
+    def test_duplicate_raises_in_error_mode(self, single_manager):
+        single_manager.add_mechanism_parameters_from_iter(
+            GID, "AMPA", iter([(0, {"tau": 4.0})])
+        )
+        with pytest.raises(RuntimeError):
+            single_manager.add_mechanism_parameters_from_iter(
+                GID, "AMPA", iter([(0, {"tau": 9.0})])
+            )
+
+    def test_duplicate_skipped_in_skip_mode(self, single_manager):
+        single_manager.add_mechanism_parameters_from_iter(
+            GID, "AMPA", iter([(0, {"tau": 4.0})])
+        )
+        single_manager.add_mechanism_parameters_from_iter(
+            GID, "AMPA", iter([(0, {"tau": 9.0})]), multiple="skip"
+        )
+        params = single_manager.get_effective_mechanism_parameters(GID, 0, "AMPA")
+        assert pytest.approx(params["tau"]) == 4.0
+
+    def test_duplicate_overwritten_in_overwrite_mode(self, single_manager):
+        single_manager.add_mechanism_parameters_from_iter(
+            GID, "AMPA", iter([(0, {"tau": 4.0})])
+        )
+        single_manager.add_mechanism_parameters_from_iter(
+            GID, "AMPA", iter([(0, {"tau": 9.0})]), multiple="overwrite"
+        )
+        params = single_manager.get_effective_mechanism_parameters(GID, 0, "AMPA")
+        assert pytest.approx(params["tau"]) == 9.0
+
+    def test_unknown_gid_raises(self, single_manager):
+        with pytest.raises(RuntimeError):
+            single_manager.add_mechanism_parameters_from_iter(
+                999, "AMPA", iter([(0, {"tau": 1.0})])
+            )
+
+
+# ===========================================================================
+# TestGetMechanismParameters
+# ===========================================================================
+
+
+class TestGetMechanismParameters:
+    """Tests for SynapseManager.get_mechanism_parameters."""
+
+    @pytest.fixture
+    def manager_with_params(self, syn_manager):
+        n = 2
+        syn_ids = np.arange(n, dtype=np.uint32)
+        syn_manager.init_syn_id_attrs(
+            GID,
+            syn_ids,
+            np.zeros(n, dtype=np.int8),
+            np.zeros(n, dtype=np.uint8),
+            np.full(n, SWC_APICAL, dtype=np.uint8),
+            np.zeros(n, dtype=np.uint16),
+            np.full(n, 0.5, dtype=np.float32),
+        )
+        syn_manager.init_edge_attrs(
+            GID, "GC", np.arange(n, dtype=np.int32), syn_ids, delays=[2.0] * n
+        )
+        syn_manager.add_mechanism_parameters(GID, 0, "AMPA", {"tau": 6.0, "e": -5.0})
+        return syn_manager
+
+    def test_returns_set_value(self, manager_with_params):
+        result = manager_with_params.get_mechanism_parameters(GID, 0, "AMPA")
+        assert result is not None
+        assert pytest.approx(result["tau"]) == 6.0
+        assert pytest.approx(result["e"]) == -5.0
+
+    def test_returns_none_for_unknown_syn_id(self, manager_with_params):
+        result = manager_with_params.get_mechanism_parameters(
+            GID, 999, "AMPA", throw_error_on_missing_id=False
+        )
+        assert result is None
+
+    def test_raises_for_unknown_syn_id(self, manager_with_params):
+        with pytest.raises(RuntimeError):
+            manager_with_params.get_mechanism_parameters(
+                GID, 999, "AMPA", throw_error_on_missing_id=True
+            )
+
+    def test_returns_none_when_no_params_set(self, manager_with_params):
+        # syn_id=1 exists but has no specific parameters
+        result = manager_with_params.get_mechanism_parameters(
+            GID, 1, "AMPA", throw_error_on_missing_param=False
+        )
+        assert result is None
+
+
+# ===========================================================================
+# TestModifySynParam
+# ===========================================================================
+
+
+class _Node:
+    """Minimal section-node stub: only .index is needed by apply_syn_mech_rules."""
+
+    def __init__(self, index=0):
+        self.index = index
+
+
+class _ModifyCell:
+    """Minimal cell for modify_syn_param tests."""
+
+    def __init__(self, gid, population_name, sec_type, n_nodes=1, mech_dict=None):
+        self.gid = gid
+        self.population_name = population_name
+        self.nodes = {sec_type: [_Node(index=i) for i in range(n_nodes)]}
+        self.mech_dict = mech_dict if mech_dict is not None else {}
+        self.is_reduced = False
+
+
+class TestModifySynParam:
+    """Tests for modify_syn_param: validation, cell.mech_dict updates, and
+    param_store updates (update_targets=False, no NEURON required).
+
+    Synapses are intentionally initialised without init_edge_attrs so that
+    source_population stays at -1.  modify_mechanism_parameters then finds
+    no presyn_name entry and skips the connection_config lookup, thus no
+    connection_config is needed in the env.
+    """
+
+    @pytest.fixture
+    def setup(self, syn_manager):
+        """Two apical synapses at section 0, env wired for modify_syn_param."""
+        n = 2
+        syn_ids = np.arange(n, dtype=np.uint32)
+        syn_manager.init_syn_id_attrs(
+            GID,
+            syn_ids,
+            np.zeros(n, dtype=np.int8),
+            np.zeros(n, dtype=np.uint8),
+            np.full(n, SWC_APICAL, dtype=np.uint8),
+            np.zeros(n, dtype=np.uint16),  # syn_section = 0
+            np.full(n, 0.5, dtype=np.float32),
+        )
+        # source_population = -1 (default) -> presyn_name = None -> no connection_config needed
+        env = MockEnv()
+        env.synapse_manager = syn_manager
+        env.cache_queries = False
+        cell = _ModifyCell(GID, "GC", "apical")
+        return env, cell, syn_ids
+
+    # ------------------------------------------------------------------
+    # Validation errors
+
+    def test_raises_when_sec_type_not_in_cell(self, setup):
+        env, cell, _ = setup
+        with pytest.raises(ValueError, match="sec_type"):
+            modify_syn_param(
+                cell, env, "no_such_sec_type", "AMPA", param_name="tau", value=1.0
+            )
+
+    def test_raises_when_param_name_is_none(self, setup):
+        env, cell, _ = setup
+        with pytest.raises(ValueError):
+            modify_syn_param(cell, env, "apical", "AMPA", param_name=None, value=1.0)
+
+    def test_raises_when_value_is_none(self, setup):
+        env, cell, _ = setup
+        with pytest.raises(ValueError):
+            modify_syn_param(cell, env, "apical", "AMPA", param_name="tau", value=None)
+
+    def test_raises_when_param_not_recognized(self, setup):
+        env, cell, _ = setup
+        with pytest.raises(ValueError, match="not recognized"):
+            modify_syn_param(
+                cell, env, "apical", "AMPA", param_name="no_such_param", value=1.0
+            )
+
+    # ------------------------------------------------------------------
+    # cell.mech_dict update
+
+    def test_populates_mech_dict_on_first_call(self, setup):
+        env, cell, _ = setup
+        modify_syn_param(cell, env, "apical", "AMPA", param_name="tau", value=3.0)
+        rule = cell.mech_dict["apical"]["synapses"]["AMPA"]["tau"]
+        assert pytest.approx(rule["value"]) == 3.0
+
+    def test_second_call_overwrites_mech_dict_value(self, setup):
+        env, cell, _ = setup
+        modify_syn_param(cell, env, "apical", "AMPA", param_name="tau", value=3.0)
+        modify_syn_param(cell, env, "apical", "AMPA", param_name="tau", value=9.0)
+        rule = cell.mech_dict["apical"]["synapses"]["AMPA"]["tau"]
+        assert pytest.approx(rule["value"]) == 9.0
+
+    # ------------------------------------------------------------------
+    # param_store update
+
+    def test_tau_stored_for_all_syn_ids(self, setup):
+        env, cell, syn_ids = setup
+        modify_syn_param(cell, env, "apical", "AMPA", param_name="tau", value=4.5)
+        for syn_id in syn_ids:
+            params = env.synapse_manager.get_effective_mechanism_parameters(
+                GID, int(syn_id), "AMPA"
+            )
+            assert pytest.approx(params["tau"]) == 4.5
+
+    def test_netcon_weight_stored_for_all_syn_ids(self, setup):
+        env, cell, syn_ids = setup
+        modify_syn_param(cell, env, "apical", "AMPA", param_name="weight", value=0.003)
+        for syn_id in syn_ids:
+            params = env.synapse_manager.get_effective_mechanism_parameters(
+                GID, int(syn_id), "AMPA"
+            )
+            assert pytest.approx(params["weight"]) == 0.003
+
+    def test_second_call_overwrites_param_store_value(self, setup):
+        env, cell, syn_ids = setup
+        modify_syn_param(cell, env, "apical", "AMPA", param_name="tau", value=4.0)
+        modify_syn_param(cell, env, "apical", "AMPA", param_name="tau", value=9.0)
+        params = env.synapse_manager.get_effective_mechanism_parameters(
+            GID, int(syn_ids[0]), "AMPA"
+        )
+        assert pytest.approx(params["tau"]) == 9.0
