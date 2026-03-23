@@ -146,8 +146,10 @@ class SynapseMechanismParameterStore:
         self.allocated_params = defaultdict(lambda: defaultdict(set))
 
         # Default parameter values with selective application
-        # Format: {mech_name: {param_name: [(synapse_selector, value), ...]}
-        self.default_values = defaultdict(lambda: defaultdict(list))
+        # Format: {gid: {mech_name: {param_name: [(synapse_selector, value), ...]}}}
+        self.default_values = defaultdict(
+            lambda: defaultdict(lambda: defaultdict(list))
+        )
 
         # Storage for complex objects that can't be stored in arrays
         self.complex_params = defaultdict(
@@ -866,17 +868,18 @@ class SynapseStore:
             new_array[: self.next_index[gid]] = self.attrs[gid][: self.next_index[gid]]
             self.attrs[gid] = new_array
 
-            # Create new parameter arrays and copy data
-            old_data = self.param_store.gid_data[gid]
-
-            # Copy parameter data
-            for mech_name in self.mech_param_specs:
-                self.param_store.gid_data[gid]["arrays"][mech_name][
-                    : self.next_index[gid]
-                ] = old_data["arrays"][mech_name][: self.next_index[gid]]
-                self.param_store.gid_data[gid]["has_mech"][mech_name][
-                    : self.next_index[gid]
-                ] = old_data["has_mech"][mech_name][: self.next_index[gid]]
+            # Copy parameter data when param_store has been initialised for this gid
+            if gid in self.param_store.gid_data:
+                old_data = self.param_store.gid_data[gid]
+                for mech_name in self.mech_param_specs:
+                    if mech_name in old_data["arrays"]:
+                        self.param_store.gid_data[gid]["arrays"][mech_name][
+                            : self.next_index[gid]
+                        ] = old_data["arrays"][mech_name][: self.next_index[gid]]
+                    if mech_name in old_data["has_mech"]:
+                        self.param_store.gid_data[gid]["has_mech"][mech_name][
+                            : self.next_index[gid]
+                        ] = old_data["has_mech"][mech_name][: self.next_index[gid]]
 
     def keys(self, gid):
         """Iterate over syn_id keys for a gid"""
@@ -2263,7 +2266,7 @@ class SynapseManager:
             sources,
             swc_types,
         )
-        result = attrs["syn_id"][mask]
+        result = attrs["syn_id"][:valid_count][mask]
 
         # Cache if requested
         if cache:
