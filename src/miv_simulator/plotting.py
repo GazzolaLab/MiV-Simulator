@@ -705,7 +705,7 @@ def plot_spike_raster(
     include=["eachPop"],
     time_range=None,
     time_variable="t",
-    max_spikes=int(1e6),
+    max_units=None,
     labels="legend",
     pop_rates=True,
     spike_hist=None,
@@ -721,7 +721,7 @@ def plot_spike_raster(
     namespace_id: attribute namespace for spike events
     time_range ([start:stop]): Time range of spikes shown; if None shows all (default: None)
     time_variable: Name of variable containing spike times (default: 't')
-    max_spikes (int): maximum number of spikes that will be plotted  (default: 1e6)
+    max_units (int): maximum number of cell gids that will be plotted (default: None, no limit)
     labels = ('legend', 'overlay'): Show population labels in a legend or overlayed on one side of raster (default: 'legend')
     pop_rates = (True|False): Include population rates (default: False)
     spike_hist (None|'overlay'|'subplot'): overlay line over raster showing spike histogram (spikes/bin) (default: False)
@@ -851,13 +851,13 @@ def plot_spike_raster(
             f"population {pop_name}: spike counts: {np.unique(pop_spkinds, return_counts=True)}"
         )
 
-        if max_spikes is not None:
-            if int(max_spikes) < len(pop_spkinds):
+        if max_units is not None:
+            if int(max_units) < len(pop_spkinds):
                 logger.info(
-                    f"Loading only randomly sampled {max_spikes} out of {len(pop_spkts)} spikes for population {pop_name}"
+                    f"Loading only randomly sampled {max_units} out of {len(pop_spkts)} spikes for population {pop_name}"
                 )
                 sample_inds = np.random.randint(
-                    0, len(pop_spkinds) - 1, size=int(max_spikes)
+                    0, len(pop_spkinds) - 1, size=int(max_units)
                 )
                 pop_spkts = pop_spkts[sample_inds]
                 pop_spkinds = pop_spkinds[sample_inds]

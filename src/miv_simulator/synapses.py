@@ -10,18 +10,15 @@ from typing import (
 )
 import copy
 import itertools
-import math
 import sys
 import time
 import traceback
 import uuid
 from collections import defaultdict, namedtuple
-from functools import reduce
 
 import numpy as np
 from miv_simulator.cells import (
     BiophysCell,
-    make_section_graph,
 )
 from miv_simulator.utils import (
     AbstractEnv,
@@ -33,7 +30,6 @@ from miv_simulator.utils import (
 )
 from miv_simulator.utils.neuron import (
     default_ordered_sec_types,
-    interplocs,
     mknetcon,
     mknetcon_vecstim,
 )
@@ -116,491 +112,6 @@ def get_mech_rules_dict(cell, **rules):
     return rules_dict
 
 
-def get_node_attribute(name, content, sec, secnodes, x=None):
-    """
-
-    :param name:
-    :param content:
-    :param sec:
-    :param secnodes:
-    :param x:
-    :return:
-    """
-    if name in content:
-        if x is None:
-            return content[name]
-        elif sec.n3d() == 0:
-            return content[name][0]
-        else:
-            prev = None
-            for i in range(sec.n3d()):
-                pos = sec.arc3d(i) / sec.L
-                if pos >= x:
-                    if (prev is None) or (abs(pos - x) < abs(prev - x)):
-                        return content[name][secnodes[i]]
-                    else:
-                        return content[name][secnodes[i - 1]]
-                else:
-                    prev = pos
-    else:
-        return None
-
-
-def synapse_seg_density(
-    syn_type_dict,
-    layer_dict,
-    layer_density_dicts,
-    seg_dict,
-    ran,
-    neurotree_dict=None,
-):
-    """
-    Computes per-segment density of synapse placement.
-    :param syn_type_dict:
-    :param layer_dict:
-    :param layer_density_dicts:
-    :param seg_dict:
-    :param ran:
-    :param neurotree_dict:
-    :return:
-    """
-    segdensity_dict = {}
-    layers_dict = {}
-
-    if neurotree_dict is not None:
-        secnodes_dict = neurotree_dict["section_topology"]["nodes"]
-    else:
-        secnodes_dict = None
-    for syn_type_label, layer_density_dict in layer_density_dicts.items():
-        syn_type = syn_type_dict[syn_type_label]
-        rans = {}
-        for layer_label, density_dict in layer_density_dict.items():
-            if layer_label == "default" or layer_label == -1:
-                layer = "default"
-            else:
-                layer = int(layer_dict[layer_label])
-            rans[layer] = ran
-        segdensity = defaultdict(list)
-        layers = defaultdict(list)
-        total_seg_density = 0.0
-        for sec_index, seg_list in seg_dict.items():
-            for seg in seg_list:
-                if neurotree_dict is not None:
-                    secnodes = secnodes_dict[sec_index]
-                    layer = get_node_attribute(
-                        "layer", neurotree_dict, seg.sec, secnodes, seg.x
-                    )
-                else:
-                    layer = -1
-                layers[sec_index].append(layer)
-
-                this_ran = None
-
-                if layer > -1:
-                    if layer in rans:
-                        this_ran = rans[layer]
-                    elif "default" in rans:
-                        this_ran = rans["default"]
-                    else:
-                        this_ran = None
-                elif "default" in rans:
-                    this_ran = rans["default"]
-                else:
-                    this_ran = None
-                if this_ran is not None:
-                    while True:
-                        dens = this_ran.normal(
-                            density_dict["mean"], density_dict["variance"]
-                        )
-                        if dens > 0.0:
-                            break
-                else:
-                    dens = 0.0
-                total_seg_density += dens
-                segdensity[sec_index].append(dens)
-
-        if total_seg_density < 1e-6:
-            logger.warning(
-                f"sections with zero {syn_type_label} "
-                f"synapse density: {segdensity}; rans: {rans}; "
-                f"density_dict: {density_dict}; layers: {layers} "
-                f"morphology: {neurotree_dict}"
-            )
-
-        segdensity_dict[syn_type] = segdensity
-
-        layers_dict[syn_type] = layers
-    return (segdensity_dict, layers_dict)
-
-
-def synapse_seg_counts(
-    syn_type_dict,
-    layer_dict,
-    layer_density_dicts,
-    sec_index_dict,
-    seg_dict,
-    ran,
-    neurotree_dict=None,
-):
-    """
-    Computes per-segment relative counts of synapse placement.
-    :param syn_type_dict:
-    :param layer_dict:
-    :param layer_density_dicts:
-    :param sec_index_dict:
-    :param seg_dict:
-    :param seed:
-    :param neurotree_dict:
-    :return:
-    """
-    segcounts_dict = {}
-    layers_dict = {}
-    segcount_total = 0
-    if neurotree_dict is not None:
-        secnodes_dict = neurotree_dict["section_topology"]["nodes"]
-    else:
-        secnodes_dict = None
-    for syn_type_label, layer_density_dict in layer_density_dicts.items():
-        syn_type = syn_type_dict[syn_type_label]
-        rans = {}
-        for layer_label, density_dict in layer_density_dict.items():
-            if layer_label == "default" or layer_label == -1:
-                layer = "default"
-            else:
-                layer = layer_dict[layer_label]
-
-            rans[layer] = ran
-        segcounts = []
-        layers = []
-        for sec_index, seg_list in seg_dict.items():
-            for seg in seg_list:
-                L = seg.sec.L
-                nseg = seg.sec.nseg
-                if neurotree_dict is not None:
-                    secnodes = secnodes_dict[sec_index]
-                    layer = get_node_attribute(
-                        "layer", neurotree_dict, seg.sec, secnodes, seg.x
-                    )
-                else:
-                    layer = -1
-                layers.append(layer)
-
-                ran = None
-
-                if layer > -1:
-                    if layer in rans:
-                        ran = rans[layer]
-                    elif "default" in rans:
-                        ran = rans["default"]
-                    else:
-                        ran = None
-                elif "default" in rans:
-                    ran = rans["default"]
-                else:
-                    ran = None
-                if ran is not None:
-                    pos = L / nseg
-                    dens = ran.normal(density_dict["mean"], density_dict["variance"])
-                    rc = dens * pos
-                    segcount_total += rc
-                    segcounts.append(rc)
-                else:
-                    segcounts.append(0)
-
-            segcounts_dict[syn_type] = segcounts
-            layers_dict[syn_type] = layers
-    return (segcounts_dict, segcount_total, layers_dict)
-
-
-def distribute_uniform_synapses(
-    density_seed,
-    syn_type_dict,
-    swc_type_dict,
-    layer_dict,
-    sec_layer_density_dict,
-    neurotree_dict,
-    cell_sec_dict,
-    cell_secidx_dict,
-):
-    """
-    Computes uniformly-spaced synapse locations.
-    :param density_seed:
-    :param syn_type_dict:
-    :param swc_type_dict:
-    :param layer_dict:
-    :param sec_layer_density_dict:
-    :param neurotree_dict:
-    :param sec_dict:
-    :param secidx_dict:
-    :return:
-    """
-    syn_ids = []
-    syn_locs = []
-    syn_cdists = []
-    syn_secs = []
-    syn_layers = []
-    syn_types = []
-    swc_types = []
-    syn_index = 0
-
-    r = np.random.RandomState()
-
-    sec_interp_loc_dict = {}
-    segcounts_per_sec = {}
-    for sec_name, layer_density_dict in sec_layer_density_dict.items():
-        sec_index_dict = cell_secidx_dict[sec_name]
-        swc_type = swc_type_dict[sec_name]
-        seg_list = []
-        L_total = 0
-        (seclst, maxdist) = cell_sec_dict[sec_name]
-        secidxlst = cell_secidx_dict[sec_name]
-        for sec, idx in zip(seclst, secidxlst):
-            sec_interp_loc_dict[idx] = interplocs(sec)
-        sec_dict = {int(idx): sec for sec, idx in zip(seclst, secidxlst)}
-        seg_dict = {}
-        for sec_index, sec in sec_dict.items():
-            seg_list = []
-            if maxdist is None:
-                for seg in sec:
-                    if seg.x < 1.0 and seg.x > 0.0:
-                        seg_list.append(seg)
-            else:
-                for seg in sec:
-                    if (
-                        seg.x < 1.0
-                        and seg.x > 0.0
-                        and ((L_total + sec.L * seg.x) <= maxdist)
-                    ):
-                        seg_list.append(seg)
-            L_total += sec.L
-            seg_dict[sec_index] = seg_list
-        segcounts_dict, total, layers_dict = synapse_seg_counts(
-            syn_type_dict,
-            layer_dict,
-            layer_density_dict,
-            sec_index_dict=sec_index_dict,
-            seg_dict=seg_dict,
-            ran=r,
-            neurotree_dict=neurotree_dict,
-        )
-        segcounts_per_sec[sec_name] = segcounts_dict
-        for syn_type_label, _ in layer_density_dict.items():
-            syn_type = syn_type_dict[syn_type_label]
-            segcounts = segcounts_dict[syn_type]
-            layers = layers_dict[syn_type]
-            for sec_index, seg_list in seg_dict.items():
-                interp_loc = sec_interp_loc_dict[sec_index]
-                for seg, layer, seg_count in zip(seg_list, layers, segcounts):
-                    seg_start = seg.x - (0.5 / seg.sec.nseg)
-                    seg_end = seg.x + (0.5 / seg.sec.nseg)
-                    seg_range = seg_end - seg_start
-                    int_seg_count = math.floor(seg_count)
-                    syn_count = 0
-                    while syn_count < int_seg_count:
-                        syn_loc = seg_start + seg_range * (syn_count + 1) / math.ceil(
-                            seg_count
-                        )
-                        assert (syn_loc <= 1) & (syn_loc >= 0)
-                        if syn_loc < 1.0:
-                            syn_cdist = math.sqrt(
-                                reduce(
-                                    lambda a, b: a + b,
-                                    (interp_loc[i](syn_loc) ** 2 for i in range(3)),
-                                )
-                            )
-                            syn_cdists.append(syn_cdist)
-                            syn_locs.append(syn_loc)
-                            syn_ids.append(syn_index)
-                            syn_secs.append(sec_index_dict[seg.sec])
-                            syn_layers.append(layer)
-                            syn_types.append(syn_type)
-                            swc_types.append(swc_type)
-                            syn_index += 1
-                            syn_count += 1
-
-    assert len(syn_ids) > 0
-    syn_dict = {
-        "syn_ids": np.asarray(syn_ids, dtype="uint32"),
-        "syn_cdists": np.asarray(syn_cdists, dtype="float32"),
-        "syn_locs": np.asarray(syn_locs, dtype="float32"),
-        "syn_secs": np.asarray(syn_secs, dtype="uint32"),
-        "syn_layers": np.asarray(syn_layers, dtype="int8"),
-        "syn_types": np.asarray(syn_types, dtype="uint8"),
-        "swc_types": np.asarray(swc_types, dtype="uint8"),
-    }
-
-    return (syn_dict, segcounts_per_sec)
-
-
-def distribute_poisson_synapses(
-    density_seed,
-    syn_type_dict,
-    swc_type_dict,
-    layer_dict,
-    sec_layer_density_dict,
-    neurotree_dict,
-    cell_sec_dict,
-    cell_secidx_dict,
-):
-    """
-    Computes synapse locations distributed according to a Poisson distribution.
-    :param density_seed:
-    :param syn_type_dict:
-    :param swc_type_dict:
-    :param layer_dict:
-    :param sec_layer_density_dict:
-    :param neurotree_dict:
-    :param cell_sec_dict:
-    :param cell_secidx_dict:
-    :param verbose:
-    :return:
-    """
-    import networkx as nx
-
-    syn_ids = []
-    syn_cdists = []
-    syn_locs = []
-    syn_secs = []
-    syn_layers = []
-    syn_types = []
-    swc_types = []
-    syn_index = 0
-
-    sec_graph = make_section_graph(neurotree_dict)
-
-    debug_flag = False
-    secnodes_dict = neurotree_dict["section_topology"]["nodes"]
-    for sec, secnodes in secnodes_dict.items():
-        if len(secnodes) < 2:
-            debug_flag = True
-
-    if debug_flag:
-        logger.debug(f"sec_graph: {str(list(sec_graph.edges))}")
-        logger.debug(f"neurotree_dict: {str(neurotree_dict)}")
-
-    sec_interp_loc_dict = {}
-    seg_density_per_sec = {}
-    r = np.random.RandomState()
-    r.seed(int(density_seed))
-    for sec_name, layer_density_dict in sec_layer_density_dict.items():
-        swc_type = swc_type_dict[sec_name]
-        seg_dict = {}
-        L_total = 0
-
-        (seclst, maxdist) = cell_sec_dict[sec_name]
-        secidxlst = cell_secidx_dict[sec_name]
-        for sec, idx in zip(seclst, secidxlst):
-            sec_interp_loc_dict[idx] = interplocs(sec)
-        sec_dict = {int(idx): sec for sec, idx in zip(seclst, secidxlst)}
-        if len(sec_dict) > 1:
-            sec_subgraph = sec_graph.subgraph(list(sec_dict.keys()))
-            if len(sec_subgraph.edges()) > 0:
-                sec_roots = [n for n, d in sec_subgraph.in_degree() if d == 0]
-                sec_edges = []
-                for sec_root in sec_roots:
-                    sec_edges.append(list(nx.dfs_edges(sec_subgraph, sec_root)))
-                    sec_edges.append([(None, sec_root)])
-                sec_edges = [val for sublist in sec_edges for val in sublist]
-            else:
-                sec_edges = [(None, idx) for idx in list(sec_dict.keys())]
-        else:
-            sec_edges = [(None, idx) for idx in list(sec_dict.keys())]
-        for sec_index, sec in sec_dict.items():
-            seg_list = []
-            if maxdist is None:
-                for seg in sec:
-                    if seg.x < 1.0 and seg.x > 0.0:
-                        seg_list.append(seg)
-            else:
-                for seg in sec:
-                    if (
-                        seg.x < 1.0
-                        and seg.x > 0.0
-                        and ((L_total + sec.L * seg.x) <= maxdist)
-                    ):
-                        seg_list.append(seg)
-            seg_dict[sec_index] = seg_list
-            L_total += sec.L
-        seg_density_dict, layers_dict = synapse_seg_density(
-            syn_type_dict,
-            layer_dict,
-            layer_density_dict,
-            seg_dict,
-            r,
-            neurotree_dict=neurotree_dict,
-        )
-        seg_density_per_sec[sec_name] = seg_density_dict
-        for syn_type_label, _ in layer_density_dict.items():
-            syn_type = syn_type_dict[syn_type_label]
-            seg_density = seg_density_dict[syn_type]
-            layers = layers_dict[syn_type]
-            end_distance = {}
-            for sec_parent, sec_index in sec_edges:
-                interp_loc = sec_interp_loc_dict[sec_index]
-                seg_list = seg_dict[sec_index]
-                sec_seg_layers = layers[sec_index]
-                sec_seg_density = seg_density[sec_index]
-                interval = 0.0
-                syn_loc = 0.0
-                for seg, layer, density in zip(
-                    seg_list, sec_seg_layers, sec_seg_density
-                ):
-                    seg_start = seg.x - (0.5 / seg.sec.nseg)
-                    seg_end = seg.x + (0.5 / seg.sec.nseg)
-                    L = seg.sec.L
-                    L_seg_start = seg_start * L
-                    L_seg_end = seg_end * L
-                    if density > 0.0:
-                        beta = 1.0 / density
-                        if interval > 0.0:
-                            sample = r.exponential(beta)
-                        else:
-                            while True:
-                                sample = r.exponential(beta)
-                                if (sample >= L_seg_start) and (sample < L_seg_end):
-                                    break
-                        interval += sample
-                        while interval < L_seg_end:
-                            if interval >= L_seg_start:
-                                syn_loc = interval / L
-                                assert (syn_loc <= 1) and (syn_loc >= seg_start)
-                                if syn_loc < 1.0:
-                                    syn_cdist = math.sqrt(
-                                        reduce(
-                                            lambda a, b: a + b,
-                                            (
-                                                interp_loc[i](syn_loc) ** 2
-                                                for i in range(3)
-                                            ),
-                                        )
-                                    )
-                                    syn_cdists.append(syn_cdist)
-                                    syn_locs.append(syn_loc)
-                                    syn_ids.append(syn_index)
-                                    syn_secs.append(sec_index)
-                                    syn_layers.append(layer)
-                                    syn_types.append(syn_type)
-                                    swc_types.append(swc_type)
-                                    syn_index += 1
-                            interval += r.exponential(beta)
-                    else:
-                        interval = seg_end * L
-                end_distance[sec_index] = (1.0 - syn_loc) * L
-
-    assert len(syn_ids) > 0
-    syn_dict = {
-        "syn_ids": np.asarray(syn_ids, dtype="uint32"),
-        "syn_cdists": np.asarray(syn_cdists, dtype="float32"),
-        "syn_locs": np.asarray(syn_locs, dtype="float32"),
-        "syn_secs": np.asarray(syn_secs, dtype="uint32"),
-        "syn_layers": np.asarray(syn_layers, dtype="int8"),
-        "syn_types": np.asarray(syn_types, dtype="uint8"),
-        "swc_types": np.asarray(swc_types, dtype="uint8"),
-    }
-
-    return (syn_dict, seg_density_per_sec)
-
-
 SynapsePointProcess = NamedTupleWithDocstring(
     """This class provides information about the point processes associated with a synapse.
       - mech - dictionary of synapse mechanisms
@@ -635,8 +146,10 @@ class SynapseMechanismParameterStore:
         self.allocated_params = defaultdict(lambda: defaultdict(set))
 
         # Default parameter values with selective application
-        # Format: {mech_name: {param_name: [(synapse_selector, value), ...]}
-        self.default_values = defaultdict(lambda: defaultdict(list))
+        # Format: {gid: {mech_name: {param_name: [(synapse_selector, value), ...]}}}
+        self.default_values = defaultdict(
+            lambda: defaultdict(lambda: defaultdict(list))
+        )
 
         # Storage for complex objects that can't be stored in arrays
         self.complex_params = defaultdict(
@@ -1012,70 +525,6 @@ class SynapseMechanismParameterStore:
 
         return self.gid_data[gid]["has_mech"][mech_name][syn_index]
 
-    def get_mechanism_parameters(
-        self,
-        gid,
-        syn_id,
-        syn_name,
-        throw_error_on_missing_id=True,
-        throw_error_on_missing_param=False,
-    ):
-        """
-        Get mechanism parameters with fallback to defaults
-
-        Args:
-            gid: Cell GID
-            syn_id: Synapse ID
-            syn_name: Synapse mechanism name
-            throw_error_on_missing_id: Whether to throw error if gid/syn_id not found
-            throw_error_on_missing_param: Whether to throw error if parameter missing
-
-        Returns:
-            Dict of parameter values
-        """
-        # Convert syn_name to mechanism name
-        mech_name = self.syn_mech_names[syn_name]
-
-        # Check if gid and syn_id exist
-        if gid not in self.syn_store.id_to_index:
-            if throw_error_on_missing_id:
-                raise RuntimeError(f"Gid {gid} not found")
-            return {}
-
-        if syn_id not in self.syn_store.id_to_index[gid]:
-            if throw_error_on_missing_id:
-                raise RuntimeError(f"Synapse {syn_id} not found for gid {gid}")
-            return {}
-
-        # Get array index
-        syn_index = self.syn_store.id_to_index[gid][syn_id]
-
-        # Start with default parameters
-        result = {}
-        default_params = self.syn_store.param_store.get_default_params(
-            gid, syn_id, syn_index, mech_name
-        )
-        if default_params:
-            result.update(default_params)
-
-        # Override with specific parameters if available
-        if self.syn_store.param_store.has_mechanism_parameters(
-            gid, syn_index, mech_name
-        ):
-            specific_params = self.syn_store.param_store.get_mechanism_parameters(
-                gid, syn_index, mech_name
-            )
-            if specific_params:
-                result.update(specific_params)
-
-        # Check if any parameters found
-        if not result and throw_error_on_missing_param:
-            raise RuntimeError(
-                f"No parameters found for gid {gid} synapse {syn_id} mechanism {syn_name}"
-            )
-
-        return result
-
     def set_mechanism_parameters(self, gid, syn_index, mech_name, attrs, syn_id=None):
         """Set multiple attributes for a mechanism at once"""
         if mech_name not in self.mech_param_specs:
@@ -1355,17 +804,18 @@ class SynapseStore:
             new_array[: self.next_index[gid]] = self.attrs[gid][: self.next_index[gid]]
             self.attrs[gid] = new_array
 
-            # Create new parameter arrays and copy data
-            old_data = self.param_store.gid_data[gid]
-
-            # Copy parameter data
-            for mech_name in self.mech_param_specs:
-                self.param_store.gid_data[gid]["arrays"][mech_name][
-                    : self.next_index[gid]
-                ] = old_data["arrays"][mech_name][: self.next_index[gid]]
-                self.param_store.gid_data[gid]["has_mech"][mech_name][
-                    : self.next_index[gid]
-                ] = old_data["has_mech"][mech_name][: self.next_index[gid]]
+            # Copy parameter data when param_store has been initialised for this gid
+            if gid in self.param_store.gid_data:
+                old_data = self.param_store.gid_data[gid]
+                for mech_name in self.mech_param_specs:
+                    if mech_name in old_data["arrays"]:
+                        self.param_store.gid_data[gid]["arrays"][mech_name][
+                            : self.next_index[gid]
+                        ] = old_data["arrays"][mech_name][: self.next_index[gid]]
+                    if mech_name in old_data["has_mech"]:
+                        self.param_store.gid_data[gid]["has_mech"][mech_name][
+                            : self.next_index[gid]
+                        ] = old_data["has_mech"][mech_name][: self.next_index[gid]]
 
     def keys(self, gid):
         """Iterate over syn_id keys for a gid"""
@@ -1553,6 +1003,44 @@ class SynapseMechanismParameterView:
         return self.param_store.has_mechanism_parameters(
             self.gid, self.index, mech_name
         )
+
+
+def _build_synapse_filter_mask(
+    attrs,
+    valid_count,
+    syn_sections=None,
+    syn_indexes=None,
+    syn_types=None,
+    layers=None,
+    sources=None,
+    swc_types=None,
+):
+    """Build a boolean mask over the valid synapse entries using the given filter criteria.
+
+    :param attrs: structured numpy array of synapse attributes for a single gid
+    :param valid_count: number of valid entries in attrs
+    :param syn_sections: list of section indices to include (or None)
+    :param syn_indexes: list of synapse IDs to include (or None)
+    :param syn_types: list of synapse types to include (or None)
+    :param layers: list of layer indices to include (or None)
+    :param sources: list of source population indices to include (or None)
+    :param swc_types: list of SWC types to include (or None)
+    :return: boolean numpy array of length valid_count
+    """
+    mask = np.ones(valid_count, dtype=bool)
+    if syn_sections is not None:
+        mask &= np.isin(attrs["syn_section"][:valid_count], list(set(syn_sections)))
+    if syn_indexes is not None:
+        mask &= np.isin(attrs["syn_id"][:valid_count], list(set(syn_indexes)))
+    if syn_types is not None:
+        mask &= np.isin(attrs["syn_type"][:valid_count], list(set(syn_types)))
+    if layers is not None:
+        mask &= np.isin(attrs["syn_layer"][:valid_count], list(set(layers)))
+    if sources is not None:
+        mask &= np.isin(attrs["source_population"][:valid_count], list(set(sources)))
+    if swc_types is not None:
+        mask &= np.isin(attrs["swc_type"][:valid_count], list(set(swc_types)))
+    return mask
 
 
 class SynapseManager:
@@ -2089,18 +1577,27 @@ class SynapseManager:
         syn_index = self.syn_store.id_to_index[gid][syn_id]
 
         # Check if mechanism exists
-        if not self.syn_store.param_store.has_mechanism_params(
-            gid, syn_index, mech_name
-        ):
+        if not self.syn_store.param_store.has_mechanism(gid, syn_index, mech_name):
             if throw_error_on_missing_param:
                 raise RuntimeError(
                     f"get_mechanism_parameters: gid {gid} synapse {syn_id}: attributes for synapse {syn_name} mechanism {mech_name} not found"
                 )
             return None
 
-        return self.syn_store.param_store.get_parameter_values(
-            gid, syn_index, mech_name
+        all_params = list(self.syn_param_rules[mech_name].get("mech_params", []))
+        all_params += list(
+            self.syn_param_rules[mech_name].get("netcon_params", {}).keys()
         )
+        return {
+            p: v
+            for p in all_params
+            for v in [
+                self.syn_store.param_store.get_synapse_parameter(
+                    gid, syn_index, mech_name, p
+                )
+            ]
+            if v is not None
+        }
 
     def get_default_mechanism_parameters(
         self,
@@ -2235,7 +1732,7 @@ class SynapseManager:
         self.add_mechanism_parameters_from_iter(
             gid,
             syn_name,
-            iter({syn_id: params}),
+            iter({syn_id: params}.items()),
             multiple="error",
             append=append,
         )
@@ -2251,9 +1748,10 @@ class SynapseManager:
         :param syn_ids: tuple/list of synapse ids
 
         """
+        mech_name = self.syn_mech_names[syn_name]
         for param_name, param_value in params.items():
             self.syn_store.param_store.set_default_value(
-                gid, syn_name, param_name, param_value, syn_ids
+                gid, mech_name, param_name, param_value, syn_ids
             )
 
     def add_mechanism_parameters_from_iter(
@@ -2298,7 +1796,7 @@ class SynapseManager:
         if batch:
             self._process_mech_attrs_batch(gid, mech_name, batch, multiple, append)
 
-    def _add_mechanism_parameters_batch(self, gid, mech_name, batch, multiple, append):
+    def _process_mech_attrs_batch(self, gid, mech_name, batch, multiple, append):
         """Helper method to add a batch of mechanism attributes."""
         for syn_id, params_dict in batch:
             # Check if synapse exists
@@ -2311,7 +1809,7 @@ class SynapseManager:
             syn_index = self.syn_store.id_to_index[gid][syn_id]
 
             # Check if mechanism already has attributes
-            has_mech = self.syn_store.param_store.has_mechanism_parameters(
+            has_mech = self.syn_store.param_store.has_mechanism(
                 gid, syn_index, mech_name
             )
             if has_mech:
@@ -2332,7 +1830,7 @@ class SynapseManager:
 
                 # Get current value if appending
                 if append and has_mech:
-                    current_value = self.syn_store.param_store.get_param(
+                    current_value = self.syn_store.param_store.get_synapse_parameter(
                         gid, syn_index, mech_name, param_name
                     )
 
@@ -2344,7 +1842,7 @@ class SynapseManager:
                         param_value = current_value + [param_value]
 
                 # Set parameter value
-                self.syn_store.param_store.set_parameter_value(
+                self.syn_store.param_store.set_synapse_parameter(
                     gid, syn_index, mech_name, param_name, param_value
                 )
 
@@ -2615,60 +2113,18 @@ class SynapseManager:
         if gid not in self.syn_store.attrs:
             return []
 
-        # Get attr array for this GID
         attrs = self.syn_store.attrs[gid]
-
-        # Start with all valid indices
         valid_count = self.syn_store.next_index[gid]
-        mask = np.ones(valid_count, dtype=bool)
-
-        # Apply section filter (fast path)
-        if syn_sections is not None:
-            # Convert to set for fast lookup
-            section_set = set(syn_sections)
-            section_mask = np.isin(
-                attrs["syn_section"][:valid_count], list(section_set)
-            )
-            mask &= section_mask
-
-        # Apply synapse ID filter
-        if syn_indexes is not None:
-            # Convert to set for fast lookup
-            syn_id_set = set(syn_indexes)
-            syn_id_mask = np.isin(attrs["syn_id"][:valid_count], list(syn_id_set))
-            mask &= syn_id_mask
-
-        # Apply synapse type filter
-        if syn_types is not None:
-            # Convert to set for fast lookup
-            type_set = set(syn_types)
-            type_mask = np.isin(attrs["syn_type"][:valid_count], list(type_set))
-            mask &= type_mask
-
-        # Apply layer filter
-        if layers is not None:
-            # Convert to set for fast lookup
-            layer_set = set(layers)
-            layer_mask = np.isin(attrs["syn_layer"][:valid_count], list(layer_set))
-            mask &= layer_mask
-
-        # Apply source population filter
-        if sources is not None:
-            # Convert to set for fast lookup
-            source_set = set(sources)
-            source_mask = np.isin(
-                attrs["source_population"][:valid_count], list(source_set)
-            )
-            mask &= source_mask
-
-        # Apply SWC type filter
-        if swc_types is not None:
-            # Convert to set for fast lookup
-            swc_set = set(swc_types)
-            swc_mask = np.isin(attrs["swc_type"][:valid_count], list(swc_set))
-            mask &= swc_mask
-
-        # Get array indices of matching synapses
+        mask = _build_synapse_filter_mask(
+            attrs,
+            valid_count,
+            syn_sections,
+            syn_indexes,
+            syn_types,
+            layers,
+            sources,
+            swc_types,
+        )
         matching_indices = np.where(mask)[0]
 
         # For cache optimization, limit results
@@ -2750,53 +2206,18 @@ class SynapseManager:
         if gid not in self.syn_store.attrs:
             return np.array([], dtype=np.uint32)
 
-        # Get properties array for this GID
         attrs = self.syn_store.attrs[gid]
-
-        # Start with all valid indices
         valid_count = self.syn_store.next_index[gid]
-        mask = np.ones(valid_count, dtype=bool)
-
-        # Apply section filter
-        if syn_sections is not None:
-            section_set = set(syn_sections)
-            section_mask = np.isin(
-                attrs["syn_section"][:valid_count], list(section_set)
-            )
-            mask &= section_mask
-
-        # Apply synapse ID filter
-        if syn_indexes is not None:
-            syn_id_set = set(syn_indexes)
-            syn_id_mask = np.isin(attrs["syn_id"][:valid_count], list(syn_id_set))
-            mask &= syn_id_mask
-
-        # Apply synapse type filter
-        if syn_types is not None:
-            type_set = set(syn_types)
-            type_mask = np.isin(attrs["syn_type"][:valid_count], list(type_set))
-            mask &= type_mask
-
-        # Apply layer filter
-        if layers is not None:
-            layer_set = set(layers)
-            layer_mask = np.isin(attrs["syn_layer"][:valid_count], list(layer_set))
-            mask &= layer_mask
-
-        # Apply source population filter
-        if sources is not None:
-            source_set = set(sources)
-            source_mask = np.isin(
-                attrs["source_population"][:valid_count], list(source_set)
-            )
-            mask &= source_mask
-
-        # Apply SWC type filter
-        if swc_types is not None:
-            swc_set = set(swc_types)
-            swc_mask = np.isin(attrs["swc_type"][:valid_count], list(swc_set))
-            mask &= swc_mask
-
+        mask = _build_synapse_filter_mask(
+            attrs,
+            valid_count,
+            syn_sections,
+            syn_indexes,
+            syn_types,
+            layers,
+            sources,
+            swc_types,
+        )
         result = attrs["syn_id"][:valid_count][mask]
 
         # Cache if requested
@@ -3032,6 +2453,59 @@ class SynapseManager:
             return self.syn_store.items(gid)
 
 
+def _unwrap_hoc_cell(cell):
+    """Unwrap hoc_cell/cell_obj wrapper attributes to reach the raw NEURON cell object."""
+    if hasattr(cell, "hoc_cell") and cell.hoc_cell is not None:
+        cell = cell.hoc_cell
+    if hasattr(cell, "cell_obj") and cell.cell_obj is not None:
+        cell = cell.cell_obj
+    return cell
+
+
+def _get_cell_is_reduced(cell):
+    """Return True if the cell uses a reduced morphology representation."""
+    is_reduced = False
+    if hasattr(cell, "is_reduced"):
+        is_reduced = cell.is_reduced
+        if callable(is_reduced):
+            is_reduced = is_reduced()
+        if isinstance(is_reduced, float):
+            is_reduced = is_reduced > 0.0
+    return is_reduced
+
+
+def _build_reduced_cell_sections(cell, env):
+    """For reduced-morphology cells, build the per-(swc_type, layer) section lists.
+
+    Returns a tuple of:
+        reduced_section_dict : dict mapping f"{swc_type_name}_{layer_name}_list" keys to
+                               lists of (section_index, section) pairs
+        cell_soma            : the soma section (or None)
+        cell_dendrite        : the dendrite section (or None)
+    """
+    reduced_section_dict = {}
+    for swc_type_name in env.SWC_Types:
+        for layer_name in env.layers:
+            swc_layer_key = f"{swc_type_name}_{layer_name}_list"
+            swc_layer_index_key = f"{swc_type_name}_{layer_name}_index"
+            sec_list = getattr(cell, swc_layer_key, None)
+            sec_index = getattr(cell, swc_layer_index_key, None)
+            if sec_list is not None:
+                reduced_section_dict[swc_layer_key] = list(
+                    zip(
+                        np.asarray(sec_index, dtype=np.uint16),
+                        list(sec_list),
+                    )
+                )
+    cell_soma = None
+    if hasattr(cell, "soma"):
+        cell_soma = cell.soma
+        if isinstance(cell_soma, list):
+            cell_soma = cell_soma[0]
+    cell_dendrite = getattr(cell, "dend", None)
+    return reduced_section_dict, cell_soma, cell_dendrite
+
+
 def insert_cell_syns(
     env: AbstractEnv,
     gid: int,
@@ -3103,48 +2577,20 @@ def insert_cell_syns(
         swc_type_hill: syns_dict_hill,
         swc_type_soma: syns_dict_soma,
     }
-    py_sections = None
-    if hasattr(cell, "hoc_cell"):
-        if cell.hoc_cell is not None:
-            cell = cell.hoc_cell
-    if hasattr(cell, "cell_obj"):
-        if cell.cell_obj is not None:
-            cell = cell.cell_obj
+    cell = _unwrap_hoc_cell(cell)
 
-    if hasattr(cell, "sections"):
-        if cell.sections is not None:
-            py_sections = [sec for sec in cell.sections]
-    is_reduced = False
-    if hasattr(cell, "is_reduced"):
-        is_reduced = cell.is_reduced
-        if callable(is_reduced):
-            is_reduced = is_reduced()
-        if isinstance(is_reduced, float):
-            is_reduced = is_reduced > 0.0
+    py_sections = None
+    if hasattr(cell, "sections") and cell.sections is not None:
+        py_sections = [sec for sec in cell.sections]
+    is_reduced = _get_cell_is_reduced(cell)
 
     cell_soma = None
     cell_dendrite = None
     reduced_section_dict = {}
     if is_reduced:
-        for swc_type_name in env.SWC_Types:
-            for layer_name in env.layers:
-                swc_layer_key = f"{swc_type_name}_{layer_name}_list"
-                swc_layer_index_key = f"{swc_type_name}_{layer_name}_index"
-                sec_list = getattr(cell, swc_layer_key, None)
-                sec_index = getattr(cell, swc_layer_index_key, None)
-                if sec_list is not None:
-                    reduced_section_dict[swc_layer_key] = list(
-                        zip(
-                            np.asarray(sec_index, dtype=np.uint16),
-                            list(sec_list),
-                        )
-                    )
-        if hasattr(cell, "soma"):
-            cell_soma = cell.soma
-            if isinstance(cell_soma, list):
-                cell_soma = cell_soma[0]
-        if hasattr(cell, "dend"):
-            cell_dendrite = cell.dend
+        reduced_section_dict, cell_soma, cell_dendrite = _build_reduced_cell_sections(
+            cell, env
+        )
 
     syn_manager = env.synapse_manager
 
@@ -3934,13 +3380,7 @@ def update_syn_mech_param_by_sec_type(
     else:
         synapse_filters = {}
 
-    is_reduced = False
-    if hasattr(cell, "is_reduced"):
-        is_reduced = cell.is_reduced
-        if callable(is_reduced):
-            is_reduced = is_reduced()
-        if isinstance(is_reduced, float):
-            is_reduced = is_reduced > 0.0
+    is_reduced = _get_cell_is_reduced(cell)
 
     if is_reduced:
         synapse_filters["swc_types"] = [env.SWC_Types[sec_type]]
@@ -3981,9 +3421,12 @@ def apply_syn_mech_rules(
     update_targets=False,
     verbose=False,
 ):
-    """Provided a synaptic mechanism, a parameter, a node, a list of
-    syn_ids, and a dict of rules. Interprets the provided rules and updates synaptic mechanisms.
-    Calls set_syn_mech_param to sets parameter values in the syn_mech_attr_dict of a SynapseManager object.
+    """
+    Provided a synaptic mechanism, a parameter, a node, a list of
+    syn_ids, and a dict of rules. Interprets the provided rules and
+    updates synaptic mechanisms.  Calls set_syn_mech_param to sets
+    parameter values in the syn_mech_attr_dict of a SynapseManager
+    object.
 
     :param cell: :class:'BiophysCell'
     :param env: :class:'Env'
@@ -3994,6 +3437,7 @@ def apply_syn_mech_rules(
     :param rules: dict
     :param update_targets: bool
     :param verbose: bool
+
     """
     if syn_ids is None:
         syn_manager = env.synapse_manager
@@ -4074,6 +3518,8 @@ def set_syn_mech_param(
         if not batch:
             break
 
+        if verbose:
+            logger.info(f"set_syn_mech_param: setting {param_name}={baseline:.04f} for synaptic mechanism {syn_name}")
         for syn_id in batch:
             syn_manager.modify_mechanism_parameters(
                 cell.population_name, cell.gid, syn_id, syn_name, {param_name: baseline}
@@ -4106,11 +3552,15 @@ def init_syn_mech_attrs(
     reset_mech_dict: bool = False,
     update_targets: bool = False,
 ) -> None:
-    """Consults a dictionary specifying parameters of NEURON synaptic mechanisms (point processes) for each type of
-    section in a BiophysCell. Traverses through the tree of SHocNode nodes following order of inheritance. Calls
-    update_syn_mech_by_sec_type to set placeholder values in the syn_mech_attrs_dict of a SynapseManager object. If
-    update_targets flag is True, the attributes of any target synaptic point_process and netcon objects that have been
-    inserted will also be updated. Otherwise, they can be updated separately by calling config_syns.
+    """
+    Consults a dictionary specifying parameters of NEURON synaptic
+    mechanisms (point processes) for each type of section in a
+    BiophysCell. Calls update_syn_mech_by_sec_type to set placeholder
+    values in the syn_mech_attrs_dict of a SynapseManager object. If
+    update_targets flag is True, the attributes of any target synaptic
+    point_process and netcon objects that have been inserted will also
+    be updated. Otherwise, they can be updated separately by calling
+    config_syns.
 
     :param cell: :class:'BiophysCell'
     :param env: :class:'Env'

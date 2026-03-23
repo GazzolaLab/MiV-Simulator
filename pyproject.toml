@@ -1,6 +1,6 @@
 [project]
 name = "miv-simulator"
-version = "0.2.1"
+version = "0.3.0"
 description = "Mind-In-Vitro simulator"
 authors = []
 dependencies = [
@@ -84,3 +84,4 @@ cut-slice = "miv_simulator.scripts.tools.cut_slice:main"
 sample-cells = "miv_simulator.scripts.tools.sample_cells:main"
 reposition-trees = "miv_simulator.scripts.tools.reposition_trees:main"
 optimize-network = "miv_simulator.scripts.optimization.optimize_network:main_cli"
+eval-network = "miv_simulator.scripts.optimization.eval_network:main_cli"

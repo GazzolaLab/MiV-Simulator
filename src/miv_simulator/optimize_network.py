@@ -240,7 +240,7 @@ def optimize_network(
         "n_initial": n_initial,
         "initial_maxiter": initial_maxiter,
         "initial_method": initial_method,
-        "optimizer": optimizer_method,
+        "optimizer_name": optimizer_method,
         "surrogate_method_name": surrogate_method,
         "surrogate_method_kwargs": surrogate_method_kwargs,
         "n_epochs": n_epochs,
