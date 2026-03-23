@@ -293,7 +293,7 @@ def update_network_params(env, param_tuples):
                 sec_types = [sec_type]
 
             biophys_cell_dict = env.biophys_cells[population]
-            for gid in biophys_cell_dict:
+            for i, gid in enumerate(biophys_cell_dict.keys()):
                 if (phenotype_dict is not None) and (param_phenotype is not None):
                     gid_phenotype = phenotype_dict.get(gid, None)
                     if gid_phenotype is not None:
@@ -303,6 +303,9 @@ def update_network_params(env, param_tuples):
                 biophys_cell = biophys_cell_dict[gid]
                 biophys_cell.pop_name = population
 
+                verbose = False
+                if (int(env.pc.id()) == 0) and (i == 0) :
+                    verbose = True
                 for this_sec_type in sec_types:
                     synapses.modify_syn_param(
                         biophys_cell,
@@ -314,6 +317,7 @@ def update_network_params(env, param_tuples):
                         filters={"sources": sources} if sources is not None else None,
                         # origin=None if is_reduced else "soma",
                         update_targets=True,
+                        verbose=verbose
                     )
                 gc.collect()
 

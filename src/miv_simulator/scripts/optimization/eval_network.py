@@ -16,7 +16,7 @@ from miv_simulator.eval_network import eval_network
 )
 @click.option(
     "--params-path",
-    required=True,
+    required=False,
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
     help="JSON file containing optimized network parameters",
 )
