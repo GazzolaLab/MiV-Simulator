@@ -3518,6 +3518,8 @@ def set_syn_mech_param(
         if not batch:
             break
 
+        if verbose:
+            logger.info(f"set_syn_mech_param: setting {param_name}={baseline:.04f} for synaptic mechanism {syn_name}")
         for syn_id in batch:
             syn_manager.modify_mechanism_parameters(
                 cell.population_name, cell.gid, syn_id, syn_name, {param_name: baseline}

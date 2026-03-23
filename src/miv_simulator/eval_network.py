@@ -91,15 +91,16 @@ def eval_network(
     # Load optimized parameters from JSON
     params_dict = None
     if rank == 0:
-        with open(params_path) as f:
-            all_params = json.load(f)
-        if params_label is None:
-            params_label = next(iter(all_params))
-        logger.info(f"Loading parameters from label '{params_label}' in {params_path}")
+        if params_path is not None:
+            with open(params_path) as f:
+                all_params = json.load(f)
+            if params_label is None:
+                params_label = next(iter(all_params))
+            logger.info(f"Loading parameters from label '{params_label}' in {params_path}")
 
-        params_entry = all_params[params_label]
-        params_dict = params_entry["parameters"]
-        logger.info(f"Loaded {len(params_dict)} optimized parameters")
+            params_entry = all_params[params_label]
+            params_dict = params_entry["parameters"]
+            logger.info(f"Loaded {len(params_dict)} optimized parameters")
     env.pc.barrier()
     params_label, params_dict = env.comm.bcast((params_label, params_dict), root=0)
 
@@ -115,21 +116,22 @@ def eval_network(
     opt_targets = opt_param_config.opt_targets
 
     # Map parameter names to (param_tuple, value) pairs
-    param_tuple_values = []
-    for param_name, param_tuple in zip(param_names, param_tuples):
-        p = param_tuple
-        if param_name in params_dict:
-            param_value = params_dict[param_name]
-        else:
-            param_value = params_dict[p.population][p.source][str(p.sec_type)][
-                p.syn_name
-            ][p.param_path]
-        param_tuple_values.append((param_tuple, param_value))
+    if params_dict is not None:
+        param_tuple_values = []
+        for param_name, param_tuple in zip(param_names, param_tuples):
+            p = param_tuple
+            if param_name in params_dict:
+                param_value = params_dict[param_name]
+            else:
+                param_value = params_dict[p.population][p.source][str(p.sec_type)][
+                    p.syn_name
+                ][p.param_path]
+            param_tuple_values.append((param_tuple, param_value))
 
-    # Apply parameters to the network
-    if rank == 0:
-        logger.info("Applying optimized parameters to network")
-    update_network_params(env, param_tuple_values)
+        # Apply parameters to the network
+        if rank == 0:
+            logger.info("Applying optimized parameters to network")
+        update_network_params(env, param_tuple_values)
 
     # Run without checkpoint output so spike vectors remain in memory for feature extraction.
     # network.run(output=True) calls spikeout(clear_data=env.checkpoint_clear_data) at each
