@@ -2,6 +2,7 @@
 """
 Network model optimization script for optimization with dmosopt
 """
+
 import gc
 import os
 import sys
@@ -438,11 +439,11 @@ def compute_objectives(local_features, operational_config, opt_targets):
             f"population {pop_name}: n_active = {n_active} n_total = {n_total} mean rate = {mean_rate}"
         )
 
-        all_features_dict[f"{pop_name} mean fraction active per time bin"] = (
-            float(mean_fraction_active_per_bin)
+        all_features_dict[f"{pop_name} mean fraction active per time bin"] = float(
+            mean_fraction_active_per_bin
         )
-        all_features_dict[f"{pop_name} std fraction active per time bin"] = (
-            float(std_fraction_active_per_bin)
+        all_features_dict[f"{pop_name} std fraction active per time bin"] = float(
+            std_fraction_active_per_bin
         )
         all_features_dict[f"{pop_name} fraction active"] = float(fraction_active)
         all_features_dict[f"{pop_name} firing rate"] = float(mean_rate)

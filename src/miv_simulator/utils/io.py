@@ -710,10 +710,9 @@ def write_cell_selection(
         pop_names = populations
 
     for pop_name in pop_names:
+        sorted_selection = sorted(env.cell_selection[pop_name])
         gid_range = [
-            gid
-            for i, gid in enumerate(env.cell_selection[pop_name])
-            if i % nhosts == rank
+            gid for i, gid in enumerate(sorted_selection) if i % nhosts == rank
         ]
 
         trees_output_dict = {}
@@ -823,10 +822,9 @@ def write_connection_selection(
         if postsyn_name not in pop_names:
             continue
 
+        sorted_selection = sorted(env.cell_selection[postsyn_name])
         gid_range = [
-            gid
-            for i, gid in enumerate(env.cell_selection[postsyn_name])
-            if i % nhosts == rank
+            gid for i, gid in enumerate(sorted_selection) if i % nhosts == rank
         ]
 
         synapse_config = env.celltypes[postsyn_name]["synapses"]
@@ -1017,8 +1015,9 @@ def write_input_cell_selection(
             local_gid_range = gid_range
 
         gid_range = env.comm.allreduce(local_gid_range, op=mpi_op_set_union)
+        sorted_gid_range = sorted(gid_range)
         this_gid_range = set()
-        for i, gid in enumerate(gid_range):
+        for i, gid in enumerate(sorted_gid_range):
             if i % nhosts == rank:
                 this_gid_range.add(gid)
 
@@ -1028,16 +1027,20 @@ def write_input_cell_selection(
             len(env.spike_input_namespaces) > 0
         ):
             if (pop_name in env.spike_input_attribute_info) and (
-                set(env.spike_input_namespaces).intersection(set(env.spike_input_attribute_info[pop_name].keys()))
+                set(env.spike_input_namespaces).intersection(
+                    set(env.spike_input_attribute_info[pop_name].keys())
+                )
             ):
                 has_spike_train = True
                 for ns in env.spike_input_namespaces:
-                    spike_input_source_loc.append(
-                        (env.spike_input_path, ns)
-                )
-        if (env.cell_attribute_info is not None) and (len(env.spike_input_namespaces) > 0):
+                    spike_input_source_loc.append((env.spike_input_path, ns))
+        if (env.cell_attribute_info is not None) and (
+            len(env.spike_input_namespaces) > 0
+        ):
             if (pop_name in env.cell_attribute_info) and (
-                set(env.spike_input_namespaces).intersection(set(env.cell_attribute_info[pop_name].keys()))
+                set(env.spike_input_namespaces).intersection(
+                    set(env.cell_attribute_info[pop_name].keys())
+                )
             ):
                 has_spike_train = True
                 for ns in env.spike_input_namespaces:

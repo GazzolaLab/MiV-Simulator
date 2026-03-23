@@ -999,21 +999,31 @@ def baks(spktimes, time, a=1.5, b=None):
             print(f"time range: {np.min(time):.2e} to {np.max(time):.2e}")
             print(f"spktimes range: {np.min(spktimes):.2e} to {np.max(spktimes):.2e}")
             print(f"current spike time: {spktimes[j]:.2e}")
-            print(f"time_diff range: {np.min(time_diff):.2e} to {np.max(time_diff):.2e}")
+            print(
+                f"time_diff range: {np.min(time_diff):.2e} to {np.max(time_diff):.2e}"
+            )
             print(f"max |time_diff|: {np.max(np.abs(time_diff)):.2e}")
             print(f"h range: {np.min(h):.2e} to {np.max(h):.2e}")
-            print(f"threshold * h range: {np.min(threshold * h):.2e} to {np.max(threshold * h):.2e}")
+            print(
+                f"threshold * h range: {np.min(threshold * h):.2e} to {np.max(threshold * h):.2e}"
+            )
             print("MASKED VALUES DIAGNOSTICS:")
             print(f"number of True values in mask: {np.sum(mask)}")
-            print(f"masked time_diff range: {np.min(time_diff[mask]):.2e} to {np.max(time_diff[mask]):.2e}")
+            print(
+                f"masked time_diff range: {np.min(time_diff[mask]):.2e} to {np.max(time_diff[mask]):.2e}"
+            )
             print(f"masked h range: {np.min(h[mask]):.2e} to {np.max(h[mask]):.2e}")
             print(f"max |time_diff[mask]|: {np.max(np.abs(time_diff[mask])):.2e}")
             print(f"max time_diff[mask]^2: {np.max(time_diff[mask] ** 2):.2e}")
             print(f"min h[mask]^2: {np.min(h[mask] ** 2):.2e}")
-            print(f"max (time_diff[mask]^2) / (h[mask]^2): {np.max((time_diff[mask] ** 2) / (h[mask] ** 2)):.2e}")
+            print(
+                f"max (time_diff[mask]^2) / (h[mask]^2): {np.max((time_diff[mask] ** 2) / (h[mask] ** 2)):.2e}"
+            )
             sys.stdout.flush()
             conservative_mask = abs_diff <= 2.0 * h  # Much smaller threshold
-            x[conservative_mask] = -(time_diff[conservative_mask] ** 2) / (2.0 * h[conservative_mask] ** 2)
+            x[conservative_mask] = -(time_diff[conservative_mask] ** 2) / (
+                2.0 * h[conservative_mask] ** 2
+            )
 
         K = (1.0 / (np.sqrt(2.0 * np.pi) * h)) * np.exp(x)
         rate = rate + K

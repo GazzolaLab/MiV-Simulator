@@ -224,7 +224,9 @@ def generate_input_spike_trains(
                     response_length += len(x)
                 if response_length > 0:
                     try:
-                        response = np.concatenate(np.concatenate(response, dtype=np.float32))
+                        response = np.concatenate(
+                            np.concatenate(response, dtype=np.float32)
+                        )
                     except Exception as e:
                         logger.error(f"error concatenating response: {response}")
                         raise e
