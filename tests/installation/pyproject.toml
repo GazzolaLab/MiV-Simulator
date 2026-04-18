@@ -1,0 +1,16 @@
+[project]
+name = "miv-simulator-install-test"
+version = "0.0.0"
+description = "End-to-end installation test for miv-simulator"
+requires-python = ">= 3.9"
+dependencies = ["miv-simulator"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+no-binary-package = ["mpi4py", "h5py", "neuroh5"]
+
+[tool.uv.sources]
+miv-simulator = { path = "../.." }

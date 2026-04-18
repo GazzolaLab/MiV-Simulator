@@ -21,28 +21,26 @@ requires-python = ">= 3.9"
 
 [project.optional-dependencies]
 docs = [
-  "sphinx",
-  "pydata-sphinx-theme",
-  "readthedocs-sphinx-search",
-  "sphinx-autodoc-typehints",
-  "myst-nb",
-  "numpydoc",
-  "sphinx-togglebutton",
-  "sphinx-copybutton",
-  "sphinx-click",
-  "sphinxcontrib-mermaid"
+    "sphinx",
+    "pydata-sphinx-theme",
+    "readthedocs-sphinx-search",
+    "sphinx-autodoc-typehints",
+    "myst-nb",
+    "numpydoc",
+    "sphinx-togglebutton",
+    "sphinx-copybutton",
+    "sphinx-click",
+    "sphinxcontrib-mermaid",
 ]
 
 [build-system]
 requires = ["hatchling"]
-build-backend = "hatchling.build"
+build-backend = "_build_backend"
+backend-path = ["."]
 
 [tool.uv]
-dev-dependencies = [
-    "pre-commit>=4.1.0",
-    "pytest>=8.3.2",
-    "ruff==0.9.3",
-]
+dev-dependencies = ["pre-commit>=4.1.0", "pytest>=8.3.2", "ruff==0.9.3"]
+no-binary-package = ["mpi4py", "h5py", "neuroh5"]
 
 [tool.uv.sources]
 treverhines-rbf = { git = "https://github.com/treverhines/RBF" }
