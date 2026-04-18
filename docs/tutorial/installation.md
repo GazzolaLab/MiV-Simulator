@@ -92,7 +92,9 @@ exporting before install.
 | Variable | Purpose | Example |
 |---|---|---|
 | `MPICC` | MPI C compiler wrapper | `/usr/bin/mpicc` |
+| `MPICXX` | MPI C++ compiler wrapper | `/usr/bin/mpicxx` |
 | `CC` | C compiler for extensions | `/usr/bin/mpicc` |
+| `CXX` | C++ compiler for extensions | `/usr/bin/mpicxx` |
 | `HDF5_MPI` | Enable parallel HDF5 in h5py | `ON` |
 | `HDF5_PKGCONFIG_NAME` | pkg-config name for parallel HDF5 | `hdf5-mpich`, `hdf5-openmpi` |
 | `HDF5_DIR` | HDF5 installation prefix | `/opt/hdf5-1.12.1/build` |

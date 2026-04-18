@@ -38,6 +38,19 @@ def _find_mpicc():
     return shutil.which("mpicc")
 
 
+def _find_mpicxx():
+    mpicxx = os.environ.get("MPICXX")
+    if mpicxx:
+        path = shutil.which(mpicxx.split()[0])
+        if path:
+            return path
+    for name in ("mpicxx", "mpic++"):
+        path = shutil.which(name)
+        if path:
+            return path
+    return None
+
+
 def _find_hdf5_pkgconfig():
     pkg = os.environ.get("HDF5_PKGCONFIG_NAME")
     if pkg:
@@ -127,6 +140,13 @@ def detect():
         env["MPICC"] = mpicc
     if not os.environ.get("CC"):
         env["CC"] = mpicc
+
+    mpicxx = _find_mpicxx()
+    if mpicxx:
+        if not os.environ.get("MPICXX"):
+            env["MPICXX"] = mpicxx
+        if not os.environ.get("CXX"):
+            env["CXX"] = mpicxx
 
     # Prefer pkg-config (handles Debian/Ubuntu non-standard paths)
     hdf5_pkg = _find_hdf5_pkgconfig()

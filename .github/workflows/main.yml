@@ -58,6 +58,12 @@ jobs:
           echo "MPICC=${MPICC}" >> "$GITHUB_ENV"
           echo "CC=${CC}" >> "$GITHUB_ENV"
           echo "HDF5_MPI=${HDF5_MPI}" >> "$GITHUB_ENV"
+          if [ -n "$MPICXX" ]; then
+            echo "MPICXX=${MPICXX}" >> "$GITHUB_ENV"
+          fi
+          if [ -n "$CXX" ]; then
+            echo "CXX=${CXX}" >> "$GITHUB_ENV"
+          fi
           if [ -n "$HDF5_PKGCONFIG_NAME" ]; then
             echo "HDF5_PKGCONFIG_NAME=${HDF5_PKGCONFIG_NAME}" >> "$GITHUB_ENV"
           fi
