@@ -96,7 +96,9 @@ def eval_network(
                 all_params = json.load(f)
             if params_label is None:
                 params_label = next(iter(all_params))
-            logger.info(f"Loading parameters from label '{params_label}' in {params_path}")
+            logger.info(
+                f"Loading parameters from label '{params_label}' in {params_path}"
+            )
 
             params_entry = all_params[params_label]
             params_dict = params_entry["parameters"]
