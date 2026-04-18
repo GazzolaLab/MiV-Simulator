@@ -6,6 +6,8 @@ authors = []
 dependencies = [
     "spike_encoder @ git+https://github.com/iraikov/neural_spike_encoding.git",
     "neuroh5 @ git+https://github.com/frthjf/neuroh5.git@dc33fe3",
+    "h5py>=3.16.0",
+    "mpi4py>=4.0.0",
     "treverhines-rbf>=2024.3.21",
     "pyyaml>=6.0.2",
     "pydantic>=2.8.2",
@@ -17,7 +19,7 @@ dependencies = [
     "scipy>=1.13",
 ]
 readme = "README.md"
-requires-python = ">= 3.9"
+requires-python = ">= 3.11"
 
 [project.optional-dependencies]
 docs = [
