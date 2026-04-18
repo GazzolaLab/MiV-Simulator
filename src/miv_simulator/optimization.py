@@ -304,7 +304,7 @@ def update_network_params(env, param_tuples):
                 biophys_cell.pop_name = population
 
                 verbose = False
-                if (int(env.pc.id()) == 0) and (i == 0) :
+                if (int(env.pc.id()) == 0) and (i == 0):
                     verbose = True
                 for this_sec_type in sec_types:
                     synapses.modify_syn_param(
@@ -317,7 +317,7 @@ def update_network_params(env, param_tuples):
                         filters={"sources": sources} if sources is not None else None,
                         # origin=None if is_reduced else "soma",
                         update_targets=True,
-                        verbose=verbose
+                        verbose=verbose,
                     )
                 gc.collect()
 
