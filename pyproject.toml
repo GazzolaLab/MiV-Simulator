@@ -5,7 +5,7 @@ description = "Mind-In-Vitro simulator"
 authors = []
 dependencies = [
     "spike_encoder @ git+https://github.com/iraikov/neural_spike_encoding.git",
-    "neuroh5 @ git+https://github.com/frthjf/neuroh5.git",
+    "neuroh5 @ git+https://github.com/frthjf/neuroh5.git@dc33fe3",
     "treverhines-rbf>=2024.3.21",
     "pyyaml>=6.0.2",
     "pydantic>=2.8.2",
