@@ -10,6 +10,7 @@ import numpy as np
 
 def test_run_with_Gfluct3():
     compile_and_load("tests/mechanisms", force=True)
+    h.load_file("stdrun.hoc")
 
     soma = h.Section(name="soma")
     soma.L = soma.diam = 12.6157  # Makes a soma of 500 microns squared.
