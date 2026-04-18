@@ -39,7 +39,12 @@ def test_mechanisms_compile_and_load(tmp_path):
             g.write(f.read())
 
     # Test if compile_and_load is called properly
-    dll_path = compile_and_load(d)
+    try:
+        dll_path = compile_and_load(d)
+    except RuntimeError:
+        # NEURON does not allow loading the same mechanism symbols from a
+        # different path; skip if another test already loaded them.
+        pytest.skip("Mechanisms already loaded from another path")
     assert os.path.isdir(dll_path)
 
     # Test if compile_and_load creates the dll directory

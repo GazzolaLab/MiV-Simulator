@@ -524,7 +524,7 @@ default_protocol_parameters["step"] = make_param_dict(
         0,
         1e9,
         pq.ms,
-        "\Delta t_{delay}",
+        "Delta t_delay",
         "Delay duration before the first pulse",
     ),  #'ms'
     (
@@ -581,7 +581,7 @@ default_protocol_parameters["sinusoid"] = make_param_dict(
         0,
         1e9,
         pq.ms,
-        "\Delta t_{delay}",
+        "Delta t_delay",
         "Delay duration before the first pulse",
     ),  #'ms'
     (
@@ -638,7 +638,7 @@ default_protocol_parameters["chirp"] = make_param_dict(
         0,
         1e9,
         pq.ms,
-        "\Delta t_{delay}",
+        "Delta t_delay",
         "Delay duration before the first pulse",
     ),  # 'ms'
     (
@@ -679,7 +679,7 @@ default_protocol_parameters["ramp"] = make_param_dict(
         0,
         1e9,
         pq.ms,
-        "\Delta t_{delay}",
+        "Delta t_delay",
         "Delay duration before the first pulse",
     ),  # 'ms'
     (
@@ -709,7 +709,7 @@ default_protocol_parameters["delta"] = make_param_dict(
         0,
         1e9,
         pq.ms,
-        "\Delta t_{delay}",
+        "Delta t_{delay}",
         "Delay duration before the first pulse",
     ),  # 'ms'
     (
@@ -718,7 +718,7 @@ default_protocol_parameters["delta"] = make_param_dict(
         0,
         1e9,
         pq.ms,
-        "\Delta t_{on}",
+        "Delta t_{on}",
         "On-phase duration",
     ),  # 'ms'
     (
@@ -748,7 +748,7 @@ default_protocol_parameters["rectifier"] = make_param_dict(
         0,
         1e9,
         pq.ms,
-        "\Delta t_{delay}",
+        "Delta t_{delay}",
         "Delay duration before the first pulse",
     ),  # 'ms'
     (
@@ -778,7 +778,7 @@ default_protocol_parameters["shortPulse"] = make_param_dict(
         0,
         None,
         pq.ms,
-        "\Delta t_{delay}",
+        "Delta t_{delay}",
         "Delay duration before the first pulse",
     ),  # 'ms'
     (
@@ -787,7 +787,7 @@ default_protocol_parameters["shortPulse"] = make_param_dict(
         0,
         None,
         pq.ms,
-        "\mathbf{\Delta t_{on}}",
+        "mathbf{Delta t_{on}}",
         "List of pulse on-phase durations",
     ),  # 'ms' # [0.1, 0.2, 0.5, 1, 2, 5, 10]
     (
@@ -817,7 +817,7 @@ default_protocol_parameters["recovery"] = make_param_dict(
         0,
         None,
         pq.ms,
-        "\Delta t_{delay}",
+        "Delta t_{delay}",
         "Delay duration before the first pulse",
     ),  # 'ms'
     (
@@ -826,7 +826,7 @@ default_protocol_parameters["recovery"] = make_param_dict(
         0,
         None,
         pq.ms,
-        "\Delta t_{on}",
+        "Delta t_{on}",
         "On-phase duration",
     ),  # 'ms'
     (
@@ -835,7 +835,7 @@ default_protocol_parameters["recovery"] = make_param_dict(
         None,
         None,
         pq.ms,
-        "\mathbf{\Delta t_{off}}",
+        "mathbf{Delta t_{off}}",
         "List of pulse off-phase durations",
     ),  # 'ms'
     # ('Dt_IPIs',[0.5,1,1.5,2.5,5,7.5,10],None,None,seconds), # 'ms'
