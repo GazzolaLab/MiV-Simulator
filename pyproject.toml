@@ -39,7 +39,7 @@ build-backend = "_build_backend"
 backend-path = ["."]
 
 [tool.uv]
-dev-dependencies = ["pre-commit>=4.1.0", "pytest>=8.3.2", "ruff==0.9.3"]
+dev-dependencies = ["pre-commit>=4.1.0", "pytest>=8.3.2", "ruff==0.15.11"]
 no-binary-package = ["mpi4py", "h5py", "neuroh5"]
 
 [tool.uv.sources]

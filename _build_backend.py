@@ -480,7 +480,9 @@ def _run_checks():
 
     if errors:
         sep = "=" * 64
-        body = "\n\n".join(f"  [{i+1}/{len(errors)}] {e}" for i, e in enumerate(errors))
+        body = "\n\n".join(
+            f"  [{i + 1}/{len(errors)}] {e}" for i, e in enumerate(errors)
+        )
         raise SystemExit(
             f"\n{sep}\n"
             f"  miv-simulator: MPI environment validation FAILED\n"
