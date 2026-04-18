@@ -115,6 +115,42 @@ def _module_so(import_path):
 # ---------------------------------------------------------------------------
 
 
+def _same_mpi_library(lib_path, mpicc_libdir):
+    """Check whether *lib_path* (from ldd) belongs to the same MPI as *mpicc_libdir*.
+
+    On many Linux distros the runtime linker resolves the MPI soname to a
+    path outside the ``-L`` directory advertised by ``mpicc``.  For example,
+    MPICH on Ubuntu::
+
+        ldd  -> /lib/x86_64-linux-gnu/libmpich.so.12
+        mpicc -> -L/usr/lib/x86_64-linux-gnu/mpich/lib
+
+    Both refer to the same library.  We therefore check:
+    1. Whether realpath(lib_path) lives under realpath(mpicc_libdir), OR
+    2. Whether the library *basename* pattern (e.g. libmpich*) exists in
+       mpicc_libdir (possibly via symlinks resolving to the same file).
+    """
+    real_lib = os.path.realpath(lib_path)
+    real_dir = os.path.realpath(mpicc_libdir)
+
+    # Direct containment
+    if real_lib.startswith(real_dir + os.sep) or real_lib.startswith(real_dir):
+        return True
+
+    # Check if any libmpi* in mpicc_libdir resolves to the same file
+    basename = os.path.basename(real_lib)
+    # Extract the core library name (e.g. "libmpich" from "libmpich.so.12")
+    core_name = basename.split(".")[0]
+    if os.path.isdir(mpicc_libdir):
+        import glob
+
+        for candidate in glob.glob(os.path.join(mpicc_libdir, core_name + "*")):
+            if os.path.realpath(candidate) == real_lib:
+                return True
+
+    return False
+
+
 def check_mpi_env(*, strict=False):
     """Validate the MPI environment.
 
@@ -149,9 +185,7 @@ def check_mpi_env(*, strict=False):
         if so and os.path.isfile(so):
             mpi4py_lib = _mpi_lib_from_ldd(_shared_lib_deps(so))
             if mpi4py_lib and mpi_libdir:
-                if not os.path.realpath(mpi4py_lib).startswith(
-                    os.path.realpath(mpi_libdir)
-                ):
+                if not _same_mpi_library(mpi4py_lib, mpi_libdir):
                     raise MPIEnvError(
                         f"mpi4py links against {mpi4py_lib} but mpicc uses "
                         f"{mpi_libdir}. mpi4py was likely installed from a "
