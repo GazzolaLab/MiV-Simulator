@@ -494,7 +494,7 @@ default_protocol_parameters["custom"] = make_param_dict(
         0,
         1e9,
         pq.ms,
-        "\Delta t_{delay}",
+        "Delta t_delay",
         "Delay duration before the first pulse",
     ),  #'ms'
     (

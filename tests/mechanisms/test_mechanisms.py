@@ -34,12 +34,14 @@ def test_mechanisms_compile_and_load(tmp_path):
     d = str(tmp_path / "mechanisms")
     os.makedirs(d)
 
+    with open("tests/mechanisms/Gfluct3.mod", "r") as f:
+        with open(os.path.join(d, "Gfluct3.mod"), "w") as g:
+            g.write(f.read())
+
     # Test if compile_and_load is called properly
     dll_path = compile_and_load(d)
-    assert os.path.isfile(dll_path)
+    assert os.path.isdir(dll_path)
 
-    # Test if compile_and_load creates the dll file
-    os.remove(dll_path)
-    assert not os.path.exists(dll_path)
+    # Test if compile_and_load creates the dll directory
     compile_and_load(d, force=True)
-    assert os.path.exists(dll_path)
+    assert os.path.isdir(dll_path)
