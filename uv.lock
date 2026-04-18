@@ -1791,7 +1791,7 @@ requires-dist = [
     { name = "matplotlib", specifier = ">=3.9.2" },
     { name = "myst-nb", marker = "extra == 'docs'" },
     { name = "networkx", specifier = ">=3.2.1" },
-    { name = "neuroh5", git = "https://github.com/iraikov/neuroh5.git" },
+    { name = "neuroh5", git = "https://github.com/frthjf/neuroh5.git" },
     { name = "neuron", specifier = ">=8.2.6" },
     { name = "numpydoc", marker = "extra == 'docs'" },
     { name = "pydantic", specifier = ">=2.8.2" },
@@ -2026,7 +2026,7 @@ wheels = [
 [[package]]
 name = "neuroh5"
 version = "0.1.18"
-source = { git = "https://github.com/iraikov/neuroh5.git#b9a08975cf1b3fb85ae2aa97730dbd1296f98525" }
+source = { git = "https://github.com/frthjf/neuroh5.git#63e0019cd649e09ab56c9ff20fb7dbfb6361fc98" }
 dependencies = [
     { name = "click", version = "8.1.8", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "click", version = "8.2.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
