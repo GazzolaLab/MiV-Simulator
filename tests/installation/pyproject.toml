@@ -2,7 +2,7 @@
 name = "miv-simulator-install-test"
 version = "0.0.0"
 description = "End-to-end installation test for miv-simulator"
-requires-python = ">= 3.9"
+requires-python = ">= 3.11"
 dependencies = ["miv-simulator"]
 
 [build-system]
