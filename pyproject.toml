@@ -41,6 +41,9 @@ backend-path = ["."]
 [tool.uv]
 dev-dependencies = ["pre-commit>=4.1.0", "pytest>=8.3.2", "ruff==0.9.3"]
 no-binary-package = ["mpi4py", "h5py", "neuroh5"]
+# setuptools >=72 removed dry_run/verbose/force from new_compiler(),
+# breaking neuroh5's setup.py
+build-constraint-dependencies = ["setuptools<72"]
 
 [tool.uv.sources]
 treverhines-rbf = { git = "https://github.com/treverhines/RBF" }
