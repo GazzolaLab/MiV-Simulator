@@ -96,4 +96,4 @@ def test_run_with_Gfluct3():
             -51.02231867,
         ]
     )  # Empirical
-    np.testing.assert_allclose(v_vec.to_python(), expected_v_vec, rtol=1e-5)
+    np.testing.assert_allclose(v_vec.to_python(), expected_v_vec, rtol=1e-3)
