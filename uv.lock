@@ -1174,7 +1174,7 @@ requires-dist = [
     { name = "myst-nb", marker = "extra == 'docs'" },
     { name = "networkx", specifier = ">=3.2.1" },
     { name = "neuroh5", git = "https://github.com/iraikov/neuroh5.git" },
-    { name = "neuron", specifier = ">=8.2.6" },
+    { name = "neuron", specifier = ">=9.0.0" },
     { name = "numpydoc", marker = "extra == 'docs'" },
     { name = "pydantic", specifier = ">=2.8.2" },
     { name = "pydata-sphinx-theme", marker = "extra == 'docs'" },
@@ -1346,25 +1346,32 @@ dependencies = [
 
 [[package]]
 name = "neuron"
-version = "8.2.7"
+version = "9.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "find-libpython" },
     { name = "numpy" },
     { name = "packaging" },
-    { name = "pyreadline3", marker = "sys_platform == 'win32'" },
     { name = "setuptools" },
+    { name = "sympy" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/88/c1/b6c2c3444dbfd5395ef8c491d3e59e3c09205f9d7c008a1776edb8816785/neuron-8.2.7-cp311-cp311-macosx_10_15_x86_64.whl", hash = "sha256:468abd4f8f8344fceb77823609307e7e0e071f6995decd86b711a8affe37b4f5", size = 14039727 },
-    { url = "https://files.pythonhosted.org/packages/f9/fa/0f0b2301ea50f14cbb558b2601c47f5476c8d27ab8aa063eadb135d4e9a3/neuron-8.2.7-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:f8e31a558ad6ca08e3addaa64343e426ec992a2d9bfc61d901e7df22ab1f1f1c", size = 13246177 },
-    { url = "https://files.pythonhosted.org/packages/3e/de/e56e0beca201b0c5fab32f1f4a999d3aba0550fc0e066034a4cc49ca9504/neuron-8.2.7-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:72df43061b9c2cf5541bb4003c2c37fc39b8b106008e54abdca7cf1d989ea1f8", size = 14643483 },
-    { url = "https://files.pythonhosted.org/packages/ab/45/26a87553e7a1dde05fb9aebe98715498b6273fd0ed08f5a82ad550ee5379/neuron-8.2.7-cp312-cp312-macosx_10_15_x86_64.whl", hash = "sha256:d2044fde04ea2c07884cd4d047e19bd3686abe4cf2fb1b4b6aebab5890763727", size = 14027049 },
-    { url = "https://files.pythonhosted.org/packages/fe/d0/a22eceadcb655aa03a8a37f6e109e0880a7d00978713f0f5ded8042cfb5f/neuron-8.2.7-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:6834f6d0981634fed4fee002873f139f738d20b606ff74bbd475c1ce7fe414db", size = 13232523 },
-    { url = "https://files.pythonhosted.org/packages/3e/69/5a8d498fd3096726768ab875b0e9a633cfdb68f976a6d520b6158b07ed7c/neuron-8.2.7-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:df6374137d6218e817645d37c06c8d0cd4a3afc910de70ffd63b7a4a2f57d633", size = 14926180 },
-    { url = "https://files.pythonhosted.org/packages/a5/d6/27b85c9f11ba46b3cdd8b102ccfa1089c19153e97a8e02b552cb8512b662/neuron-8.2.7-cp313-cp313-macosx_10_15_x86_64.whl", hash = "sha256:28c45074485159218a5741e5b256d2107612de9510546f3f67e9f51e035f9a61", size = 14023563 },
-    { url = "https://files.pythonhosted.org/packages/bd/38/c7f40797a813d2a8e1d8e16e4beee3de7879e140bee3d12ef05cc2ece885/neuron-8.2.7-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:346e688acb5fbbc6651cf31ad2c56bb4fb90ece057bfbdfd29a29751c27de98c", size = 13228475 },
-    { url = "https://files.pythonhosted.org/packages/48/6c/f0191f7c7f757a0943669cd3793c215ca58133b8c5c722d7670553cd614f/neuron-8.2.7-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:daa7e1b63bf7154b62928dcb141494e311a5607c3394c6aed3b0f94a52d8ad93", size = 14894860 },
+    { url = "https://files.pythonhosted.org/packages/b2/dc/5b4a88640d4d5df61fb424095392e88af1ad2340a65dd29a65de4ffa627a/neuron-9.0.1-cp311-cp311-macosx_10_15_x86_64.whl", hash = "sha256:cb43a59d254922d4825b9fa8ed1039e2fd30819f57dcf5537d3ed409c5629d52", size = 21961337 },
+    { url = "https://files.pythonhosted.org/packages/f2/42/96dea57c5139d05c78a97417c3d2aa235665faebefae3d8a1068bac8a85e/neuron-9.0.1-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:7ec9f06be5c5c8d937b810345a017c7bd0e2fe3b1f2134087606d5e2190506eb", size = 21452231 },
+    { url = "https://files.pythonhosted.org/packages/f4/4b/56b46113ed9c893eeefa567b49bf7598be66c3960e72fd668e3336f3c2e1/neuron-9.0.1-cp311-cp311-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:0e6a9b22b511239a55c899e958d4b6e9c57ccf78c80e3da51033c250a6fd53a4", size = 17395964 },
+    { url = "https://files.pythonhosted.org/packages/82/93/ecb54d0dc4f4c2d957efa19494555fb5d1c30639958248f8c9f651b8e1e8/neuron-9.0.1-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:ab01f5348438562223d4cf739bb926ec709d6050eda8a3e0f4cda37770c128ae", size = 18083601 },
+    { url = "https://files.pythonhosted.org/packages/75/a9/eb32f4ffc0390809cf137427c85670d3ebde27e4880547ee2ebb4a7c1f6e/neuron-9.0.1-cp312-cp312-macosx_10_15_x86_64.whl", hash = "sha256:c16ab4978b3519aea2aa0246ce94ce6a5812a13fb7a6d871e380d89ae9fe3e0d", size = 21982564 },
+    { url = "https://files.pythonhosted.org/packages/29/82/35703c8beae35d9cffd750499908d6180fa5a629c39bd75176ef8e615188/neuron-9.0.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:32f8d426c50e263e36df3e5ad7120676dc0f4091f430702830e8f8cfab22971d", size = 21458748 },
+    { url = "https://files.pythonhosted.org/packages/c8/c1/e82d299e862951354f0a16ecda1117777ab761af987b27f6be5813381658/neuron-9.0.1-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:4917ab32474860431da7b92d6b93979023a3379e4a2b96ac76c30bec98117727", size = 17405394 },
+    { url = "https://files.pythonhosted.org/packages/da/e2/f0a20aaad661081466d12761d19e65c2c0ee50383cd013d531065289c894/neuron-9.0.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:e59ed594cf6a61a500f1a4aac7b9ab95173d5f5860a17424a612f40cc34eeb88", size = 18108189 },
+    { url = "https://files.pythonhosted.org/packages/12/b3/c1511a278e9e046619b1ec201a414f6c5ab24c68d002346783cbb78423b1/neuron-9.0.1-cp313-cp313-macosx_10_15_x86_64.whl", hash = "sha256:650ac07e3653895602a1aa574b743520c56b47f6e901bfc9722556fe41d63262", size = 22026103 },
+    { url = "https://files.pythonhosted.org/packages/8b/ee/e56a725c3497a39437fe25999f2739f44b58aac2bef93be2326ba7c3aa3d/neuron-9.0.1-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:9b5f928b035dd2e116c4c5e71761ed2c6d2beb59537d1f0ad9abbe7700cf8fa0", size = 21483220 },
+    { url = "https://files.pythonhosted.org/packages/36/1b/75e8172379e2d749bb6d76a74b48ce75cbffef37fa7a75dc82a79b32a00d/neuron-9.0.1-cp313-cp313-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:cc85879c57c500df1b77e720e5aa203cd3baf787b20c1516958cced3cb5ff85b", size = 17405209 },
+    { url = "https://files.pythonhosted.org/packages/a0/03/4150a4dfbf943d4cd39763fd5efabec88d6c6684e37bd0be03d0b5053d18/neuron-9.0.1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:c06f2e2ca4768f19a3e5d71d9b530be2dc31e1af548590465122206c4907a787", size = 18113940 },
+    { url = "https://files.pythonhosted.org/packages/04/60/317c6d204e8d8819e35e3554b1836160b51608e044f7cb4c1f90ca4776ee/neuron-9.0.1-cp314-cp314-macosx_10_15_x86_64.whl", hash = "sha256:4e04cfcf024f996b97f10a73cabed8a7235b096243f6c783aca8ec9b315fd4d4", size = 22027380 },
+    { url = "https://files.pythonhosted.org/packages/8c/24/18afa2d289563c3a0b427cda9d163b7578ad584317ae59682bc05e97a5ee/neuron-9.0.1-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:004ed4d0932d61dfe8d11196c748e7260505765f76a40441fc522239ea0156f3", size = 21483416 },
+    { url = "https://files.pythonhosted.org/packages/03/25/edae3921d0c5569493cc8b0f932de7f8b23d144797532d01c9baa5836426/neuron-9.0.1-cp314-cp314-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:fd97d7bf8574c3352407005e39491421973c63226875ce9c2ba937aec8a16615", size = 17407396 },
+    { url = "https://files.pythonhosted.org/packages/b5/41/bf1f6191c5cbde0630bb6f807f0a7b1de47d93761f4c73cbb95f852fe3ba/neuron-9.0.1-cp314-cp314-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:84c3a8646b49681e582ee1e75dc1f90186df195409117092e501a25d076d0d42", size = 18113151 },
 ]
 
 [[package]]
@@ -1798,15 +1805,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/bb/22/f1129e69d94ffff626bdb5c835506b3a5b4f3d070f17ea295e12c2c6f60f/pyparsing-3.2.3.tar.gz", hash = "sha256:b9c13f1ab8b3b542f72e28f634bad4de758ab3ce4546e4301970ad6fa77c38be", size = 1088608 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/05/e7/df2285f3d08fee213f2d041540fa4fc9ca6c2d44cf36d3a035bf2a8d2bcc/pyparsing-3.2.3-py3-none-any.whl", hash = "sha256:a749938e02d6fd0b59b356ca504a24982314bb090c383e3cf201c95ef7e2bfcf", size = 111120 },
-]
-
-[[package]]
-name = "pyreadline3"
-version = "3.5.4"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/0f/49/4cea918a08f02817aabae639e3d0ac046fef9f9180518a3ad394e22da148/pyreadline3-3.5.4.tar.gz", hash = "sha256:8d57d53039a1c75adba8e50dd3d992b28143480816187ea5efbd5c78e6c885b7", size = 99839 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/5a/dc/491b7661614ab97483abf2056be1deee4dc2490ecbf7bff9ab5cdbac86e1/pyreadline3-3.5.4-py3-none-any.whl", hash = "sha256:eaf8e6cc3c49bcccf145fc6067ba8643d1df34d604a1ec0eccbf7a18e6d3fae6", size = 83178 },
 ]
 
 [[package]]
