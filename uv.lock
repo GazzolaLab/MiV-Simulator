@@ -1173,7 +1173,7 @@ requires-dist = [
     { name = "mpi4py", specifier = ">=4.0.0" },
     { name = "myst-nb", marker = "extra == 'docs'" },
     { name = "networkx", specifier = ">=3.2.1" },
-    { name = "neuroh5", git = "https://github.com/frthjf/neuroh5.git?rev=dc33fe3" },
+    { name = "neuroh5", git = "https://github.com/iraikov/neuroh5.git" },
     { name = "neuron", specifier = ">=8.2.6" },
     { name = "numpydoc", marker = "extra == 'docs'" },
     { name = "pydantic", specifier = ">=2.8.2" },
@@ -1336,7 +1336,7 @@ wheels = [
 [[package]]
 name = "neuroh5"
 version = "0.1.18"
-source = { git = "https://github.com/frthjf/neuroh5.git?rev=dc33fe3#dc33fe3193368e5bdd4a2f58feaf3a10e08758a9" }
+source = { git = "https://github.com/iraikov/neuroh5.git#d73d5fb465ba5a655fbfb45201a9373aba7f8615" }
 dependencies = [
     { name = "click" },
     { name = "h5py" },
