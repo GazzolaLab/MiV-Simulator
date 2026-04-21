@@ -29,6 +29,13 @@ import subprocess
 import sys
 
 
+# Substrings in `pkg-config --libs`, prefix paths, or lib/ filenames that
+# indicate a parallel HDF5 build. Expanded for Cray PE (whose libraries are
+# named `libhdf5_parallel*` and whose prefix path contains `/hdf5-parallel/`)
+# in addition to the common MPICH / OpenMPI naming.
+_PARALLEL_MARKERS = ("mpi", "parallel", "gtl")
+
+
 def _find_mpicc():
     mpicc = os.environ.get("MPICC")
     if mpicc:
@@ -69,7 +76,17 @@ def _find_hdf5_pkgconfig():
                     text=True,
                     timeout=5,
                 )
-                if r2.returncode == 0 and "mpi" in r2.stdout.lower():
+                # Also query the prefix so we can recognize Cray's path-based
+                # "parallel" naming (Cray's hdf5.pc has no 'mpi' substring in
+                # the libs line but has /hdf5-parallel/ in the prefix).
+                r_prefix = subprocess.run(
+                    ["pkg-config", "--variable=prefix", name],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                blob = (r2.stdout + " " + r_prefix.stdout).lower()
+                if r2.returncode == 0 and any(m in blob for m in _PARALLEL_MARKERS):
                     return name
         except Exception:
             pass
@@ -120,6 +137,27 @@ def _find_hdf5_via_wrapper():
     return None, None, None
 
 
+def _looks_parallel(hdf5_dir):
+    """Return True if hdf5_dir appears to be a parallel HDF5 install."""
+    if not hdf5_dir:
+        return False
+    # Path-based check (Cray: /opt/cray/pe/hdf5-parallel/...)
+    if any(m in hdf5_dir.lower() for m in _PARALLEL_MARKERS):
+        return True
+    # File-based check: look for libhdf5_parallel*, libhdf5_mpi*, etc.
+    libdir = os.path.join(hdf5_dir, "lib")
+    if os.path.isdir(libdir):
+        try:
+            libs = os.listdir(libdir)
+            for n in libs:
+                n_low = n.lower()
+                if any(m in n_low for m in _PARALLEL_MARKERS):
+                    return True
+        except OSError:
+            pass
+    return False
+
+
 def detect():
     """Detect MPI/HDF5 environment and return dict of env vars to set."""
     env = {}
@@ -154,7 +192,22 @@ def detect():
         env["HDF5_PKGCONFIG_NAME"] = hdf5_pkg
     elif not hdf5_pkg:
         hdf5_dir = os.environ.get("HDF5_DIR")
-        if not hdf5_dir:
+        if hdf5_dir:
+            # Re-export HDF5_DIR so child build processes (e.g. uv's isolated
+            # PEP 517 build environments for h5py / neuroh5) reliably inherit
+            # it, and warn if the path doesn't look like a parallel build.
+            if _looks_parallel(hdf5_dir):
+                env["HDF5_DIR"] = hdf5_dir
+            else:
+                print(
+                    f"# WARNING: HDF5_DIR={hdf5_dir} does not look like a "
+                    f"parallel HDF5 install. h5py may build without MPI "
+                    f"support. Expected path or lib/ to contain one of: "
+                    f"{', '.join(_PARALLEL_MARKERS)}.",
+                    file=sys.stderr,
+                )
+                env["HDF5_DIR"] = hdf5_dir
+        else:
             prefix, incdir, libdir = _find_hdf5_via_wrapper()
             if prefix:
                 env["HDF5_DIR"] = prefix
