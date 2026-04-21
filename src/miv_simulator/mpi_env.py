@@ -195,7 +195,7 @@ def check_mpi_env(*, strict=False):
     except ImportError:
         msg = (
             "mpi4py is not installed. Install from source: "
-            'env MPICC="mpicc --shared" pip install --no-binary=mpi4py mpi4py'
+            'env MPICC="mpicc --shared" pip install --no-binary=mpi4py --force-reinstall --no-cache-dir mpi4py'
         )
         if strict:
             raise MPIEnvError(msg)
@@ -210,7 +210,7 @@ def check_mpi_env(*, strict=False):
             raise MPIEnvError(
                 "h5py is installed WITHOUT parallel-HDF5 (MPI) support. "
                 "Reinstall from source: "
-                'CC=mpicc HDF5_MPI="ON" pip install --no-binary=h5py h5py'
+                'CC=mpicc HDF5_MPI="ON" pip install --no-binary=h5py --force-reinstall --no-cache-dir h5py'
             )
         for sub in ("h5py.h5", "h5py._conv", "h5py._errors"):
             so = _module_so(sub)
@@ -221,7 +221,7 @@ def check_mpi_env(*, strict=False):
     except ImportError:
         msg = (
             "h5py is not installed. Install with MPI support: "
-            'CC=mpicc HDF5_MPI="ON" pip install --no-binary=h5py h5py'
+            'CC=mpicc HDF5_MPI="ON" pip install --no-binary=h5py --force-reinstall --no-cache-dir h5py'
         )
         if strict:
             raise MPIEnvError(msg)
