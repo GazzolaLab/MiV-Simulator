@@ -2,7 +2,7 @@ import numpy as np
 from numpy.typing import NDArray
 from typing import Annotated as EventArray, Dict
 
-SpikeTimesLike = EventArray[NDArray[np.float_], "SpikeTimesLike ..."]
+SpikeTimesLike = EventArray[NDArray[np.float64], "SpikeTimesLike ..."]
 """Potentially unsorted or scalar data that can be transformed into `SpikeTimes`"""
 
 SpikeTimes = EventArray[NDArray[np.float64], "SpikeTimes T ..."]

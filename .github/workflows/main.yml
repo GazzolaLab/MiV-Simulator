@@ -1,54 +1,111 @@
 name: CI
 
-on: workflow_dispatch
-  # push:
-  #   branches: [ main ]
-  # pull_request:
-  #   branches: [ main ]
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
-        mpi: ["mpich", "openmpi"]
+        os: [ ubuntu-latest, macos-latest ]
+        python-version: [ "3.12" ]
+        mpi: [ "mpich", "openmpi" ]
         exclude:
           - os: macos-latest
-            mpi: "mpich" # Brew hdf5-mpi only support openmpi
-        include:
-          - os: ubuntu-latest
-            path: |
-              ~/.cache/pypoetry
-              ~/.cache/pip
-          - os: macos-latest
-            path: |
-              ~/Library/Caches/pypoetry
-              ~/Library/Caches/pip
+            mpi: "mpich" # Brew hdf5-mpi only supports openmpi
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
+
       - name: Setup MPI
         uses: mpi4py/setup-mpi@v1
         with:
           mpi: ${{ matrix.mpi }}
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2.2.2
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Set up cache
-        id: cached-python-dependencies
-        uses: actions/cache@v3
-        with:
-          path: ${{ matrix.path }}
-          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('poetry.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-      - name: Install background dependency (MacOS)
-        if: startsWith(runner.os, 'macOS')
+
+      - name: Install parallel HDF5 (Ubuntu, MPICH)
+        if: runner.os == 'Linux' && matrix.mpi == 'mpich'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libhdf5-mpich-dev pkg-config python3-dev
+
+      - name: Install parallel HDF5 (Ubuntu, OpenMPI)
+        if: runner.os == 'Linux' && matrix.mpi == 'openmpi'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libhdf5-openmpi-dev pkg-config python3-dev
+
+      - name: Install parallel HDF5 (macOS)
+        if: runner.os == 'macOS'
         run: |
           brew install hdf5-mpi
-      - name: Install background dependency (Ubuntu)
-        if: startsWith(runner.os, 'Linux')
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Configure MPI environment
         run: |
-          sudo apt-get install -y libhdf5-mpi-dev python3-dev # Install hdf5-mpi
+          eval $(python configure_mpi.py)
+          # Persist env vars for subsequent steps
+          echo "MPICC=${MPICC}" >> "$GITHUB_ENV"
+          echo "CC=${CC}" >> "$GITHUB_ENV"
+          echo "HDF5_MPI=${HDF5_MPI}" >> "$GITHUB_ENV"
+          if [ -n "$MPICXX" ]; then
+            echo "MPICXX=${MPICXX}" >> "$GITHUB_ENV"
+          fi
+          if [ -n "$CXX" ]; then
+            echo "CXX=${CXX}" >> "$GITHUB_ENV"
+          fi
+          if [ -n "$HDF5_PKGCONFIG_NAME" ]; then
+            echo "HDF5_PKGCONFIG_NAME=${HDF5_PKGCONFIG_NAME}" >> "$GITHUB_ENV"
+          fi
+          if [ -n "$HDF5_DIR" ]; then
+            echo "HDF5_DIR=${HDF5_DIR}" >> "$GITHUB_ENV"
+          fi
+          if [ -n "$HDF5_INCLUDEDIR" ]; then
+            echo "HDF5_INCLUDEDIR=${HDF5_INCLUDEDIR}" >> "$GITHUB_ENV"
+          fi
+          if [ -n "$HDF5_LIBDIR" ]; then
+            echo "HDF5_LIBDIR=${HDF5_LIBDIR}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Install miv-simulator
+        run: uv sync
+
+      - name: Verify MPI environment
+        run: |
+          uv run python -c "
+          import miv_simulator
+          print(f'miv_simulator {miv_simulator.version}')
+
+          import h5py
+          mpi = getattr(h5py.get_config(), 'mpi', False)
+          print(f'h5py MPI support: {mpi}')
+          assert mpi, 'h5py was built without MPI support'
+
+          import mpi4py
+          print(f'mpi4py {mpi4py.__version__}')
+          "
+
+      - name: Run tests
+        run: uv run pytest tests/ -x -q
+
+      - name: Test standalone installation
+        run: |
+          cd tests/installation
+          rm -rf .venv uv.lock
+          uv sync
+          uv run python -c "
+          import miv_simulator
+          print(f'Standalone install OK: miv_simulator {miv_simulator.version}')
+          import h5py
+          assert getattr(h5py.get_config(), 'mpi', False), 'h5py missing MPI'
+          "

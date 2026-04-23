@@ -5,7 +5,7 @@ PYTHONPATH := `pwd`
 #* Installation
 .PHONY: install
 install:
-	uv sync
+	eval $$(python configure_mpi.py) && uv sync
 
 .PHONY: pre-commit-install
 pre-commit-install:

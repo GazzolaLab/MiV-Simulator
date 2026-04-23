@@ -1232,8 +1232,9 @@ def filter_nodes(
     def matches(items):
         return all(
             map(
-                lambda query_item: (query_item[0] is None)
-                or (query_item[1] in query_item[0]),
+                lambda query_item: (
+                    (query_item[0] is None) or (query_item[1] in query_item[0])
+                ),
                 items,
             )
         )

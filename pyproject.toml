@@ -6,43 +6,46 @@ authors = []
 dependencies = [
     "spike_encoder @ git+https://github.com/iraikov/neural_spike_encoding.git",
     "neuroh5 @ git+https://github.com/iraikov/neuroh5.git",
+    "h5py>=3.16.0",
+    "mpi4py>=4.0.0",
     "treverhines-rbf>=2024.3.21",
     "pyyaml>=6.0.2",
     "pydantic>=2.8.2",
     "matplotlib>=3.9.2",
-    "neuron>=8.2.6",
+    "neuron>=9.0a0",
     "quantities>=0.16.0",
     "machinable>=4.10.3",
     "networkx>=3.2.1",
     "scipy>=1.13",
 ]
 readme = "README.md"
-requires-python = ">= 3.9"
+requires-python = ">= 3.10.2"
+
+[dependency-groups]
+dev = ["pre-commit>=4.1.0", "pytest>=8.3.2", "ruff==0.15.11"]
 
 [project.optional-dependencies]
 docs = [
-  "sphinx",
-  "pydata-sphinx-theme",
-  "readthedocs-sphinx-search",
-  "sphinx-autodoc-typehints",
-  "myst-nb",
-  "numpydoc",
-  "sphinx-togglebutton",
-  "sphinx-copybutton",
-  "sphinx-click",
-  "sphinxcontrib-mermaid"
+    "sphinx",
+    "pydata-sphinx-theme",
+    "readthedocs-sphinx-search",
+    "sphinx-autodoc-typehints",
+    "myst-nb",
+    "numpydoc",
+    "sphinx-togglebutton",
+    "sphinx-copybutton",
+    "sphinx-click",
+    "sphinxcontrib-mermaid",
 ]
+
 
 [build-system]
 requires = ["hatchling"]
-build-backend = "hatchling.build"
+build-backend = "_build_backend"
+backend-path = ["."]
 
 [tool.uv]
-dev-dependencies = [
-    "pre-commit>=4.1.0",
-    "pytest>=8.3.2",
-    "ruff==0.9.3",
-]
+no-binary-package = ["mpi4py", "h5py", "neuroh5"]
 
 [tool.uv.sources]
 treverhines-rbf = { git = "https://github.com/treverhines/RBF" }
