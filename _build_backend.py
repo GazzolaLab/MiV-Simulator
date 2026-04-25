@@ -92,11 +92,21 @@ def _get_shared_lib_deps(path):
         return ""
 
 
+# Substrings identifying auxiliary MPI helper libraries that should NOT
+# be treated as the actual libmpi when comparing linkage. The Cray PE
+# CUDA-aware GPU transport-layer plugin (libmpi_gtl_cuda.so) is linked
+# alongside libmpi_gnu_123.so by some packages but not others, which would
+# cause a spurious cross-library mismatch.
+_MPI_AUX_LIB_MARKERS = ("_gtl_", "libmpi_cray")
+
+
 def _extract_mpi_lib(ldd_output):
     """Extract the resolved path to libmpi from ldd/otool output."""
     for line in ldd_output.splitlines():
         line = line.strip()
         if "libmpi" not in line:
+            continue
+        if any(m in line for m in _MPI_AUX_LIB_MARKERS):
             continue
         # Linux ldd format:  libmpi.so.40 => /usr/lib/libmpi.so.40 (0x...)
         if "=>" in line:
@@ -109,6 +119,22 @@ def _extract_mpi_lib(ldd_output):
             if path:
                 return path
     return None
+
+
+def _is_cray_pe():
+    """Return True if running inside a Cray Programming Environment.
+
+    The Cray PE provides its own MPI (cray-mpich) and parallel HDF5
+    (cray-hdf5-parallel) plus driver-specific compiler wrappers (`cc`,
+    `CC`). Auto-replacing them with `mpicc` breaks linking (libhugetlbfs
+    needs Cray's runtime init) and the standard MPI / HDF5 detection
+    heuristics do not apply.
+    """
+    return bool(
+        os.environ.get("CRAY_MPICH_DIR")
+        or os.environ.get("CRAY_HDF5_PARALLEL_DIR")
+        or os.environ.get("PE_ENV")
+    )
 
 
 def _find_mpicc():
@@ -317,6 +343,7 @@ def _setup_env():
     if os.environ.get("MIV_SKIP_MPI_CHECK", "0") == "1":
         return
 
+    cray_pe = _is_cray_pe()
     mpicc = _find_mpicc()
     changed = {}
 
@@ -326,7 +353,11 @@ def _setup_env():
         changed["MPICC"] = mpicc
 
     # -- CC (h5py, neuroh5 honour CC) ------------------------------------
-    if mpicc and not os.environ.get("CC"):
+    # On Cray PE the system `cc`/`CC` wrappers already inject the right MPI
+    # and HDF5 flags AND link Cray-specific runtime helpers (libhugetlbfs,
+    # libmpi_gtl_cuda) that mpicc/mpicxx do NOT. Replacing them with mpicc
+    # produces extensions that segfault during dlopen. Leave CC alone.
+    if mpicc and not os.environ.get("CC") and not cray_pe:
         os.environ["CC"] = mpicc
         changed["CC"] = mpicc
 
@@ -352,6 +383,28 @@ def _setup_env():
             changed["HDF5_LIBDIR"] = hdf5_libdir
     else:
         hdf5_dir = None
+
+    # neuroh5's setup.py / CMake's FindHDF5 reads HDF5_ROOT, while h5py
+    # reads HDF5_DIR. Mirror them in both directions so a single value set
+    # by the user (or by a module-load environment such as Cray PE's
+    # cray-hdf5-parallel) is picked up by every downstream build.
+    if not os.environ.get("HDF5_ROOT"):
+        src = os.environ.get("HDF5_DIR") or hdf5_dir
+        if src:
+            os.environ["HDF5_ROOT"] = src
+            changed["HDF5_ROOT"] = src
+    if not os.environ.get("HDF5_DIR") and os.environ.get("HDF5_ROOT"):
+        os.environ["HDF5_DIR"] = os.environ["HDF5_ROOT"]
+        changed["HDF5_DIR"] = os.environ["HDF5_ROOT"]
+
+    # On Cray PE the `cc`/`CC` compiler wrappers cause CMake's FindHDF5 to
+    # take the NO_INTERROGATE path, which leaves HDF5_INCLUDE_DIRS empty
+    # and (in older neuroh5 cmake macros) makes HDF5_IS_PARALLEL fall to
+    # FALSE. Pass the parallel flag explicitly so the affected macro and
+    # neuroh5's #ifdef HDF5_IS_PARALLEL guards take the parallel branch.
+    if cray_pe and not os.environ.get("HDF5_IS_PARALLEL"):
+        os.environ["HDF5_IS_PARALLEL"] = "TRUE"
+        changed["HDF5_IS_PARALLEL"] = "TRUE"
 
     # -- HDF5_MPI --------------------------------------------------------
     if not os.environ.get("HDF5_MPI"):
@@ -384,6 +437,8 @@ def validate_mpi_environment():
     errors = []
     warns = []
 
+    cray_pe = _is_cray_pe()
+
     # -- 1. MPI compiler wrapper --
     mpicc = _find_mpicc()
     if not mpicc:
@@ -406,7 +461,7 @@ def validate_mpi_environment():
         if mpi4py_so and os.path.isfile(mpi4py_so):
             ldd = _get_shared_lib_deps(mpi4py_so)
             mpi4py_mpi_lib = _extract_mpi_lib(ldd)
-            if mpi4py_mpi_lib and mpi_libdir:
+            if mpi4py_mpi_lib and mpi_libdir and not cray_pe:
                 real_lib = os.path.realpath(mpi4py_mpi_lib)
                 real_dir = os.path.realpath(mpi_libdir)
                 if not real_lib.startswith(real_dir):
