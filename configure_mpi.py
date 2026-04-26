@@ -37,6 +37,16 @@ _PARALLEL_MARKERS = ("mpi", "parallel", "gtl")
 
 
 def _find_mpicc():
+    # On Cray PE, $PATH frequently has another MPI's mpicc (e.g.
+    # NVIDIA HPC SDK's OpenMPI under /opt/nvidia/hpc_sdk/.../mpi/bin)
+    # ahead of Cray MPICH's. Building h5py / mpi4py with that mpicc against
+    # Cray-built parallel HDF5 fails. Always prefer the Cray-shipped mpicc
+    # when CRAY_MPICH_DIR is set.
+    cray_dir = os.environ.get("CRAY_MPICH_DIR")
+    if cray_dir:
+        cray_mpicc = os.path.join(cray_dir, "bin", "mpicc")
+        if os.path.isfile(cray_mpicc) and os.access(cray_mpicc, os.X_OK):
+            return cray_mpicc
     mpicc = os.environ.get("MPICC")
     if mpicc:
         path = shutil.which(mpicc.split()[0])
@@ -46,6 +56,12 @@ def _find_mpicc():
 
 
 def _find_mpicxx():
+    cray_dir = os.environ.get("CRAY_MPICH_DIR")
+    if cray_dir:
+        for name in ("mpicxx", "mpic++"):
+            cand = os.path.join(cray_dir, "bin", name)
+            if os.path.isfile(cand) and os.access(cand, os.X_OK):
+                return cand
     mpicxx = os.environ.get("MPICXX")
     if mpicxx:
         path = shutil.which(mpicxx.split()[0])
@@ -174,14 +190,22 @@ def detect():
         )
         sys.exit(1)
 
-    if not os.environ.get("MPICC"):
+    # If $MPICC was inherited but resolves to a *different* binary than the
+    # one we picked (e.g. plain "mpicc" -> NVIDIA HPC SDK on Cray PE while
+    # we want $CRAY_MPICH_DIR/bin/mpicc), override it with the absolute
+    # path so child build processes (h5py, mpi4py) use the right MPI.
+    cur_mpicc = os.environ.get("MPICC")
+    cur_mpicc_path = shutil.which(cur_mpicc.split()[0]) if cur_mpicc else None
+    if not cur_mpicc or (cur_mpicc_path and cur_mpicc_path != mpicc):
         env["MPICC"] = mpicc
     if not os.environ.get("CC"):
         env["CC"] = mpicc
 
     mpicxx = _find_mpicxx()
     if mpicxx:
-        if not os.environ.get("MPICXX"):
+        cur_mpicxx = os.environ.get("MPICXX")
+        cur_mpicxx_path = shutil.which(cur_mpicxx.split()[0]) if cur_mpicxx else None
+        if not cur_mpicxx or (cur_mpicxx_path and cur_mpicxx_path != mpicxx):
             env["MPICXX"] = mpicxx
         if not os.environ.get("CXX"):
             env["CXX"] = mpicxx
@@ -262,9 +286,7 @@ def detect():
     if is_cray_pe and detected_hdf5 and not os.environ.get("CMAKE_PATH"):
         import tempfile
 
-        shim_dir = os.path.join(
-            tempfile.gettempdir(), f"miv_cmake_shim_{os.getuid()}"
-        )
+        shim_dir = os.path.join(tempfile.gettempdir(), f"miv_cmake_shim_{os.getuid()}")
         os.makedirs(shim_dir, exist_ok=True)
         shim = os.path.join(shim_dir, "cmake")
         real_cmake = shutil.which("cmake") or "cmake"
@@ -276,16 +298,16 @@ def detect():
                 "# that HDF5_IS_PARALLEL is set unconditionally — find_package\n"
                 "# (HDF5) takes the NO_INTERROGATE path on Cray and never\n"
                 "# populates HDF5_INCLUDE_DIRS, defeating the macro's probe.\n"
-                "for arg in \"$@\"; do\n"
-                "    if [ -d \"$arg\" ] && [ -f \"$arg/cmake/neuroh5_utils.cmake\" ]; then\n"
-                "        f=\"$arg/cmake/neuroh5_utils.cmake\"\n"
-                "        if ! grep -q MIV_PATCHED \"$f\"; then\n"
+                'for arg in "$@"; do\n'
+                '    if [ -d "$arg" ] && [ -f "$arg/cmake/neuroh5_utils.cmake" ]; then\n'
+                '        f="$arg/cmake/neuroh5_utils.cmake"\n'
+                '        if ! grep -q MIV_PATCHED "$f"; then\n'
                 "            sed -i 's|set( HDF5_IS_PARALLEL FALSE )|set( HDF5_IS_PARALLEL TRUE ) # MIV_PATCHED|' \"$f\"\n"
                 "        fi\n"
                 "        break\n"
                 "    fi\n"
                 "done\n"
-                f"exec {real_cmake} \"$@\"\n"
+                f'exec {real_cmake} "$@"\n'
             )
         os.chmod(shim, 0o755)
         # neuroh5's setup.py hardcodes the literal string "cmake" when
@@ -300,11 +322,18 @@ def detect():
     # C extensions whose setup paths don't explicitly inject -I<sysconfig
     # include> (e.g. `treverhines-rbf`, `mpi4py` --no-binary) fail with
     # `fatal error: Python.h: No such file or directory`. Inject CPPFLAGS
-    # pointing at the *project* interpreter's headers (uv's managed CPython
-    # in .venv, NOT cray-python which has a different ABI version).
+    # pointing at the project interpreter's headers to prefer an active
+    # venv ($VIRTUAL_ENV), fall back to ./.venv. Crucially this must be
+    # the same interpreter uv will use for builds, NOT the system / cray
+    # python (which may have a different ABI / version).
     if is_cray_pe and "CPPFLAGS" not in os.environ:
-        venv_py = os.path.join(os.getcwd(), ".venv", "bin", "python")
-        if os.path.isfile(venv_py) and os.access(venv_py, os.X_OK):
+        candidates = []
+        if os.environ.get("VIRTUAL_ENV"):
+            candidates.append(os.path.join(os.environ["VIRTUAL_ENV"], "bin", "python"))
+        candidates.append(os.path.join(os.getcwd(), ".venv", "bin", "python"))
+        for venv_py in candidates:
+            if not (os.path.isfile(venv_py) and os.access(venv_py, os.X_OK)):
+                continue
             try:
                 inc = subprocess.check_output(
                     [
@@ -315,9 +344,10 @@ def detect():
                     text=True,
                 ).strip()
             except subprocess.CalledProcessError:
-                inc = ""
+                continue
             if inc and os.path.isfile(os.path.join(inc, "Python.h")):
                 env["CPPFLAGS"] = f"-I{inc}"
+                break
 
     return env
 
