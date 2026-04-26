@@ -52,9 +52,18 @@ def _shared_lib_deps(path):
 
 
 def _mpi_lib_from_ldd(text):
+    # Skip Cray PE auxiliary MPI plugins. On Cray EX with GPU-aware MPI,
+    # `ldd` lists both the actual MPI shared library (e.g. libmpi_gnu_123.so)
+    # and the transport-layer plugin libmpi_gtl_cuda.so. The plugin is not
+    # the MPI runtime — picking it up causes a spurious "different MPI
+    # libraries" mismatch when mpi4py and h5py happen to list the two libs
+    # in different order.
+    aux_markers = ("_gtl_", "libmpi_cray")
     for line in text.splitlines():
         line = line.strip()
         if "libmpi" not in line:
+            continue
+        if any(m in line for m in aux_markers):
             continue
         if "=>" in line:
             p = line.split("=>")[1].strip().split("(")[0].strip()
