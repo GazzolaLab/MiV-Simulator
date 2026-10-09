@@ -10,6 +10,7 @@ import numpy as np
 from machinable.config import to_dict
 from miv_simulator import config
 from miv_simulator.network import (
+    connect_cell_selection,
     connect_cells,
     connect_gjs,
 )
@@ -31,6 +32,7 @@ from neuroh5.io import (
 )
 from neuron import h
 
+from livn.run import Run
 from livn.stimulus import Stimulus
 from livn.types import Env as EnvProtocol
 from livn.types import SynapticParam
@@ -54,11 +56,25 @@ logging.getLogger("miv_simulator").setLevel(
 )
 
 
+def _cell_types(system) -> dict:
+    value = getattr(system, "cell_types", None)
+    if value is not None:
+        return value
+    legacy = getattr(system, "synapses_config", None)
+    if legacy is not None and "cell_types" in legacy:
+        return legacy["cell_types"]
+    raise AttributeError(
+        f"{type(system).__name__} exposes no cell types; livn's NeuroH5System "
+        "has `cell_types` since 2026-10-08"
+    )
+
+
 class _Compat:
     def __init__(self, env):
         self.__dict__.update(
             {
                 "_env": env,
+                "cells": env._registry,
                 "dt": 0.025,
                 "dataset_path": None,
                 "dataset_prefix": "",
@@ -111,13 +127,11 @@ class Env(EnvProtocol):
         comm: MPI.Intracomm | None = None,
         subworld_size: int | None = None,
     ):
-        from livn.system import System
+        from livn.system import resolve
 
         self.seed = seed
 
-        self.system = (
-            system if not isinstance(system, str) else System(system, comm=comm)
-        )
+        self.system = resolve(system, comm=comm)
         if model is None:
             model = self.system.default_model()
         self.model = model
@@ -150,7 +164,7 @@ class Env(EnvProtocol):
 
         # --- Graph
 
-        self.cells = defaultdict(lambda: dict())
+        self._registry = defaultdict(lambda: dict())
         self.artificial_cells = defaultdict(lambda: dict())
         self.biophys_cells = defaultdict(lambda: dict())
         self.spike_onset_delay = {}
@@ -174,13 +188,17 @@ class Env(EnvProtocol):
         # --- Simulator
         self.template_directory = self.model.neuron_template_directory()
         self.mechanisms_directory = self.model.neuron_mechanisms_directory()
+
+        from livn.backend.neuron import mechanisms as livn_mechanisms
+
+        livn_mechanisms.load_mechanisms(self.mechanisms_directory)
         configure_hoc(
             template_directory=self.template_directory,
-            mechanisms_directory=self.mechanisms_directory,
+            mechanisms_directory=None,
         )
 
         self.pc = h.pc
-        self.rank = int(self.pc.id())
+        # `rank` is livn's read-only protocol property over `comm`
 
         if self.subworld_size is not None:
             self.pc.subworlds(subworld_size)
@@ -223,10 +241,28 @@ class Env(EnvProtocol):
 
         # Refractory spike-source filters (gid -> dict with 'filter', 'in_nc', 'out_nc')
         self._spike_filter_refs: dict[int, dict] = {}
+
         if hasattr(self.model, "neuron_refractory_period"):
             self._refractory_period = float(self.model.neuron_refractory_period())
         else:
-            self._refractory_period = 2.0
+            self._refractory_period = 0.0
+
+        self._select_spec = None
+        self._select_method = "first"
+        self._select_bounds = None
+        self._selection = None
+        self._cell_selection = None  # {pop: sorted gids} once resolved
+        self.v_init = -75.0
+
+    @property
+    def cells(self) -> dict:
+        built = {}
+        for pop, pop_cells in self._registry.items():
+            keep = self.biophys_cells.get(pop)
+            if not keep:
+                continue
+            built[pop] = {gid: obj for gid, obj in pop_cells.items() if gid in keep}
+        return built
 
     @property
     def voltage_recording_dt(self) -> float:
@@ -241,13 +277,39 @@ class Env(EnvProtocol):
             return next(iter(self.i_recs_dt.values()))
         return super().membrane_current_recording_dt
 
+    def selection(self, select, method: str = "first", bounds=None) -> Self:
+        if self._registry:
+            raise RuntimeError("selection() must be called before init()")
+        self._select_spec = select
+        self._select_method = method
+        self._select_bounds = bounds
+        return self
+
+    @property
+    def selection_name(self) -> str | None:
+        spec = self._select_spec
+        return spec if isinstance(spec, str) else None
+
+    def _apply_celsius(self) -> None:
+        """The model's temperature, when it declares one. A template may set
+        `h.celsius` while it builds (PyramidalCell: 35), so this runs after
+        the cells exist and again at the first run, as livn does."""
+        if hasattr(self.model, "neuron_celsius"):
+            h.celsius = float(self.model.neuron_celsius())
+
     def init(self):
         self._load_cells()
         self._load_connections()
         self._insert_opsins()
 
+        if hasattr(h, "nrn_netrec_state_adjust"):
+            h.nrn_netrec_state_adjust = 1
+        if hasattr(h, "nrn_sparse_partrans"):
+            h.nrn_sparse_partrans = 1
+        self._apply_celsius()
+
         # disable defaultdicts
-        self.cells = dict(self.cells)
+        self._registry = dict(self._registry)
         self.artificial_cells = dict(self.artificial_cells)
         self.biophys_cells = dict(self.biophys_cells)
         self.edge_count = dict(self.edge_count)
@@ -306,7 +368,7 @@ class Env(EnvProtocol):
 
         population_ranges = self.system.cells_meta_data.population_ranges
 
-        celltypes = to_dict(self.system.synapses_config["cell_types"])
+        celltypes = to_dict(_cell_types(self.system))
 
         self.model.neuron_celltypes(celltypes)
 
@@ -366,15 +428,30 @@ class Env(EnvProtocol):
         self.io_size = io_size
         self.template_paths = [self.template_directory]
 
-        if self.system.name == "CA1d":
-            self._make_cells(cell_selection={"PYR": [48041]})
-        else:
+        buildable = [
+            k for k in typenames if celltypes[k].get("template") != "VecStim"
+        ]
+        self._selection = self.system.selection(
+            self._select_spec,
+            populations=buildable,
+            seed=self.seed,
+            method=self._select_method,
+            bounds=self._select_bounds,
+        )
+        if self._selection is None:
             self._make_cells()
+        else:
+            self._cell_selection = {
+                pop: sorted(int(g) for g in gids)
+                for pop, gids in self._selection.items()
+                if pop in buildable and len(gids) > 0
+            }
+            self._make_cells(cell_selection=self._cell_selection)
 
         self.mkcellstime = time.time() - st
         if self.rank == 0:
             logger.info(f"*** Cells created in {self.mkcellstime:.02f} s")
-        local_num_cells = sum(len(cells) for cells in self.cells.values())
+        local_num_cells = sum(len(cells) for cells in self._registry.values())
 
         logger.info(f"*** Rank {self.rank} created {local_num_cells} cells")
 
@@ -388,10 +465,43 @@ class Env(EnvProtocol):
         if rank == 0:
             logger.info(f"*** Gap junctions created in {self.connectgjstime:.02f} s")
 
+    def _apply_fitted_cell_params(self, cell, mech_dict) -> None:
+        params = None
+        for block in (mech_dict or {}).values():
+            if isinstance(block, dict) and (
+                "ic_constant" in block or "V_threshold" in block
+            ):
+                params = block
+                break
+        if params is None:
+            return
+        target = (
+            getattr(cell, "hoc_cell", None) or getattr(cell, "cell_obj", None) or cell
+        )
+        soma = getattr(target, "soma", None)
+        if isinstance(soma, list):
+            soma = soma[0] if soma else None
+        soma = getattr(soma, "section", soma)
+        if "ic_constant" in params and soma is not None:
+            try:
+                soma.ic_constant = float(params["ic_constant"])
+            except (AttributeError, LookupError):
+                pass  # no `constant` mechanism on this soma
+        detector = getattr(cell, "spike_detector", None)
+        if "V_threshold" in params and detector is not None:
+            detector.threshold = float(params["V_threshold"])
+
     def _install_spike_filter(self, cell) -> None:
         src_nc = getattr(cell, "spike_detector", None)
         if src_nc is None:
-            return  # artificial cells / hoc cells without a precomputed detector
+            return
+        if self._refractory_period <= 0.0:
+            return
+        if not hasattr(h, "SpikeFilter"):
+            raise RuntimeError(
+                f"a {self._refractory_period} ms refractory period needs the "
+                "`SpikeFilter` mechanism"
+            )
 
         threshold = float(src_nc.threshold)
         delay = float(src_nc.delay)
@@ -420,8 +530,9 @@ class Env(EnvProtocol):
 
         in_nc = h.NetCon(soma_sec(0.5)._ref_v, spike_filter, sec=soma_sec)
         in_nc.threshold = threshold
-        in_nc.delay = delay
+        in_nc.delay = 0.0  # the filter adds no latency; `out_nc` carries 2 dt
         in_nc.weight[0] = weight
+        del delay
 
         out_nc = h.NetCon(spike_filter, None)
         out_nc.delay = max(2.0 * 0.025, 1e-3)
@@ -553,12 +664,13 @@ class Env(EnvProtocol):
                                     mech_dict=mech_dict,
                                 )
                         else:
-                            cell_obj = template_class()
+                            # the same constructor as without a selection,
+                            # so the template receives its fitted parameters
                             cell = cells.make_biophys_cell(
                                 gid=gid,
                                 population_name=pop_name,
-                                cell_obj=cell_obj,
                                 env=compat,
+                                tree_dict=tree,
                                 mech_dict=mech_dict,
                             )
                     else:
@@ -573,6 +685,7 @@ class Env(EnvProtocol):
                     soma_xyz = cells.get_soma_xyz(tree, self.SWC_Types)
                     cell.position(soma_xyz[0], soma_xyz[1], soma_xyz[2])
 
+                    self._apply_fitted_cell_params(cell, mech_dict)
                     self._install_spike_filter(cell)
                     cells.register_cell(compat, pop_name, gid, cell)
                     num_cells += 1
@@ -642,6 +755,7 @@ class Env(EnvProtocol):
                     else:
                         cell = cells.make_hoc_cell(compat, pop_name, gid)
                     cell.position(cell_x, cell_y, cell_z)
+                    self._apply_fitted_cell_params(cell, mech_dict)
                     self._install_spike_filter(cell)
                     cells.register_cell(compat, pop_name, gid, cell)
                     num_cells += 1
@@ -733,7 +847,7 @@ class Env(EnvProtocol):
                 "microcircuit_inputs": microcircuit_inputs,
                 "microcircuit_input_sources": self.input_sources,
                 "spike_input_attribute_info": None,
-                "cell_selection": None,
+                "cell_selection": self._cell_selection,
                 "netclamp_config": None,
                 "use_cell_attr_gen": True,
                 "cell_attr_gen_cache_size": 4,
@@ -745,7 +859,7 @@ class Env(EnvProtocol):
                 "connection_velocity": defaultdict(lambda: 250),
                 "SWC_Types": config.SWCTypesDef.__members__,
                 "celltypes": self.cells_meta_data["celltypes"],
-                "cells": self.cells,
+                "cells": self._registry,
                 "artificial_cells": self.artificial_cells,
                 "dt": 0.025,  # TODO: hoist into run
                 "t_vec": self.t_vec,
@@ -760,7 +874,10 @@ class Env(EnvProtocol):
         )
         this.__dict__["synapse_manager"] = self.synapse_manager
 
-        connect_cells(this)
+        if self._cell_selection is not None:
+            connect_cell_selection(this)
+        else:
+            connect_cells(this)
 
         self.input_sources = this.microcircuit_input_sources
         self.node_allocation = this.node_allocation
@@ -820,7 +937,7 @@ class Env(EnvProtocol):
                 # the filter rather than the biophys cell. Look up the
                 # underlying cell via self.cells instead
                 cell = None
-                for pop_cells in self.cells.values():
+                for pop_cells in self._registry.values():
                     if gid in pop_cells:
                         cell = pop_cells[gid]
                         break
@@ -916,36 +1033,12 @@ class Env(EnvProtocol):
         self.clear_recordings()
 
         if first_run:
-            h.v_init = -75.0
+            h.v_init = float(self.v_init)
             h.stdinit()
             h.secondorder = 2  # crank-nicholson
             h.dt = requested_dt
             self.pc.timeout(600.0)
-            # Mirror each cell template's init_ic(V_rest): when the
-            # template defines that method, evaluate it so the
-            # constant mechanism's `ic_constant` pins the soma at
-            # the per-celltype resting potential.  This must run before
-            # the final finitialize because init_ic itself calls
-            # h.finitialize internally
-            for pop_name, pop_cells in self.biophys_cells.items():
-                celltype_cfg = self.celltypes.get(pop_name, {})
-                mech_cfg = celltype_cfg.get("mechanism", {})
-                v_rest = None
-                for mech_params in mech_cfg.values():
-                    if isinstance(mech_params, dict) and "V_rest" in mech_params:
-                        v_rest = float(mech_params["V_rest"])
-                        break
-                if v_rest is None:
-                    continue
-                for gid, cell in pop_cells.items():
-                    target = getattr(cell, "hoc_cell", None) or getattr(
-                        cell, "cell_obj", None
-                    )
-                    if target is None:
-                        target = cell
-                    init_ic = getattr(target, "init_ic", None)
-                    if callable(init_ic):
-                        init_ic(v_rest)
+            self._apply_celsius()
             h.finitialize(h.v_init)
             h.finitialize(h.v_init)
             if verbose:
@@ -978,10 +1071,18 @@ class Env(EnvProtocol):
 
         # collect spikes
         tt = np.array(self.t_vec.as_numpy(), copy=True)
+        ii = np.asarray(self.id_vec.as_numpy(), dtype=np.uint32)
+
+        built = np.fromiter(
+            (int(gid) for pop in self.biophys_cells.values() for gid in pop),
+            dtype=np.int64,
+        )
+        if tt.size > 0:
+            keep = np.isin(ii.astype(np.int64), built)
+            tt, ii = tt[keep], ii[keep]
         if current_time != 0.0 and tt.size > 0:
             tt -= current_time
             tt[tt < 0.0] = 0.0
-        ii = np.asarray(self.id_vec.as_numpy(), dtype=np.uint32)
 
         # collect voltages
         if len(self.v_recs) > 0:
@@ -998,7 +1099,8 @@ class Env(EnvProtocol):
 
         # collect membrane currents
         if len(self.i_recs) == 0:
-            return ii, tt, iv, v, None, None
+            self.duration = None
+            return self._result(current_time, duration, ii, tt, iv, v, None, None)
 
         gids = self.active_gids()
         sections_per_neuron = len(self.i_recs) // len(gids)
@@ -1030,7 +1132,30 @@ class Env(EnvProtocol):
 
         self.duration = None
 
-        return ii, tt, iv, v, im, currents
+        return self._result(current_time, duration, ii, tt, iv, v, im, currents)
+
+    def _result(self, current_time, duration, ii, tt, iv, v, im, currents):
+        sections = None
+        if iv is not None:
+            sections = np.asarray(
+                [self._section_name(gid, sec_id) for (gid, sec_id) in self.v_recs]
+            )
+        return (
+            Run(t0=current_time, duration=duration)
+            .add_spikes(ii, tt)
+            .add_voltage(iv, v, dt=self.voltage_recording_dt, sections=sections)
+            .add_current(im, currents, dt=self.membrane_current_recording_dt)
+        )
+
+    def _section_name(self, gid: int, sec_id: int) -> str:
+        for pop_cells in self._registry.values():
+            cell = pop_cells.get(int(gid))
+            if cell is not None:
+                try:
+                    return str(cell.sections[sec_id].name()).split(".")[-1]
+                except (AttributeError, IndexError, TypeError):
+                    break
+        return str(sec_id)
 
     def _ensure_stimulus_buffer(self, state: dict, target_length: int) -> None:
         current_length = len(state.get("buffer", []))
@@ -1430,16 +1555,22 @@ class Env(EnvProtocol):
         for key, nc in self._weight_nc_refs.items():
             self.w_recs[key].append(float(nc.weight[2]))
 
-    def _record_voltage(self, population: str, dt: float) -> "Env":
+    def _record_voltage(
+        self, population: str, dt: float, gids=None, sections=None
+    ) -> "Env":
         if population not in self.cells:
             logger.info(
                 f"Rank {self.rank} has no cells; try reducing the number of ranks."
             )
-            return
+            return self
 
         self.v_recs_dt[population] = dt
+        wanted = None if gids is None else {int(g) for g in gids}
+        names = None if sections is None else {str(n) for n in sections}
 
         for gid, cell in self.cells[population].items():
+            if wanted is not None and int(gid) not in wanted:
+                continue
             if not (self.pc.gid_exists(gid)):
                 continue
 
@@ -1447,6 +1578,8 @@ class Env(EnvProtocol):
                 continue
 
             for sec_id, sec in enumerate(cell.sections):
+                if names is not None and str(sec.name()).split(".")[-1] not in names:
+                    continue
                 self.v_recs[(int(gid), sec_id)] = h.Vector()
                 self.v_recs[(int(gid), sec_id)].record(sec(0.5)._ref_v, dt)
 
@@ -1790,7 +1923,7 @@ class Env(EnvProtocol):
             "pc": self.pc,
             "comm": self.comm,
             "node_allocation": self.node_allocation,
-            "cells": self.cells,
+            "cells": self._registry,
             "artificial_cells": self.artificial_cells,
             "biophys_cells": self.biophys_cells,
             "recording_sets": self.recording_sets,
