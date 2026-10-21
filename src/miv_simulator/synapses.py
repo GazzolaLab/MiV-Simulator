@@ -1078,9 +1078,10 @@ class SynapseManager:
             label: index for index, label in enumerate(syn_mech_names)
         }  # int : mech_name dict
 
-        # Define parameter specifications for each mechanism
+        # Parameter specifications
         mech_param_specs = {}
-        for mech_name, rule in syn_param_rules.items():
+        for syn_name, mech_name in syn_mech_names.items():
+            rule = syn_param_rules[mech_name]
             params = {}
             idx = 0
             # Add mechanism parameters
@@ -1091,7 +1092,7 @@ class SynapseManager:
             for param in rule.get("netcon_params", {}).keys():
                 params[param] = idx
                 idx += 1
-            mech_param_specs[mech_name] = params
+            mech_param_specs[syn_name] = params
 
         # Synapse attribute storage
         self.syn_store = SynapseStore(mech_param_specs)
@@ -1537,7 +1538,7 @@ class SynapseManager:
 
         # Check if mechanism exists for this synapse
         return self.syn_store.param_store.has_mechanism_parameters(
-            gid, syn_index, mech_name
+            gid, syn_index, syn_name
         )
 
     def get_mechanism_parameters(
@@ -1577,7 +1578,7 @@ class SynapseManager:
         syn_index = self.syn_store.id_to_index[gid][syn_id]
 
         # Check if mechanism exists
-        if not self.syn_store.param_store.has_mechanism(gid, syn_index, mech_name):
+        if not self.syn_store.param_store.has_mechanism(gid, syn_index, syn_name):
             if throw_error_on_missing_param:
                 raise RuntimeError(
                     f"get_mechanism_parameters: gid {gid} synapse {syn_id}: attributes for synapse {syn_name} mechanism {mech_name} not found"
@@ -1593,7 +1594,7 @@ class SynapseManager:
             for p in all_params
             for v in [
                 self.syn_store.param_store.get_synapse_parameter(
-                    gid, syn_index, mech_name, p
+                    gid, syn_index, syn_name, p
                 )
             ]
             if v is not None
@@ -1635,7 +1636,7 @@ class SynapseManager:
 
         syn_index = self.syn_store.id_to_index[gid][syn_id]
 
-        return self.syn_store.param_store.get_default_params(gid, syn_index, mech_name)
+        return self.syn_store.param_store.get_default_params(gid, syn_index, syn_name)
 
     def get_effective_mechanism_parameters(
         self, gid, syn_id, syn_name, throw_error_on_missing=True
@@ -1689,7 +1690,7 @@ class SynapseManager:
         resolved_params = {}
         for param_name in all_params:
             value, source = self.syn_store.param_store.get_parameter_value_hierarchy(
-                gid, syn_index, mech_name, param_name, syn_id
+                gid, syn_index, syn_name, param_name, syn_id
             )
 
             if value is not None:
@@ -1751,7 +1752,7 @@ class SynapseManager:
         mech_name = self.syn_mech_names[syn_name]
         for param_name, param_value in params.items():
             self.syn_store.param_store.set_default_value(
-                gid, mech_name, param_name, param_value, syn_ids
+                gid, syn_name, param_name, param_value, syn_ids
             )
 
     def add_mechanism_parameters_from_iter(
@@ -1789,14 +1790,14 @@ class SynapseManager:
 
             # Process in batches to avoid memory issues with large inputs
             if len(batch) >= batch_size:
-                self._process_mech_attrs_batch(gid, mech_name, batch, multiple, append)
+                self._process_mech_attrs_batch(gid, syn_name, batch, multiple, append)
                 batch = []
 
         # Process any remaining items
         if batch:
-            self._process_mech_attrs_batch(gid, mech_name, batch, multiple, append)
+            self._process_mech_attrs_batch(gid, syn_name, batch, multiple, append)
 
-    def _process_mech_attrs_batch(self, gid, mech_name, batch, multiple, append):
+    def _process_mech_attrs_batch(self, gid, syn_name, batch, multiple, append):
         """Helper method to add a batch of mechanism attributes."""
         for syn_id, params_dict in batch:
             # Check if synapse exists
@@ -1810,12 +1811,12 @@ class SynapseManager:
 
             # Check if mechanism already has attributes
             has_mech = self.syn_store.param_store.has_mechanism(
-                gid, syn_index, mech_name
+                gid, syn_index, syn_name
             )
             if has_mech:
                 if multiple == "error":
                     raise RuntimeError(
-                        f"add_mechanism_parameters_from_iter: gid {gid} synapse id {syn_id} mechanism {mech_name} already has parameters"
+                        f"add_mechanism_parameters_from_iter: gid {gid} synapse id {syn_id} mechanism {syn_name} already has parameters"
                     )
                 elif multiple == "skip":
                     continue
@@ -1825,13 +1826,13 @@ class SynapseManager:
             for param_name, param_value in params_dict.items():
                 if param_value is None:
                     raise RuntimeError(
-                        f"add_mechanism_parameters_from_iter: gid {gid} synapse id {syn_id} mechanism {mech_name} parameter {param_name} has no value"
+                        f"add_mechanism_parameters_from_iter: gid {gid} synapse id {syn_id} mechanism {syn_name} parameter {param_name} has no value"
                     )
 
                 # Get current value if appending
                 if append and has_mech:
                     current_value = self.syn_store.param_store.get_synapse_parameter(
-                        gid, syn_index, mech_name, param_name
+                        gid, syn_index, syn_name, param_name
                     )
 
                     if current_value is not None:
@@ -1843,7 +1844,7 @@ class SynapseManager:
 
                 # Set parameter value
                 self.syn_store.param_store.set_synapse_parameter(
-                    gid, syn_index, mech_name, param_name, param_value
+                    gid, syn_index, syn_name, param_name, param_value
                 )
 
     def modify_mechanism_parameters(
@@ -1933,7 +1934,7 @@ class SynapseManager:
                 value_result,
                 source,
             ) = self.syn_store.param_store.get_parameter_value_hierarchy(
-                gid, array_index, mech_name, k, syn_id
+                gid, array_index, syn_name, k, syn_id
             )
             old_val = value_result if value_result is not None else mech_param
 
@@ -1964,7 +1965,7 @@ class SynapseManager:
                 value_to_store = new_val
 
             self.syn_store.param_store.set_synapse_parameter(
-                gid, array_index, mech_name, k, value_to_store, syn_id
+                gid, array_index, syn_name, k, value_to_store, syn_id
             )
 
     def stash_mech_attrs(self, pop_name, gid):

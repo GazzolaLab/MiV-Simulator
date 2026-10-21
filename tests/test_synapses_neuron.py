@@ -599,8 +599,8 @@ class TestConfigCellSyns:
     @pytest.fixture
     def config_setup(self, syn_manager):
         """One synapse with a pre-inserted h.ExpSyn and default params stored
-        under the mechanism name ("ExpSyn") as expected by
-        get_effective_mechanism_parameters.
+        under the synapse label ("AMPA"), so one mechanism (GABA_A and GABA_B on
+        LinExp2Syn) does not alias multiple parameters.
 
         Uses yield so that the local `sec` variable stays alive for the
         full duration of each test (NEURON deletes a Section when its Python
@@ -616,11 +616,10 @@ class TestConfigCellSyns:
         pp.e = 0.0
         syn_manager.add_point_process(gid, 0, "AMPA", pp)
 
-        # Store defaults under the mechanism name ("ExpSyn"), which is the key
-        # used internally by get_effective_mechanism_parameters.
-        param_store = syn_manager.syn_store.param_store
-        param_store.set_default_value(gid, "ExpSyn", "tau", 7.5)
-        param_store.set_default_value(gid, "ExpSyn", "e", -5.0)
+        # Defaults go in under the synapse key, through the manager
+        syn_manager.add_default_mechanism_parameters(
+            gid, "AMPA", {"tau": 7.5, "e": -5.0}, syn_ids=None
+        )
 
         env = _make_config_env(syn_manager)
         yield env, syn_ids, pp
