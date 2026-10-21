@@ -428,9 +428,7 @@ class Env(EnvProtocol):
         self.io_size = io_size
         self.template_paths = [self.template_directory]
 
-        buildable = [
-            k for k in typenames if celltypes[k].get("template") != "VecStim"
-        ]
+        buildable = [k for k in typenames if celltypes[k].get("template") != "VecStim"]
         self._selection = self.system.selection(
             self._select_spec,
             populations=buildable,
