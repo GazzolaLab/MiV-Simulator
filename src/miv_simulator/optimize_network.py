@@ -32,6 +32,7 @@ from miv_simulator.optimization import (
 )
 from miv_simulator.network_objectives import (
     load_network_opt_config,
+    merge_raw_features,
 )
 
 from dmosopt import dmosopt
@@ -155,6 +156,8 @@ def optimize_network(
     spawn_workers,
     get_best,
     verbose,
+    surrogate_custom_training=None,
+    surrogate_custom_training_kwargs=None,
 ):
     network_args = click.get_current_context().args
     network_config = {}
@@ -229,6 +232,26 @@ def optimize_network(
     if "batch_size" not in surrogate_method_kwargs:
         surrogate_method_kwargs["batch_size"] = 400
 
+    surrogate_config = operational_config.get("Surrogate", {}) or {}
+    if surrogate_custom_training is None:
+        surrogate_custom_training = surrogate_config.get("custom_training")
+    custom_kwargs = dict(surrogate_config.get("kwargs", {}) or {})
+    custom_kwargs.update(surrogate_custom_training_kwargs or {})
+    weights = custom_kwargs.get("feasibility_constraint_weights")
+    if isinstance(weights, dict):
+        resolved = {}
+        for entry, weight in weights.items():
+            if isinstance(entry, str):
+                if entry not in constraint_names:
+                    raise RuntimeError(
+                        f"feasibility_constraint_weights names constraint {entry!r}, "
+                        f"which is not among the constraints {constraint_names}"
+                    )
+                resolved[constraint_names.index(entry)] = float(weight)
+            else:
+                resolved[int(entry)] = float(weight)
+        custom_kwargs["feasibility_constraint_weights"] = resolved
+
     dmosopt_params = {
         "opt_id": "miv_simulator.optimize_network",
         "obj_fun_init_name": f"miv_simulator.optimize_network.{init_objfun}",
@@ -249,8 +272,16 @@ def optimize_network(
         "initial_maxiter": initial_maxiter,
         "initial_method": initial_method,
         "optimizer_name": optimizer_method,
-        "surrogate_method_name": surrogate_method,
-        "surrogate_method_kwargs": surrogate_method_kwargs,
+        "surrogate_method_name": None
+        if surrogate_custom_training
+        else surrogate_method,
+        "surrogate_method_kwargs": {}
+        if surrogate_custom_training
+        else surrogate_method_kwargs,
+        "surrogate_custom_training": surrogate_custom_training,
+        "surrogate_custom_training_kwargs": custom_kwargs
+        if surrogate_custom_training
+        else None,
         "n_epochs": n_epochs,
         "population_size": population_size,
         "num_generations": num_generations,
@@ -323,7 +354,7 @@ def init_network_objfun(
         h.pc.set_maxstep(10)
         h.pc.psolve(0.05)
 
-    t_start = 50.0
+    t_start = float(operational_config.get("t_start", 50.0))
     t_stop = env.tstop
 
     def from_param_dict(params_dict):
@@ -381,25 +412,18 @@ def network_objfun(
 def _merge_pop_features(pop_features_dicts):
     """Aggregate per-worker per-population raw spike dicts into one.
 
-    Sums n_total, n_active; merges spike_density_dict keys; uses first worker's time_bins.
+    Sums n_total and n_active; merges spike_density_dict and spike_times by
+    gid; uses first worker's time_bins.
     """
     if not pop_features_dicts:
         return {}
-
     result = {
         "n_total": 0,
         "n_active": 0,
         "time_bins": None,
         "spike_density_dict": {},
     }
-
-    for pop_feature_dict in pop_features_dicts:
-        result["n_total"] += pop_feature_dict["n_total"]
-        result["n_active"] += pop_feature_dict["n_active"]
-        if result["time_bins"] is None:
-            result["time_bins"] = pop_feature_dict["time_bins"]
-        result["spike_density_dict"].update(pop_feature_dict["spike_density_dict"])
-
+    result.update(merge_raw_features(pop_features_dicts))
     return result
 
 

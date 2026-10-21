@@ -30,6 +30,18 @@ from miv_simulator.optimize_network import optimize_network
 @click.option("--initial-method", type=str, default="glp")
 @click.option("--optimizer-method", type=str, default="nsga2")
 @click.option("--surrogate-method", type=str, default="megp")
+@click.option(
+    "--surrogate-custom-training",
+    type=str,
+    default=None,
+    help="dotted path of a dmosopt custom surrogate training function"
+)
+@click.option(
+    "--surrogate-custom-training-kwargs",
+    type=str,
+    default=None,
+    help="JSON object of keyword arguments for the custom training function"
+)
 @click.option("--population-size", type=int, default=100)
 @click.option("--num-generations", type=int, default=200)
 @click.option("--resample-fraction", type=float)
@@ -50,6 +62,8 @@ def main_cli(
     initial_method,
     optimizer_method,
     surrogate_method,
+    surrogate_custom_training,
+    surrogate_custom_training_kwargs,
     population_size,
     num_generations,
     resample_fraction,
@@ -60,7 +74,14 @@ def main_cli(
     get_best,
     verbose,
 ):
+    import json
+
     surrogate_method_kwargs = {"batch_size": 400}
+    custom_kwargs = (
+        json.loads(surrogate_custom_training_kwargs)
+        if surrogate_custom_training_kwargs
+        else None
+    )
     optimize_network(
         config_path,
         optimize_file_dir,
@@ -82,4 +103,6 @@ def main_cli(
         spawn_workers,
         get_best,
         verbose,
+        surrogate_custom_training=surrogate_custom_training,
+        surrogate_custom_training_kwargs=custom_kwargs,
     )

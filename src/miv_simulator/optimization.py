@@ -373,6 +373,10 @@ def update_run_params(env, param_tuples):
 
 def network_features(env, t_start, t_stop, target_populations):
     features_dict = dict()
+    t_all = np.asarray(env.t_vec.to_python(), dtype=np.float32)
+    id_all = np.asarray(env.id_vec.to_python(), dtype=np.uint32)
+    in_window = (t_all >= t_start) & (t_all <= t_stop)
+    t_all, id_all = t_all[in_window], id_all[in_window]
 
     analysis_config = env.analysis_config
     if analysis_config is None:
@@ -401,6 +405,17 @@ def network_features(env, t_start, t_stop, target_populations):
         pop_features_dict["n_active"] = n_active
         pop_features_dict["time_bins"] = time_bins
         pop_features_dict["spike_density_dict"] = spike_density_dict
+
+        info = env.celltypes[pop_name]
+        start, num = int(info["start"]), int(info["num"])
+        mask = (id_all >= start) & (id_all < start + num)
+        artificial = env.artificial_cells.get(pop_name, {})
+        spike_times = {}
+        for gid in np.unique(id_all[mask]):
+            if gid in artificial:
+                continue
+            spike_times[int(gid)] = t_all[id_all == gid]
+        pop_features_dict["spike_times"] = spike_times
 
         features_dict[pop_name] = pop_features_dict
 

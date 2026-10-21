@@ -35,6 +35,24 @@ class NetworkFeature(ABC):
         ...
 
 
+def merge_raw_features(dicts: List[Dict]) -> Dict:
+    result: Dict = {}
+    for d in dicts:
+        for key, value in d.items():
+            if key == "time_bins":
+                if result.get(key) is None:
+                    result[key] = value
+            elif isinstance(value, dict):
+                result.setdefault(key, {}).update(value)
+            elif isinstance(value, np.ndarray):
+                result[key] = value if key not in result else result[key] + value
+            elif isinstance(value, (int, float, np.integer, np.floating)):
+                result[key] = result.get(key, 0) + value
+            elif key not in result:
+                result[key] = value
+    return result
+
+
 class NetworkObjective(ABC):
     """Abstract base class for network objectives."""
 
@@ -218,6 +236,35 @@ class MeanFiringRateFeature(NetworkFeature):
         return {"mean_rate": mean_rate}
 
 
+class PopulationFiringRateFeature(NetworkFeature):
+    """Mean firing rate over every cell of the population, silent ones included.
+
+    ``MeanFiringRateFeature`` averages over active cells only, so a population in
+    which a tenth of the cells fire fast reads as a fast population. This
+    feature divides the same per-cell rates by the population's cell count
+    instead, so a largely silent population reads as slow.
+    """
+
+    @property
+    def feature_names(self) -> List[str]:
+        return ["population_rate"]
+
+    def compute(
+        self,
+        pop_name: str,
+        pop_features_dict: Dict,
+    ) -> Dict[str, float]:
+        n_total = pop_features_dict["n_total"]
+        if n_total <= 0:
+            return {"population_rate": 0.0}
+        spike_density_dict = pop_features_dict["spike_density_dict"]
+        total_rate = sum(
+            float(np.mean(dens_dict["rate"]))
+            for dens_dict in spike_density_dict.values()
+        )
+        return {"population_rate": total_rate / float(n_total)}
+
+
 class FractionActiveFeature(NetworkFeature):
     """Fraction of active neurons feature."""
 
@@ -246,11 +293,16 @@ class FiringRateStabilityFeature(NetworkFeature):
 
     def __init__(
         self,
-        active_threshold: float = 0.01,
+        active_threshold: Union[float, Dict[str, float]] = 0.01,
         temporal_resolution: float = 2.0,
     ):
         self.active_threshold = active_threshold
         self.temporal_resolution = temporal_resolution
+
+    def threshold(self, pop_name: str) -> float:
+        if isinstance(self.active_threshold, dict):
+            return float(self.active_threshold.get(pop_name, 0.01))
+        return float(self.active_threshold)
 
     @property
     def feature_names(self) -> List[str]:
@@ -283,7 +335,7 @@ class FiringRateStabilityFeature(NetworkFeature):
                 time_bins,
                 dens_dict["rate"].astype(np.float32),
             ).astype(np.float32)
-            active_per_bin = ip_rate > self.active_threshold
+            active_per_bin = ip_rate > self.threshold(pop_name)
             sum_active_per_bin += active_per_bin
 
         if n_total > 0:
@@ -364,6 +416,41 @@ class PopulationSynchronyFeature(NetworkFeature):
         return {"pairwise_synchrony": pairwise_synchrony}
 
 
+class ParticipationRatioFeature(NetworkFeature):
+    """How much of a population fires together."""
+
+    def __init__(self, bin_size: float = 50.0):
+        self.bin_size = float(bin_size)
+
+    @property
+    def feature_names(self) -> List[str]:
+        return ["peak_active_fraction", "participation_ratio"]
+
+    def compute(self, pop_name: str, pop_features_dict: Dict) -> Dict[str, float]:
+        n_total = pop_features_dict.get("n_total", 0)
+        spike_times = pop_features_dict.get("spike_times") or {}
+        time_bins = pop_features_dict.get("time_bins")
+        if n_total <= 0 or time_bins is None or len(time_bins) == 0:
+            return {"peak_active_fraction": 0.0, "participation_ratio": 0.0}
+        t_start = float(time_bins[0])
+        t_stop = float(time_bins[-1]) + (
+            float(time_bins[1] - time_bins[0]) if len(time_bins) > 1 else 0.0
+        )
+        n_bins = max(1, int(round((t_stop - t_start) / self.bin_size)))
+        active = np.zeros(n_bins, dtype=np.int64)
+        for ts in spike_times.values():
+            idx = np.floor((np.asarray(ts, dtype=float) - t_start) / self.bin_size)
+            idx = np.unique(idx[(idx >= 0) & (idx < n_bins)]).astype(np.int64)
+            active[idx] += 1
+        fraction = active / float(n_total)
+        mean = float(fraction.mean())
+        peak = float(fraction.max())
+        return {
+            "peak_active_fraction": peak,
+            "participation_ratio": peak / mean if mean > 0 else 0.0,
+        }
+
+
 class TargetRateObjective(NetworkObjective):
     """Objective to match a target firing rate for a population."""
 
@@ -383,6 +470,37 @@ class TargetRateObjective(NetworkObjective):
     def compute(self, feature_values: Dict[str, float]) -> float:
         rate = feature_values.get(f"{self._pop_name}.mean_rate", 0.0)
         return -((rate - self._target_rate) ** 2)
+
+
+class TargetLogRateObjective(NetworkObjective):
+    """Objective to match a target firing rate on a logarithmic scale."""
+
+    def __init__(
+        self,
+        pop_name: str,
+        target_rate: float,
+        feature: str = "population_rate",
+        eps: float = 1e-3,
+        name: Optional[str] = None,
+    ):
+        self._pop_name = pop_name
+        self._target_rate = target_rate
+        self._feature = feature
+        self._eps = eps
+        self._name = name or f"{pop_name}_target_log_rate"
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def required_features(self) -> List[str]:
+        return [f"{self._pop_name}.{self._feature}"]
+
+    def compute(self, feature_values: Dict[str, float]) -> float:
+        rate = feature_values.get(f"{self._pop_name}.{self._feature}", 0.0)
+        ratio = (max(rate, 0.0) + self._eps) / (self._target_rate + self._eps)
+        return -(float(np.log(ratio)) ** 2)
 
 
 class TargetFractionActiveObjective(NetworkObjective):
@@ -591,11 +709,13 @@ class FiringRateBoundConstraint(NetworkConstraint):
         pop_name: str,
         min_rate: float = 0.0,
         max_rate: float = float("inf"),
+        feature: str = "mean_rate",
         name: Optional[str] = None,
     ):
         self._pop_name = pop_name
         self._min_rate = min_rate
         self._max_rate = max_rate
+        self._feature = feature
         self._name = name or f"{pop_name}_rate_bound"
 
     @property
@@ -604,10 +724,10 @@ class FiringRateBoundConstraint(NetworkConstraint):
 
     @property
     def required_features(self) -> List[str]:
-        return [f"{self._pop_name}.mean_rate"]
+        return [f"{self._pop_name}.{self._feature}"]
 
     def compute(self, feature_values: Dict[str, float]) -> float:
-        rate = feature_values.get(f"{self._pop_name}.mean_rate", 0.0)
+        rate = feature_values.get(f"{self._pop_name}.{self._feature}", 0.0)
         c1 = rate - self._min_rate
         c2 = self._max_rate - rate
         return min(c1, c2)
@@ -634,6 +754,36 @@ class MinActiveFractionConstraint(NetworkConstraint):
         return frac - self._min_fraction
 
 
+class ActiveFractionBoundConstraint(NetworkConstraint):
+    """Constraint on the fraction of active cells, with a lower and upper bound."""
+
+    def __init__(
+        self,
+        pop_name: str,
+        min_fraction: float = 0.0,
+        max_fraction: float = float("inf"),
+        feature: str = "fraction_active",
+        name: Optional[str] = None,
+    ):
+        self._pop_name = pop_name
+        self._min_fraction = min_fraction
+        self._max_fraction = max_fraction
+        self._feature = feature
+        self._name = name or f"{pop_name}_active_fraction_bound"
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def required_features(self) -> List[str]:
+        return [f"{self._pop_name}.{self._feature}"]
+
+    def compute(self, feature_values: Dict[str, float]) -> float:
+        frac = feature_values.get(f"{self._pop_name}.{self._feature}", 0.0)
+        return min(frac - self._min_fraction, self._max_fraction - frac)
+
+
 class SteadyFiringConstraint(NetworkConstraint):
     """Constraint on maximum allowed CV for steady firing."""
 
@@ -653,6 +803,28 @@ class SteadyFiringConstraint(NetworkConstraint):
     def compute(self, feature_values: Dict[str, float]) -> float:
         rate_cv = feature_values.get(f"{self._pop_name}.rate_cv", 0.0)
         return self._max_cv - rate_cv
+
+
+class SynchronyBoundConstraint(NetworkConstraint):
+    """Participation ratio at most ``max_ratio``."""
+
+    def __init__(self, pop_name: str, max_ratio: float, name: Optional[str] = None):
+        self._pop_name = pop_name
+        self._max_ratio = max_ratio
+        self._name = name or f"{pop_name}_synchrony_bound"
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def required_features(self) -> List[str]:
+        return [f"{self._pop_name}.participation_ratio"]
+
+    def compute(self, feature_values: Dict[str, float]) -> float:
+        return self._max_ratio - feature_values.get(
+            f"{self._pop_name}.participation_ratio", 0.0
+        )
 
 
 def load_network_opt_config(
